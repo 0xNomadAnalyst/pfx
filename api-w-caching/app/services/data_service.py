@@ -216,10 +216,15 @@ class DataService:
 
     def _liquidity_distribution(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._tick_dist_rows(params)
+        current_price = next((row.get("current_price_t1_per_t0") for row in rows if row.get("current_price_t1_per_t0") is not None), None)
         return {
             "kind": "chart",
             "chart": "bar",
             "x": [row["tick_price_t1_per_t0"] for row in rows],
+            "reference_lines": {
+                "peg": 1.0,
+                "current_price": current_price,
+            },
             "series": [
                 {"name": "USDC Liquidity", "type": "bar", "data": [row["token1_value"] for row in rows]},
                 {"name": "USX Liquidity", "type": "bar", "data": [row["token0_value"] for row in rows]},
@@ -228,10 +233,15 @@ class DataService:
 
     def _liquidity_depth(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._tick_dist_rows(params)
+        current_price = next((row.get("current_price_t1_per_t0") for row in rows if row.get("current_price_t1_per_t0") is not None), None)
         return {
             "kind": "chart",
             "chart": "line-area",
             "x": [row["tick_price_t1_per_t0"] for row in rows],
+            "reference_lines": {
+                "peg": 1.0,
+                "current_price": current_price,
+            },
             "series": [
                 {"name": "USDC Cumulative", "type": "line", "area": True, "data": [row["token1_cumul"] for row in rows]},
                 {"name": "USX Cumulative", "type": "line", "area": True, "data": [row["token0_cumul"] for row in rows]},
@@ -241,6 +251,7 @@ class DataService:
     def _liquidity_change_heatmap(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._tick_dist_rows(params)
         x_axis = [row["tick_price_t1_per_t0"] for row in rows]
+        current_price = next((row.get("current_price_t1_per_t0") for row in rows if row.get("current_price_t1_per_t0") is not None), None)
         raw_values = [float(row.get("liquidity_period_delta_in_t1_units_pct") or 0) for row in rows]
         max_abs = max((abs(value) for value in raw_values), default=0.0)
         if max_abs == 0:
@@ -257,6 +268,10 @@ class DataService:
             "kind": "chart",
             "chart": "heatmap",
             "x": x_axis,
+            "reference_lines": {
+                "peg": 1.0,
+                "current_price": current_price,
+            },
             "points": points,
             "min": min_value,
             "max": max_value,

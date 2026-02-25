@@ -16,10 +16,17 @@
     "usdc-pool-share-concentration",
     "trade-impact-toggle",
   ]);
+  const tickReferenceWidgets = new Set([
+    "liquidity-distribution",
+    "liquidity-depth",
+    "liquidity-change-heatmap",
+  ]);
   const linkedGroups = {
     left: "linked-zoom-left",
     right: "linked-zoom-right",
   };
+  let leftDefaultZoomWindow = null;
+  let leftDefaultZoomSignature = "";
 
   function palette() {
     const theme = document.documentElement.getAttribute("data-theme");
@@ -35,6 +42,26 @@
 
   function chartGridColor() {
     return getComputedStyle(document.documentElement).getPropertyValue("--border").trim() || "#20314d";
+  }
+
+  function chartLabelBadgeStyle() {
+    const theme = document.documentElement.getAttribute("data-theme");
+    if (theme === "light") {
+      return {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        borderColor: "rgba(95, 115, 150, 0.55)",
+      };
+    }
+    return {
+      backgroundColor: "rgba(10, 16, 32, 0.65)",
+      borderColor: "rgba(142, 161, 199, 0.45)",
+    };
+  }
+
+  function currentPriceReferenceColor() {
+    const theme = document.documentElement.getAttribute("data-theme");
+    // Violet reads distinctly against blue series in both themes.
+    return theme === "light" ? "#8f3dff" : "#c186ff";
   }
 
   function formatNumber(value) {
@@ -72,6 +99,202 @@
     const hours = String(date.getHours()).padStart(2, "0");
     const minutes = String(date.getMinutes()).padStart(2, "0");
     return `${month}-${day} ${hours}:${minutes}`;
+  }
+
+  function xAxisSignature(data) {
+    const xValues = Array.isArray(data?.x) ? data.x : [];
+    if (xValues.length === 0) {
+      return "";
+    }
+    return `${xValues.length}|${String(xValues[0])}|${String(xValues[xValues.length - 1])}`;
+  }
+
+  function computeFocusedZoomWindow(widgetId, data) {
+    const xValues = data?.x || [];
+    const n = Array.isArray(xValues) ? xValues.length : 0;
+    if (n < 8) {
+      return null;
+    }
+
+    const intensity = Array.from({ length: n }, () => 0);
+    if (widgetId === "liquidity-change-heatmap" && Array.isArray(data?.points)) {
+      data.points.forEach((point) => {
+        const idx = Number(point?.[0]);
+        const value = Math.abs(Number(point?.[2]));
+        if (Number.isFinite(idx) && idx >= 0 && idx < n && Number.isFinite(value)) {
+          intensity[idx] += value;
+        }
+      });
+    } else if (Array.isArray(data?.series)) {
+      data.series.forEach((series) => {
+        const values = Array.isArray(series?.data) ? series.data : [];
+        for (let i = 0; i < Math.min(values.length, n); i += 1) {
+          const numeric = Math.abs(Number(values[i]));
+          if (Number.isFinite(numeric)) {
+            intensity[i] += numeric;
+          }
+        }
+      });
+    }
+
+    const total = intensity.reduce((sum, value) => sum + value, 0);
+    if (total <= 0) {
+      return { start: 20, end: 80 };
+    }
+
+    const lowerTarget = total * 0.02;
+    const upperTarget = total * 0.98;
+    let cumulative = 0;
+    let lowIdx = 0;
+    let highIdx = n - 1;
+
+    for (let i = 0; i < n; i += 1) {
+      cumulative += intensity[i];
+      if (cumulative >= lowerTarget) {
+        lowIdx = i;
+        break;
+      }
+    }
+
+    cumulative = 0;
+    for (let i = 0; i < n; i += 1) {
+      cumulative += intensity[i];
+      if (cumulative >= upperTarget) {
+        highIdx = i;
+        break;
+      }
+    }
+
+    const indexPad = Math.max(2, Math.round(n * 0.04));
+    lowIdx = Math.max(0, lowIdx - indexPad);
+    highIdx = Math.min(n - 1, highIdx + indexPad);
+
+    let start = (lowIdx / (n - 1)) * 100;
+    let end = (highIdx / (n - 1)) * 100;
+    const width = end - start;
+    const minWidth = 22;
+    if (width < minWidth) {
+      const extra = (minWidth - width) / 2;
+      start = Math.max(0, start - extra);
+      end = Math.min(100, end + extra);
+    }
+    if (end - start > 92) {
+      return { start: 4, end: 96 };
+    }
+    return { start, end };
+  }
+
+  function nearestCategoryIndex(xValues, target) {
+    const numericTarget = Number(target);
+    if (!Number.isFinite(numericTarget) || !Array.isArray(xValues) || xValues.length === 0) {
+      return null;
+    }
+    let bestIndex = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < xValues.length; i += 1) {
+      const numeric = Number(xValues[i]);
+      if (!Number.isFinite(numeric)) {
+        continue;
+      }
+      const distance = Math.abs(numeric - numericTarget);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = i;
+      }
+    }
+    return bestIndex;
+  }
+
+  function buildTickReferenceMarkLine(data) {
+    const refs = data?.reference_lines || {};
+    const xValues = Array.isArray(data?.x) ? data.x : [];
+    if (xValues.length === 0) {
+      return null;
+    }
+
+    const lines = [];
+    const pegValue = Number(refs.peg);
+    let pegIndex = null;
+    if (Number.isFinite(pegValue)) {
+      pegIndex = nearestCategoryIndex(xValues, pegValue);
+      if (pegIndex !== null) {
+        lines.push({
+          kind: "peg",
+          name: "Peg",
+          xAxis: pegIndex,
+          lineStyle: { color: "#ffe45c", type: "dotted", width: 2, opacity: 0.98 },
+        });
+      }
+    }
+
+    const currentPrice = Number(refs.current_price);
+    let currentIndex = null;
+    if (Number.isFinite(currentPrice)) {
+      currentIndex = nearestCategoryIndex(xValues, currentPrice);
+      if (currentIndex !== null) {
+        lines.push({
+          kind: "current",
+          name: formatPrice4dp(currentPrice),
+          xAxis: currentIndex,
+          lineStyle: { color: currentPriceReferenceColor(), type: "dotted", width: 2, opacity: 0.95 },
+        });
+      }
+    }
+
+    if (lines.length === 0) {
+      return null;
+    }
+
+    const labelsAreClose =
+      Number.isInteger(pegIndex) && Number.isInteger(currentIndex) && Math.abs(pegIndex - currentIndex) <= 4;
+    if (labelsAreClose) {
+      const pegOnRight = pegIndex > currentIndex;
+      const badgeStyle = chartLabelBadgeStyle();
+      lines.forEach((line) => {
+        const isPeg = line.kind === "peg";
+        const placeRight = isPeg ? pegOnRight : !pegOnRight;
+        line.label = {
+          show: true,
+          position: "end",
+          rotate: 0,
+          align: placeRight ? "left" : "right",
+          verticalAlign: "top",
+          offset: placeRight ? [8, 2] : [-8, 2],
+          color: chartTextColor(),
+          fontSize: 11,
+          backgroundColor: badgeStyle.backgroundColor,
+          borderColor: badgeStyle.borderColor,
+          borderWidth: 1,
+          padding: [1, 4],
+          borderRadius: 3,
+        };
+      });
+    }
+
+    const defaultBadgeStyle = chartLabelBadgeStyle();
+    return {
+      silent: true,
+      animation: false,
+      symbol: ["none", "none"],
+      label: {
+        show: true,
+        formatter: (params) => params.name || "",
+        position: "end",
+        rotate: 0,
+        align: "center",
+        verticalAlign: "top",
+        offset: [0, 2],
+        color: chartTextColor(),
+        fontSize: 11,
+        backgroundColor: defaultBadgeStyle.backgroundColor,
+        borderColor: defaultBadgeStyle.borderColor,
+        borderWidth: 1,
+        padding: [1, 4],
+        borderRadius: 3,
+      },
+      z: 20,
+      data: lines,
+    };
   }
 
   function renderKpi(widgetId, data) {
@@ -221,12 +444,31 @@
       instance = echarts.init(el);
     }
 
+    const isLeftLinked = leftLinkedZoomWidgets.has(widgetId);
+    if (isLeftLinked) {
+      const signature = xAxisSignature(data);
+      if (signature && signature !== leftDefaultZoomSignature) {
+        leftDefaultZoomWindow = computeFocusedZoomWindow(widgetId, data);
+        leftDefaultZoomSignature = signature;
+      } else if (!leftDefaultZoomWindow) {
+        leftDefaultZoomWindow = computeFocusedZoomWindow(widgetId, data);
+      }
+    }
+
     let option;
+    const focusedTickZoom = isLeftLinked ? leftDefaultZoomWindow : null;
     if (data.chart === "heatmap") {
       const minValue = Number(data.min ?? -1);
       const maxValue = Number(data.max ?? 1);
       const leftLegend = `${minValue.toFixed(2)}%`;
       const rightLegend = `${maxValue >= 0 ? "+" : ""}${maxValue.toFixed(2)}%`;
+      const heatmapSeries = { type: "heatmap", data: data.points || [] };
+      if (tickReferenceWidgets.has(widgetId)) {
+        const markLine = buildTickReferenceMarkLine(data);
+        if (markLine) {
+          heatmapSeries.markLine = markLine;
+        }
+      }
       option = {
         color: palette(),
         tooltip: { position: "top" },
@@ -269,7 +511,7 @@
             ],
           },
         },
-        series: [{ type: "heatmap", data: data.points || [] }],
+        series: [heatmapSeries],
       };
       if (leftLinkedZoomWidgets.has(widgetId)) {
         option.dataZoom = [
@@ -277,6 +519,8 @@
             type: "inside",
             xAxisIndex: 0,
             filterMode: "none",
+            start: focusedTickZoom?.start,
+            end: focusedTickZoom?.end,
           },
         ];
       }
@@ -310,6 +554,8 @@
             type: "inside",
             xAxisIndex: 0,
             filterMode: "none",
+            start: focusedTickZoom?.start,
+            end: focusedTickZoom?.end,
           },
           {
             type: "slider",
@@ -318,6 +564,8 @@
             bottom: 2,
             borderColor: chartGridColor(),
             brushSelect: false,
+            start: focusedTickZoom?.start,
+            end: focusedTickZoom?.end,
           },
         ];
       }
@@ -351,10 +599,27 @@
           return `${header}<br/>${rows}`;
         };
       }
+      if (tickReferenceWidgets.has(widgetId) && Array.isArray(option.series) && option.series.length > 0) {
+        const markLine = buildTickReferenceMarkLine(data);
+        if (markLine) {
+          option.series[0] = {
+            ...option.series[0],
+            markLine,
+          };
+        }
+      }
       if (widgetId === "usdc-lp-flows") {
         option.yAxis = [
           {
             type: "value",
+            min: (axis) => {
+              const absMax = Math.max(Math.abs(Number(axis.min) || 0), Math.abs(Number(axis.max) || 0));
+              return -absMax;
+            },
+            max: (axis) => {
+              const absMax = Math.max(Math.abs(Number(axis.min) || 0), Math.abs(Number(axis.max) || 0));
+              return absMax;
+            },
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { lineStyle: { color: chartGridColor() } },
             axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0] },
@@ -362,6 +627,14 @@
           {
             type: "value",
             position: "right",
+            min: (axis) => {
+              const absMax = Math.max(Math.abs(Number(axis.min) || 0), Math.abs(Number(axis.max) || 0));
+              return -absMax;
+            },
+            max: (axis) => {
+              const absMax = Math.max(Math.abs(Number(axis.min) || 0), Math.abs(Number(axis.max) || 0));
+              return absMax;
+            },
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { show: false },
             axisLabel: {
@@ -377,6 +650,13 @@
     if (leftLinkedZoomWidgets.has(widgetId)) {
       instance.group = linkedGroups.left;
       echarts.connect(linkedGroups.left);
+      if (focusedTickZoom) {
+        instance.dispatchAction({
+          type: "dataZoom",
+          start: focusedTickZoom.start,
+          end: focusedTickZoom.end,
+        });
+      }
     } else if (rightLinkedZoomWidgets.has(widgetId)) {
       instance.group = linkedGroups.right;
       echarts.connect(linkedGroups.right);
@@ -487,6 +767,8 @@
   }
 
   function resetDashboardLoading() {
+    leftDefaultZoomWindow = null;
+    leftDefaultZoomSignature = "";
     widgetElements().forEach((el) => resetWidgetView(el));
   }
 
