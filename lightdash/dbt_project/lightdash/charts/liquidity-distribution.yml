@@ -1,0 +1,113 @@
+name: Liquidity distribution
+description: (USX-USDC)
+tableName: dex_tick_dimension_data
+updatedAt: "2026-02-21T03:56:36.865Z"
+metricQuery:
+  exploreName: dex_tick_dimension_data
+  dimensions:
+    - dex_tick_dimension_data_tick_price_t1_per_t0
+    - dex_tick_dimension_data_token_side
+  metrics:
+    - dex_tick_dimension_data_token_value_max
+  filters:
+    dimensions:
+      id: 4cf1ec0c-2d90-4b9d-b7e3-d18edfa5c7af
+      and:
+        - id: d238b705-60df-4cff-a3a8-433827e7d33c
+          target:
+            fieldId: dex_tick_dimension_data_protocol
+          values:
+            - orca
+          operator: equals
+          required: false
+        - id: 7191fe3d-55aa-4f01-b8d0-6ad869323708
+          target:
+            fieldId: dex_tick_dimension_data_pair
+          values:
+            - USX-USDC
+          operator: equals
+          required: false
+  sorts:
+    - fieldId: dex_tick_dimension_data_tick_price_t1_per_t0
+      descending: false
+  limit: 500
+  metricOverrides: {}
+  dimensionOverrides: {}
+  tableCalculations: []
+  additionalMetrics: []
+  customDimensions: []
+chartConfig:
+  type: cartesian
+  config:
+    layout:
+      stack: true
+      xField: dex_tick_dimension_data_tick_price_t1_per_t0
+      yField:
+        - dex_tick_dimension_data_token_value_max
+      flipAxes: false
+    eChartsConfig:
+      xAxis:
+        - max: "1.005"
+          min: "0.995"
+          name: USX/USDC
+        - {}
+      yAxis:
+        - name: Nominal USD
+        - {}
+      legend:
+        type: scroll
+        orient: horizontal
+      series:
+        - type: bar
+          stack: token_value
+          encode:
+            xRef:
+              field: dex_tick_dimension_data_tick_price_t1_per_t0
+            yRef:
+              field: dex_tick_dimension_data_token_value_max
+              pivotValues:
+                - field: dex_tick_dimension_data_token_side
+                  value: Token 0
+          markLine:
+            data:
+              - name: Peg
+                uuid: c2b7e199-d249-4045-ad88-2e2bc358099e
+                label:
+                  position: end
+                  formatter: Peg
+                xAxis: "1"
+                lineStyle:
+                  color: "#faec58"
+            symbol: none
+            lineStyle:
+              type: solid
+              color: "#000"
+              width: 3
+          yAxisIndex: 0
+          isFilteredOut: false
+        - type: bar
+          stack: token_value
+          encode:
+            xRef:
+              field: dex_tick_dimension_data_tick_price_t1_per_t0
+            yRef:
+              field: dex_tick_dimension_data_token_value_max
+              pivotValues:
+                - field: dex_tick_dimension_data_token_side
+                  value: Token 1
+          yAxisIndex: 0
+          isFilteredOut: false
+      tooltip: ""
+      showAxisTicks: false
+pivotConfig:
+  columns:
+    - dex_tick_dimension_data_token_side
+slug: liquidity-distribution
+tableConfig:
+  columnOrder:
+    - dex_tick_dimension_data_tick_price_t1_per_t0
+    - dex_tick_dimension_data_token_side
+    - dex_tick_dimension_data_token_value_max
+spaceSlug: shared
+version: 1
+downloadedAt: "2026-02-21T04:08:03.522Z"

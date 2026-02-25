@@ -1,0 +1,202 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.19.5"
+  },
+  "cells": [
+    {
+      "id": "MJUe",
+      "code_hash": "3ba5fad1e746ce341c55782289a62306",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h1 id=\"onyc-dex-markets-dashboard\">ONyc DEX Markets Dashboard</h1>\n<span class=\"paragraph\">Live data from <strong>Raydium CLMM</strong> (USDG-ONyc) and <strong>Orca Whirlpool</strong> (ONyc-USDC) pools.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "dca45745524295e5b2898d655bceb5c9",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"onyc-price-usd-equivalent\">ONyc Price (USD-equivalent)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "emfo",
+      "code_hash": "98d2590642064d4ef2352c750ccc4ec6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"native-pool-prices\">Native Pool Prices</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "nWHF",
+      "code_hash": "4ca83175a998a0edc7a1dacb2605efd0",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"liquidity-depth-distribution\">Liquidity Depth Distribution</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ZHCJ",
+      "code_hash": "65edeb7ae03de9bc79d7d554ceb6c6e3",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"token-vault-reserves-over-time\">Token Vault Reserves Over Time</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "qnkX",
+      "code_hash": "48fc3b9a6122a645c4672bba2753db5e",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"swap-events-execution-prices\">Swap Events \u2014 Execution Prices</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Vxnm",
+      "code_hash": "f6aa790d1b845fb6a4ef5ff1482d6308",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"depth-impact-metrics\">Depth &amp; Impact Metrics</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ulZA",
+      "code_hash": "3c7d278e02a9b85f841aa47a728286b2",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"recent-swaps\">Recent Swaps</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Hbol",
+      "code_hash": "1d0db38904205bec4d6f6f6a1f6cec3e",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "354c38da3934f3e4aac65a28f468d635",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "4c8509ef3fa75f44d54b14472e6b0e3f",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "6125088a0ea92940a3b0eccfbd7265a0",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "a5c9f27d66493c2492b241d96fbe63fe",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "e4f3fe9401593ef21d34461ead0b069d",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "068f7668b88024d3a361f3cd64cd2133",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "f903006f8fbf6ac1a1b3263526bc6359",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Kclp",
+      "code_hash": "3e2461277ea17be21da38768f9e169be",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Hstk",
+      "code_hash": "2f9c32cb8c6d7f95ed23ad07cf821870",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "iLit",
+      "code_hash": "b32fc6c4bb3e1b7f3e61111a3e37bf9f",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ROlb",
+      "code_hash": "742abe4ba234e213c812f95cb26b2553",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "TqIu",
+      "code_hash": "6f7694624fc3484b8176d259d9694087",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "DnEU",
+      "code_hash": "b7777a97ff4f07eda57c1ce815ccbe42",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ecfG",
+      "code_hash": "fc4e7aa36a5bd3d9ea610824b31f8e36",
+      "outputs": [],
+      "console": []
+    }
+  ]
+}

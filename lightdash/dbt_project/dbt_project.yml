@@ -1,0 +1,25 @@
+name: 'risk_dash'
+version: '1.0.0'
+config-version: 2
+
+profile: 'risk_dash'
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  risk_dash:
+    staging:
+      +materialized: view
+      +schema: staging
+      +meta:
+        hidden: true
+    marts:
+      +materialized: view

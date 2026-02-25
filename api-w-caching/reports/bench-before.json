@@ -1,0 +1,42 @@
+{
+  "run_started_utc": "2026-02-25T10:12:14.717707+00:00",
+  "run_finished_utc": "2026-02-25T10:12:23.922580+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8001",
+    "page": "playbook-liquidity",
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "24h"
+    ],
+    "repeats": 1,
+    "timeout_seconds": 30.0,
+    "parallel": 1,
+    "widget_filter": [
+      "kpi-tvl"
+    ]
+  },
+  "results": [
+    {
+      "widget": "kpi-tvl",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 6578.84,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_min_ms": 2624.12,
+      "warm_p50_ms": 2624.12,
+      "warm_p95_ms": 2624.12,
+      "warm_avg_ms": 2624.12,
+      "warm_max_ms": 2624.12,
+      "payload_bytes_p50": 196,
+      "error_samples": []
+    }
+  ]
+}

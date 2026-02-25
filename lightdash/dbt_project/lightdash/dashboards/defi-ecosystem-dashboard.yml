@@ -1,0 +1,135 @@
+name: DeFi Ecosystem Dashboard
+description: ""
+updatedAt: "2026-02-21T06:30:00.000Z"
+tiles:
+  # ── Left column: Charts ──────────────────────────────────
+  - x: 0
+    "y": 0
+    h: 9
+    w: 18
+    tabUuid: null
+    type: saved_chart
+    properties:
+      title: ""
+      hideTitle: false
+      chartSlug: liquidity-distribution-1
+      chartName: Liquidity distribution
+    tileSlug: liquidity-distribution-1
+
+  # ── Right column: KPI cards (3 rows) ─────────────────────
+
+  # Row 1: TVL and 500k Impact
+  - x: 18
+    "y": 0
+    h: 3
+    w: 9
+    tabUuid: null
+    type: saved_chart
+    properties:
+      chartSlug: kpi-tvl
+      title: ""
+      hideTitle: false
+    tileSlug: kpi-tvl
+
+  - x: 27
+    "y": 0
+    h: 3
+    w: 9
+    tabUuid: null
+    type: saved_chart
+    properties:
+      chartSlug: kpi-impact-500k
+      title: ""
+      hideTitle: false
+    tileSlug: kpi-impact-500k
+
+  # Row 2: Reserves and Balance
+  - x: 18
+    "y": 3
+    h: 3
+    w: 6
+    tabUuid: null
+    type: saved_chart
+    properties:
+      chartSlug: kpi-reserve-t0
+      title: ""
+      hideTitle: false
+    tileSlug: kpi-reserve-t0
+
+  - x: 24
+    "y": 3
+    h: 3
+    w: 6
+    tabUuid: null
+    type: saved_chart
+    properties:
+      chartSlug: kpi-reserve-t1
+      title: ""
+      hideTitle: false
+    tileSlug: kpi-reserve-t1
+
+  - x: 30
+    "y": 3
+    h: 3
+    w: 6
+    tabUuid: null
+    type: saved_chart
+    properties:
+      chartSlug: kpi-balance-t0
+      title: ""
+      hideTitle: false
+    tileSlug: kpi-balance-t0
+
+  # Row 3: Impact cards (lookback-dependent)
+  - x: 18
+    "y": 6
+    h: 3
+    w: 9
+    tabUuid: null
+    type: saved_chart
+    properties:
+      chartSlug: kpi-max-sell-impact
+      title: ""
+      hideTitle: false
+    tileSlug: kpi-max-sell-impact
+
+  - x: 27
+    "y": 6
+    h: 3
+    w: 9
+    tabUuid: null
+    type: saved_chart
+    properties:
+      chartSlug: kpi-avg-sell-impact
+      title: ""
+      hideTitle: false
+    tileSlug: kpi-avg-sell-impact
+
+filters:
+  metrics: []
+  dimensions:
+    - target:
+        fieldId: dex_tick_dimension_data_protocol
+        fieldName: protocol
+        tableName: dex_tick_dimension_data
+      values:
+        - orca
+      disabled: false
+      operator: equals
+      singleValue: true
+      tileTargets:
+        liquidity-distribution-1:
+          fieldId: dex_tick_dimension_data_protocol
+          tableName: dex_tick_dimension_data
+        kpi-tvl: false
+        kpi-impact-500k: false
+        kpi-reserve-t0: false
+        kpi-reserve-t1: false
+        kpi-balance-t0: false
+        kpi-max-sell-impact: false
+        kpi-avg-sell-impact: false
+  tableCalculations: []
+tabs: []
+slug: defi-ecosystem-dashboard
+spaceSlug: shared
+version: 1

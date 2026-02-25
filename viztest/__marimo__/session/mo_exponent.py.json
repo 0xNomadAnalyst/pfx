@@ -1,0 +1,378 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.19.5"
+  },
+  "cells": [
+    {
+      "id": "MJUe",
+      "code_hash": "634c8ce6f6045bf9caa393809d4b845a",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h1 id=\"onyc-exponent-activity-monitoring\">ONyc Exponent \u2014 Activity &amp; Monitoring</h1>\n<span class=\"paragraph\">Live data from <strong>PT-ONyc-13MAY26</strong> market.  Validate against <a href=\"https://www.exponent.finance/income/onyc-13May26\" rel=\"noopener noreferrer\" target=\"_blank\">Exponent Income</a>.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "nWHF",
+      "code_hash": "a570cc94f12cf7f79fd039d45667b3d7",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><hr />\n<h2 id=\"key-metrics-latest-snapshot\">Key Metrics (latest snapshot)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ZHCJ",
+      "code_hash": "5dc8e22dae3c1de3557da61acf700d68",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"maturity-progress\">Maturity Progress</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "qnkX",
+      "code_hash": "6a3fd816a3097de418610497ed0489a5",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><hr />\n<h2 id=\"sy-exchange-rate-over-time\">SY Exchange Rate Over Time</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Vxnm",
+      "code_hash": "273d8fad762aaae5329562373f8405cd",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"implied-apy-fixed-yield\">Implied APY (Fixed Yield)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ulZA",
+      "code_hash": "a41f3d390c5f191e4f8902b3898277b8",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"market-vault-pt-sy-balances\">Market Vault \u2014 PT &amp; SY Balances</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Pvdt",
+      "code_hash": "cfd686d2de76359526ad627bb0b9b4c3",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"pt-price-reserve-ratio\">PT Price &amp; Reserve Ratio</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "aLJB",
+      "code_hash": "b0988a767e027176dba08526d0ca1057",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"vault-collateral-pt-supply\">Vault Collateral &amp; PT Supply</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "xXTn",
+      "code_hash": "c5576f04d3a04b149cc6129abda52a41",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"collateralization-ratio\">Collateralization Ratio</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "pHFh",
+      "code_hash": "809cb91126fc80da06faf031eface2cb",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><hr />\n<h2 id=\"transaction-events\">Transaction Events</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "aqbW",
+      "code_hash": "5b19c21450a24271609084cafc88b1eb",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"event-timeline\">Event Timeline</h3></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "TXez",
+      "code_hash": "4d5e82723ec984860776450bf1def7ae",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"pt-trades-price-volume\">PT Trades \u2014 Price &amp; Volume</h3></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "yCnT",
+      "code_hash": "c930843b88e90968bc7912a527029c12",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"strip-merge-flows\">Strip &amp; Merge Flows</h3></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "kqZH",
+      "code_hash": "f4fca9fb21c8d799e64fb4e42d172b6d",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"recent-events-table\">Recent Events (table)</h3></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "rEll",
+      "code_hash": "ef2b31e6d713d45b586c0385f1593c10",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><hr />\n<h2 id=\"sy-token-supply\">SY Token Supply</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "SdmI",
+      "code_hash": "e5e4bb1bd59b79de21f34fbebc7f352c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"market-depth-total-in-sy\">Market Depth (Total in SY)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Hbol",
+      "code_hash": "1d0db38904205bec4d6f6f6a1f6cec3e",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "bdb263449cb64c7252e5740ca8920eaf",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "d3a11713d4d8797f3b023a0bef5ada1e",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "55bcaf08445f936206a4a0cd4c88ac7b",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "d8e3a8aadc8a9f97fc22fe161f8fc6b1",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "042162bdd2a144d084ec6b022cea0e88",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "7f2acdbec61cf8739d360860a93355bf",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "02d9786ac3441fb33327bdc8e387fc0a",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "5c3bc4613e599b47844018f208777eeb",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Kclp",
+      "code_hash": "953bd05d0c5c57584d3912e7a60840f3",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "emfo",
+      "code_hash": "6618ee94be629db57fd15a2c81429033",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Hstk",
+      "code_hash": "8bd8db19b4f5b660986e506c3b646e80",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "iLit",
+      "code_hash": "3606e9cedeccef74428d10c50a1f6dce",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ROlb",
+      "code_hash": "b044ef3f57c9dd7624f03e55bd2fac24",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "TqIu",
+      "code_hash": "7545a0cba1ec303d59574dedec632703",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "DnEU",
+      "code_hash": "1e0f96bbd55c050979a12f71fd916496",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ecfG",
+      "code_hash": "7506ddc2ad2c2fc06b6e85506a052167",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZBYS",
+      "code_hash": "c25e33ea4486a62eb015c6a82af0d2fe",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "nHfw",
+      "code_hash": "139a012f84d9396279e5aefb7e9f7d0b",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "AjVT",
+      "code_hash": "2750fe4efbba38a263cc6b6c94c9f420",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "NCOB",
+      "code_hash": "596da02502c30f72632db0225da1e5d9",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "TRpd",
+      "code_hash": "8e5123193a476a390be0306ad54790a6",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "dNNg",
+      "code_hash": "ec897769b4a8e95c57f4e7c0b9c86e45",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "wlCL",
+      "code_hash": "fb5b788586ee1930e7fd6fc92165888e",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "wAgl",
+      "code_hash": "d4601f6f13d000863254948c80f18123",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "dGlV",
+      "code_hash": "a9194cdeab5a4c5086338f74e7fefda8",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "lgWD",
+      "code_hash": "9e1a99ac173cbb3245fb6f70a28a2902",
+      "outputs": [],
+      "console": []
+    }
+  ]
+}

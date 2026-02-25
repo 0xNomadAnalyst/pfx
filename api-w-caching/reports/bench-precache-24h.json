@@ -1,0 +1,340 @@
+{
+  "run_started_utc": "2026-02-25T10:16:53.601716+00:00",
+  "run_finished_utc": "2026-02-25T10:19:54.170937+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8001",
+    "page": "playbook-liquidity",
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "24h"
+    ],
+    "repeats": 2,
+    "timeout_seconds": 30.0,
+    "parallel": 1,
+    "widget_filter": []
+  },
+  "results": [
+    {
+      "widget": "kpi-average-impact",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 2527.13,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 7056.91,
+      "warm_p50_ms": 8026.12,
+      "warm_p95_ms": 8898.4,
+      "warm_avg_ms": 8026.12,
+      "warm_max_ms": 8995.32,
+      "payload_bytes_p50": 235,
+      "error_samples": []
+    },
+    {
+      "widget": "kpi-impact-500k",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 2592.66,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 1,
+      "warm_error_count": 1,
+      "warm_min_ms": 10712.71,
+      "warm_p50_ms": 13170.17,
+      "warm_p95_ms": 15381.88,
+      "warm_avg_ms": 13170.17,
+      "warm_max_ms": 15627.62,
+      "payload_bytes_p50": 375,
+      "error_samples": [
+        "{\"detail\":\"Widget query failed: canceling statement due to statement timeout\\nCONTEXT:  SQL statement \\\"SELECT\\n            v.token_0_value,\\n            v.token_1_value\\n                                                                        FROM src_acct_vaults v\\n        WHERE v.pool_address = v_pool_address\\n          AND (lookback_param IS NULL OR v.time >= v_lookback_start)\\n        ORDER BY v.time DESC\\n        LIMIT 1\\\"\\nPL/pgSQL function get_view_dex_last(text,text,interval) line 50 at "
+      ]
+    },
+    {
+      "widget": "kpi-largest-impact",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 7045.9,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 1,
+      "warm_error_count": 1,
+      "warm_min_ms": 2446.38,
+      "warm_p50_ms": 10502.85,
+      "warm_p95_ms": 17753.68,
+      "warm_avg_ms": 10502.85,
+      "warm_max_ms": 18559.33,
+      "payload_bytes_p50": 376,
+      "error_samples": [
+        "{\"detail\":\"Widget query failed: canceling statement due to statement timeout\\nCONTEXT:  SQL statement \\\"SELECT\\n            v.token_0_value,\\n            v.token_1_value\\n                                                                        FROM src_acct_vaults v\\n        WHERE v.pool_address = v_pool_address\\n          AND (lookback_param IS NULL OR v.time >= v_lookback_start)\\n        ORDER BY v.time DESC\\n        LIMIT 1\\\"\\nPL/pgSQL function get_view_dex_last(text,text,interval) line 50 at "
+      ]
+    },
+    {
+      "widget": "kpi-pool-balance",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 4286.7,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 5651.81,
+      "warm_p50_ms": 7773.29,
+      "warm_p95_ms": 9682.61,
+      "warm_avg_ms": 7773.29,
+      "warm_max_ms": 9894.76,
+      "payload_bytes_p50": 215,
+      "error_samples": []
+    },
+    {
+      "widget": "kpi-reserves",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 2476.11,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 2515.5,
+      "warm_p50_ms": 6215.43,
+      "warm_p95_ms": 9545.37,
+      "warm_avg_ms": 6215.43,
+      "warm_max_ms": 9915.37,
+      "payload_bytes_p50": 224,
+      "error_samples": []
+    },
+    {
+      "widget": "kpi-tvl",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 2483.64,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 2430.13,
+      "warm_p50_ms": 2536.83,
+      "warm_p95_ms": 2632.86,
+      "warm_avg_ms": 2536.83,
+      "warm_max_ms": 2643.53,
+      "payload_bytes_p50": 196,
+      "error_samples": []
+    },
+    {
+      "widget": "liquidity-change-heatmap",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 5598.3,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 669.93,
+      "warm_p50_ms": 1689.73,
+      "warm_p95_ms": 2607.55,
+      "warm_avg_ms": 1689.73,
+      "warm_max_ms": 2709.53,
+      "payload_bytes_p50": 8358,
+      "error_samples": []
+    },
+    {
+      "widget": "liquidity-depth",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 716.14,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 705.97,
+      "warm_p50_ms": 4775.38,
+      "warm_p95_ms": 8437.84,
+      "warm_avg_ms": 4775.38,
+      "warm_max_ms": 8844.78,
+      "payload_bytes_p50": 9711,
+      "error_samples": []
+    },
+    {
+      "widget": "liquidity-depth-table",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 4673.38,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 2103.38,
+      "warm_p50_ms": 2111.73,
+      "warm_p95_ms": 2119.25,
+      "warm_avg_ms": 2111.73,
+      "warm_max_ms": 2120.09,
+      "payload_bytes_p50": 4639,
+      "error_samples": []
+    },
+    {
+      "widget": "liquidity-distribution",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 1406.54,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 687.88,
+      "warm_p50_ms": 778.75,
+      "warm_p95_ms": 860.53,
+      "warm_avg_ms": 778.75,
+      "warm_max_ms": 869.61,
+      "payload_bytes_p50": 8026,
+      "error_samples": []
+    },
+    {
+      "widget": "ranked-lp-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 4446.97,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 4357.66,
+      "warm_p50_ms": 4377.55,
+      "warm_p95_ms": 4395.44,
+      "warm_avg_ms": 4377.55,
+      "warm_max_ms": 4397.43,
+      "payload_bytes_p50": 6825,
+      "error_samples": []
+    },
+    {
+      "widget": "trade-impact-toggle",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "impact_mode": "impact"
+      },
+      "cold_ms": 1103.3,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 1087.25,
+      "warm_p50_ms": 1094.64,
+      "warm_p95_ms": 1101.3,
+      "warm_avg_ms": 1094.64,
+      "warm_max_ms": 1102.04,
+      "payload_bytes_p50": 4246,
+      "error_samples": []
+    },
+    {
+      "widget": "trade-impact-toggle",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "impact_mode": "size"
+      },
+      "cold_ms": 701.21,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 1109.15,
+      "warm_p50_ms": 4893.62,
+      "warm_p95_ms": 8299.65,
+      "warm_avg_ms": 4893.62,
+      "warm_max_ms": 8678.1,
+      "payload_bytes_p50": 4825,
+      "error_samples": []
+    },
+    {
+      "widget": "usdc-lp-flows",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 1091.38,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 690.69,
+      "warm_p50_ms": 690.84,
+      "warm_p95_ms": 690.97,
+      "warm_avg_ms": 690.84,
+      "warm_max_ms": 690.98,
+      "payload_bytes_p50": 3677,
+      "error_samples": []
+    },
+    {
+      "widget": "usdc-pool-share-concentration",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 703.69,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 696.58,
+      "warm_p50_ms": 714.78,
+      "warm_p95_ms": 731.16,
+      "warm_avg_ms": 714.78,
+      "warm_max_ms": 732.98,
+      "payload_bytes_p50": 3755,
+      "error_samples": []
+    }
+  ]
+}

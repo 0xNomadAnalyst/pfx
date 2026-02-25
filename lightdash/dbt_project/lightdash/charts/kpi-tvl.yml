@@ -1,0 +1,46 @@
+name: TVL (T1 units)
+description: Total value locked in T1 units
+tableName: dex_latest_metrics
+updatedAt: "2026-02-21T06:00:00.000Z"
+metricQuery:
+  exploreName: dex_latest_metrics
+  dimensions: []
+  metrics:
+    - dex_latest_metrics_tvl
+  filters:
+    dimensions:
+      id: c0000001-0000-0000-0000-000000000001
+      and:
+        - id: c0000001-0000-0000-0000-000000000002
+          target:
+            fieldId: dex_latest_metrics_protocol
+          values:
+            - orca
+          operator: equals
+          required: false
+        - id: c0000001-0000-0000-0000-000000000003
+          target:
+            fieldId: dex_latest_metrics_pair
+          values:
+            - USX-USDC
+          operator: equals
+          required: false
+  sorts: []
+  limit: 1
+  tableCalculations: []
+  additionalMetrics: []
+  customDimensions: []
+chartConfig:
+  type: big_number
+  config:
+    selectedField: dex_latest_metrics_tvl
+    label: "TVL (USDC units)"
+    showBigNumberLabel: true
+pivotConfig:
+  columns: []
+slug: kpi-tvl
+tableConfig:
+  columnOrder:
+    - dex_latest_metrics_tvl
+spaceSlug: shared
+version: 1

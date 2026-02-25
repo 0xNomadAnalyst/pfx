@@ -1,0 +1,46 @@
+{% for widget in widgets %}
+<section
+  id="widget-{{ widget.id }}"
+  class="{{ widget.css_class }} widget-loader"
+  data-widget-id="{{ widget.id }}"
+  data-widget-kind="{{ widget.kind }}"
+  data-impact-mode="size"
+  data-base-endpoint="{{ widget.endpoint }}"
+  hx-get="{{ widget.endpoint }}"
+  hx-request='{"timeout":12000}'
+  hx-trigger="load delay:{{ widget.load_delay_seconds }}s, dashboard-refresh from:body, impact-mode-change, every {{ widget.refresh_interval_seconds }}s"
+  hx-swap="none"
+>
+  <div class="panel-header">
+    <h3>{{ widget.title }}</h3>
+    {% if widget.id == "trade-impact-toggle" %}
+      <select id="trade-impact-mode" class="filter-select chart-mode-select" aria-label="Trade impact chart mode">
+        <option value="size">Order Size for Target bps</option>
+        <option value="impact">Impact bps at 3 Size Levels</option>
+      </select>
+    {% endif %}
+    <span class="panel-updated" id="updated-{{ widget.id }}">loading...</span>
+  </div>
+  <div class="panel-body">
+    {% if widget.kind == "kpi" %}
+      <div class="kpi-primary" id="kpi-primary-{{ widget.id }}">--</div>
+      <div class="kpi-secondary" id="kpi-secondary-{{ widget.id }}"></div>
+    {% elif widget.kind == "table" %}
+      <div id="table-{{ widget.id }}" class="table-wrap"></div>
+    {% elif widget.kind == "table-split" %}
+      <div class="table-split">
+        <div>
+          <h4 id="table-left-title-{{ widget.id }}"></h4>
+          <div id="table-left-{{ widget.id }}" class="table-wrap"></div>
+        </div>
+        <div>
+          <h4 id="table-right-title-{{ widget.id }}"></h4>
+          <div id="table-right-{{ widget.id }}" class="table-wrap"></div>
+        </div>
+      </div>
+    {% else %}
+      <div id="chart-{{ widget.id }}" class="chart-canvas"></div>
+    {% endif %}
+  </div>
+</section>
+{% endfor %}

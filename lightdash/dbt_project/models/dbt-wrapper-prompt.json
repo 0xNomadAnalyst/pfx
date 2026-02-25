@@ -1,0 +1,227 @@
+{
+    "title": "Lightdash Thin Semantic Wrapper for Parameterized DB Functions (Reusable Pattern)",
+    "objective": "Enable rich Lightdash Explore charting (stacking/breakdowns/formatting) for parameterized database functions without relying on SQL Runner, while keeping runtime interactivity via Lightdash dashboard parameters (not dbt build-time vars). This pattern must be reusable for multiple DB functions with different signatures and outputs.",
+    "core_principle": {
+      "statement": "dbt runs at build time; Lightdash parameters exist at query time. Therefore: do NOT use dbt vars for interactive parameters. Use Lightdash runtime parameter injection ({{ld.parameters.*}}) in the Explore’s underlying SQL, and keep dbt/YAML semantic modeling thin—primarily metadata + chart UX.",
+      "anti_patterns": [
+        "Using dbt `var()` or Jinja to set lookback/protocol/pair expecting dashboard interactivity (requires rebuild; not interactive).",
+        "Relying on Explore filters to feed function arguments (filters are WHERE clauses; function args require parameters).",
+        "Returning wide multi-metric outputs and expecting stacking across metrics (stacking requires one metric + breakdown dimension)."
+      ]
+    },
+    "assumptions": {
+      "warehouse": "Postgres/Timescale-like (adjust casting patterns if different warehouse).",
+      "lightdash": "Supports parameters and Explore/semantic modeling (dbt-backed or YAML semantic layer).",
+      "db_functions": "Existing DB functions accept arguments (e.g., protocol, pair, lookback interval) and return a tabular result."
+    },
+    "deliverables": [
+      "A reusable wrapper pattern that exposes DB function outputs as a Lightdash Explore (semantic object) with rich chart UI.",
+      "A parameter scheme that maps dashboard controls to runtime SQL arguments.",
+      "A recommended output schema convention (long format) to maximize chart features (stacking, breakdowns, colors).",
+      "Templates for: parameter definitions, Explore SQL, dimension/metric metadata, and example charts."
+    ],
+    "plan": {
+      "step_1_define_parameters": {
+        "goal": "Create Lightdash parameters that represent function arguments you want interactive at dashboard runtime.",
+        "guidelines": [
+          "Prefer enumerated options for categorical args (protocol, pool, pair, mode).",
+          "Prefer numeric for granular controls (window_seconds, bucket_size).",
+          "Prefer interval/date parameters for lookbacks; cast explicitly in SQL."
+        ],
+        "parameter_template": {
+          "protocol": {
+            "type": "string",
+            "options": ["<PROTO_A>", "<PROTO_B>"],
+            "default": "<PROTO_A>"
+          },
+          "entity_id": {
+            "type": "string",
+            "options": ["<ID_1>", "<ID_2>"],
+            "default": "<ID_1>"
+          },
+          "lookback": {
+            "type": "string",
+            "options": ["5 minutes", "1 hour", "1 day", "7 days"],
+            "default": "1 day",
+            "note": "Treat as interval literal; cast in SQL."
+          },
+          "grain": {
+            "type": "string",
+            "options": ["hour", "day", "week", "month"],
+            "default": "day"
+          }
+        }
+      },
+      "step_2_create_thin_explore_wrapper": {
+        "goal": "Expose the function via an Explore (semantic object) so Lightdash has dimensions/metrics metadata and unlocks richer charting UI.",
+        "implementation_variants": [
+          {
+            "name": "Variant A: Explore SQL directly calls function (preferred if supported by Lightdash runtime SQL)",
+            "notes": [
+              "This is query-time SQL executed by Lightdash; it can reference {{ld.parameters.*}}.",
+              "dbt is used minimally (to register an Explore/model and house metadata)."
+            ],
+            "explore_sql_template": "SELECT *\nFROM <SCHEMA>.<FUNCTION_NAME>(\n  {{ld.parameters.protocol}}::text,\n  {{ld.parameters.entity_id}}::text,\n  {{ld.parameters.lookback}}::interval\n);"
+          },
+          {
+            "name": "Variant B: DB view wraps function with fixed defaults; Explore filters apply normally (only if interactivity not needed for args)",
+            "notes": [
+              "Use only when args are not interactive (or you accept separate views per mode).",
+              "This avoids parameter injection but sacrifices runtime argument control."
+            ],
+            "db_view_template": "CREATE OR REPLACE VIEW <SCHEMA>.<VIEW_NAME> AS\nSELECT *\nFROM <SCHEMA>.<FUNCTION_NAME>('<DEFAULT_PROTOCOL>', '<DEFAULT_ENTITY>', '<DEFAULT_LOOKBACK>'::interval);"
+          }
+        ],
+        "critical_note": "Do not confuse Explore filters with function arguments. Any arg that changes which snapshot/query_id is selected must be a parameter, not a WHERE filter."
+      },
+      "step_3_standardize_function_output_for_charting": {
+        "goal": "Return a shape that enables stacking/breakdowns/colors across chart types with minimal friction.",
+        "recommendation": "Prefer LONG format (tidy data) over WIDE format.",
+        "schemas": {
+          "preferred_long_format": {
+            "columns": [
+              "x_key (numeric/time dimension: e.g., price, tick_index, bucket_ts)",
+              "series_dim (categorical: e.g., token_side, direction, cohort)",
+              "metric_name (optional categorical: e.g., value, cumul, delta)",
+              "metric_value (numeric)"
+            ],
+            "benefits": [
+              "Stacking works (one metric_value + breakdown by series_dim).",
+              "Color mapping works reliably by series_dim.",
+              "Multiple metrics can be implemented via metric_name filter or pivoted visuals.",
+              "Vega-Lite specs become simpler."
+            ]
+          },
+          "wide_format_if_unavoidable": {
+            "columns": ["x_key", "token0_value", "token1_value", "..."],
+            "mitigation": [
+              "In Explore: define a derived dimension/metric that unpivots via UNION ALL (or do it inside the DB function).",
+              "Do not expect native stacking across separate measure columns."
+            ]
+          }
+        }
+      },
+      "step_4_define_semantic_metadata": {
+        "goal": "Tell Lightdash what fields are dimensions vs metrics so the rich charting UI unlocks.",
+        "rules": [
+          "Dimensions: identifiers, categories, timestamps, numeric x-axes used as dimensions (tick_index, price).",
+          "Metrics: numeric measures intended for aggregation (metric_value).",
+          "Time: mark timestamp fields as time dimensions for time-aware controls."
+        ],
+        "metadata_template": {
+          "dimensions": [
+            {
+              "name": "x_key",
+              "type": "number_or_time",
+              "description": "Primary x-axis field (price/tick/time bucket)."
+            },
+            {
+              "name": "series_dim",
+              "type": "string",
+              "description": "Breakdown/stacking series (e.g., token_side)."
+            },
+            {
+              "name": "metric_name",
+              "type": "string",
+              "description": "Optional metric selector (value/cumul/delta)."
+            }
+          ],
+          "metrics": [
+            {
+              "name": "metric_value_sum",
+              "type": "sum",
+              "sql": "${TABLE}.metric_value",
+              "format": "number",
+              "description": "Primary aggregated measure."
+            }
+          ]
+        }
+      },
+      "step_5_build_charts_and_dashboard_controls": {
+        "goal": "Use Explore chart builder to create reusable charts with stacking/breakdowns enabled, driven by parameters.",
+        "chart_recipes": [
+          {
+            "name": "Stacked depth bars",
+            "config": {
+              "x": "x_key",
+              "y": "metric_value_sum",
+              "breakdown": "series_dim",
+              "stacking": true,
+              "filter": "metric_name = 'value' (if present)"
+            }
+          },
+          {
+            "name": "Delta line over lookback",
+            "config": {
+              "x": "x_key (or time)",
+              "y": "metric_value_sum",
+              "breakdown": "series_dim",
+              "stacking": false,
+              "filter": "metric_name = 'delta' (if present)"
+            }
+          }
+        ],
+        "dashboard_controls": [
+          "Add parameter controls for protocol/entity_id/lookback/grain.",
+          "Ensure tiles share the same parameters for coherent cross-tile interaction."
+        ]
+      },
+      "step_6_performance_and_scalability": {
+        "goal": "Avoid scanning huge history tables; leverage your query_id/snapshot lookup architecture.",
+        "recommendations": [
+          "Keep function implementation keyed by indexed/partitioned snapshot identifiers (e.g., query_id).",
+          "Ensure history tables are indexed/partitioned on (query_id, join_keys...).",
+          "If needed, materialize a base rollup (single base grain) and compute deltas dynamically on top; avoid materializing deltas for every interval.",
+          "Use parameter option sets (e.g., fixed lookback list) to bound query patterns."
+        ]
+      }
+    },
+    "agent_tasks": [
+      {
+        "task": "Audit function signatures and outputs",
+        "inputs_needed": [
+          "Function name and schema",
+          "Argument list (name/type) and which should be interactive",
+          "Return columns and data types",
+          "Join keys that identify rows across snapshots"
+        ],
+        "output": "A mapping of args -> Lightdash parameters and return columns -> dimensions/metrics."
+      },
+      {
+        "task": "Refactor output to long format (if needed)",
+        "inputs_needed": ["Current output schema", "Desired visual behaviors (stacking, breakdowns)"],
+        "output": "SQL/DB-function changes or Explore-layer unpivot query."
+      },
+      {
+        "task": "Implement Explore wrapper with runtime parameter injection",
+        "inputs_needed": ["Lightdash project structure (dbt vs YAML)", "Warehouse dialect"],
+        "output": "Explore SQL template calling the function with {{ld.parameters.*}} and correct casts."
+      },
+      {
+        "task": "Define semantic metadata (dimensions/metrics/time fields)",
+        "inputs_needed": ["Final output schema"],
+        "output": "Lightdash YAML/dbt metadata definitions enabling rich charting."
+      },
+      {
+        "task": "Create example charts and a dashboard pattern",
+        "inputs_needed": ["Target charts list", "Parameter UX preferences"],
+        "output": "Chart configs and recommended field selections; notes on stacking and coloring."
+      }
+    ],
+    "acceptance_criteria": [
+      "Dashboards can change lookback (and other args) via parameter controls without rebuilding dbt.",
+      "Charts are built from an Explore (not SQL Runner) and expose richer configuration options (breakdowns/stacking where applicable).",
+      "Function argument interactivity does not require materializing separate delta tables per interval; performance relies on snapshot/query_id indexing.",
+      "Output schema supports stacking via one metric + breakdown dimension (prefer long format)."
+    ],
+    "placeholders": {
+      "<SCHEMA>": "Database schema for functions/views",
+      "<FUNCTION_NAME>": "Target function to wrap",
+      "<VIEW_NAME>": "Optional view name",
+      "<DEFAULT_PROTOCOL>": "Default protocol string",
+      "<DEFAULT_ENTITY>": "Default pair/pool identifier",
+      "<DEFAULT_LOOKBACK>": "Default lookback interval string",
+      "<PROTO_A>": "Example protocol",
+      "<ID_1>": "Example entity id"
+    }
+  }

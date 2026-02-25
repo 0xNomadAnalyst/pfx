@@ -1,0 +1,67 @@
+version: 2
+
+sources:
+  - name: dexes
+    schema: dexes
+    description: >
+      DEX liquidity and vault data from on-chain Solana protocols.
+      Tables are populated by real-time ingestion pipelines.
+
+    tables:
+      - name: src_acct_tickarray_queries
+        description: >
+          Query metadata for each liquidity depth calculation.
+          One row per query capturing pool state at query time.
+        columns:
+          - name: query_id
+          - name: pool_address
+          - name: protocol
+          - name: token_pair
+          - name: block_time
+          - name: time
+            description: Query execution timestamp (used for delta lookback comparisons)
+          - name: current_tick
+          - name: sqrt_price_x64
+          - name: mint_decimals_0
+          - name: mint_decimals_1
+          - name: price_fixed_point_base
+
+      - name: src_acct_tickarray_tokendist_latest
+        description: >
+          Latest token depth distribution snapshot per pool per tick.
+          Only the most recent write per (pool_address, tick_lower) is retained.
+        columns:
+          - name: pool_address
+          - name: tick_lower
+          - name: tick_upper
+          - name: query_id
+          - name: token0_value
+          - name: token1_value
+          - name: token0_cumul
+          - name: token1_cumul
+
+      - name: src_acct_tickarray_tokendist
+        description: >
+          Historical token depth distribution. Used for delta calculations
+          when comparing current state against a prior lookback snapshot.
+        columns:
+          - name: pool_address
+          - name: tick_lower
+          - name: tick_upper
+          - name: query_id
+          - name: token0_value
+          - name: token1_value
+          - name: token0_cumul
+          - name: token1_cumul
+
+      - name: src_acct_vaults
+        description: >
+          Token vault reserve snapshots tracking SPL token account balances
+          for pool reserves over time.
+        columns:
+          - name: pool_address
+          - name: protocol
+          - name: token_pair
+          - name: block_time
+          - name: token_0_value
+          - name: token_1_value

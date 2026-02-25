@@ -1,0 +1,1068 @@
+version: 2
+
+models:
+  - name: dex_tick_dimension_data
+    description: >
+      Tick distribution from dexes.get_view_tick_dist_simple() in long
+      (unpivoted) format.  Token 0 / Token 1 values are stacked into a
+      single token_value column with a token_side dimension.  Delta
+      lookbacks are pre-computed via CROSS JOIN LATERAL.  Protocol and pair
+      are passed as NULL so the function returns the full universe — filter
+      both via normal Lightdash Explore dimensions.
+
+    columns:
+      # ── Dimensions ──────────────────────────────────────────────
+
+      - name: delta_lookback
+        description: >
+          Time interval used for the delta comparison.
+          Filter this dimension to pick the lookback window.
+        meta:
+          dimension:
+            type: string
+            label: "Delta Lookback"
+
+      - name: protocol
+        description: DEX protocol identifier (e.g. raydium_clmm, orca_whirlpool)
+        meta:
+          dimension:
+            type: string
+            label: "Protocol"
+
+      - name: pair
+        description: Token pair identifier (e.g. USX-USDC, eUSX-USX)
+        meta:
+          dimension:
+            type: string
+            label: "Pair"
+
+      - name: tick_lower
+        description: Lower bound of the tick interval
+        meta:
+          dimension:
+            type: number
+            label: "Tick Lower"
+
+      - name: tick_price_t1_per_t0
+        description: Price at tick_lower (T1 per T0, numeric)
+        meta:
+          dimension:
+            type: number
+            label: "Tick Price (T1/T0)"
+
+      - name: tick_price_label_t1_per_t0
+        description: Tick price (T1/T0) as string label
+        meta:
+          dimension:
+            type: string
+            label: "Tick Price Label (T1/T0)"
+
+      - name: tick_price_t0_per_t1
+        description: Inverse price at tick_lower (T0 per T1, numeric)
+        meta:
+          dimension:
+            type: number
+            label: "Tick Price (T0/T1)"
+
+      - name: tick_price_label_t0_per_t1
+        description: Tick price (T0/T1) as string label
+        meta:
+          dimension:
+            type: string
+            label: "Tick Price Label (T0/T1)"
+
+      - name: current_price_t1_per_t0
+        description: Current pool price (T1 per T0)
+        meta:
+          dimension:
+            type: number
+            label: "Current Price (T1/T0)"
+
+      - name: current_price_t0_per_t1
+        description: Current pool price (T0 per T1)
+        meta:
+          dimension:
+            type: number
+            label: "Current Price (T0/T1)"
+
+      - name: tick_delta_to_peg_price_t1_per_t0_bps
+        description: Tick price distance from peg in BPS (T1/T0 basis)
+        meta:
+          dimension:
+            type: number
+            label: "Tick Δ to Peg (T1/T0) BPS"
+
+      - name: tick_delta_to_peg_price_t0_per_t1_bps
+        description: Tick price distance from peg in BPS (T0/T1 basis)
+        meta:
+          dimension:
+            type: number
+            label: "Tick Δ to Peg (T0/T1) BPS"
+
+      - name: tick_delta_to_current_price_t1_per_t0_bps
+        description: Tick price distance from current price in BPS (T1/T0 basis)
+        meta:
+          dimension:
+            type: number
+            label: "Tick Δ to Current (T1/T0) BPS"
+
+      - name: tick_delta_to_current_price_t0_per_t1_bps
+        description: Tick price distance from current price in BPS (T0/T1 basis)
+        meta:
+          dimension:
+            type: number
+            label: "Tick Δ to Current (T0/T1) BPS"
+
+      - name: token_side
+        description: >
+          'Token 0' or 'Token 1' — use as the pivot/group dimension
+          to stack bars by token side on a numeric x-axis.
+        meta:
+          dimension:
+            type: string
+            label: "Token Side"
+
+      # ── Measures (unified per token side) ──────────────────────
+
+      - name: token_value
+        description: Token amount in this tick interval (decimal-adjusted)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            token_value_max:
+              type: max
+              label: "Token Value"
+            token_value_sum:
+              type: sum
+              label: "Token Value (Sum)"
+
+      - name: token_cumul
+        description: Cumulative token depth up to this tick
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            token_cumul_max:
+              type: max
+              label: "Token Cumulative Depth"
+
+      - name: token_cumul_pct_reserve
+        description: Cumulative token depth as % of vault reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            token_depth_pct_reserve_max:
+              type: max
+              label: "Token Depth (% Reserve)"
+              format: "percent"
+
+      - name: token_value_delta
+        description: Change in token value vs prior snapshot
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            token_value_delta_max:
+              type: max
+              label: "Token Value Delta"
+            token_value_delta_sum:
+              type: sum
+              label: "Token Value Delta (Sum)"
+
+      # ── Liquidity delta measures (not unpivoted) ───────────────
+
+      - name: liquidity_period_delta_in_t1_units
+        description: Per-tick liquidity change in T1 units over the delta lookback
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            tick_token_delta_t1_max:
+              type: max
+              label: "Tick Token Delta in T1 Units"
+
+      - name: liquidity_period_delta_in_t1_units_pct
+        description: Pct of total liquidity change at this tick (T1 basis)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            tick_token_delta_pct_t1_max:
+              type: max
+              label: "Tick Token Delta Pct Total (T1)"
+
+      - name: liquidity_period_delta_net_reallocation_in_t1_units
+        description: Total absolute liquidity change across all ticks (T1 units)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            pool_token_delta_t1_max:
+              type: max
+              label: "Pool Token Delta in T1 Units"
+
+      - name: liquidity_period_delta_in_t0_units
+        description: Per-tick liquidity change in T0 units over the delta lookback
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            tick_token_delta_t0_max:
+              type: max
+              label: "Tick Token Delta in T0 Units"
+
+      - name: liquidity_period_delta_in_t0_units_pct
+        description: Pct of total liquidity change at this tick (T0 basis)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            tick_token_delta_pct_t0_max:
+              type: max
+              label: "Tick Token Delta Pct Total (T0)"
+
+      - name: liquidity_period_delta_net_reallocation_in_t0_units
+        description: Total absolute liquidity change across all ticks (T0 units)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            pool_token_delta_t0_max:
+              type: max
+              label: "Pool Token Delta in T0 Units"
+
+  # ════════════════════════════════════════════════════════════════════
+  # DEX LATEST METRICS
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: dex_latest_metrics
+    description: >
+      Latest DEX pool metrics from dexes.get_view_dex_last().
+      Returns one row per pool per lookback interval with swap volume,
+      LP activity, VWAP, price impact, and reserve metrics.
+      Lookback intervals pre-computed via CROSS JOIN LATERAL.
+      Protocol and pair passed as NULL for full universe filtering.
+
+    columns:
+      # ── Dimensions ──────────────────────────────────────────────
+
+      - name: lookback
+        description: Time window for aggregating swap/LP metrics
+        meta:
+          dimension:
+            type: string
+            label: "Lookback"
+
+      - name: protocol
+        description: DEX protocol identifier
+        meta:
+          dimension:
+            type: string
+            label: "Protocol"
+
+      - name: pair
+        description: Token pair identifier (e.g. USX-USDC)
+        meta:
+          dimension:
+            type: string
+            label: "Pair"
+
+      - name: pool_address
+        description: On-chain pool address
+        meta:
+          dimension:
+            type: string
+            label: "Pool Address"
+
+      - name: symbol_t0
+        description: Token 0 symbol
+        meta:
+          dimension:
+            type: string
+            label: "Symbol T0"
+
+      - name: symbol_t1
+        description: Token 1 symbol
+        meta:
+          dimension:
+            type: string
+            label: "Symbol T1"
+
+      - name: price_t1_per_t0
+        description: Current pool price (T1 per T0)
+        meta:
+          dimension:
+            type: number
+            label: "Price (T1/T0)"
+
+      # ── Reserve dimensions (shown as dimensions for table views) ──
+
+      - name: t0_reserve
+        description: Token 0 reserve balance
+        meta:
+          dimension:
+            type: number
+            label: "T0 Reserve"
+
+      - name: t1_reserve
+        description: Token 1 reserve balance
+        meta:
+          dimension:
+            type: number
+            label: "T1 Reserve"
+
+      - name: tvl_in_t1_units
+        description: Total value locked in T1 units
+        meta:
+          dimension:
+            type: number
+            label: "TVL (T1 units)"
+          metrics:
+            tvl:
+              type: max
+              label: "TVL (T1 units)"
+
+      - name: t0_reserve_millions
+        description: Token 0 reserve in millions
+        meta:
+          dimension:
+            type: number
+            label: "T0 Reserve (M)"
+          metrics:
+            t0_reserve_m:
+              type: max
+              label: "T0 Reserve (M)"
+
+      - name: t1_reserve_millions
+        description: Token 1 reserve in millions
+        meta:
+          dimension:
+            type: number
+            label: "T1 Reserve (M)"
+          metrics:
+            t1_reserve_m:
+              type: max
+              label: "T1 Reserve (M)"
+
+      - name: t0_balance_pct
+        description: Token 0 share of TVL (%)
+        meta:
+          dimension:
+            type: number
+            label: "T0 Balance %"
+          metrics:
+            t0_balance:
+              type: max
+              label: "T0 Balance %"
+
+      - name: t1_balance_pct
+        description: Token 1 share of TVL (%)
+        meta:
+          dimension:
+            type: number
+            label: "T1 Balance %"
+          metrics:
+            t1_balance:
+              type: max
+              label: "T1 Balance %"
+
+      # ── Price Impact (standard sizes) ─────────────────────────────
+
+      - name: impact_50k_t0_sell_bps
+        description: Price impact of 50k T0 sell (bps)
+        meta:
+          dimension:
+            type: number
+            label: "Impact 50k T0 Sell (bps)"
+          metrics:
+            impact_50k:
+              type: max
+              label: "Impact 50k T0 Sell (bps)"
+
+      - name: impact_100k_t0_sell_bps
+        description: Price impact of 100k T0 sell (bps)
+        meta:
+          dimension:
+            type: number
+            label: "Impact 100k T0 Sell (bps)"
+          metrics:
+            impact_100k:
+              type: max
+              label: "Impact 100k T0 Sell (bps)"
+
+      - name: impact_500k_t0_sell_bps
+        description: Price impact of 500k T0 sell (bps)
+        meta:
+          dimension:
+            type: number
+            label: "Impact 500k T0 Sell (bps)"
+          metrics:
+            impact_500k:
+              type: max
+              label: "Impact 500k T0 Sell (bps)"
+
+      # ── Event Counts ──────────────────────────────────────────────
+
+      - name: swap_count_period
+        description: Number of swap events in lookback window
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_count:
+              type: max
+              label: "Swap Count"
+
+      - name: lp_in_count_period
+        description: Number of LP add events in lookback window
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            lp_add_count:
+              type: max
+              label: "LP Add Count"
+
+      - name: lp_out_count_period
+        description: Number of LP remove events in lookback window
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            lp_remove_count:
+              type: max
+              label: "LP Remove Count"
+
+      # ── Swap Volume (total) ───────────────────────────────────────
+
+      - name: swap_vol_in_t1_units
+        description: Total swap volume in T1 units
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_vol_t1:
+              type: max
+              label: "Swap Vol (T1)"
+
+      - name: swap_vol_in_t0_units
+        description: Total swap volume in T0 units
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_vol_t0:
+              type: max
+              label: "Swap Vol (T0)"
+
+      - name: swap_vol_in_t1_units_pct_reserve
+        description: Swap volume as % of T1 reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_vol_t1_pct_reserve:
+              type: max
+              label: "Swap Vol T1 (% Reserve)"
+
+      - name: swap_vol_in_t0_units_pct_reserve
+        description: Swap volume as % of T0 reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_vol_t0_pct_reserve:
+              type: max
+              label: "Swap Vol T0 (% Reserve)"
+
+      - name: swap_vol_out_t1_units
+        description: Swap outflow volume in T1 units
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_vol_out_t1:
+              type: max
+              label: "Swap Vol Out (T1)"
+
+      - name: swap_vol_out_t0_units
+        description: Swap outflow volume in T0 units
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_vol_out_t0:
+              type: max
+              label: "Swap Vol Out (T0)"
+
+      - name: swap_vol_out_t1_units_pct_reserve
+        description: Swap outflow as % of T1 reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_vol_out_t1_pct_reserve:
+              type: max
+              label: "Swap Vol Out T1 (% Reserve)"
+
+      - name: swap_vol_out_t0_units_pct_reserve
+        description: Swap outflow as % of T0 reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_vol_out_t0_pct_reserve:
+              type: max
+              label: "Swap Vol Out T0 (% Reserve)"
+
+      # ── Directional Swap Volumes ──────────────────────────────────
+
+      - name: swap_vol_period_t0_in
+        description: T0 flowing into pool (swaps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_t0_in:
+              type: max
+              label: "Swap T0 In"
+
+      - name: swap_vol_period_t0_out
+        description: T0 flowing out of pool (swaps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_t0_out:
+              type: max
+              label: "Swap T0 Out"
+
+      - name: swap_vol_period_t1_in
+        description: T1 flowing into pool (swaps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_t1_in:
+              type: max
+              label: "Swap T1 In"
+
+      - name: swap_vol_period_t1_out
+        description: T1 flowing out of pool (swaps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_t1_out:
+              type: max
+              label: "Swap T1 Out"
+
+      # ── LP Activity ───────────────────────────────────────────────
+
+      - name: lp_token0_in_period_sum
+        description: T0 added by LPs
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            lp_t0_in:
+              type: max
+              label: "LP T0 In"
+
+      - name: lp_token0_out_period_sum
+        description: T0 removed by LPs
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            lp_t0_out:
+              type: max
+              label: "LP T0 Out"
+
+      - name: lp_token1_in_period_sum
+        description: T1 added by LPs
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            lp_t1_in:
+              type: max
+              label: "LP T1 In"
+
+      - name: lp_token1_out_period_sum
+        description: T1 removed by LPs
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            lp_t1_out:
+              type: max
+              label: "LP T1 Out"
+
+      - name: lp_token0_in_period_sum_pct_reserve
+        description: LP T0 in as % of reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            lp_t0_in_pct_reserve:
+              type: max
+              label: "LP T0 In (% Reserve)"
+
+      - name: lp_token0_out_period_sum_pct_reserve
+        description: LP T0 out as % of reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            lp_t0_out_pct_reserve:
+              type: max
+              label: "LP T0 Out (% Reserve)"
+
+      - name: lp_token1_in_period_sum_pct_reserve
+        description: LP T1 in as % of reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            lp_t1_in_pct_reserve:
+              type: max
+              label: "LP T1 In (% Reserve)"
+
+      - name: lp_token1_out_period_sum_pct_reserve
+        description: LP T1 out as % of reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            lp_t1_out_pct_reserve:
+              type: max
+              label: "LP T1 Out (% Reserve)"
+
+      # ── Max Swap Flows ────────────────────────────────────────────
+
+      - name: swap_token1_in_max
+        description: Largest single T1 inflow swap
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t1_in:
+              type: max
+              label: "Max Swap T1 In"
+
+      - name: swap_token1_in_max_t0_complement
+        description: T0 complement of max T1 inflow swap
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t1_in_t0_complement:
+              type: max
+              label: "Max Swap T1 In (T0 complement)"
+
+      - name: swap_token1_out_max
+        description: Largest single T1 outflow swap
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t1_out:
+              type: max
+              label: "Max Swap T1 Out"
+
+      - name: swap_token1_out_max_t0_complement
+        description: T0 complement of max T1 outflow swap
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t1_out_t0_complement:
+              type: max
+              label: "Max Swap T1 Out (T0 complement)"
+
+      - name: swap_token0_in_max
+        description: Largest single T0 inflow swap
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t0_in:
+              type: max
+              label: "Max Swap T0 In"
+
+      - name: swap_token0_out_max
+        description: Largest single T0 outflow swap
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t0_out:
+              type: max
+              label: "Max Swap T0 Out"
+
+      # ── Average Swap Flows ────────────────────────────────────────
+
+      - name: swap_token0_in_avg
+        description: Average T0 inflow per swap
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            avg_swap_t0_in:
+              type: max
+              label: "Avg Swap T0 In"
+
+      - name: swap_token0_out_avg
+        description: Average T0 outflow per swap
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            avg_swap_t0_out:
+              type: max
+              label: "Avg Swap T0 Out"
+
+      - name: swap_token1_in_avg
+        description: Average T1 inflow per swap
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            avg_swap_t1_in:
+              type: max
+              label: "Avg Swap T1 In"
+
+      - name: swap_token1_out_avg
+        description: Average T1 outflow per swap
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            avg_swap_t1_out:
+              type: max
+              label: "Avg Swap T1 Out"
+
+      # ── Max Swap % Reserve ────────────────────────────────────────
+
+      - name: swap_token1_in_max_pct_reserve
+        description: Max T1 inflow as % of T1 reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t1_in_pct_reserve:
+              type: max
+              label: "Max Swap T1 In (% Reserve)"
+
+      - name: swap_token1_out_max_pct_reserve
+        description: Max T1 outflow as % of T1 reserve
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t1_out_pct_reserve:
+              type: max
+              label: "Max Swap T1 Out (% Reserve)"
+
+      # ── Price Impact (max swaps) ──────────────────────────────────
+
+      - name: swap_token1_in_max_impact_bps
+        description: Price impact of max T1 inflow (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t1_in_impact:
+              type: max
+              label: "Max Swap T1 In Impact (bps)"
+
+      - name: swap_token1_out_max_impact_bps
+        description: Price impact of max T1 outflow (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t1_out_impact:
+              type: max
+              label: "Max Swap T1 Out Impact (bps)"
+
+      - name: swap_token0_in_max_impact_bps
+        description: Price impact of max T0 inflow (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t0_in_impact:
+              type: max
+              label: "Max Swap T0 In Impact (bps)"
+
+      - name: swap_token0_out_max_impact_bps
+        description: Price impact of max T0 outflow (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_swap_t0_out_impact:
+              type: max
+              label: "Max Swap T0 Out Impact (bps)"
+
+      # ── Price Impact (avg swaps) ──────────────────────────────────
+
+      - name: swap_token0_in_avg_impact_bps
+        description: Price impact of avg T0 inflow (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            avg_swap_t0_in_impact:
+              type: max
+              label: "Avg Swap T0 In Impact (bps)"
+
+      - name: swap_token0_out_avg_impact_bps
+        description: Price impact of avg T0 outflow (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            avg_swap_t0_out_impact:
+              type: max
+              label: "Avg Swap T0 Out Impact (bps)"
+
+      - name: swap_token1_in_avg_impact_bps
+        description: Price impact of avg T1 inflow (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            avg_swap_t1_in_impact:
+              type: max
+              label: "Avg Swap T1 In Impact (bps)"
+
+      - name: swap_token1_out_avg_impact_bps
+        description: Price impact of avg T1 outflow (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            avg_swap_t1_out_impact:
+              type: max
+              label: "Avg Swap T1 Out Impact (bps)"
+
+      # ── VWAP & Spread ─────────────────────────────────────────────
+
+      - name: vwap_buy_t0_avg
+        description: Volume-weighted average buy price (T0)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            vwap_buy:
+              type: max
+              label: "VWAP Buy"
+
+      - name: vwap_sell_t0_avg
+        description: Volume-weighted average sell price (T0)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            vwap_sell:
+              type: max
+              label: "VWAP Sell"
+
+      - name: price_t1_per_t0_avg
+        description: Volume-weighted average price (T1/T0)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            vwap_price:
+              type: max
+              label: "VWAP Price"
+
+      - name: spread_vwap_avg_bps
+        description: VWAP buy-sell spread (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            vwap_spread:
+              type: max
+              label: "VWAP Spread (bps)"
+
+      # ── Price Statistics ──────────────────────────────────────────
+
+      - name: price_t1_per_t0_max
+        description: Max price in lookback window
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            price_max:
+              type: max
+              label: "Price Max"
+
+      - name: price_t1_per_t0_min
+        description: Min price in lookback window
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            price_min:
+              type: max
+              label: "Price Min"
+
+      - name: price_t1_per_t0_std
+        description: Price standard deviation in lookback window
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            price_std:
+              type: max
+              label: "Price Std Dev"
+
+      # ── 24h Fixed Window Metrics ──────────────────────────────────
+
+      - name: swap_vol_t1_total_24h
+        description: Total T1 swap volume over last 24h (fixed, not lookback-dependent)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_vol_24h:
+              type: max
+              label: "Swap Vol 24h (T1)"
+
+      - name: swap_vol_t1_total_24h_pct_tvl_in_t1
+        description: 24h swap volume as % of TVL
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_vol_24h_pct_tvl:
+              type: max
+              label: "Swap Vol 24h (% TVL)"
+
+      - name: swap_count_24h
+        description: Swap event count over last 24h
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            swap_count_24h_metric:
+              type: max
+              label: "Swap Count 24h"
+
+      # ── Max 1h Pressure ───────────────────────────────────────────
+
+      - name: max_1h_t0_sell_pressure_in_period
+        description: Largest 1h net T0 sell pressure in lookback window
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_1h_sell_pressure:
+              type: max
+              label: "Max 1h T0 Sell Pressure"
+
+      - name: max_1h_t0_buy_pressure_in_period
+        description: Largest 1h net T0 buy pressure in lookback window
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_1h_buy_pressure:
+              type: max
+              label: "Max 1h T0 Buy Pressure"
+
+      - name: max_1h_t0_sell_pressure_in_period_impact_bps
+        description: Price impact of max 1h sell pressure (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_1h_sell_pressure_impact:
+              type: max
+              label: "Max 1h Sell Pressure Impact (bps)"
+
+      - name: max_1h_t0_buy_pressure_in_period_impact_bps
+        description: Price impact of max 1h buy pressure (bps)
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            max_1h_buy_pressure_impact:
+              type: max
+              label: "Max 1h Buy Pressure Impact (bps)"
+

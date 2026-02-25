@@ -1,0 +1,123 @@
+name: Liquidity Change Heatmap
+description: Heatmap of liquidity movement intensity by tick price
+tableName: dex_tick_dimension_data
+updatedAt: "2026-02-21T05:00:00.000Z"
+metricQuery:
+  exploreName: dex_tick_dimension_data
+  dimensions:
+    - dex_tick_dimension_data_tick_price_t1_per_t0
+  metrics:
+    - dex_tick_dimension_data_tick_token_delta_pct_t1_max
+    - dex_tick_dimension_data_tick_token_delta_t1_max
+  filters:
+    dimensions:
+      id: b1000000-0000-0000-0000-000000000001
+      and:
+        - id: b1000000-0000-0000-0000-000000000002
+          target:
+            fieldId: dex_tick_dimension_data_protocol
+          values:
+            - orca
+          operator: equals
+          required: false
+        - id: b1000000-0000-0000-0000-000000000003
+          target:
+            fieldId: dex_tick_dimension_data_pair
+          values:
+            - USX-USDC
+          operator: equals
+          required: false
+        - id: b1000000-0000-0000-0000-000000000004
+          target:
+            fieldId: dex_tick_dimension_data_delta_lookback
+          values:
+            - "24:00:00"
+          operator: equals
+          required: false
+  sorts:
+    - fieldId: dex_tick_dimension_data_tick_price_t1_per_t0
+      descending: false
+  limit: 500
+  metricOverrides: {}
+  dimensionOverrides: {}
+  tableCalculations: []
+  additionalMetrics: []
+  customDimensions: []
+chartConfig:
+  type: custom
+  config:
+    spec:
+      $schema: https://vega.github.io/schema/vega-lite/v5.json
+      height: 40
+      padding:
+        left: 100
+        right: 55
+      mark:
+        type: rect
+        tooltip: true
+      encoding:
+        x:
+          field: dex_tick_dimension_data_tick_price_t1_per_t0
+          type: ordinal
+          title: USX/USDC
+          axis:
+            labelAngle: -45
+            labelColor: "#a0a0a0"
+            tickColor: "#a0a0a0"
+            titleColor: "#c0c0c0"
+            labelOverlap: "greedy"
+            values:
+              - "0.995"
+              - "0.996"
+              - "0.997"
+              - "0.998"
+              - "0.999"
+              - "1"
+              - "1.001"
+              - "1.002"
+              - "1.003"
+              - "1.004"
+              - "1.005"
+        color:
+          field: dex_tick_dimension_data_tick_token_delta_pct_t1_max
+          type: quantitative
+          title: "Delta % Total"
+          scale:
+            domain:
+              - -5
+              - 0
+              - 5
+            range:
+              - "#d73027"
+              - "#1a1a2e"
+              - "#1a9850"
+            clamp: true
+          legend:
+            orient: bottom
+            direction: horizontal
+            labelColor: "#c0c0c0"
+            titleColor: "#c0c0c0"
+            gradientLength: 200
+        tooltip:
+          - field: dex_tick_dimension_data_tick_price_t1_per_t0
+            type: quantitative
+            title: Price
+            format: ".4f"
+          - field: dex_tick_dimension_data_tick_token_delta_pct_t1_max
+            type: quantitative
+            title: "Delta % Total"
+            format: ".2%"
+          - field: dex_tick_dimension_data_tick_token_delta_t1_max
+            type: quantitative
+            title: "Delta (T1 units)"
+            format: ",.0f"
+pivotConfig:
+  columns: []
+slug: liquidity-change-heatmap
+tableConfig:
+  columnOrder:
+    - dex_tick_dimension_data_tick_price_t1_per_t0
+    - dex_tick_dimension_data_tick_token_delta_pct_t1_max
+    - dex_tick_dimension_data_tick_token_delta_t1_max
+spaceSlug: shared
+version: 1

@@ -1,0 +1,46 @@
+name: 500k T0 Sell Impact
+description: Price impact of 500k token0 sell (bps)
+tableName: dex_latest_metrics
+updatedAt: "2026-02-21T06:00:00.000Z"
+metricQuery:
+  exploreName: dex_latest_metrics
+  dimensions: []
+  metrics:
+    - dex_latest_metrics_impact_500k
+  filters:
+    dimensions:
+      id: c0000002-0000-0000-0000-000000000001
+      and:
+        - id: c0000002-0000-0000-0000-000000000002
+          target:
+            fieldId: dex_latest_metrics_protocol
+          values:
+            - orca
+          operator: equals
+          required: false
+        - id: c0000002-0000-0000-0000-000000000003
+          target:
+            fieldId: dex_latest_metrics_pair
+          values:
+            - USX-USDC
+          operator: equals
+          required: false
+  sorts: []
+  limit: 1
+  tableCalculations: []
+  additionalMetrics: []
+  customDimensions: []
+chartConfig:
+  type: big_number
+  config:
+    selectedField: dex_latest_metrics_impact_500k
+    label: "500k T0 Sell Impact (bps)"
+    showBigNumberLabel: true
+pivotConfig:
+  columns: []
+slug: kpi-impact-500k
+tableConfig:
+  columnOrder:
+    - dex_latest_metrics_impact_500k
+spaceSlug: shared
+version: 1

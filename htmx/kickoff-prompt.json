@@ -1,0 +1,147 @@
+{
+    "project_name": "thin_tradeops_dashboard",
+    "objective": "Build a Python-first operational dashboard framework using FastAPI + Jinja + HTMX + ECharts, while designing a frontend-agnostic API layer that can be reused by other clients (including a React frontend). The API and data caching logic must exist as a separate, composable module with stable JSON contracts. The current UI implementation is server-rendered, but the data layer must not depend on that choice.",
+    "design_principles": [
+      "Strict separation of API layer and UI layer",
+      "Frontend-agnostic JSON API",
+      "Python-first declaration of dashboards",
+      "Server-rendered layout using Jinja templates",
+      "HTMX for partial updates",
+      "Charts rendered client-side using ECharts",
+      "Minimal frontend JavaScript",
+      "Light and dark mode support",
+      "API must support future in-memory incremental refresh and watermark tracking",
+      "Avoid premature complexity"
+    ],
+    "stack": {
+      "backend_framework": "FastAPI",
+      "templating": "Jinja2 (UI only)",
+      "partial_updates": "HTMX (UI only)",
+      "charts": "ECharts",
+      "api_contract_format": "JSON",
+      "future_cache_strategy": "In-memory state with watermark-based incremental refresh"
+    },
+    "architecture_overview": {
+      "layers": [
+        "UI Layer (Jinja + HTMX + ECharts)",
+        "API Layer (JSON only, frontend-agnostic)",
+        "Data Service Layer (abstract SQL execution)",
+        "Future Cache Layer (optional, stub only)"
+      ],
+      "separation_rules": [
+        "UI layer must never call SQL directly",
+        "UI layer must only call API endpoints",
+        "API layer must never render HTML",
+        "API layer must return JSON only",
+        "API layer must be usable by any frontend",
+        "DataService must be independent of FastAPI"
+      ]
+    },
+    "api_design_requirements": {
+      "endpoint_pattern": "/api/v1/{page}/{widget}",
+      "response_structure": {
+        "metadata": {
+          "protocol": "string",
+          "pair": "string",
+          "generated_at": "timestamp",
+          "watermark": "optional timestamp"
+        },
+        "data": "object or array",
+        "status": "success | error"
+      },
+      "rules": [
+        "No HTML responses from API",
+        "All data must be JSON serializable",
+        "Response contracts must remain stable",
+        "Support optional watermark field for future incremental refresh",
+        "API must not depend on Jinja or templates"
+      ]
+    },
+    "data_service_layer": {
+      "requirement": "Create a DataService abstraction independent of FastAPI",
+      "design": [
+        "Expose method get_widget_data(widget_id, params)",
+        "Default implementation calls SQL functions directly",
+        "Must allow future insertion of in-memory cache layer",
+        "Must allow watermark tracking",
+        "No caching logic implemented yet"
+      ],
+      "composability_goal": "DataService must be usable from FastAPI, background jobs, or other frameworks"
+    },
+    "ui_layer_requirements": {
+      "page_modules": {
+        "rule": "Each dashboard page must be implemented as its own Python module under /pages",
+        "responsibilities": [
+          "Declare page metadata",
+          "Declare filters",
+          "Declare widget configuration",
+          "Render base template",
+          "Call API endpoints via HTMX"
+        ]
+      },
+      "widget_model": {
+        "structure": {
+          "id": "string",
+          "title": "string",
+          "type": "kpi | chart | table",
+          "api_endpoint": "string",
+          "default_params": "dict",
+          "refresh_interval_seconds": "int"
+        }
+      },
+      "theme_support": {
+        "requirement": "Support light and dark modes",
+        "implementation": [
+          "CSS variables",
+          "data-theme attribute",
+          "localStorage persistence",
+          "Charts react to theme change"
+        ]
+      }
+    },
+    "directory_structure": {
+      "app/": {
+        "main.py": "FastAPI app bootstrap",
+        "api/": {
+          "routes.py": "All API endpoints",
+          "schemas.py": "Response models"
+        },
+        "services/": {
+          "data_service.py": "DataService abstraction",
+          "sql_adapter.py": "SQL function execution layer"
+        },
+        "pages/": {
+          "example_page.py": "Server-rendered dashboard page"
+        },
+        "templates/": {
+          "base.html": "Layout with theme toggle",
+          "partials/": {}
+        },
+        "static/": {
+          "css/": {},
+          "js/": {}
+        }
+      }
+    },
+    "non_goals": [
+      "No React implementation now",
+      "No DuckDB implementation yet",
+      "No Redis implementation yet",
+      "No complex client-side state management"
+    ],
+    "initial_build_request": [
+      "Generate scaffolding for composable API layer",
+      "Implement DataService abstraction",
+      "Implement one API endpoint returning JSON",
+      "Implement one example dashboard page consuming that endpoint",
+      "Ensure clean separation between API and UI layers",
+      "Implement light/dark mode"
+    ],
+    "style_constraints": [
+      "Clean Python",
+      "Explicit interfaces",
+      "No hidden coupling between UI and API",
+      "Keep future extension simple"
+    ],
+    "developer_profile_context": "Single backend-focused developer with limited frontend experience. Code must remain readable and framework-light."
+  }

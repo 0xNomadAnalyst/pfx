@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyc
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Metabase - large binary + DB files (metabase.jar is 510MB)
+metabase/metabase.jar
+metabase/*.db
+metabase/*.mv.db
+metabase/*.trace.db
+metabase/plugins/
+metabase/backups/
+
+# Superset - cloned upstream repo (has own .git, too large)
+superset/superset-repo/
+
+# dbt compiled artifacts, logs & secrets
+lightdash/dbt_project/target/
+lightdash/dbt_project/logs/
+lightdash/dbt_project/.user.yml
+lightdash/dbt_project/profiles.yml
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,336 @@
+{
+  "run_started_utc": "2026-02-25T10:31:35.501503+00:00",
+  "run_finished_utc": "2026-02-25T10:31:39.580883+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8001",
+    "page": "playbook-liquidity",
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "24h"
+    ],
+    "repeats": 2,
+    "timeout_seconds": 30.0,
+    "parallel": 1,
+    "widget_filter": []
+  },
+  "results": [
+    {
+      "widget": "kpi-average-impact",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 18.18,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 5.79,
+      "warm_p50_ms": 7.1,
+      "warm_p95_ms": 8.28,
+      "warm_avg_ms": 7.1,
+      "warm_max_ms": 8.42,
+      "payload_bytes_p50": 235,
+      "error_samples": []
+    },
+    {
+      "widget": "kpi-impact-500k",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 9.76,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 6.08,
+      "warm_p50_ms": 6.91,
+      "warm_p95_ms": 7.67,
+      "warm_avg_ms": 6.91,
+      "warm_max_ms": 7.75,
+      "payload_bytes_p50": 233,
+      "error_samples": []
+    },
+    {
+      "widget": "kpi-largest-impact",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 18.19,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 4.79,
+      "warm_p50_ms": 6.38,
+      "warm_p95_ms": 7.81,
+      "warm_avg_ms": 6.38,
+      "warm_max_ms": 7.96,
+      "payload_bytes_p50": 235,
+      "error_samples": []
+    },
+    {
+      "widget": "kpi-pool-balance",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 5.41,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 4.66,
+      "warm_p50_ms": 6.64,
+      "warm_p95_ms": 8.42,
+      "warm_avg_ms": 6.64,
+      "warm_max_ms": 8.62,
+      "payload_bytes_p50": 215,
+      "error_samples": []
+    },
+    {
+      "widget": "kpi-reserves",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 7.83,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 7.42,
+      "warm_p50_ms": 7.94,
+      "warm_p95_ms": 8.41,
+      "warm_avg_ms": 7.94,
+      "warm_max_ms": 8.46,
+      "payload_bytes_p50": 224,
+      "error_samples": []
+    },
+    {
+      "widget": "kpi-tvl",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 2414.55,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 6.59,
+      "warm_p50_ms": 7.63,
+      "warm_p95_ms": 8.57,
+      "warm_avg_ms": 7.63,
+      "warm_max_ms": 8.67,
+      "payload_bytes_p50": 196,
+      "error_samples": []
+    },
+    {
+      "widget": "liquidity-change-heatmap",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 11.65,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 18.47,
+      "warm_p50_ms": 19.99,
+      "warm_p95_ms": 21.35,
+      "warm_avg_ms": 19.99,
+      "warm_max_ms": 21.51,
+      "payload_bytes_p50": 8361,
+      "error_samples": []
+    },
+    {
+      "widget": "liquidity-depth",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 17.21,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 6.55,
+      "warm_p50_ms": 8.21,
+      "warm_p95_ms": 9.7,
+      "warm_avg_ms": 8.21,
+      "warm_max_ms": 9.87,
+      "payload_bytes_p50": 9711,
+      "error_samples": []
+    },
+    {
+      "widget": "liquidity-depth-table",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 7.1,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 7.94,
+      "warm_p50_ms": 14.15,
+      "warm_p95_ms": 19.74,
+      "warm_avg_ms": 14.15,
+      "warm_max_ms": 20.36,
+      "payload_bytes_p50": 4639,
+      "error_samples": []
+    },
+    {
+      "widget": "liquidity-distribution",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 130.58,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 7.88,
+      "warm_p50_ms": 9.27,
+      "warm_p95_ms": 10.52,
+      "warm_avg_ms": 9.27,
+      "warm_max_ms": 10.66,
+      "payload_bytes_p50": 8026,
+      "error_samples": []
+    },
+    {
+      "widget": "ranked-lp-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 9.11,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 7.06,
+      "warm_p50_ms": 9.4,
+      "warm_p95_ms": 11.5,
+      "warm_avg_ms": 9.4,
+      "warm_max_ms": 11.73,
+      "payload_bytes_p50": 6835,
+      "error_samples": []
+    },
+    {
+      "widget": "trade-impact-toggle",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "impact_mode": "impact"
+      },
+      "cold_ms": 7.6,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 7.35,
+      "warm_p50_ms": 8.73,
+      "warm_p95_ms": 9.97,
+      "warm_avg_ms": 8.73,
+      "warm_max_ms": 10.11,
+      "payload_bytes_p50": 4247,
+      "error_samples": []
+    },
+    {
+      "widget": "trade-impact-toggle",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "impact_mode": "size"
+      },
+      "cold_ms": 10.72,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 7.56,
+      "warm_p50_ms": 8.22,
+      "warm_p95_ms": 8.82,
+      "warm_avg_ms": 8.22,
+      "warm_max_ms": 8.89,
+      "payload_bytes_p50": 4825,
+      "error_samples": []
+    },
+    {
+      "widget": "usdc-lp-flows",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 1125.45,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 6.9,
+      "warm_p50_ms": 7.55,
+      "warm_p95_ms": 8.13,
+      "warm_avg_ms": 7.55,
+      "warm_max_ms": 8.2,
+      "payload_bytes_p50": 3677,
+      "error_samples": []
+    },
+    {
+      "widget": "usdc-pool-share-concentration",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 7.0,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 7.76,
+      "warm_p50_ms": 8.44,
+      "warm_p95_ms": 9.05,
+      "warm_avg_ms": 8.44,
+      "warm_max_ms": 9.12,
+      "payload_bytes_p50": 3754,
+      "error_samples": []
+    }
+  ]
+}
