@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+import statistics
 from typing import Any
 
 from app.services.pages.base import BasePageService
@@ -21,9 +23,10 @@ class DexSwapsPageService(BasePageService):
             "kpi-largest-usx-buy": self._kpi_largest_usx_buy,
             "kpi-max-1h-sell-pressure": self._kpi_max_1h_sell_pressure,
             "kpi-max-1h-buy-pressure": self._kpi_max_1h_buy_pressure,
-            "swaps-usx-flows-impacts": self._swaps_usx_flows_impacts,
-            "swaps-usdc-flows-count": self._swaps_usdc_flows_count,
-            "swaps-directional-vwap-spread": self._swaps_directional_vwap_spread,
+            "swaps-flows-toggle": self._swaps_flows_toggle,
+            "swaps-price-impacts": self._swaps_price_impacts,
+            "swaps-spread-volatility": self._swaps_spread_volatility,
+            "swaps-directional-vwap-spread": self._swaps_spread_volatility,
             "swaps-ohlcv": self._swaps_ohlcv,
             "swaps-distribution-toggle": self._swaps_distribution_toggle,
             "swaps-sell-usx-distribution": self._swaps_sell_usx_distribution,
@@ -44,6 +47,28 @@ class DexSwapsPageService(BasePageService):
             "90d": ("90 days", "12 hours", 180),
         }
         return mapping.get(window, mapping["24h"])
+
+    @staticmethod
+    def _to_float_or_none(value: Any) -> float | None:
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(parsed):
+            return None
+        return parsed
+
+    @staticmethod
+    def _forward_fill(values: list[float | None]) -> list[float | None]:
+        out: list[float | None] = []
+        last_seen: float | None = None
+        for value in values:
+            if value is None:
+                out.append(last_seen)
+                continue
+            last_seen = value
+            out.append(value)
+        return out
 
     def _lookback(self, params: dict[str, Any]) -> str:
         fallback = str(params.get("lookback", "1 day"))
@@ -117,6 +142,22 @@ class DexSwapsPageService(BasePageService):
             return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
 
         cache_key = f"dex_swaps::dex_ohlcv::{protocol}::{pair}::{interval}::{rows}"
+        return self._cached(cache_key, _load_rows)
+
+    def _tick_dist_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+        protocol = str(params.get("protocol", self.default_protocol))
+        pair = str(params.get("pair", self.default_pair))
+        delta_time = str(params.get("tick_delta_time", "1 hour"))
+
+        def _load_rows() -> list[dict[str, Any]]:
+            query = """
+                SELECT *
+                FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval)
+                ORDER BY tick_price_t1_per_t0
+            """
+            return self.sql.fetch_rows(query, (protocol, pair, delta_time))
+
+        cache_key = f"dex_swaps::tick_dist::{protocol}::{pair}::{delta_time}"
         return self._cached(cache_key, _load_rows)
 
     def _sell_swaps_distribution_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -255,48 +296,76 @@ class DexSwapsPageService(BasePageService):
             "label": "Max. 1hr. USX Buy Pressure & Est. Current Impact",
         }
 
-    def _swaps_usx_flows_impacts(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _swaps_flows_toggle(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._dex_timeseries_rows(params)
+        mode = str(params.get("flow_mode", "usx")).strip().lower()
+        is_usdc = mode == "usdc"
+        buy_key = "swap_t1_out" if is_usdc else "swap_t0_out"
+        sell_key = "swap_t1_in" if is_usdc else "swap_t0_in"
+        buy_label = "Buy USDC" if is_usdc else "Buy USX"
+        sell_label = "Sell USDC" if is_usdc else "Sell USX"
         return {
             "kind": "chart",
             "chart": "bar-line",
             "x": [row["time"] for row in rows],
             "series": [
-                {"name": "Buy USX", "type": "bar", "yAxisIndex": 0, "color": "#2fbf71", "data": [row.get("swap_t0_out") for row in rows]},
-                {"name": "Sell USX", "type": "bar", "yAxisIndex": 0, "color": "#e24c4c", "data": [-(abs(float(row.get("swap_t0_in") or 0))) for row in rows]},
-                {"name": "Avg. Swap Impact", "type": "line", "yAxisIndex": 1, "color": "#f8a94a", "data": [row.get("avg_est_swap_impact_bps_all") for row in rows]},
-                {"name": "Max. Sell USX Impact", "type": "line", "yAxisIndex": 1, "color": "#c186ff", "data": [row.get("min_est_swap_impact_bps_t0_sell") for row in rows]},
-            ],
-        }
-
-    def _swaps_usdc_flows_count(self, params: dict[str, Any]) -> dict[str, Any]:
-        rows = self._dex_timeseries_rows(params)
-        return {
-            "kind": "chart",
-            "chart": "bar-line",
-            "x": [row["time"] for row in rows],
-            "series": [
-                {"name": "Buy USDC", "type": "bar", "yAxisIndex": 0, "color": "#2fbf71", "data": [row.get("swap_t1_out") for row in rows]},
-                {"name": "Sell USDC", "type": "bar", "yAxisIndex": 0, "color": "#e24c4c", "data": [-(abs(float(row.get("swap_t1_in") or 0))) for row in rows]},
+                {"name": buy_label, "type": "bar", "yAxisIndex": 0, "color": "#2fbf71", "data": [row.get(buy_key) for row in rows]},
+                {"name": sell_label, "type": "bar", "yAxisIndex": 0, "color": "#e24c4c", "data": [-(abs(float(row.get(sell_key) or 0))) for row in rows]},
                 {"name": "Swap Count", "type": "line", "area": True, "yAxisIndex": 1, "color": "#f8a94a", "data": [row.get("swap_count") for row in rows]},
             ],
         }
 
-    def _swaps_directional_vwap_spread(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _swaps_price_impacts(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._dex_timeseries_rows(params)
+        avg_impacts = [self._to_float_or_none(row.get("avg_est_swap_impact_bps_all")) for row in rows]
+        max_sell_impacts_raw = [self._to_float_or_none(row.get("min_est_swap_impact_bps_t0_sell")) for row in rows]
+        max_sell_impacts = self._forward_fill(max_sell_impacts_raw)
         return {
             "kind": "chart",
-            "chart": "bar-line",
+            "chart": "line",
             "x": [row["time"] for row in rows],
             "series": [
-                {"name": "VWAP Buy", "type": "line", "yAxisIndex": 0, "color": "#2fbf71", "data": [row.get("last_avg_vwap_buy_t0_w_last") for row in rows]},
-                {"name": "VWAP Sell", "type": "line", "yAxisIndex": 0, "color": "#f8a94a", "data": [row.get("last_avg_vwap_sell_t0_w_last") for row in rows]},
-                {"name": "Avg. Spread", "type": "bar", "yAxisIndex": 1, "color": "#4bb7ff", "data": [row.get("avg_vwap_spread_bps_w_last") for row in rows]},
+                {"name": "Avg. Swap Impact", "type": "line", "yAxisIndex": 0, "color": "#f8a94a", "connectNulls": True, "data": avg_impacts},
+                {"name": "Max. Sell USX Impact", "type": "line", "yAxisIndex": 0, "color": "#c186ff", "connectNulls": True, "data": max_sell_impacts},
+            ],
+        }
+
+    def _swaps_spread_volatility(self, params: dict[str, Any]) -> dict[str, Any]:
+        rows = self._dex_timeseries_rows(params)
+        prices = [float(row.get("price_t1_per_t0") or 0) if row.get("price_t1_per_t0") is not None else None for row in rows]
+        window = 12
+        std_values: list[float | None] = []
+        for idx in range(len(prices)):
+            window_values = [value for value in prices[max(0, idx - window + 1) : idx + 1] if value is not None]
+            if len(window_values) < 2:
+                std_values.append(None)
+                continue
+            std_values.append(float(statistics.pstdev(window_values)))
+        return {
+            "kind": "chart",
+            "chart": "line",
+            "x": [row["time"] for row in rows],
+            "series": [
+                {"name": "VWAP Spread", "type": "bar", "yAxisIndex": 0, "color": "#f8a94a", "data": [self._to_float_or_none(row.get("avg_vwap_spread_bps_w_last")) for row in rows]},
+                {"name": "Std. Dev.", "type": "line", "yAxisIndex": 1, "color": "#4bb7ff", "data": std_values},
             ],
         }
 
     def _swaps_ohlcv(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._dex_ohlcv_rows(params)
+        tick_rows = self._tick_dist_rows(params)
+        liquidity_profile: list[dict[str, float]] = []
+        for row in tick_rows:
+            try:
+                price = float(row.get("tick_price_t1_per_t0") or 0)
+                token0 = float(row.get("token0_value") or 0)
+                token1 = float(row.get("token1_value") or 0)
+            except (TypeError, ValueError):
+                continue
+            liquidity = abs(token0) + abs(token1)
+            if not math.isfinite(price) or not math.isfinite(liquidity) or liquidity <= 0:
+                continue
+            liquidity_profile.append({"price": price, "liquidity": liquidity})
         return {
             "kind": "chart",
             "chart": "candlestick-volume",
@@ -311,6 +380,7 @@ class DexSwapsPageService(BasePageService):
                 for row in rows
             ],
             "volume": [row.get("volume_t1") for row in rows],
+            "liquidity_profile": liquidity_profile,
         }
 
     @staticmethod

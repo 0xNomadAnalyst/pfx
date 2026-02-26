@@ -23,6 +23,7 @@ class RowKey:
     widget: str
     window: str
     impact_mode: str
+    flow_mode: str
     distribution_mode: str
 
 
@@ -78,6 +79,7 @@ def as_index(report: dict[str, Any]) -> dict[RowKey, dict[str, Any]]:
             widget=str(row.get("widget", "")),
             window=str(params.get("last_window", "")),
             impact_mode=str(params.get("impact_mode", "")),
+            flow_mode=str(params.get("flow_mode", "")),
             distribution_mode=str(params.get("distribution_mode", "")),
         )
         out[key] = row
@@ -171,6 +173,7 @@ def main() -> int:
                 "page": key.page,
                 "window": key.window,
                 "impact_mode": key.impact_mode,
+                "flow_mode": key.flow_mode,
                 "distribution_mode": key.distribution_mode,
                 "comparison": comp,
             }
@@ -181,7 +184,7 @@ def main() -> int:
     print("\nBenchmark comparison")
     print("=" * 144)
     header = (
-        f"{'Page':16} {'Widget':30} {'Window':>6} {'Mode':>8} {'Dist':>12} "
+        f"{'Page':16} {'Widget':30} {'Window':>6} {'Mode':>8} {'Flow':>10} {'Dist':>12} "
         f"{'P95 d%':>9} {'P50 d%':>9} {'Avg d%':>9} {'Cold d%':>9} {'Err d':>6} {'Status':>10}"
     )
     print(header)
@@ -215,10 +218,11 @@ def main() -> int:
             overall = "neutral"
 
         mode = item["impact_mode"] or "-"
+        flow_mode = item["flow_mode"] or "-"
         dist_mode = item["distribution_mode"] or "-"
         widget_name = item["widget"]
         print(
-            f"{item['page'][:16]:16} {widget_name[:30]:30} {item['window']:>6} {mode[:8]:>8} {dist_mode[:12]:>12} "
+            f"{item['page'][:16]:16} {widget_name[:30]:30} {item['window']:>6} {mode[:8]:>8} {flow_mode[:10]:>10} {dist_mode[:12]:>12} "
             f"{p95:9.2f} {p50:9.2f} {avg:9.2f} {cold:9.2f} {err_delta:6d} {overall:>10}"
         )
 

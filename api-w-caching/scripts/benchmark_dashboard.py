@@ -62,9 +62,10 @@ SWAPS_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("kpi-largest-usx-buy", {}),
     WidgetScenario("kpi-max-1h-sell-pressure", {}),
     WidgetScenario("kpi-max-1h-buy-pressure", {}),
-    WidgetScenario("swaps-usx-flows-impacts", {}),
-    WidgetScenario("swaps-usdc-flows-count", {}),
-    WidgetScenario("swaps-directional-vwap-spread", {}),
+    WidgetScenario("swaps-flows-toggle", {"flow_mode": "usx"}),
+    WidgetScenario("swaps-flows-toggle", {"flow_mode": "usdc"}),
+    WidgetScenario("swaps-price-impacts", {}),
+    WidgetScenario("swaps-spread-volatility", {}),
     WidgetScenario("swaps-ohlcv", {}),
     WidgetScenario("swaps-distribution-toggle", {"distribution_mode": "sell-order"}),
     WidgetScenario("swaps-distribution-toggle", {"distribution_mode": "net-sell-pressure"}),
@@ -249,6 +250,8 @@ def print_report(results: list[dict[str, Any]]) -> None:
         widget_name = row["widget"]
         if "impact_mode" in params:
             widget_name = f"{widget_name}:{params['impact_mode']}"
+        if "flow_mode" in params:
+            widget_name = f"{widget_name}:{params['flow_mode']}"
         if "distribution_mode" in params:
             widget_name = f"{widget_name}:{params['distribution_mode']}"
         print(
@@ -314,6 +317,7 @@ def main() -> int:
             str(item["params"].get("last_window")),
             item["widget"],
             str(item["params"].get("impact_mode", "")),
+            str(item["params"].get("flow_mode", "")),
             str(item["params"].get("distribution_mode", "")),
         )
     )

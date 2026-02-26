@@ -5,10 +5,11 @@
   data-widget-id="{{ widget.id }}"
   data-widget-kind="{{ widget.kind }}"
   data-impact-mode="size"
+  data-flow-mode="usx"
   data-base-endpoint="{{ widget.endpoint }}"
   hx-get="{{ widget.endpoint }}"
   hx-request='{"timeout":12000}'
-  hx-trigger="load delay:{{ widget.load_delay_seconds }}s, dashboard-refresh from:body, impact-mode-change, distribution-mode-change, ohlcv-interval-change, every {{ widget.refresh_interval_seconds }}s"
+  hx-trigger="load delay:{{ widget.load_delay_seconds }}s, dashboard-refresh from:body, impact-mode-change, flow-mode-change, distribution-mode-change, ohlcv-interval-change, every {{ widget.refresh_interval_seconds }}s"
   hx-swap="none"
 >
   <div class="panel-header">
@@ -22,6 +23,11 @@
       <select id="swaps-distribution-mode" class="filter-select chart-mode-select" aria-label="Swaps distribution chart mode">
         <option value="sell-order">Sell Order Distribution</option>
         <option value="net-sell-pressure">Net Sell Pressure Distribution</option>
+      </select>
+    {% elif widget.id == "swaps-flows-toggle" %}
+      <select id="swaps-flow-mode" class="filter-select chart-mode-select" aria-label="Swap flow token and side">
+        <option value="usx" selected>USX</option>
+        <option value="usdc">USDC</option>
       </select>
     {% elif widget.id == "swaps-ohlcv" %}
       <select id="swaps-ohlcv-interval" class="filter-select chart-mode-select" aria-label="OHLCV candle interval">

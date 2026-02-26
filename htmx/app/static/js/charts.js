@@ -15,9 +15,9 @@
     "usdc-lp-flows",
     "usdc-pool-share-concentration",
     "trade-impact-toggle",
-    "swaps-usx-flows-impacts",
-    "swaps-usdc-flows-count",
-    "swaps-directional-vwap-spread",
+    "swaps-flows-toggle",
+    "swaps-price-impacts",
+    "swaps-spread-volatility",
     "swaps-ohlcv",
   ]);
   const tickReferenceWidgets = new Set([
@@ -468,6 +468,9 @@
         if (series.yAxisIndex !== undefined) {
           mapped.yAxisIndex = series.yAxisIndex;
         }
+        if (series.connectNulls !== undefined) {
+          mapped.connectNulls = Boolean(series.connectNulls);
+        }
         if (series.color) {
           mapped.itemStyle = { color: series.color };
           mapped.lineStyle = { color: series.color };
@@ -509,6 +512,15 @@
       const xValues = data.x || [];
       const candleData = data.candles || [];
       const volumeData = data.volume || [];
+      const liquidityProfileRaw = Array.isArray(data.liquidity_profile) ? data.liquidity_profile : [];
+      const liquidityProfile = liquidityProfileRaw
+        .map((row) => ({
+          price: Number(row?.price),
+          liquidity: Number(row?.liquidity),
+        }))
+        .filter((row) => Number.isFinite(row.price) && Number.isFinite(row.liquidity) && row.liquidity > 0);
+      const profileMax = liquidityProfile.reduce((maxValue, row) => Math.max(maxValue, row.liquidity), 0);
+      const profileColor = "rgba(142, 161, 199, 0.16)";
       option = {
         color: palette(),
         legend: {
@@ -538,8 +550,8 @@
           },
         },
         grid: [
-          { left: 82, right: 64, top: 14, height: "56%", containLabel: false },
-          { left: 82, right: 64, top: "74%", height: "12%", containLabel: false },
+          { left: 82, right: 88, top: 14, height: "56%", containLabel: false },
+          { left: 82, right: 88, top: "74%", height: "12%", containLabel: false },
         ],
         xAxis: [
           {
@@ -564,22 +576,48 @@
             },
             axisTick: { show: false },
           },
+          {
+            type: "value",
+            gridIndex: 0,
+            min: 0,
+            max: profileMax > 0 ? profileMax * 1.05 : 1,
+            inverse: true,
+            show: false,
+          },
         ],
         yAxis: [
           {
             type: "value",
             scale: true,
+            position: "right",
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { lineStyle: { color: chartGridColor() } },
-            axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0], formatter: (v) => Number(v).toFixed(4) },
+            axisLabel: {
+              color: chartTextColor(),
+              width: 62,
+              align: "left",
+              padding: [0, 0, 0, 8],
+              margin: 10,
+              inside: false,
+              formatter: (v) => Number(v).toFixed(4),
+            },
           },
           {
             type: "value",
             gridIndex: 1,
             scale: true,
+            position: "right",
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { show: false },
-            axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0], formatter: (v) => Math.round(Number(v)).toString() },
+            axisLabel: {
+              color: chartTextColor(),
+              width: 62,
+              align: "left",
+              padding: [0, 0, 0, 8],
+              margin: 10,
+              inside: false,
+              formatter: (v) => Math.round(Number(v)).toString(),
+            },
           },
         ],
         dataZoom: [
@@ -596,12 +634,61 @@
             borderColor: chartGridColor(),
             brushSelect: false,
           },
+          {
+            type: "inside",
+            yAxisIndex: 0,
+            filterMode: "none",
+          },
         ],
         series: [
+          ...(liquidityProfile.length > 0
+            ? [
+                {
+                  name: "Liquidity Profile",
+                  type: "custom",
+                  xAxisIndex: 2,
+                  yAxisIndex: 0,
+                  silent: true,
+                  z: 1,
+                  tooltip: { show: false },
+                  renderItem: (params, api) => {
+                    const liquidity = Number(api.value(0));
+                    const price = Number(api.value(1));
+                    if (!Number.isFinite(liquidity) || !Number.isFinite(price) || liquidity <= 0) {
+                      return null;
+                    }
+                    const rightEdge = api.coord([0, price]);
+                    const leftEdge = api.coord([liquidity, price]);
+                    const x = Math.min(leftEdge[0], rightEdge[0]);
+                    const width = Math.abs(rightEdge[0] - leftEdge[0]);
+                    if (!Number.isFinite(x) || !Number.isFinite(width) || width <= 0) {
+                      return null;
+                    }
+                    const coordSys = params.coordSys;
+                    const barHeight = Math.max(1.5, coordSys.height / Math.max(liquidityProfile.length, 180));
+                    return {
+                      type: "rect",
+                      shape: {
+                        x,
+                        y: rightEdge[1] - barHeight / 2,
+                        width,
+                        height: barHeight,
+                      },
+                      style: {
+                        fill: profileColor,
+                      },
+                      silent: true,
+                    };
+                  },
+                  data: liquidityProfile.map((row) => [row.liquidity, row.price]),
+                },
+              ]
+            : []),
           {
             name: "OHLC",
             type: "candlestick",
             data: candleData,
+            z: 3,
             itemStyle: {
               color: "#2fbf71",
               color0: "#e24c4c",
@@ -617,6 +704,7 @@
             data: volumeData,
             itemStyle: { color: "#4bb7ff" },
             barMaxWidth: 8,
+            z: 2,
           },
         ],
       };
@@ -819,27 +907,7 @@
           };
         });
       }
-      if (widgetId === "swaps-usx-flows-impacts") {
-        option.yAxis = [
-          {
-            type: "value",
-            axisLine: { lineStyle: { color: chartGridColor() } },
-            splitLine: { lineStyle: { color: chartGridColor() } },
-            axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0] },
-          },
-          {
-            type: "value",
-            position: "right",
-            axisLine: { lineStyle: { color: chartGridColor() } },
-            splitLine: { show: false },
-            axisLabel: {
-              color: chartTextColor(),
-              formatter: (value) => Number(value).toFixed(2),
-            },
-          },
-        ];
-      }
-      if (widgetId === "swaps-usdc-flows-count") {
+      if (widgetId === "swaps-flows-toggle") {
         option.yAxis = [
           {
             type: "value",
@@ -856,10 +924,36 @@
           },
         ];
       }
-      if (widgetId === "swaps-directional-vwap-spread") {
+      if (widgetId === "swaps-price-impacts") {
+        option.yAxis = {
+          type: "value",
+          axisLine: { lineStyle: { color: chartGridColor() } },
+          splitLine: { lineStyle: { color: chartGridColor() } },
+          axisLabel: {
+            color: chartTextColor(),
+            width: 62,
+            align: "right",
+            padding: [0, 8, 0, 0],
+            formatter: (value) => Number(value).toFixed(3),
+          },
+        };
+      }
+      if (widgetId === "swaps-spread-volatility") {
         option.yAxis = [
           {
             type: "value",
+            min: (axis) => {
+              const min = Number(axis.min) || 0;
+              const max = Number(axis.max) || 0;
+              const span = Math.max(max - min, 0.0001);
+              return min - span * 0.15;
+            },
+            max: (axis) => {
+              const min = Number(axis.min) || 0;
+              const max = Number(axis.max) || 0;
+              const span = Math.max(max - min, 0.0001);
+              return max + span * 0.15;
+            },
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { lineStyle: { color: chartGridColor() } },
             axisLabel: {
@@ -867,15 +961,27 @@
               width: 62,
               align: "right",
               padding: [0, 8, 0, 0],
-              formatter: (value) => Number(value).toFixed(4),
+              formatter: (value) => Number(value).toFixed(2),
             },
           },
           {
             type: "value",
             position: "right",
+            min: (axis) => {
+              const min = Number(axis.min) || 0;
+              const max = Number(axis.max) || 0;
+              const span = Math.max(max - min, 0.0001);
+              return min - span * 0.15;
+            },
+            max: (axis) => {
+              const min = Number(axis.min) || 0;
+              const max = Number(axis.max) || 0;
+              const span = Math.max(max - min, 0.0001);
+              return max + span * 0.15;
+            },
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { show: false },
-            axisLabel: { color: chartTextColor(), formatter: (value) => Number(value).toFixed(2) },
+            axisLabel: { color: chartTextColor(), formatter: (value) => Number(value).toFixed(6) },
           },
         ];
       }
@@ -1176,6 +1282,7 @@
     }
 
     initTradeImpactModeToggle();
+    initSwapsFlowModeToggle();
     initSwapsDistributionModeToggle();
     initSwapsOhlcvIntervalToggle();
   }
@@ -1205,6 +1312,20 @@
       widget.dataset.distributionMode = modeSelect.value || "sell-order";
       resetWidgetView(widget);
       htmx.trigger(widget, "distribution-mode-change");
+    });
+  }
+
+  function initSwapsFlowModeToggle() {
+    const modeSelect = document.getElementById("swaps-flow-mode");
+    const widget = document.getElementById("widget-swaps-flows-toggle");
+    if (!modeSelect || !widget) {
+      return;
+    }
+    widget.dataset.flowMode = modeSelect.value || "usx";
+    modeSelect.addEventListener("change", () => {
+      widget.dataset.flowMode = modeSelect.value || "usx";
+      resetWidgetView(widget);
+      htmx.trigger(widget, "flow-mode-change");
     });
   }
 
@@ -1261,6 +1382,9 @@
     event.detail.parameters.last_window = currentLastWindow();
     if (sourceEl.dataset.widgetId === "trade-impact-toggle") {
       event.detail.parameters.impact_mode = sourceEl.dataset.impactMode || "size";
+    }
+    if (sourceEl.dataset.widgetId === "swaps-flows-toggle") {
+      event.detail.parameters.flow_mode = sourceEl.dataset.flowMode || "usx";
     }
     if (sourceEl.dataset.widgetId === "swaps-distribution-toggle") {
       event.detail.parameters.distribution_mode = sourceEl.dataset.distributionMode || "sell-order";
