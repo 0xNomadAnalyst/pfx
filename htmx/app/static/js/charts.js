@@ -433,8 +433,8 @@
     const option = {
       color: palette(),
       tooltip: { trigger: "axis" },
-      legend: { top: 2, textStyle: { color: chartTextColor() } },
-      grid: { left: 40, right: 18, top: 30, bottom: 18, containLabel: true },
+      legend: { bottom: 2, textStyle: { color: chartTextColor() } },
+      grid: { left: 40, right: 18, top: 22, bottom: 60, containLabel: true },
       xAxis: {
         type: "category",
         data: data.x || [],
@@ -576,7 +576,7 @@
       if (comparableLiquidityWidgets.has(widgetId)) {
         option.grid.left = 82;
         option.grid.right = 18;
-        option.grid.bottom = 18;
+        option.grid.bottom = 60;
         option.grid.containLabel = false;
         option.yAxis.axisLabel = {
           ...option.yAxis.axisLabel,
@@ -593,7 +593,7 @@
       }
       option.xAxis.boundaryGap = false;
       if (widgetId === "liquidity-distribution") {
-        option.grid.bottom = 20;
+        option.grid.bottom = 60;
       }
       if (leftLinkedZoomWidgets.has(widgetId) || rightLinkedZoomWidgets.has(widgetId)) {
         option.dataZoom = [
@@ -608,7 +608,7 @@
             type: "slider",
             xAxisIndex: 0,
             height: 12,
-            bottom: 2,
+            bottom: 28,
             borderColor: chartGridColor(),
             brushSelect: false,
             start: focusedTickZoom?.start,
@@ -619,7 +619,7 @@
       if (rightLinkedZoomWidgets.has(widgetId)) {
         option.grid.left = 82;
         option.grid.right = 64;
-        option.grid.bottom = 22;
+        option.grid.bottom = 60;
         option.grid.containLabel = false;
         option.yAxis = {
           ...option.yAxis,
@@ -656,6 +656,7 @@
         }
       }
       if (widgetId === "usdc-lp-flows") {
+        const lpNetColor = palette()[0];
         option.yAxis = [
           {
             type: "value",
@@ -690,6 +691,17 @@
             },
           },
         ];
+        option.series = (option.series || []).map((series) => {
+          if (series.name !== "LP Net % Reserve") {
+            return series;
+          }
+          return {
+            ...series,
+            yAxisIndex: 1,
+            lineStyle: { ...(series.lineStyle || {}), color: lpNetColor },
+            itemStyle: { ...(series.itemStyle || {}), color: lpNetColor },
+          };
+        });
       }
       if (widgetId === "swaps-usx-flows-impacts") {
         option.yAxis = [
@@ -752,6 +764,15 @@
         ];
       }
       if (widgetId === "swaps-sell-usx-distribution" || widgetId === "swaps-1h-net-sell-pressure-distribution") {
+        option.xAxis = {
+          ...option.xAxis,
+          boundaryGap: true,
+        };
+        option.grid = {
+          ...option.grid,
+          left: 72,
+          right: 52,
+        };
         option.yAxis = [
           {
             type: "value",
