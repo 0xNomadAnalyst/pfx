@@ -15,6 +15,9 @@
     "usdc-lp-flows",
     "usdc-pool-share-concentration",
     "trade-impact-toggle",
+    "swaps-usx-flows-impacts",
+    "swaps-usdc-flows-count",
+    "swaps-directional-vwap-spread",
   ]);
   const tickReferenceWidgets = new Set([
     "liquidity-distribution",
@@ -87,6 +90,14 @@
       return value;
     }
     return numeric.toFixed(4);
+  }
+
+  function formatBps2dp(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return "--";
+    }
+    return `${numeric.toFixed(2)} bps`;
   }
 
   function formatCompactTimestamp(value) {
@@ -322,6 +333,39 @@
       return;
     }
 
+    if (widgetId === "kpi-price-min-max") {
+      const minValue = Number(data.primary);
+      const maxValue = Number(data.secondary);
+      primary.textContent = `${Number.isFinite(minValue) ? minValue.toFixed(4) : "--"} / ${Number.isFinite(maxValue) ? maxValue.toFixed(4) : "--"}`;
+      secondary.textContent = "min / max";
+      return;
+    }
+
+    if (widgetId === "kpi-vwap-buy-sell") {
+      const buy = Number(data.primary);
+      const sell = Number(data.secondary);
+      primary.textContent = `${Number.isFinite(buy) ? buy.toFixed(4) : "--"} / ${Number.isFinite(sell) ? sell.toFixed(4) : "--"}`;
+      secondary.textContent = "buy / sell";
+      return;
+    }
+
+    if (widgetId === "kpi-vwap-spread") {
+      primary.textContent = formatBps2dp(data.primary);
+      secondary.textContent = "";
+      return;
+    }
+
+    if (
+      widgetId === "kpi-largest-usx-sell" ||
+      widgetId === "kpi-largest-usx-buy" ||
+      widgetId === "kpi-max-1h-sell-pressure" ||
+      widgetId === "kpi-max-1h-buy-pressure"
+    ) {
+      primary.textContent = formatNumber(data.primary);
+      secondary.textContent = `Est impact: ${formatBps2dp(data.secondary)}`;
+      return;
+    }
+
     primary.textContent = formatNumber(data.primary);
     secondary.textContent = data.secondary ? formatNumber(data.secondary) : "";
   }
@@ -414,9 +458,12 @@
           name: series.name,
           type: series.type || "line",
           data: series.data || [],
-          showSymbol: false,
-          smooth: false,
+          showSymbol: series.showSymbol ?? false,
+          smooth: series.smooth ?? false,
         };
+        if (series.symbolSize !== undefined) {
+          mapped.symbolSize = series.symbolSize;
+        }
         if (series.yAxisIndex !== undefined) {
           mapped.yAxisIndex = series.yAxisIndex;
         }
@@ -644,6 +691,83 @@
           },
         ];
       }
+      if (widgetId === "swaps-usx-flows-impacts") {
+        option.yAxis = [
+          {
+            type: "value",
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { lineStyle: { color: chartGridColor() } },
+            axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0] },
+          },
+          {
+            type: "value",
+            position: "right",
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { show: false },
+            axisLabel: {
+              color: chartTextColor(),
+              formatter: (value) => Number(value).toFixed(2),
+            },
+          },
+        ];
+      }
+      if (widgetId === "swaps-usdc-flows-count") {
+        option.yAxis = [
+          {
+            type: "value",
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { lineStyle: { color: chartGridColor() } },
+            axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0] },
+          },
+          {
+            type: "value",
+            position: "right",
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { show: false },
+            axisLabel: { color: chartTextColor(), formatter: (value) => Math.round(Number(value)).toString() },
+          },
+        ];
+      }
+      if (widgetId === "swaps-directional-vwap-spread") {
+        option.yAxis = [
+          {
+            type: "value",
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { lineStyle: { color: chartGridColor() } },
+            axisLabel: {
+              color: chartTextColor(),
+              width: 62,
+              align: "right",
+              padding: [0, 8, 0, 0],
+              formatter: (value) => Number(value).toFixed(4),
+            },
+          },
+          {
+            type: "value",
+            position: "right",
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { show: false },
+            axisLabel: { color: chartTextColor(), formatter: (value) => Number(value).toFixed(2) },
+          },
+        ];
+      }
+      if (widgetId === "swaps-sell-usx-distribution" || widgetId === "swaps-1h-net-sell-pressure-distribution") {
+        option.yAxis = [
+          {
+            type: "value",
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { lineStyle: { color: chartGridColor() } },
+            axisLabel: { color: chartTextColor(), formatter: (value) => Math.round(Number(value)).toString() },
+          },
+          {
+            type: "value",
+            position: "right",
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { show: false },
+            axisLabel: { color: chartTextColor(), formatter: (value) => Number(value).toFixed(2) },
+          },
+        ];
+      }
     }
 
     instance.setOption(option, true);
@@ -839,54 +963,74 @@
     return protocolPairs.filter((item) => item.protocol === protocol).map((item) => item.pair);
   }
 
+  function initPageSelector() {
+    const pageSelect = document.getElementById("page-select");
+    if (!pageSelect) {
+      return;
+    }
+    pageSelect.addEventListener("change", () => {
+      if (pageSelect.value && pageSelect.value !== window.location.pathname) {
+        window.location.assign(pageSelect.value);
+      }
+    });
+  }
+
   async function initFilters() {
     const protocolSelect = document.getElementById("protocol-select");
     const pairSelect = document.getElementById("pair-select");
     const lastWindowSelect = document.getElementById("last-window-select");
-    if (!protocolSelect || !pairSelect || !lastWindowSelect) {
+    if (!lastWindowSelect) {
       return;
     }
 
-    let selectedProtocol = protocolSelect.value;
-    let selectedPair = pairSelect.value;
+    let selectedProtocol = protocolSelect ? protocolSelect.value : currentProtocol();
+    let selectedPair = pairSelect ? pairSelect.value : currentPair();
     let selectedLastWindow = lastWindowSelect.value || "24h";
 
-    try {
-      const response = await fetch(`${getApiBaseUrl()}/api/v1/meta`);
-      const payload = await response.json();
-      protocolPairs = payload.protocol_pairs || [];
-      const protocols = payload.protocols || protocolPairs.map((item) => item.protocol);
-      setSelectOptions(protocolSelect, protocols, selectedProtocol);
-      selectedProtocol = protocolSelect.value || selectedProtocol;
-      setSelectOptions(pairSelect, pairsForProtocol(selectedProtocol), selectedPair);
-      selectedPair = pairSelect.value || selectedPair;
-    } catch (_) {
-      protocolPairs = [{ protocol: selectedProtocol, pair: selectedPair }];
+    if (protocolSelect && pairSelect) {
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/api/v1/meta`);
+        const payload = await response.json();
+        protocolPairs = payload.protocol_pairs || [];
+        const protocols = payload.protocols || protocolPairs.map((item) => item.protocol);
+        setSelectOptions(protocolSelect, protocols, selectedProtocol);
+        selectedProtocol = protocolSelect.value || selectedProtocol;
+        setSelectOptions(pairSelect, pairsForProtocol(selectedProtocol), selectedPair);
+        selectedPair = pairSelect.value || selectedPair;
+      } catch (_) {
+        protocolPairs = [{ protocol: selectedProtocol, pair: selectedPair }];
+      }
     }
 
     applyGlobalFilters(selectedProtocol, selectedPair, selectedLastWindow, true);
 
-    protocolSelect.addEventListener("change", () => {
-      const protocol = protocolSelect.value;
-      setSelectOptions(pairSelect, pairsForProtocol(protocol), pairSelect.value);
-      resetDashboardLoading();
-      applyGlobalFilters(protocol, pairSelect.value, lastWindowSelect.value, true);
-    });
+    if (protocolSelect && pairSelect) {
+      protocolSelect.addEventListener("change", () => {
+        const protocol = protocolSelect.value;
+        setSelectOptions(pairSelect, pairsForProtocol(protocol), pairSelect.value);
+        resetDashboardLoading();
+        applyGlobalFilters(protocol, pairSelect.value, lastWindowSelect.value, true);
+      });
 
-    pairSelect.addEventListener("change", () => {
-      resetDashboardLoading();
-      applyGlobalFilters(protocolSelect.value, pairSelect.value, lastWindowSelect.value, true);
-    });
+      pairSelect.addEventListener("change", () => {
+        resetDashboardLoading();
+        applyGlobalFilters(protocolSelect.value, pairSelect.value, lastWindowSelect.value, true);
+      });
+    }
 
     lastWindowSelect.addEventListener("change", () => {
       resetDashboardLoading();
-      applyGlobalFilters(protocolSelect.value, pairSelect.value, lastWindowSelect.value, true);
+      const protocol = protocolSelect ? protocolSelect.value : currentProtocol();
+      const pair = pairSelect ? pairSelect.value : currentPair();
+      applyGlobalFilters(protocol, pair, lastWindowSelect.value, true);
     });
 
     const refreshButton = document.getElementById("refresh-dashboard");
     if (refreshButton) {
       refreshButton.addEventListener("click", () => {
-        applyGlobalFilters(protocolSelect.value, pairSelect.value, lastWindowSelect.value, true);
+        const protocol = protocolSelect ? protocolSelect.value : currentProtocol();
+        const pair = pairSelect ? pairSelect.value : currentPair();
+        applyGlobalFilters(protocol, pair, lastWindowSelect.value, true);
       });
     }
 
@@ -1007,6 +1151,7 @@
   });
 
   document.addEventListener("DOMContentLoaded", () => {
+    initPageSelector();
     initFilters();
   });
 })();

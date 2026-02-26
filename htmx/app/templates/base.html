@@ -3,39 +3,53 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ page_title }}</title>
+  <title>{{ app_title }} - {{ page_title }}</title>
   <link rel="stylesheet" href="/static/css/theme.css" />
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 </head>
 <body data-api-base-url="{{ api_base_url }}">
   <header class="topbar">
-    <div class="topbar-title">{{ page_title }}</div>
-    <div class="topbar-meta topbar-filters">
-      <label class="filter-label" for="protocol-select">Protocol</label>
-      <select id="protocol-select" class="filter-select" aria-label="Protocol">
-        <option value="{{ protocol }}">{{ protocol }}</option>
-      </select>
-      <label class="filter-label" for="pair-select">Pair</label>
-      <select id="pair-select" class="filter-select" aria-label="Pair">
-        <option value="{{ pair }}">{{ pair }}</option>
-      </select>
-      <label class="filter-label" for="last-window-select">Last</label>
-      <select id="last-window-select" class="filter-select" aria-label="Last window">
-        <option value="1h" {% if last_window == "1h" %}selected{% endif %}>1h</option>
-        <option value="4h" {% if last_window == "4h" %}selected{% endif %}>4h</option>
-        <option value="6h" {% if last_window == "6h" %}selected{% endif %}>6h</option>
-        <option value="24h" {% if last_window == "24h" %}selected{% endif %}>24h</option>
-        <option value="7d" {% if last_window == "7d" %}selected{% endif %}>7d</option>
-        <option value="30d" {% if last_window == "30d" %}selected{% endif %}>30d</option>
-        <option value="90d" {% if last_window == "90d" %}selected{% endif %}>90d</option>
-      </select>
+    <div class="topbar-left">
+      <div class="topbar-title">{{ app_title }}</div>
+      <div class="topbar-meta topbar-filters">
+        <label class="filter-label" for="page-select">Page</label>
+        <select id="page-select" class="filter-select" aria-label="Page">
+          {% for option in page_options %}
+            <option value="{{ option.path }}" {% if option.slug == current_page_slug %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
-    <div class="topbar-actions">
-      <button id="refresh-dashboard" class="action-button" type="button" aria-label="Refresh dashboard">Refresh</button>
-      <button id="theme-toggle" class="theme-toggle icon-button" type="button" aria-label="Toggle theme">
-        <span id="theme-icon" class="theme-icon" aria-hidden="true">🌙</span>
-      </button>
+    <div class="topbar-right">
+      <div class="topbar-meta topbar-filters">
+        {% if show_protocol_pair_filters %}
+          <label class="filter-label" for="protocol-select">Protocol</label>
+          <select id="protocol-select" class="filter-select" aria-label="Protocol">
+            <option value="{{ protocol }}">{{ protocol }}</option>
+          </select>
+          <label class="filter-label" for="pair-select">Pair</label>
+          <select id="pair-select" class="filter-select" aria-label="Pair">
+            <option value="{{ pair }}">{{ pair }}</option>
+          </select>
+        {% endif %}
+        <label class="filter-label" for="last-window-select">Last</label>
+        <select id="last-window-select" class="filter-select" aria-label="Last window">
+          <option value="1h" {% if last_window == "1h" %}selected{% endif %}>1h</option>
+          <option value="4h" {% if last_window == "4h" %}selected{% endif %}>4h</option>
+          <option value="6h" {% if last_window == "6h" %}selected{% endif %}>6h</option>
+          <option value="24h" {% if last_window == "24h" %}selected{% endif %}>24h</option>
+          <option value="7d" {% if last_window == "7d" %}selected{% endif %}>7d</option>
+          <option value="30d" {% if last_window == "30d" %}selected{% endif %}>30d</option>
+          <option value="90d" {% if last_window == "90d" %}selected{% endif %}>90d</option>
+        </select>
+      </div>
+      <div class="topbar-actions">
+        <button id="refresh-dashboard" class="action-button" type="button" aria-label="Refresh dashboard">Refresh</button>
+        <button id="theme-toggle" class="theme-toggle icon-button" type="button" aria-label="Toggle theme">
+          <span id="theme-icon" class="theme-icon" aria-hidden="true">🌙</span>
+        </button>
+      </div>
     </div>
   </header>
 

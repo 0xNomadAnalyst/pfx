@@ -22,8 +22,8 @@ def health() -> dict[str, str]:
 
 
 @router.get("/api/v1/widgets")
-def list_widgets() -> dict[str, list[str]]:
-    return {"widgets": _service.list_widgets()}
+def list_widgets(page: Annotated[str, Query()] = "playbook-liquidity") -> dict[str, list[str]]:
+    return {"widgets": _service.list_widgets(page=page)}
 
 
 @router.get("/api/v1/meta")

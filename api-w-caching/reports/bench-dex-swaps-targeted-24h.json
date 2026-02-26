@@ -1,0 +1,86 @@
+{
+  "run_started_utc": "2026-02-26T07:28:53.620352+00:00",
+  "run_finished_utc": "2026-02-26T07:29:02.387467+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8001",
+    "page": "dex-swaps",
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "24h"
+    ],
+    "repeats": 2,
+    "timeout_seconds": 30.0,
+    "parallel": 1,
+    "widget_filter": [
+      "swaps-ranked-events",
+      "swaps-sell-usx-distribution",
+      "swaps-usx-flows-impacts"
+    ]
+  },
+  "results": [
+    {
+      "widget": "swaps-ranked-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 6540.87,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 13.06,
+      "warm_p50_ms": 18.31,
+      "warm_p95_ms": 23.05,
+      "warm_avg_ms": 18.31,
+      "warm_max_ms": 23.57,
+      "payload_bytes_p50": 21050,
+      "error_samples": []
+    },
+    {
+      "widget": "swaps-sell-usx-distribution",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 912.35,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 24.88,
+      "warm_p50_ms": 27.05,
+      "warm_p95_ms": 29.0,
+      "warm_avg_ms": 27.05,
+      "warm_max_ms": 29.21,
+      "payload_bytes_p50": 596,
+      "error_samples": []
+    },
+    {
+      "widget": "swaps-usx-flows-impacts",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 1176.93,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 14.92,
+      "warm_p50_ms": 22.4,
+      "warm_p95_ms": 29.13,
+      "warm_avg_ms": 22.4,
+      "warm_max_ms": 29.87,
+      "payload_bytes_p50": 4455,
+      "error_samples": []
+    }
+  ]
+}

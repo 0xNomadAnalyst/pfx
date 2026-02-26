@@ -1,22 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from urllib.parse import urlencode
-
-
-@dataclass(frozen=True)
-class WidgetConfig:
-    id: str
-    title: str
-    kind: str
-    refresh_interval_seconds: int
-    css_class: str
-
-
-PAGE_ID = "playbook-liquidity"
-PAGE_TITLE = "Risk Management Dashboard"
-DEFAULT_PROTOCOL = "raydium"
-DEFAULT_PAIR = "USX-USDC"
+from app.pages.common import PageConfig, WidgetConfig
 
 
 WIDGETS: list[WidgetConfig] = [
@@ -37,13 +21,13 @@ WIDGETS: list[WidgetConfig] = [
 ]
 
 
-def build_widget_endpoint(api_base_url: str, widget_id: str) -> str:
-    query = urlencode(
-        {
-            "lookback": "1 day",
-            "interval": "5 minutes",
-            "rows": 120,
-            "tick_delta_time": "1 hour",
-        }
-    )
-    return f"{api_base_url}/api/v1/{PAGE_ID}/{widget_id}?{query}"
+PAGE_CONFIG = PageConfig(
+    slug="dex-liquidity",
+    label="DEX Liquidity",
+    api_page_id="playbook-liquidity",
+    widgets=WIDGETS,
+    default_protocol="raydium",
+    default_pair="USX-USDC",
+    show_protocol_pair_filters=True,
+    widget_filter_env_var="DASHBOARD_WIDGET_IDS",
+)

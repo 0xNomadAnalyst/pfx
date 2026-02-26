@@ -1,0 +1,48 @@
+{
+  "run_started_utc": "2026-02-26T07:46:45.891690+00:00",
+  "run_finished_utc": "2026-02-26T07:48:15.264781+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8001",
+    "pages": [
+      "dex-swaps"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "7d"
+    ],
+    "repeats": 4,
+    "timeout_seconds": 30.0,
+    "parallel": 1,
+    "widget_filter": [
+      "swaps-ranked-events"
+    ]
+  },
+  "results": [
+    {
+      "page": "dex-swaps",
+      "widget": "swaps-ranked-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d"
+      },
+      "cold_ms": 24358.21,
+      "cold_ok": false,
+      "cold_status_code": 500,
+      "warm_repeats": 4,
+      "warm_success_count": 0,
+      "warm_error_count": 4,
+      "warm_min_ms": 15842.6,
+      "warm_p50_ms": 15882.28,
+      "warm_p95_ms": 17178.41,
+      "warm_avg_ms": 16253.46,
+      "warm_max_ms": 17406.69,
+      "payload_bytes_p50": 17052,
+      "error_samples": [
+        "{\"detail\":\"Widget query failed: canceling statement due to statement timeout\\nCONTEXT:  SQL statement \\\"\\n        WITH swap_data AS (\\n            -- Get swap/liquidity transactions from gRPC + backfilled data\\n            SELECT \\n                s.time,\\n                s.signature AS trans_id,\\n                s.slot AS block_id,\\n                s.pool_address,\\n                s.event_type AS activity_type,\\n                s.program_id AS platform,\\n                s.token_pair,\\n         ",
+        "{\"detail\":\"Widget query failed: canceling statement due to statement timeout\\nCONTEXT:  SQL statement \\\"\\n        WITH swap_data AS (\\n            -- Get swap/liquidity transactions from gRPC + backfilled data\\n            SELECT \\n                s.time,\\n                s.signature AS trans_id,\\n                s.slot AS block_id,\\n                s.pool_address,\\n                s.event_type AS activity_type,\\n                s.program_id AS platform,\\n                s.token_pair,\\n         "
+      ]
+    }
+  ]
+}

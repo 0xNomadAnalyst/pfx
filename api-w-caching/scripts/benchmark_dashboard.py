@@ -33,7 +33,7 @@ class WidgetScenario:
     extra_params: dict[str, str]
 
 
-DEFAULT_SCENARIOS: list[WidgetScenario] = [
+LIQUIDITY_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("liquidity-distribution", {}),
     WidgetScenario("liquidity-depth", {}),
     WidgetScenario("liquidity-change-heatmap", {}),
@@ -51,11 +51,47 @@ DEFAULT_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("ranked-lp-events", {}),
 ]
 
+SWAPS_SCENARIOS: list[WidgetScenario] = [
+    WidgetScenario("kpi-swap-volume-24h", {}),
+    WidgetScenario("kpi-swap-count-24h", {}),
+    WidgetScenario("kpi-price-min-max", {}),
+    WidgetScenario("kpi-vwap-buy-sell", {}),
+    WidgetScenario("kpi-price-std-dev", {}),
+    WidgetScenario("kpi-vwap-spread", {}),
+    WidgetScenario("kpi-largest-usx-sell", {}),
+    WidgetScenario("kpi-largest-usx-buy", {}),
+    WidgetScenario("kpi-max-1h-sell-pressure", {}),
+    WidgetScenario("kpi-max-1h-buy-pressure", {}),
+    WidgetScenario("swaps-usx-flows-impacts", {}),
+    WidgetScenario("swaps-usdc-flows-count", {}),
+    WidgetScenario("swaps-directional-vwap-spread", {}),
+    WidgetScenario("swaps-sell-usx-distribution", {}),
+    WidgetScenario("swaps-1h-net-sell-pressure-distribution", {}),
+    WidgetScenario("swaps-ranked-events", {}),
+]
+
+PAGE_DEFAULT_SCENARIOS: dict[str, list[WidgetScenario]] = {
+    "playbook-liquidity": LIQUIDITY_SCENARIOS,
+    "dex-liquidity": LIQUIDITY_SCENARIOS,
+    "dex-swaps": SWAPS_SCENARIOS,
+}
+
+PAGE_ALIASES: dict[str, str] = {
+    "all": "all",
+    "playbook-liquidity": "playbook-liquidity",
+    "dex-liquidity": "dex-liquidity",
+    "dex-swaps": "dex-swaps",
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark dashboard API endpoints")
     parser.add_argument("--base-url", default="http://127.0.0.1:8001", help="API base URL")
-    parser.add_argument("--page", default="playbook-liquidity", help="Page path segment")
+    parser.add_argument(
+        "--page",
+        default="playbook-liquidity",
+        help="Page segment(s): single page, comma-separated pages, or 'all'",
+    )
     parser.add_argument("--protocol", default="raydium", help="Protocol filter")
     parser.add_argument("--pair", default="USX-USDC", help="Pair filter")
     parser.add_argument(
@@ -121,6 +157,35 @@ def build_url(base_url: str, page: str, widget: str, params: dict[str, Any]) -> 
     return f"{base_url}/api/v1/{page}/{widget}?{query}"
 
 
+def parse_pages(page_arg: str) -> list[str]:
+    raw_items = [item.strip() for item in page_arg.split(",") if item.strip()]
+    if not raw_items:
+        raw_items = ["playbook-liquidity"]
+
+    normalized: list[str] = []
+    for item in raw_items:
+        key = item.lower()
+        if key == "all":
+            return ["playbook-liquidity", "dex-swaps"]
+        alias = PAGE_ALIASES.get(key)
+        if alias is None:
+            raise ValueError(f"Unsupported page: {item}")
+        normalized.append(alias)
+    return normalized
+
+
+def scenario_list_for_page(page: str, widget_filter: set[str]) -> list[WidgetScenario]:
+    scenarios = PAGE_DEFAULT_SCENARIOS.get(page, [])
+    if not scenarios:
+        raise ValueError(f"No scenarios defined for page: {page}")
+    if not widget_filter:
+        return list(scenarios)
+    filtered = [scenario for scenario in scenarios if scenario.widget in widget_filter]
+    if filtered:
+        return filtered
+    return [WidgetScenario(widget=widget_id, extra_params={}) for widget_id in sorted(widget_filter)]
+
+
 def run_scenario(
     base_url: str,
     page: str,
@@ -146,6 +211,7 @@ def run_scenario(
     max_ms = max(warm_latencies) if warm_latencies else 0.0
 
     return {
+        "page": page,
         "widget": scenario.widget,
         "params": params,
         "cold_ms": round(cold["elapsed_ms"], 2),
@@ -168,7 +234,7 @@ def print_report(results: list[dict[str, Any]]) -> None:
     print("\nBenchmark results")
     print("=" * 110)
     header = (
-        f"{'Widget':28} {'Window':>6} {'Cold(ms)':>9} {'P50(ms)':>9} "
+        f"{'Page':16} {'Widget':28} {'Window':>6} {'Cold(ms)':>9} {'P50(ms)':>9} "
         f"{'P95(ms)':>9} {'Avg(ms)':>9} {'Err':>5} {'Payload(B)':>10}"
     )
     print(header)
@@ -176,11 +242,12 @@ def print_report(results: list[dict[str, Any]]) -> None:
     for row in results:
         params = row["params"]
         window = str(params.get("last_window", "n/a"))
+        page = str(row.get("page", ""))
         widget_name = row["widget"]
         if "impact_mode" in params:
             widget_name = f"{widget_name}:{params['impact_mode']}"
         print(
-            f"{widget_name[:28]:28} {window:>6} "
+            f"{page[:16]:16} {widget_name[:28]:28} {window:>6} "
             f"{row['cold_ms']:9.2f} {row['warm_p50_ms']:9.2f} {row['warm_p95_ms']:9.2f} "
             f"{row['warm_avg_ms']:9.2f} {row['warm_error_count']:5d} {row['payload_bytes_p50']:10d}"
         )
@@ -191,31 +258,28 @@ def main() -> int:
     args = parse_args()
     windows = [item.strip() for item in args.windows.split(",") if item.strip()]
     widget_filter = {item.strip() for item in args.widgets.split(",") if item.strip()}
-
-    scenarios = DEFAULT_SCENARIOS
-    if widget_filter:
-        scenarios = [scenario for scenario in scenarios if scenario.widget in widget_filter]
-        if not scenarios:
-            raise SystemExit("No scenarios match --widgets filter")
+    pages = parse_pages(args.page)
 
     start = datetime.now(timezone.utc)
-    jobs: list[tuple[WidgetScenario, dict[str, Any]]] = []
-    for window in windows:
-        for scenario in scenarios:
-            common_params = {
-                "protocol": args.protocol,
-                "pair": args.pair,
-                "last_window": window,
-            }
-            jobs.append((scenario, common_params))
+    jobs: list[tuple[str, WidgetScenario, dict[str, Any]]] = []
+    for page in pages:
+        scenarios = scenario_list_for_page(page, widget_filter)
+        for window in windows:
+            for scenario in scenarios:
+                common_params = {
+                    "protocol": args.protocol,
+                    "pair": args.pair,
+                    "last_window": window,
+                }
+                jobs.append((page, scenario, common_params))
 
     results: list[dict[str, Any]] = []
     if args.parallel <= 1:
-        for scenario, params in jobs:
+        for page, scenario, params in jobs:
             results.append(
                 run_scenario(
                     base_url=args.base_url,
-                    page=args.page,
+                    page=page,
                     scenario=scenario,
                     common_params=params,
                     repeats=args.repeats,
@@ -228,18 +292,25 @@ def main() -> int:
                 pool.submit(
                     run_scenario,
                     args.base_url,
-                    args.page,
+                    page,
                     scenario,
                     params,
                     args.repeats,
                     args.timeout_seconds,
-                ): (scenario, params)
-                for scenario, params in jobs
+                ): (page, scenario, params)
+                for page, scenario, params in jobs
             }
             for future in as_completed(future_map):
                 results.append(future.result())
 
-    results.sort(key=lambda item: (str(item["params"].get("last_window")), item["widget"], str(item["params"].get("impact_mode", ""))))
+    results.sort(
+        key=lambda item: (
+            str(item.get("page", "")),
+            str(item["params"].get("last_window")),
+            item["widget"],
+            str(item["params"].get("impact_mode", "")),
+        )
+    )
     print_report(results)
 
     report = {
@@ -247,7 +318,7 @@ def main() -> int:
         "run_finished_utc": datetime.now(timezone.utc).isoformat(),
         "config": {
             "base_url": args.base_url,
-            "page": args.page,
+            "pages": pages,
             "protocol": args.protocol,
             "pair": args.pair,
             "windows": windows,

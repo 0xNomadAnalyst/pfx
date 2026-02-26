@@ -19,6 +19,7 @@ from typing import Any
 
 @dataclass(frozen=True)
 class RowKey:
+    page: str
     widget: str
     window: str
     impact_mode: str
@@ -46,6 +47,16 @@ def parse_args() -> argparse.Namespace:
         choices=["p95_delta_pct", "p50_delta_pct", "avg_delta_pct", "cold_delta_pct"],
         help="Sort key for output rows",
     )
+    parser.add_argument(
+        "--page",
+        default="",
+        help="Optional page filter (single page or comma-separated pages)",
+    )
+    parser.add_argument(
+        "--fail-on-regression",
+        action="store_true",
+        help="Exit with code 1 if any regression is detected",
+    )
     return parser.parse_args()
 
 
@@ -62,6 +73,7 @@ def as_index(report: dict[str, Any]) -> dict[RowKey, dict[str, Any]]:
     for row in report.get("results", []):
         params = row.get("params", {}) or {}
         key = RowKey(
+            page=str(row.get("page", "")),
             widget=str(row.get("widget", "")),
             window=str(params.get("last_window", "")),
             impact_mode=str(params.get("impact_mode", "")),
@@ -132,6 +144,8 @@ def main() -> int:
     baseline = load_report(args.baseline)
     candidate = load_report(args.candidate)
 
+    page_filter = {item.strip() for item in args.page.split(",") if item.strip()}
+
     baseline_idx = as_index(baseline)
     candidate_idx = as_index(candidate)
 
@@ -141,6 +155,8 @@ def main() -> int:
 
     compared: list[dict[str, Any]] = []
     for key in common_keys:
+        if page_filter and key.page not in page_filter:
+            continue
         comp = compare_rows(
             baseline_idx[key],
             candidate_idx[key],
@@ -150,6 +166,7 @@ def main() -> int:
         compared.append(
             {
                 "widget": key.widget,
+                "page": key.page,
                 "window": key.window,
                 "impact_mode": key.impact_mode,
                 "comparison": comp,
@@ -159,9 +176,9 @@ def main() -> int:
     compared.sort(key=lambda item: metric_for_sort(item, args.sort_by), reverse=True)
 
     print("\nBenchmark comparison")
-    print("=" * 128)
+    print("=" * 144)
     header = (
-        f"{'Widget':30} {'Window':>6} {'Mode':>8} "
+        f"{'Page':16} {'Widget':30} {'Window':>6} {'Mode':>8} "
         f"{'P95 d%':>9} {'P50 d%':>9} {'Avg d%':>9} {'Cold d%':>9} {'Err d':>6} {'Status':>10}"
     )
     print(header)
@@ -197,11 +214,11 @@ def main() -> int:
         mode = item["impact_mode"] or "-"
         widget_name = item["widget"]
         print(
-            f"{widget_name[:30]:30} {item['window']:>6} {mode[:8]:>8} "
+            f"{item['page'][:16]:16} {widget_name[:30]:30} {item['window']:>6} {mode[:8]:>8} "
             f"{p95:9.2f} {p50:9.2f} {avg:9.2f} {cold:9.2f} {err_delta:6d} {overall:>10}"
         )
 
-    print("=" * 128)
+    print("=" * 144)
     print(
         f"Compared rows: {len(compared)} | Regressed: {regressions} | "
         f"Improved: {improvements} | Neutral: {len(compared) - regressions - improvements}"
@@ -211,6 +228,8 @@ def main() -> int:
     if only_candidate:
         print(f"New in candidate: {len(only_candidate)} rows")
 
+    if args.fail_on_regression and regressions > 0:
+        return 1
     return 0
 
 
