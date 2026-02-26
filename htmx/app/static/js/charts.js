@@ -18,6 +18,7 @@
     "swaps-usx-flows-impacts",
     "swaps-usdc-flows-count",
     "swaps-directional-vwap-spread",
+    "swaps-ohlcv",
   ]);
   const tickReferenceWidgets = new Set([
     "liquidity-distribution",
@@ -504,7 +505,122 @@
 
     let option;
     const focusedTickZoom = isLeftLinked ? leftDefaultZoomWindow : null;
-    if (data.chart === "heatmap") {
+    if (data.chart === "candlestick-volume") {
+      const xValues = data.x || [];
+      const candleData = data.candles || [];
+      const volumeData = data.volume || [];
+      option = {
+        color: palette(),
+        legend: {
+          data: ["OHLC", "Volume"],
+          bottom: 2,
+          textStyle: { color: chartTextColor() },
+        },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "cross" },
+          formatter: (params) => {
+            const items = Array.isArray(params) ? params : [params];
+            if (items.length === 0) {
+              return "";
+            }
+            const header = formatCompactTimestamp(items[0].axisValue);
+            const rows = items
+              .map((item) => {
+                if (Array.isArray(item.value) && item.value.length >= 4) {
+                  const [open, close, low, high] = item.value;
+                  return `${item.marker} ${item.seriesName}: O ${formatNumber(open)} C ${formatNumber(close)} L ${formatNumber(low)} H ${formatNumber(high)}`;
+                }
+                return `${item.marker} ${item.seriesName}: ${formatNumber(item.value)}`;
+              })
+              .join("<br/>");
+            return `${header}<br/>${rows}`;
+          },
+        },
+        grid: [
+          { left: 82, right: 64, top: 14, height: "56%", containLabel: false },
+          { left: 82, right: 64, top: "74%", height: "12%", containLabel: false },
+        ],
+        xAxis: [
+          {
+            type: "category",
+            data: xValues,
+            boundaryGap: false,
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            axisLabel: { show: false },
+            axisTick: { show: false },
+          },
+          {
+            type: "category",
+            gridIndex: 1,
+            data: xValues,
+            boundaryGap: false,
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            axisLabel: {
+              color: chartTextColor(),
+              fontSize: 11,
+              formatter: (value) => formatCompactTimestamp(value),
+              hideOverlap: true,
+            },
+            axisTick: { show: false },
+          },
+        ],
+        yAxis: [
+          {
+            type: "value",
+            scale: true,
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { lineStyle: { color: chartGridColor() } },
+            axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0], formatter: (v) => Number(v).toFixed(4) },
+          },
+          {
+            type: "value",
+            gridIndex: 1,
+            scale: true,
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { show: false },
+            axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0], formatter: (v) => Math.round(Number(v)).toString() },
+          },
+        ],
+        dataZoom: [
+          {
+            type: "inside",
+            xAxisIndex: [0, 1],
+            filterMode: "none",
+          },
+          {
+            type: "slider",
+            xAxisIndex: [0, 1],
+            height: 12,
+            bottom: 28,
+            borderColor: chartGridColor(),
+            brushSelect: false,
+          },
+        ],
+        series: [
+          {
+            name: "OHLC",
+            type: "candlestick",
+            data: candleData,
+            itemStyle: {
+              color: "#2fbf71",
+              color0: "#e24c4c",
+              borderColor: "#2fbf71",
+              borderColor0: "#e24c4c",
+            },
+          },
+          {
+            name: "Volume",
+            type: "bar",
+            xAxisIndex: 1,
+            yAxisIndex: 1,
+            data: volumeData,
+            itemStyle: { color: "#4bb7ff" },
+            barMaxWidth: 8,
+          },
+        ],
+      };
+    } else if (data.chart === "heatmap") {
       const minValue = Number(data.min ?? -1);
       const maxValue = Number(data.max ?? 1);
       const leftLegend = `${minValue.toFixed(2)}%`;
@@ -763,7 +879,11 @@
           },
         ];
       }
-      if (widgetId === "swaps-sell-usx-distribution" || widgetId === "swaps-1h-net-sell-pressure-distribution") {
+      if (
+        widgetId === "swaps-sell-usx-distribution" ||
+        widgetId === "swaps-1h-net-sell-pressure-distribution" ||
+        widgetId === "swaps-distribution-toggle"
+      ) {
         option.xAxis = {
           ...option.xAxis,
           boundaryGap: true,
@@ -1056,6 +1176,8 @@
     }
 
     initTradeImpactModeToggle();
+    initSwapsDistributionModeToggle();
+    initSwapsOhlcvIntervalToggle();
   }
 
   function initTradeImpactModeToggle() {
@@ -1069,6 +1191,35 @@
       widget.dataset.impactMode = modeSelect.value || "size";
       resetWidgetView(widget);
       htmx.trigger(widget, "impact-mode-change");
+    });
+  }
+
+  function initSwapsDistributionModeToggle() {
+    const modeSelect = document.getElementById("swaps-distribution-mode");
+    const widget = document.getElementById("widget-swaps-distribution-toggle");
+    if (!modeSelect || !widget) {
+      return;
+    }
+    widget.dataset.distributionMode = modeSelect.value || "sell-order";
+    modeSelect.addEventListener("change", () => {
+      widget.dataset.distributionMode = modeSelect.value || "sell-order";
+      resetWidgetView(widget);
+      htmx.trigger(widget, "distribution-mode-change");
+    });
+  }
+
+  function initSwapsOhlcvIntervalToggle() {
+    const intervalSelect = document.getElementById("swaps-ohlcv-interval");
+    const widget = document.getElementById("widget-swaps-ohlcv");
+    if (!intervalSelect || !widget) {
+      return;
+    }
+    widget.dataset.ohlcvInterval = intervalSelect.value || "1d";
+    widget.dataset.ohlcvRows = "180";
+    intervalSelect.addEventListener("change", () => {
+      widget.dataset.ohlcvInterval = intervalSelect.value || "1d";
+      resetWidgetView(widget);
+      htmx.trigger(widget, "ohlcv-interval-change");
     });
   }
 
@@ -1110,6 +1261,13 @@
     event.detail.parameters.last_window = currentLastWindow();
     if (sourceEl.dataset.widgetId === "trade-impact-toggle") {
       event.detail.parameters.impact_mode = sourceEl.dataset.impactMode || "size";
+    }
+    if (sourceEl.dataset.widgetId === "swaps-distribution-toggle") {
+      event.detail.parameters.distribution_mode = sourceEl.dataset.distributionMode || "sell-order";
+    }
+    if (sourceEl.dataset.widgetId === "swaps-ohlcv") {
+      event.detail.parameters.ohlcv_interval = sourceEl.dataset.ohlcvInterval || "1d";
+      event.detail.parameters.ohlcv_rows = sourceEl.dataset.ohlcvRows || "180";
     }
   });
 

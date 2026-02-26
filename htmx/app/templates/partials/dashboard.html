@@ -8,7 +8,7 @@
   data-base-endpoint="{{ widget.endpoint }}"
   hx-get="{{ widget.endpoint }}"
   hx-request='{"timeout":12000}'
-  hx-trigger="load delay:{{ widget.load_delay_seconds }}s, dashboard-refresh from:body, impact-mode-change, every {{ widget.refresh_interval_seconds }}s"
+  hx-trigger="load delay:{{ widget.load_delay_seconds }}s, dashboard-refresh from:body, impact-mode-change, distribution-mode-change, ohlcv-interval-change, every {{ widget.refresh_interval_seconds }}s"
   hx-swap="none"
 >
   <div class="panel-header">
@@ -17,6 +17,20 @@
       <select id="trade-impact-mode" class="filter-select chart-mode-select" aria-label="Trade impact chart mode">
         <option value="size">Order Size for Target bps</option>
         <option value="impact">Impact bps at 3 Size Levels</option>
+      </select>
+    {% elif widget.id == "swaps-distribution-toggle" %}
+      <select id="swaps-distribution-mode" class="filter-select chart-mode-select" aria-label="Swaps distribution chart mode">
+        <option value="sell-order">Sell Order Distribution</option>
+        <option value="net-sell-pressure">Net Sell Pressure Distribution</option>
+      </select>
+    {% elif widget.id == "swaps-ohlcv" %}
+      <select id="swaps-ohlcv-interval" class="filter-select chart-mode-select" aria-label="OHLCV candle interval">
+        <option value="1m">1m</option>
+        <option value="5m">5m</option>
+        <option value="15m">15m</option>
+        <option value="1h">1h</option>
+        <option value="4h">4h</option>
+        <option value="1d" selected>1d</option>
       </select>
     {% endif %}
     <span class="panel-updated" id="updated-{{ widget.id }}">loading...</span>

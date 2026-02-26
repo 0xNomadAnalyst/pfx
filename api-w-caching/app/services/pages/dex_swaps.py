@@ -24,6 +24,8 @@ class DexSwapsPageService(BasePageService):
             "swaps-usx-flows-impacts": self._swaps_usx_flows_impacts,
             "swaps-usdc-flows-count": self._swaps_usdc_flows_count,
             "swaps-directional-vwap-spread": self._swaps_directional_vwap_spread,
+            "swaps-ohlcv": self._swaps_ohlcv,
+            "swaps-distribution-toggle": self._swaps_distribution_toggle,
             "swaps-sell-usx-distribution": self._swaps_sell_usx_distribution,
             "swaps-1h-net-sell-pressure-distribution": self._swaps_1h_net_sell_pressure_distribution,
             "swaps-ranked-events": self._swaps_ranked_events,
@@ -85,6 +87,36 @@ class DexSwapsPageService(BasePageService):
             return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
 
         cache_key = f"dex_swaps::dex_timeseries::{protocol}::{pair}::{interval}::{rows}"
+        return self._cached(cache_key, _load_rows)
+
+    def _dex_ohlcv_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+        protocol = str(params.get("protocol", self.default_protocol))
+        pair = str(params.get("pair", self.default_pair))
+        interval_key = str(params.get("ohlcv_interval", "1d")).strip().lower()
+        interval_map: dict[str, str] = {
+            "1m": "1 minute",
+            "5m": "5 minutes",
+            "15m": "15 minutes",
+            "1h": "1 hour",
+            "4h": "4 hours",
+            "1d": "1 day",
+        }
+        interval = interval_map.get(interval_key, "1 day")
+        try:
+            rows = int(params.get("ohlcv_rows", 180))
+        except (TypeError, ValueError):
+            rows = 180
+        rows = max(1, min(rows, 1000))
+
+        def _load_rows() -> list[dict[str, Any]]:
+            query = """
+                SELECT *
+                FROM dexes.get_view_dex_ohlcv(%s, %s, %s, %s)
+                ORDER BY time
+            """
+            return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
+
+        cache_key = f"dex_swaps::dex_ohlcv::{protocol}::{pair}::{interval}::{rows}"
         return self._cached(cache_key, _load_rows)
 
     def _sell_swaps_distribution_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -263,6 +295,24 @@ class DexSwapsPageService(BasePageService):
             ],
         }
 
+    def _swaps_ohlcv(self, params: dict[str, Any]) -> dict[str, Any]:
+        rows = self._dex_ohlcv_rows(params)
+        return {
+            "kind": "chart",
+            "chart": "candlestick-volume",
+            "x": [row["time"] for row in rows],
+            "candles": [
+                [
+                    row.get("open_price"),
+                    row.get("close_price"),
+                    row.get("low_price"),
+                    row.get("high_price"),
+                ]
+                for row in rows
+            ],
+            "volume": [row.get("volume_t1") for row in rows],
+        }
+
     @staticmethod
     def _distribution_axis_label(row: dict[str, Any]) -> str:
         upper = float(row.get("bucket_max_in_k") or 0)
@@ -310,6 +360,12 @@ class DexSwapsPageService(BasePageService):
                 },
             ],
         }
+
+    def _swaps_distribution_toggle(self, params: dict[str, Any]) -> dict[str, Any]:
+        mode = str(params.get("distribution_mode", "sell-order")).strip().lower()
+        if mode == "net-sell-pressure":
+            return self._swaps_1h_net_sell_pressure_distribution(params)
+        return self._swaps_sell_usx_distribution(params)
 
     def _swaps_ranked_events(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._swaps_ranked_events_rows(params)

@@ -17,8 +17,8 @@ WIDGETS: list[WidgetConfig] = [
     WidgetConfig("swaps-usx-flows-impacts", "USX Swap Flows vs. Max. & Avg. Impacts", "chart", 60, "panel panel-medium swaps-slot-mid-1"),
     WidgetConfig("swaps-usdc-flows-count", "USDC Swap Flows & Swap Count", "chart", 60, "panel panel-medium swaps-slot-mid-2"),
     WidgetConfig("swaps-directional-vwap-spread", "Directional VWAP & Spread", "chart", 60, "panel panel-medium swaps-slot-mid-3"),
-    WidgetConfig("swaps-sell-usx-distribution", "Sell USX Swaps Distribution", "chart", 60, "panel panel-medium swaps-slot-right-1"),
-    WidgetConfig("swaps-1h-net-sell-pressure-distribution", "1 hour USX Net Sell Pressure Distribution", "chart", 60, "panel panel-medium swaps-slot-right-2"),
+    WidgetConfig("swaps-ohlcv", "USX OHLCV (Candles + Volume)", "chart", 60, "panel panel-medium swaps-slot-right-top"),
+    WidgetConfig("swaps-distribution-toggle", "Sell Order / Net Sell Pressure Distribution", "chart", 60, "panel panel-medium swaps-slot-right-bottom"),
     WidgetConfig("swaps-ranked-events", "Largest Buy/Sell Swaps for USX", "table", 60, "panel panel-wide-table swaps-slot-bottom"),
 ]
 

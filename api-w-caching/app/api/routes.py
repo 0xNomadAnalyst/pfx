@@ -46,6 +46,9 @@ def get_widget(
     rows: Annotated[int, Query(ge=1, le=500)] = 120,
     tick_delta_time: Annotated[str, Query()] = "1 hour",
     impact_mode: Annotated[str, Query()] = "size",
+    distribution_mode: Annotated[str, Query()] = "sell-order",
+    ohlcv_interval: Annotated[str, Query()] = "1d",
+    ohlcv_rows: Annotated[int, Query(ge=1, le=1000)] = 180,
     svc: DataService = Depends(get_data_service),
 ) -> WidgetResponse:
     params = {
@@ -57,6 +60,9 @@ def get_widget(
         "rows": rows,
         "tick_delta_time": tick_delta_time,
         "impact_mode": impact_mode,
+        "distribution_mode": distribution_mode,
+        "ohlcv_interval": ohlcv_interval,
+        "ohlcv_rows": ohlcv_rows,
     }
     try:
         payload = svc.get_widget_data(page=page, widget_id=widget, params=params)

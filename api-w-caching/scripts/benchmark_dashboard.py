@@ -65,8 +65,9 @@ SWAPS_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("swaps-usx-flows-impacts", {}),
     WidgetScenario("swaps-usdc-flows-count", {}),
     WidgetScenario("swaps-directional-vwap-spread", {}),
-    WidgetScenario("swaps-sell-usx-distribution", {}),
-    WidgetScenario("swaps-1h-net-sell-pressure-distribution", {}),
+    WidgetScenario("swaps-ohlcv", {}),
+    WidgetScenario("swaps-distribution-toggle", {"distribution_mode": "sell-order"}),
+    WidgetScenario("swaps-distribution-toggle", {"distribution_mode": "net-sell-pressure"}),
     WidgetScenario("swaps-ranked-events", {}),
 ]
 
@@ -134,6 +135,8 @@ def fetch_json(url: str, timeout_seconds: float) -> tuple[dict[str, Any] | None,
     except HTTPError as exc:
         payload = exc.read().decode("utf-8", errors="replace")
         return None, int(exc.code), payload
+    except TimeoutError as exc:
+        return None, 0, str(exc)
     except URLError as exc:
         return None, 0, str(exc)
 
@@ -246,6 +249,8 @@ def print_report(results: list[dict[str, Any]]) -> None:
         widget_name = row["widget"]
         if "impact_mode" in params:
             widget_name = f"{widget_name}:{params['impact_mode']}"
+        if "distribution_mode" in params:
+            widget_name = f"{widget_name}:{params['distribution_mode']}"
         print(
             f"{page[:16]:16} {widget_name[:28]:28} {window:>6} "
             f"{row['cold_ms']:9.2f} {row['warm_p50_ms']:9.2f} {row['warm_p95_ms']:9.2f} "
@@ -309,6 +314,7 @@ def main() -> int:
             str(item["params"].get("last_window")),
             item["widget"],
             str(item["params"].get("impact_mode", "")),
+            str(item["params"].get("distribution_mode", "")),
         )
     )
     print_report(results)
