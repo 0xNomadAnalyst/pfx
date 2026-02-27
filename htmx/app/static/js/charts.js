@@ -31,6 +31,8 @@
   };
   let leftDefaultZoomWindow = null;
   let leftDefaultZoomSignature = "";
+  let modalInstance = null;
+  let modalWidgetId = "";
 
   function palette() {
     const theme = document.documentElement.getAttribute("data-theme");
@@ -430,6 +432,94 @@
     target.innerHTML = `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
   }
 
+  function modalElements() {
+    return {
+      backdrop: document.getElementById("chart-modal-backdrop"),
+      title: document.getElementById("chart-modal-title"),
+      canvas: document.getElementById("chart-modal-canvas"),
+    };
+  }
+
+  function ensureModalMarkup() {
+    if (document.getElementById("chart-modal-backdrop")) {
+      return;
+    }
+    const host = document.createElement("div");
+    host.id = "chart-modal-backdrop";
+    host.className = "chart-modal-backdrop";
+    host.hidden = true;
+    host.innerHTML = `
+      <section class="chart-modal" role="dialog" aria-modal="true" aria-labelledby="chart-modal-title">
+        <div class="chart-modal-header">
+          <h3 id="chart-modal-title">Chart</h3>
+          <button id="chart-modal-close" class="action-button" type="button" aria-label="Close expanded chart">Close</button>
+        </div>
+        <div class="chart-modal-body">
+          <div id="chart-modal-canvas" class="chart-modal-canvas"></div>
+        </div>
+      </section>
+    `;
+    document.body.appendChild(host);
+  }
+
+  function ensureModalChart() {
+    const { canvas } = modalElements();
+    if (!canvas) {
+      return null;
+    }
+    if (!modalInstance) {
+      modalInstance = echarts.init(canvas);
+    }
+    return modalInstance;
+  }
+
+  function closeChartModal() {
+    const { backdrop } = modalElements();
+    if (!backdrop) {
+      return;
+    }
+    backdrop.hidden = true;
+    modalWidgetId = "";
+    document.body.style.overflow = "";
+  }
+
+  function syncModalChart() {
+    if (!modalWidgetId || !modalInstance) {
+      return;
+    }
+    const source = chartState.get(modalWidgetId);
+    if (!source?.instance) {
+      return;
+    }
+    const sourceOption = source.instance.getOption();
+    modalInstance.setOption(sourceOption, true);
+    modalInstance.resize();
+  }
+
+  function openChartModal(widgetId) {
+    if (!widgetId) {
+      return;
+    }
+    ensureModalMarkup();
+    const source = chartState.get(widgetId);
+    if (!source?.instance) {
+      return;
+    }
+    const { backdrop, title } = modalElements();
+    const chart = ensureModalChart();
+    if (!backdrop || !chart) {
+      return;
+    }
+    const titleEl = document.querySelector(`#widget-${widgetId} .panel-header h3`);
+    if (title && titleEl) {
+      title.textContent = titleEl.textContent || "Chart";
+    }
+    modalWidgetId = widgetId;
+    backdrop.hidden = false;
+    document.body.style.overflow = "hidden";
+    syncModalChart();
+  }
+
   function baseChartOption(data) {
     const option = {
       color: palette(),
@@ -493,6 +583,21 @@
     let instance = chartState.get(widgetId)?.instance;
     if (!instance) {
       instance = echarts.init(el);
+    }
+
+    if (!el.dataset.modalClickBound) {
+      el.addEventListener(
+        "click",
+        () => {
+          const widgetEl = document.getElementById(`widget-${widgetId}`);
+          if (!widgetEl || widgetEl.dataset.expandable !== "true") {
+            return;
+          }
+          openChartModal(widgetId);
+        },
+        true
+      );
+      el.dataset.modalClickBound = "1";
     }
 
     const isLeftLinked = leftLinkedZoomWidgets.has(widgetId);
@@ -1018,6 +1123,11 @@
     }
 
     instance.setOption(option, true);
+    // ECharts can consume canvas click events, so bind modal open on chart instance.
+    instance.off("click");
+    instance.on("click", () => {
+      openChartModal(widgetId);
+    });
     if (leftLinkedZoomWidgets.has(widgetId)) {
       instance.group = linkedGroups.left;
       echarts.connect(linkedGroups.left);
@@ -1033,6 +1143,9 @@
       echarts.connect(linkedGroups.right);
     }
     chartState.set(widgetId, { instance, data });
+    if (modalWidgetId === widgetId) {
+      syncModalChart();
+    }
   }
 
   function renderPayload(widgetId, payload) {
@@ -1441,16 +1554,60 @@
     setWidgetError(widgetId, "request timeout");
   });
 
+  document.body.addEventListener("click", (event) => {
+    const expandButton = event.target.closest(".chart-expand-btn");
+    if (expandButton) {
+      event.preventDefault();
+      openChartModal(expandButton.dataset.widgetId || "");
+      return;
+    }
+
+    const chartPanelBody = event.target.closest('.widget-loader[data-widget-kind="chart"][data-expandable="true"] .panel-body');
+    if (!chartPanelBody) {
+      return;
+    }
+    const widget = chartPanelBody.closest(".widget-loader");
+    if (!widget) {
+      return;
+    }
+    openChartModal(widget.dataset.widgetId || "");
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeChartModal();
+    }
+  });
+
+  document.body.addEventListener("click", (event) => {
+    const { backdrop } = modalElements();
+    if (!backdrop || backdrop.hidden) {
+      return;
+    }
+    const closeBtn = event.target.closest("#chart-modal-close");
+    if (closeBtn) {
+      closeChartModal();
+      return;
+    }
+    if (event.target === backdrop) {
+      closeChartModal();
+    }
+  });
+
   window.addEventListener("theme:changed", () => {
     chartState.forEach(({ instance, data }, widgetId) => {
       if (instance) {
         renderChart(widgetId, data);
       }
     });
+    syncModalChart();
   });
 
   window.addEventListener("resize", () => {
     chartState.forEach(({ instance }) => instance && instance.resize());
+    if (modalInstance) {
+      modalInstance.resize();
+    }
   });
 
   document.addEventListener("DOMContentLoaded", () => {

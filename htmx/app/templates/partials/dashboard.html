@@ -4,6 +4,7 @@
   class="{{ widget.css_class }} widget-loader"
   data-widget-id="{{ widget.id }}"
   data-widget-kind="{{ widget.kind }}"
+  data-expandable="{{ 'true' if widget.kind == 'chart' and widget.expandable|default(true) else 'false' }}"
   data-impact-mode="size"
   data-flow-mode="usx"
   data-base-endpoint="{{ widget.endpoint }}"
@@ -39,6 +40,11 @@
         <option value="1d" selected>1d</option>
       </select>
     {% endif %}
+    {% if widget.kind == "chart" and widget.expandable|default(true) %}
+      <button class="action-button chart-expand-btn" type="button" data-widget-id="{{ widget.id }}" aria-label="Open larger chart view">
+        Expand
+      </button>
+    {% endif %}
     <span class="panel-updated" id="updated-{{ widget.id }}">loading...</span>
   </div>
   <div class="panel-body">
@@ -59,7 +65,7 @@
         </div>
       </div>
     {% else %}
-      <div id="chart-{{ widget.id }}" class="chart-canvas"></div>
+      <div id="chart-{{ widget.id }}" class="chart-canvas chart-expand-target"></div>
     {% endif %}
   </div>
 </section>

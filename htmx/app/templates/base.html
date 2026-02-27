@@ -57,6 +57,18 @@
     {% include "partials/dashboard.html" %}
   </main>
 
+  <div id="chart-modal-backdrop" class="chart-modal-backdrop" hidden>
+    <section class="chart-modal" role="dialog" aria-modal="true" aria-labelledby="chart-modal-title">
+      <div class="chart-modal-header">
+        <h3 id="chart-modal-title">Chart</h3>
+        <button id="chart-modal-close" class="action-button" type="button" aria-label="Close expanded chart">Close</button>
+      </div>
+      <div class="chart-modal-body">
+        <div id="chart-modal-canvas" class="chart-modal-canvas"></div>
+      </div>
+    </section>
+  </div>
+
   <script src="/static/js/theme.js"></script>
   <script src="/static/js/charts.js"></script>
 </body>

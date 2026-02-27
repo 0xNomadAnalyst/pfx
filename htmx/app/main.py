@@ -52,6 +52,7 @@ def render_page(request: Request, page: PageConfig):
             "refresh_interval_seconds": widget.refresh_interval_seconds,
             "endpoint": build_widget_endpoint(API_BASE_URL, page.api_page_id, widget.id),
             "css_class": widget.css_class,
+            "expandable": widget.expandable if widget.kind == "chart" else False,
             "load_delay_seconds": index * 0.5,
         }
         for index, widget in enumerate(widgets)

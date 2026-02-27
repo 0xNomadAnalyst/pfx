@@ -11,6 +11,7 @@ class WidgetConfig:
     kind: str
     refresh_interval_seconds: int
     css_class: str
+    expandable: bool = True
 
 
 @dataclass(frozen=True)

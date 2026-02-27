@@ -6,15 +6,20 @@ API_DIR="$(cd "$SCRIPT_DIR/../api-w-caching" && pwd)"
 UI_DIR="$SCRIPT_DIR"
 
 activate_venv_if_present() {
-  if [[ -f ".venv/Scripts/activate" ]]; then
-    # Git Bash on Windows
-    # shellcheck disable=SC1091
-    source ".venv/Scripts/activate"
-  elif [[ -f ".venv/bin/activate" ]]; then
-    # Linux/macOS
-    # shellcheck disable=SC1091
-    source ".venv/bin/activate"
-  fi
+  local venv
+  for venv in ".venv" "$SCRIPT_DIR/../.venv"; do
+    if [[ -f "$venv/Scripts/activate" ]]; then
+      # Git Bash on Windows
+      # shellcheck disable=SC1091
+      source "$venv/Scripts/activate"
+      return
+    elif [[ -f "$venv/bin/activate" ]]; then
+      # Linux/macOS
+      # shellcheck disable=SC1091
+      source "$venv/bin/activate"
+      return
+    fi
+  done
 }
 
 run_api() {
