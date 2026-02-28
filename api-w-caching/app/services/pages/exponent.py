@@ -109,12 +109,54 @@ class ExponentPageService(BasePageService):
         def _load() -> dict[str, Any]:
             if mkt1 and mkt2:
                 rows = self.sql.fetch_rows(
-                    "SELECT * FROM exponent.get_view_exponent_last(%s, %s) LIMIT 1",
+                    "SELECT "
+                    "  market_pt_symbol_array_all, market_pt_symbol_array_full, "
+                    "  apy_realized_7d_array, base_tokens_symbols_array, base_tokens_locked_array, "
+                    "  apy_market_mkt1, apy_market_mkt2, "
+                    "  base_token_collateralization_ratio_array, "
+                    "  apy_divergence_wrt_7d_mkt1, apy_divergence_wrt_7d_mkt2, "
+                    "  sy_coll_ratio_mkt1, sy_coll_ratio_mkt2, "
+                    "  yt_staked_pct_mkt1, yt_staked_pct_mkt2, "
+                    "  amm_depth_in_sy_mkt1, amm_depth_in_sy_mkt2, "
+                    "  market_pt_symbol_array, "
+                    "  pt_base_price_mkt1, pt_base_price_mkt2, "
+                    "  amm_impact_trade_size_pt, "
+                    "  amm_price_impact_mkt1_pct, amm_price_impact_mkt2_pct, "
+                    "  amm_pt_vol_24h_array, "
+                    "  amm_share_sy_pct_mkt1, amm_share_sy_pct_mkt2, "
+                    "  total_naive_tvl, "
+                    "  sy_total_locked_pct_mkt1, sy_total_locked_pct_mkt2, "
+                    "  sy_not_in_mkt1_mkt2_pct, "
+                    "  start_datetime_mkt1, end_datetime_mkt1, "
+                    "  start_datetime_mkt2, end_datetime_mkt2 "
+                    "FROM exponent.get_view_exponent_last(%s, %s) "
+                    "LIMIT 1",
                     (mkt1, mkt2),
                 )
             else:
                 rows = self.sql.fetch_rows(
-                    "SELECT * FROM exponent.get_view_exponent_last() LIMIT 1"
+                    "SELECT "
+                    "  market_pt_symbol_array_all, market_pt_symbol_array_full, "
+                    "  apy_realized_7d_array, base_tokens_symbols_array, base_tokens_locked_array, "
+                    "  apy_market_mkt1, apy_market_mkt2, "
+                    "  base_token_collateralization_ratio_array, "
+                    "  apy_divergence_wrt_7d_mkt1, apy_divergence_wrt_7d_mkt2, "
+                    "  sy_coll_ratio_mkt1, sy_coll_ratio_mkt2, "
+                    "  yt_staked_pct_mkt1, yt_staked_pct_mkt2, "
+                    "  amm_depth_in_sy_mkt1, amm_depth_in_sy_mkt2, "
+                    "  market_pt_symbol_array, "
+                    "  pt_base_price_mkt1, pt_base_price_mkt2, "
+                    "  amm_impact_trade_size_pt, "
+                    "  amm_price_impact_mkt1_pct, amm_price_impact_mkt2_pct, "
+                    "  amm_pt_vol_24h_array, "
+                    "  amm_share_sy_pct_mkt1, amm_share_sy_pct_mkt2, "
+                    "  total_naive_tvl, "
+                    "  sy_total_locked_pct_mkt1, sy_total_locked_pct_mkt2, "
+                    "  sy_not_in_mkt1_mkt2_pct, "
+                    "  start_datetime_mkt1, end_datetime_mkt1, "
+                    "  start_datetime_mkt2, end_datetime_mkt2 "
+                    "FROM exponent.get_view_exponent_last() "
+                    "LIMIT 1"
                 )
             return rows[0] if rows else {}
 
@@ -148,7 +190,17 @@ class ExponentPageService(BasePageService):
         lookback = self._window_interval(last_window)
         bucket = self._bucket_interval(last_window)
         query = """
-            SELECT *
+            SELECT
+                bucket_time,
+                amm_pt_out, amm_pt_in, amm_pt_swap_count,
+                pt_supply_ui_delta_pos, pt_supply_ui_delta_neg, pt_supply,
+                sy_for_pt_pct_sy, sy_yield_pool_pct, total_sy_in_escrow,
+                yt_share_staked_pct, uncollected_sy,
+                pool_depth_sy_pct, pool_depth_pt_pct, pool_depth_in_sy,
+                sy_trailing_apy_24h, sy_trailing_apy_7d,
+                sy_trailing_apy_vault_life, sy_trailing_apy_all_time,
+                yield_divergence_wrt_7d_rate_pct,
+                apy_market_ath, apy_market_atl, c_market_implied_apy
             FROM exponent.get_view_exponent_timeseries(
                 %s, %s,
                 NOW() - %s::interval,
@@ -165,7 +217,13 @@ class ExponentPageService(BasePageService):
         return self._cached(
             "exponent::aux_key_relations",
             lambda: self.sql.fetch_rows(
-                "SELECT * FROM exponent.aux_key_relations ORDER BY maturity_date"
+                "SELECT "
+                "  meta_pt_name, meta_sy_name, env_sy_symbol, "
+                "  meta_base_symbol, sy_interface_type, env_sy_decimals, "
+                "  maturity_date, vault_address, market_address, "
+                "  mint_sy, mint_pt, mint_yt, mint_lp "
+                "FROM exponent.aux_key_relations "
+                "ORDER BY maturity_date"
             ),
             ttl_seconds=self._MARKET_ASSETS_TTL_SECONDS,
         )

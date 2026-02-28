@@ -1032,6 +1032,13 @@ td:first-child {
   color: var(--border);
 }
 
+.bottombar-vline {
+  width: 1px;
+  height: 19px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
 .bottombar-partner {
   display: inline-flex;
   align-items: center;
@@ -1065,10 +1072,14 @@ html[data-theme="light"] .bottombar-partner {
   background: #0f1a2d;
 }
 
-.bottombar-social {
+.bottombar-social,
+.bottombar-capabilities {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.bottombar-social {
   position: relative;
   padding-left: 17px;
   margin-left: 2px;

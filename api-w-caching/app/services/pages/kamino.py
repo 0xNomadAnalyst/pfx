@@ -84,14 +84,53 @@ class KaminoPageService(BasePageService):
 
     def _v_last_row(self) -> dict[str, Any]:
         def _load() -> dict[str, Any]:
-            rows = self.sql.fetch_rows("SELECT * FROM kamino_lend.v_last LIMIT 1")
+            rows = self.sql.fetch_rows(
+                "SELECT "
+                "  reserve_brw_all_utilization_pct_array, reserve_brw_all_symbols_array, "
+                "  reserve_brw_all_borrowed, "
+                "  obl_debt_borrow_nonzero_count, obl_loan_avg_size, "
+                "  reserve_brw_all_shares_pct_array, "
+                "  obl_ltv_weighted_avg_sig, obl_hf_weighted_avg_sig, "
+                "  reserve_coll_all_collateral, "
+                "  obl_debt_total_unhealthy_pct, "
+                "  reserve_coll_all_shares_pct_array, reserve_coll_all_symbols_array, "
+                "  obl_debt_borrow_zero_use_count, obl_debt_borrow_zero_use_capacity, "
+                "  reserve_brw_all_borrow_apy_array, reserve_brw_all_supply_apy_array, "
+                "  reserve_brw_all_borrow_vol_24h_array, reserve_brw_all_repay_vol_24h_array, "
+                "  reserve_brw_all_liquidated_vol_30d_array, reserve_brw_all_liquidated_count_30d_array, "
+                "  reserve_brw_all_withdraw_vol_24h_array, reserve_brw_all_deposit_vol_24h_array, "
+                "  reserve_brw_all_liquidated_avg_size_array, last_liquidation_days_ago, "
+                "  reserve_coll_all_collateral_less_liquidatable_mktval, obl_liquidatable_value, "
+                "  reserve_brw_all_borrowed_less_debt_at_risk_mktval, reserve_brw_all_available_mktval, "
+                "  obl_debt_total_unhealthy, obl_debt_total_bad, "
+                "  reserve_eusx_price_stddev_7d_pct, reserve_eusx_price_2sigma_7d_pct, "
+                "  reserve_usx_price_stddev_7d_pct, reserve_usx_price_2sigma_7d_pct "
+                "FROM kamino_lend.v_last "
+                "LIMIT 1"
+            )
             return rows[0] if rows else {}
 
         return self._cached("kamino::v_last", _load, ttl_seconds=self._V_LAST_TTL_SECONDS)
 
     def _v_config_row(self) -> dict[str, Any]:
         def _load() -> dict[str, Any]:
-            rows = self.sql.fetch_rows("SELECT * FROM kamino_lend.v_config LIMIT 1")
+            rows = self.sql.fetch_rows(
+                "SELECT "
+                "  reserve_brw_all_symbols_array, reserve_coll_all_symbols_array, "
+                "  market_quote_currency, market_user_borrow_limit, "
+                "  reserve_brw_all_risk_weight_array, "
+                "  reserve_coll_all_ltv_new_loan_array, reserve_coll_all_ltv_unhealthy_array, "
+                "  market_ltv_bad, market_liquidatable_unhealthy_share, "
+                "  market_liquidatable_small_loan_full, market_liquidatable_max_value, "
+                "  reserve_brw_all_liquidation_fee_unhealthy_min_array, "
+                "  reserve_brw_all_liquidation_fee_unhealthy_max_array, "
+                "  reserve_brw_all_liquidation_fee_bad_array, "
+                "  reserve_brw_all_deposit_max_limit_array, reserve_brw_all_borrow_max_limit_array, "
+                "  reserve_brw_all_withdrawal_cap_24hr_array, reserve_brw_all_borrow_cap_24hr_array, "
+                "  reserve_brw_all_utilization_borrow_limit_array "
+                "FROM kamino_lend.v_config "
+                "LIMIT 1"
+            )
             return rows[0] if rows else {}
 
         return self._cached("kamino::v_config", _load, ttl_seconds=self._CONFIG_TTL_SECONDS)
@@ -99,7 +138,10 @@ class KaminoPageService(BasePageService):
     def _rate_curve_rows(self) -> list[dict[str, Any]]:
         return self._cached(
             "kamino::v_rate_curve_usx",
-            lambda: self.sql.fetch_rows("SELECT * FROM kamino_lend.v_rate_curve_usx"),
+            lambda: self.sql.fetch_rows(
+                "SELECT utilization_rate_pct, borrow_rate_pct "
+                "FROM kamino_lend.v_rate_curve_usx"
+            ),
             ttl_seconds=self._RATE_CURVE_TTL_SECONDS,
         )
 
@@ -118,7 +160,22 @@ class KaminoPageService(BasePageService):
         lookback = self._window_interval(last_window)
         bucket_interval = self._bucket_interval(last_window)
         query = """
-            SELECT *
+            SELECT
+                bucket_time,
+                reserve_brw_all_borrowed_mktvalue,
+                reserve_brw_all_available_mktvalue,
+                reserve_brw_all_supply_total_mktvalue,
+                reserve_brw_all_utilization_pct,
+                obl_loan_ltv_wtd_avg_pct,
+                obl_loan_ltv_median_pct,
+                obl_loan_hf_wtd_avg,
+                reserve_brw_all_deposit_sum,
+                reserve_brw_all_repay_sum,
+                reserve_brw_all_liquidate_sum,
+                reserve_brw_all_withdraw_sum,
+                reserve_brw_all_borrow_sum,
+                reserve_brw_all_net_flow,
+                reserve_brw_all_liquidate_sum_pct_at_risk
             FROM kamino_lend.get_view_klend_timeseries(
                 %s,
                 NOW() - %s::interval,
@@ -135,7 +192,14 @@ class KaminoPageService(BasePageService):
         return self._cached(
             "kamino::sensitivities",
             lambda: self.sql.fetch_rows(
-                "SELECT * FROM kamino_lend.get_view_klend_sensitivities(NULL, -50, 25, 50, 25, FALSE) ORDER BY step_number"
+                "SELECT "
+                "  step_number, pct_change, "
+                "  total_borrows, total_deposits, "
+                "  unhealthy_debt, bad_debt, total_liquidatable_value, "
+                "  liquidation_distance_to_healthy, "
+                "  unhealthy_debt_less_liquidatable_part, bad_debt_less_liquidatable_part "
+                "FROM kamino_lend.get_view_klend_sensitivities(NULL, -50, 25, 50, 25, FALSE) "
+                "ORDER BY step_number"
             ),
             ttl_seconds=self._SENSITIVITY_TTL_SECONDS,
         )
@@ -146,7 +210,15 @@ class KaminoPageService(BasePageService):
 
         def _load() -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    obligation_address,
+                    loan_value_total,
+                    loan_value_total_pct_debt,
+                    collateral_value_total,
+                    ltv_pct,
+                    liquidation_buffer_pct,
+                    health_factor,
+                    status
                 FROM kamino_lend.get_view_klend_obligations(
                     NOW(),
                     'risk_priority',
@@ -429,7 +501,15 @@ class KaminoPageService(BasePageService):
 
     def _kamino_market_assets(self, _: dict[str, Any]) -> dict[str, Any]:
         def _load() -> list[dict[str, Any]]:
-            return self.sql.fetch_rows("SELECT * FROM kamino_lend.v_market_assets")
+            return self.sql.fetch_rows(
+                "SELECT "
+                "  token_symbol, reserve_type, reserve_status, "
+                "  loan_to_value_pct, liquidation_threshold_pct, borrow_factor_pct, "
+                "  available_tokens, borrowed_tokens, total_supply, utilization_pct, "
+                "  supply_apy_pct, borrow_apy_pct, "
+                "  reserve_address, token_mint "
+                "FROM kamino_lend.v_market_assets"
+            )
 
         rows_raw = self._cached("kamino::market_assets", _load, ttl_seconds=self._MARKET_ASSETS_TTL_SECONDS)
         rows = []

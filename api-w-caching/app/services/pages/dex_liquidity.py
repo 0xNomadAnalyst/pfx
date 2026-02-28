@@ -71,7 +71,14 @@ class DexLiquidityPageService(BasePageService):
 
         def _run_query(active_delta_time: str) -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    tick_price_t1_per_t0,
+                    current_price_t1_per_t0,
+                    token0_value,
+                    token1_value,
+                    token1_cumul,
+                    token0_cumul,
+                    liquidity_period_delta_in_t1_units_pct
                 FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval)
                 ORDER BY tick_price_t1_per_t0
             """
@@ -154,7 +161,15 @@ class DexLiquidityPageService(BasePageService):
 
         def _run_query(active_lookback: str) -> dict[str, Any]:
             query = """
-                SELECT *
+                SELECT
+                    tvl_in_t1_units,
+                    impact_from_t0_sell3_bps,
+                    reserve_t0_t1_millions,
+                    swap_token0_in_max_impact_bps,
+                    swap_token0_in_max,
+                    reserve_t0_t1_balance_pct,
+                    swap_token0_in_avg_impact_bps,
+                    swap_token0_in_avg
                 FROM dexes.get_view_dex_last(%s, %s, %s::interval)
                 LIMIT 1
             """
@@ -190,7 +205,20 @@ class DexLiquidityPageService(BasePageService):
 
         def _load_rows() -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    time,
+                    reserve_t1_pct,
+                    concentration_avg_peg_pct_1_last,
+                    sell_t0_for_impact1_avg_w_last,
+                    sell_t0_for_impact2_avg_w_last,
+                    sell_t0_for_impact3_avg_w_last,
+                    lp_t1_in,
+                    lp_t1_out,
+                    lp_t1_net_pct_reserve,
+                    impact_from_t0_sell1_bps_avg_w_last,
+                    impact_from_t0_sell2_bps_avg_w_last,
+                    impact_from_t0_sell3_bps_avg_w_last,
+                    impact_t0_quantities
                 FROM dexes.get_view_dex_timeseries(%s, %s, %s, %s)
                 ORDER BY time
             """
@@ -368,7 +396,13 @@ class DexLiquidityPageService(BasePageService):
 
         def _load_rows() -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    bps_target,
+                    price_change_pct,
+                    calculated_price,
+                    liquidity_in_band,
+                    swap_size_equivalent,
+                    pct_of_reserve
                 FROM dexes.get_view_liquidity_depth_table(%s, %s)
                 ORDER BY bps_target
             """
@@ -501,10 +535,17 @@ class DexLiquidityPageService(BasePageService):
         pair = str(params.get("pair", "USX-USDC"))
         rows = int(params.get("rows", 12))
         lookback = str(params.get("lookback", "1 day"))
+        last_window = str(params.get("last_window", "24h"))
+        lookback_from_window, _, _ = self._timeseries_window_config(last_window)
+        lookback = lookback_from_window or lookback
 
         def _run_ranked(direction: str, active_lookback: str) -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    tx_time,
+                    primary_flow,
+                    primary_flow_reserve_pct_now,
+                    signature
                 FROM dexes.get_view_dex_table_ranked_events(
                     %s, %s, 'lp', 't1', %s, %s, %s
                 )
@@ -542,12 +583,13 @@ class DexLiquidityPageService(BasePageService):
             "kind": "table-split",
             "columns": [
                 {"key": "tx_time", "label": "Time"},
-                {"key": "primary_flow", "label": "Liquidity Added/Removed"},
+                {"key": "primary_flow", "label": "Amount"},
                 {"key": "primary_flow_reserve_pct_now", "label": "% Reserve Now"},
                 {"key": "signature", "label": "Tx Signature"},
             ],
-            "left_title": "Largest LP In (USDC)",
-            "right_title": "Largest LP Out (USDC)",
-            "left_rows": top_in,
-            "right_rows": top_out,
+            # Match React split layout semantics: Removed on left, Added on right.
+            "left_title": "Liquidity Removed",
+            "right_title": "Liquidity Added",
+            "left_rows": top_out,
+            "right_rows": top_in,
         }

@@ -54,6 +54,22 @@
       "health-base-chart-events",
       "health-base-chart-accounts",
     ])],
+    ["linked-ts-global", new Set([
+      "ge-issuance-time",
+      "ge-yield-generation",
+      "ge-yield-vesting-rate",
+      "ge-yields-vs-time",
+      "ge-token-avail-usx",
+      "ge-token-avail-eusx",
+      "ge-tvl-defi-usx",
+      "ge-tvl-defi-eusx",
+      "ge-tvl-share-usx",
+      "ge-tvl-share-eusx",
+      "ge-activity-vol-usx",
+      "ge-activity-vol-eusx",
+      "ge-activity-share-usx",
+      "ge-activity-share-eusx",
+    ])],
   ]);
 
   function getTimeseriesGroupId(widgetId) {
@@ -145,6 +161,32 @@
       return "--";
     }
     return `${numeric.toFixed(2)} bps`;
+  }
+
+  function formatSigned4dp(value) {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+      return "--";
+    }
+    const number = Number(value);
+    if (!Number.isFinite(number)) {
+      return "--";
+    }
+    const prefix = number > 0 ? "+" : "";
+    return `${prefix}${number.toFixed(4)}`;
+  }
+
+  function currentLastWindowLabel() {
+    const mapping = {
+      "1h": "Last 1H",
+      "4h": "Last 4H",
+      "6h": "Last 6H",
+      "24h": "Last 1D",
+      "7d": "Last 7D",
+      "30d": "Last 30D",
+      "90d": "Last 90D",
+    };
+    const key = String(currentLastWindow() || "24h").toLowerCase();
+    return mapping[key] || `Last ${key.toUpperCase()}`;
   }
 
   function formatCompactTimestamp(value) {
@@ -539,37 +581,58 @@
     if (!primary || !secondary) {
       return;
     }
+    const { token0, token1 } = currentPairTokens();
+    const lastLabel = currentLastWindowLabel();
 
-    if (widgetId === "kpi-impact-500k" || widgetId === "kpi-largest-impact" || widgetId === "kpi-average-impact") {
-      primary.textContent = `${formatSigned(data.primary, " bps")}`;
-      secondary.textContent = data.secondary ? `Size: ${formatNumber(data.secondary)}` : "";
+    if (widgetId === "kpi-impact-500k") {
+      primary.textContent = `${formatSigned4dp(data.primary)} / ${formatNumber(data.secondary)}`;
+      secondary.textContent = "bps";
+    } else if (widgetId === "kpi-largest-impact" || widgetId === "kpi-average-impact") {
+      primary.textContent = `${formatSigned4dp(data.primary)} / ${formatNumber(data.secondary)}`;
+      secondary.textContent = `bps / ${token0}, ${lastLabel}`;
     } else if (widgetId === "kpi-pool-balance") {
       primary.textContent = `${formatNumber(data.primary)}%`;
       secondary.textContent = `${formatNumber(data.secondary)}%`;
+      if (secondary.textContent && secondary.textContent !== "--%") {
+        primary.textContent = `${primary.textContent} / ${secondary.textContent}`;
+      }
+      secondary.textContent = `${token0} / ${token1}`;
     } else if (widgetId === "kpi-reserves") {
-      primary.textContent = `${formatNumber(data.primary)}m`;
-      secondary.textContent = `${formatNumber(data.secondary)}m`;
+      const left = `${formatNumber(data.primary)}m`;
+      const right = `${formatNumber(data.secondary)}m`;
+      primary.textContent = `${left} / ${right}`;
+      secondary.textContent = `${token0} / ${token1}`;
+    } else if (widgetId === "kpi-swap-volume-24h") {
+      const vol = formatNumber(data.primary);
+      const pctTvl = data.secondary === null || data.secondary === undefined ? "--" : `${formatNumber(data.secondary)}%`;
+      primary.textContent = `${vol} / ${pctTvl}`;
+      secondary.textContent = `${token1} / % TVL`;
     } else if (widgetId === "kpi-price-min-max") {
-      const minValue = Number(data.primary);
-      const maxValue = Number(data.secondary);
-      primary.textContent = `${Number.isFinite(minValue) ? minValue.toFixed(4) : "--"} / ${Number.isFinite(maxValue) ? maxValue.toFixed(4) : "--"}`;
-      secondary.textContent = "min / max";
+      const maxValue = Number(data.primary);
+      const minValue = Number(data.secondary);
+      primary.textContent = `${Number.isFinite(maxValue) ? maxValue.toFixed(4) : "--"} / ${Number.isFinite(minValue) ? minValue.toFixed(4) : "--"}`;
+      secondary.textContent = `${token1} / ${token0}, ${lastLabel}`;
     } else if (widgetId === "kpi-vwap-buy-sell") {
       const buy = Number(data.primary);
       const sell = Number(data.secondary);
       primary.textContent = `${Number.isFinite(buy) ? buy.toFixed(4) : "--"} / ${Number.isFinite(sell) ? sell.toFixed(4) : "--"}`;
-      secondary.textContent = "buy / sell";
+      secondary.textContent = `${token1} / ${token0}, ${lastLabel}`;
+    } else if (widgetId === "kpi-price-std-dev") {
+      const stdDev = Number(data.primary);
+      primary.textContent = Number.isFinite(stdDev) ? stdDev.toFixed(4) : "--";
+      secondary.textContent = `${token1} / ${token0}, ${lastLabel}`;
     } else if (widgetId === "kpi-vwap-spread") {
-      primary.textContent = formatBps2dp(data.primary);
-      secondary.textContent = "";
+      const spread = Number(data.primary);
+      primary.textContent = Number.isFinite(spread) ? spread.toFixed(4) : "--";
+      secondary.textContent = `bps, ${lastLabel}`;
     } else if (
       widgetId === "kpi-largest-usx-sell" ||
       widgetId === "kpi-largest-usx-buy" ||
       widgetId === "kpi-max-1h-sell-pressure" ||
       widgetId === "kpi-max-1h-buy-pressure"
     ) {
-      primary.textContent = formatNumber(data.primary);
-      secondary.textContent = `Est impact: ${formatBps2dp(data.secondary)}`;
+      primary.textContent = `${formatNumber(data.primary)} / ${formatSigned4dp(data.secondary)}`;
+      secondary.textContent = `${token0} / bps, ${lastLabel}`;
     } else {
       primary.textContent = formatNumber(data.primary);
       secondary.textContent = data.secondary ? formatNumber(data.secondary) : "";
@@ -632,6 +695,15 @@
             const raw = row[column.key];
             const value = widgetId === "liquidity-depth-table" ? formatDepthTableValue(column.key, raw) : (raw ?? "");
             const displayValue = typeof value === "string" ? pairAwareLabel(value) : value;
+            if (column.key === "signature" && displayValue) {
+              const signature = String(displayValue);
+              const href = `https://solscan.io/tx/${encodeURIComponent(signature)}`;
+              return (
+                `<td>` +
+                `<a href="${href}" target="_blank" rel="noopener noreferrer">${signature}</a>` +
+                `</td>`
+              );
+            }
             return `<td>${displayValue}</td>`;
           })
           .join("");

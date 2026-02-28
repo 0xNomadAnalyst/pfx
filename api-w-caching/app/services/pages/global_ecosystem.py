@@ -87,7 +87,22 @@ class GlobalEcosystemPageService(BasePageService):
         return self._cached(
             "ge::v_prop_last",
             lambda: (self.sql.fetch_rows(
-                "SELECT * FROM solstice_proprietary.v_prop_last LIMIT 1"
+                "SELECT "
+                "  ptyt_all_csupply_in_usx, sy_all_csupply_in_usx, "
+                "  eusx_csupply, usx_csupply, "
+                "  base_coll_total, base_coll_in_prog_vault, base_coll_aum, "
+                "  usx_csupply_pure_pct, eusx_csupply_pure_pct, "
+                "  sy_all_csupply_in_usx_pure_pct, ptyt_all_csupply_in_usx_pct, "
+                "  yield_eusx_7d, yield_eusx_30d, yield_pteusx, yield_ptusx, yield_kusx, "
+                "  usx_tvl_in_dexes_pct, usx_tvl_in_kamino_pct, usx_tvl_in_kamino_as_ptusx_pct, "
+                "  usx_tvl_in_eusx_pct, usx_tvl_in_exponent_pct, usx_tvl_remainder_pct, "
+                "  eusx_tvl_in_dexes_pct, eusx_tvl_in_kamino_pct, "
+                "  eusx_tvl_in_kamino_as_pteusx_pct, eusx_tvl_in_exponent_only_pct, "
+                "  eusx_tvl_remainder_pct, "
+                "  usx_timelocked, usx_defi_deployed, usx_freeunknown, "
+                "  eusx_defi_deployed, eusx_freeunknown "
+                "FROM solstice_proprietary.v_prop_last "
+                "LIMIT 1"
             ) or [{}])[0],
             ttl_seconds=self._V_LAST_TTL,
         )
@@ -100,7 +115,28 @@ class GlobalEcosystemPageService(BasePageService):
 
         def _load() -> list[dict[str, Any]]:
             return self.sql.fetch_rows(
-                "SELECT * FROM solstice_proprietary.get_view_prop_timeseries("
+                "SELECT "
+                "  bucket_time, "
+                "  usx_csupply_pure_pct, eusx_csupply_pure_pct, "
+                "  sy_all_csupply_in_usx_pure_pct, ptyt_all_csupply_in_usx_pct, "
+                "  yield_eusx_24h, yield_eusx_7d, yield_ptusx, yield_pteusx, yield_kusx, "
+                "  usx_timelocked, usx_defi_deployed, usx_freeunknown, "
+                "  eusx_defi_deployed, eusx_freeunknown, "
+                "  usx_tvl_in_dexes, usx_tvl_in_kamino, usx_tvl_in_eusx, usx_tvl_in_exponent, "
+                "  eusx_tvl_in_dexes, eusx_tvl_in_kamino, "
+                "  eusx_tvl_in_kamino_as_pteusx, eusx_tvl_in_exponent_only, "
+                "  usx_tvl_in_dexes_pct, usx_tvl_in_kamino_pct, usx_tvl_in_eusx_pct, "
+                "  usx_tvl_in_exponent_pct, usx_tvl_remainder_pct, "
+                "  eusx_tvl_in_dexes_pct, eusx_tvl_in_kamino_pct, "
+                "  eusx_tvl_in_kamino_as_pteusx_pct, eusx_tvl_in_exponent_only_pct, "
+                "  eusx_tvl_remainder_pct, "
+                "  usx_eusx_yield_flows, usx_dex_flows, usx_kam_all_flows, usx_exp_all_flows, "
+                "  eusx_dex_flows, eusx_kam_all_flows, eusx_exp_all_flows, "
+                "  usx_eusx_yield_flows_pct_usx_activity, usx_dex_flows_pct_usx_activity, "
+                "  usx_kam_all_flows_pct_usx_activity, usx_exp_all_flows_pct_usx_activity, "
+                "  eusx_dex_flows_pct_eusx_activity, eusx_kam_all_flows_pct_eusx_activity, "
+                "  eusx_exp_all_flows_pct_eusx_activity "
+                "FROM solstice_proprietary.get_view_prop_timeseries("
                 "  %s, NOW() - %s::interval, NOW()"
                 ") ORDER BY bucket_time",
                 (bucket, lookback),
@@ -128,7 +164,15 @@ class GlobalEcosystemPageService(BasePageService):
 
         def _load() -> dict[str, Any]:
             rows = self.sql.fetch_rows(
-                "SELECT * FROM solstice_proprietary.get_view_prop_last_interval(%s) LIMIT 1",
+                "SELECT "
+                "  usx_dex_flows_pct_usx_activity, usx_kam_all_flows_pct_usx_activity, "
+                "  usx_exp_all_flows_pct_usx_activity, usx_eusx_yield_flows_pct_usx_activity, "
+                "  usx_allprotocol_flows, "
+                "  eusx_dex_flows_pct_eusx_activity, eusx_kam_all_flows_pct_eusx_activity, "
+                "  eusx_exp_all_flows_pct_eusx_activity, "
+                "  eusx_allprotocol_flows "
+                "FROM solstice_proprietary.get_view_prop_last_interval(%s) "
+                "LIMIT 1",
                 (lookback,),
             )
             return rows[0] if rows else {}
@@ -142,7 +186,12 @@ class GlobalEcosystemPageService(BasePageService):
 
         def _load() -> list[dict[str, Any]]:
             return self.sql.fetch_rows(
-                "SELECT * FROM solstice_proprietary.v_eusx_yield_vesting "
+                "SELECT "
+                "  bucket_time, "
+                "  yield_eusx_pool_total_assets, yield_eusx_pool_shares_supply, "
+                "  yield_eusx_amount, "
+                "  yield_eusx_apy_24h_pct, yield_eusx_apy_7d_pct, yield_eusx_apy_30d_pct "
+                "FROM solstice_proprietary.v_eusx_yield_vesting "
                 "WHERE bucket_time >= NOW() - %s::interval "
                 "ORDER BY bucket_time",
                 (lookback,),

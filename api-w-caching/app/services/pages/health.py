@@ -275,35 +275,64 @@ class HealthPageService(BasePageService):
     def _fetch_master(self) -> list[dict[str, Any]]:
         return self._cached(
             "health::master",
-            lambda: self.sql.fetch_rows("SELECT * FROM health.v_health_master_table"),
+            lambda: self.sql.fetch_rows(
+                "SELECT "
+                "  domain, domain_label, is_red, "
+                "  queue_red, trigger_red, base_red, cagg_red "
+                "FROM health.v_health_master_table"
+            ),
             ttl_seconds=_TABLE_TTL,
         )
 
     def _fetch_queues(self) -> list[dict[str, Any]]:
         return self._cached(
             "health::queues",
-            lambda: self.sql.fetch_rows("SELECT * FROM health.v_health_queue_table"),
+            lambda: self.sql.fetch_rows(
+                "SELECT "
+                "  summary_status, domain, queue_name, "
+                "  queue_size, max_queue_size, queue_utilization_pct, util_status, "
+                "  write_rate_per_min, seconds_since_last_write, p95_staleness_7d, "
+                "  gap_status, consecutive_failures, fail_status, is_red "
+                "FROM health.v_health_queue_table"
+            ),
             ttl_seconds=_TABLE_TTL,
         )
 
     def _fetch_triggers(self) -> list[dict[str, Any]]:
         return self._cached(
             "health::triggers",
-            lambda: self.sql.fetch_rows("SELECT * FROM health.v_health_trigger_table"),
+            lambda: self.sql.fetch_rows(
+                "SELECT "
+                "  status, trigger_name, description, "
+                "  source_latest, derived_latest, lag_mins, "
+                "  source_rows_1h, derived_rows_1h, is_red "
+                "FROM health.v_health_trigger_table"
+            ),
             ttl_seconds=_TABLE_TTL,
         )
 
     def _fetch_base_tables(self) -> list[dict[str, Any]]:
         return self._cached(
             "health::base_tables",
-            lambda: self.sql.fetch_rows("SELECT * FROM health.v_health_base_table"),
+            lambda: self.sql.fetch_rows(
+                "SELECT "
+                "  status, schema_name, table_name, latest_time, "
+                "  minutes_since_latest, rows_last_hour, rows_last_24h, avg_rows_per_hour, "
+                "  is_red "
+                "FROM health.v_health_base_table"
+            ),
             ttl_seconds=_TABLE_TTL,
         )
 
     def _fetch_caggs(self) -> list[dict[str, Any]]:
         return self._cached(
             "health::caggs",
-            lambda: self.sql.fetch_rows("SELECT * FROM health.v_health_cagg_table"),
+            lambda: self.sql.fetch_rows(
+                "SELECT "
+                "  status, view_schema, view_name, source_table, "
+                "  cagg_latest, source_latest, refresh_lag_mins, is_red "
+                "FROM health.v_health_cagg_table"
+            ),
             ttl_seconds=_TABLE_TTL,
         )
 
@@ -413,7 +442,8 @@ class HealthPageService(BasePageService):
 
         def _load() -> list[dict[str, Any]]:
             return self.sql.fetch_rows(
-                "SELECT * FROM health.v_health_queue_chart(%s, %s, %s, %s)",
+                "SELECT bucket, queue_name, avg_value "
+                "FROM health.v_health_queue_chart(%s, %s, %s, %s)",
                 (schema, attribute, lookback, interval),
                 statement_timeout_ms=_CHART_TIMEOUT_MS,
             )
@@ -544,7 +574,8 @@ class HealthPageService(BasePageService):
 
         def _load() -> list[dict[str, Any]]:
             return self.sql.fetch_rows(
-                "SELECT * FROM health.v_health_base_chart(%s, %s, %s)",
+                "SELECT bucket, category, avg_row_count "
+                "FROM health.v_health_base_chart(%s, %s, %s)",
                 (schema, lookback, interval),
                 statement_timeout_ms=_CHART_TIMEOUT_MS,
             )

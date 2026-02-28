@@ -152,7 +152,24 @@ class DexSwapsPageService(BasePageService):
 
         def _run_query(active_lookback: str) -> dict[str, Any]:
             query = """
-                SELECT *
+                SELECT
+                    swap_vol_t1_total_24h,
+                    swap_vol_t1_total_24h_pct_tvl_in_t1,
+                    swap_count_24h,
+                    price_t1_per_t0_min,
+                    price_t1_per_t0_max,
+                    vwap_buy_t0_avg,
+                    vwap_sell_t0_avg,
+                    price_t1_per_t0_std,
+                    spread_vwap_avg_bps,
+                    swap_token0_in_max,
+                    swap_token0_in_max_impact_bps,
+                    swap_token0_out_max,
+                    swap_token0_out_max_impact_bps,
+                    max_1h_t0_sell_pressure_in_period,
+                    max_1h_t0_sell_pressure_in_period_impact_bps,
+                    max_1h_t0_buy_pressure_in_period,
+                    max_1h_t0_buy_pressure_in_period_impact_bps
                 FROM dexes.get_view_dex_last(%s, %s, %s::interval)
                 LIMIT 1
             """
@@ -188,7 +205,17 @@ class DexSwapsPageService(BasePageService):
 
         def _load_rows() -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    time,
+                    swap_t1_out,
+                    swap_t0_out,
+                    swap_t1_in,
+                    swap_t0_in,
+                    swap_count,
+                    avg_est_swap_impact_bps_all,
+                    min_est_swap_impact_bps_t0_sell,
+                    price_t1_per_t0,
+                    avg_vwap_spread_bps_w_last
                 FROM dexes.get_view_dex_timeseries(%s, %s, %s, %s)
                 ORDER BY time
             """
@@ -221,7 +248,13 @@ class DexSwapsPageService(BasePageService):
 
         def _load_rows() -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    time,
+                    open_price,
+                    close_price,
+                    low_price,
+                    high_price,
+                    volume_t1
                 FROM dexes.get_view_dex_ohlcv(%s, %s, %s, %s)
                 ORDER BY time
             """
@@ -238,7 +271,11 @@ class DexSwapsPageService(BasePageService):
 
         def _run_query(active_delta_time: str) -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    tick_price_t1_per_t0,
+                    current_price_t1_per_t0,
+                    token0_value,
+                    token1_value
                 FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval)
                 ORDER BY tick_price_t1_per_t0
             """
@@ -263,7 +300,12 @@ class DexSwapsPageService(BasePageService):
 
         def _load_rows() -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    bucket_number,
+                    bucket_max_in_k,
+                    cumulative_share,
+                    swap_count,
+                    price_impact_bps_abs
                 FROM dexes.get_view_sell_swaps_distribution(%s, %s, 't0', %s, %s)
                 ORDER BY bucket_number
             """
@@ -279,7 +321,12 @@ class DexSwapsPageService(BasePageService):
 
         def _load_rows() -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    bucket_number,
+                    bucket_max_in_k,
+                    cumulative_share,
+                    interval_count,
+                    price_impact_bps_abs
                 FROM dexes.get_view_sell_pressure_t0_distribution(%s, %s, '1 hour', %s, %s, 'sell_only')
                 ORDER BY bucket_number
             """
@@ -288,7 +335,7 @@ class DexSwapsPageService(BasePageService):
         cache_key = f"dex_swaps::sell_pressure_distribution::{protocol}::{pair}::{lookback}"
         return self._cached(cache_key, _load_rows, ttl_seconds=self._DISTRIBUTION_TTL_SECONDS)
 
-    def _swaps_ranked_events_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+    def _swaps_ranked_events_rows(self, params: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
         protocol = str(params.get("protocol", self.default_protocol))
         pair = str(params.get("pair", self.default_pair))
         lookback = self._lookback(params)
@@ -300,13 +347,17 @@ class DexSwapsPageService(BasePageService):
 
         def _load_rows() -> list[dict[str, Any]]:
             query = """
-                SELECT *
+                SELECT
+                    tx_time,
+                    primary_flow,
+                    primary_flow_impact_bps_now,
+                    signature
                 FROM dexes.get_view_dex_table_ranked_events(
                     %s, %s, 'swap', 't0', %s, %s, %s
                 )
             """
 
-            def _run_for_lookback(active_lookback: str) -> list[dict[str, Any]]:
+            def _run_for_lookback(active_lookback: str) -> dict[str, list[dict[str, Any]]]:
                 sell_rows = self.sql.fetch_rows(
                     query,
                     (protocol, pair, "in", rows, active_lookback),
@@ -317,11 +368,7 @@ class DexSwapsPageService(BasePageService):
                     (protocol, pair, "out", rows, active_lookback),
                     statement_timeout_ms=self._RANKED_EVENTS_TIMEOUT_MS,
                 )
-                enriched_sell = [{**row, "side": "Sell USX"} for row in sell_rows]
-                enriched_buy = [{**row, "side": "Buy USX"} for row in buy_rows]
-                combined = enriched_sell + enriched_buy
-                combined.sort(key=lambda row: float(row.get("primary_flow") or 0), reverse=True)
-                return combined[: rows * 2]
+                return {"sell": sell_rows, "buy": buy_rows}
 
             try:
                 return _run_for_lookback(bounded_lookback)
@@ -346,7 +393,12 @@ class DexSwapsPageService(BasePageService):
 
     def _kpi_swap_volume_24h(self, params: dict[str, Any]) -> dict[str, Any]:
         row = self._dex_last_row_fixed_lookback(params, "24 hours")
-        return {"kind": "kpi", "primary": row.get("swap_vol_t1_total_24h"), "label": "24h Transaction Volume"}
+        return {
+            "kind": "kpi",
+            "primary": row.get("swap_vol_t1_total_24h"),
+            "secondary": row.get("swap_vol_t1_total_24h_pct_tvl_in_t1"),
+            "label": "24h Transaction Volume",
+        }
 
     def _kpi_swap_count_24h(self, params: dict[str, Any]) -> dict[str, Any]:
         row = self._dex_last_row_fixed_lookback(params, "24 hours")
@@ -371,8 +423,8 @@ class DexSwapsPageService(BasePageService):
                 max_price = max(valid_prices)
         return {
             "kind": "kpi",
-            "primary": min_price,
-            "secondary": max_price,
+            "primary": max_price,
+            "secondary": min_price,
             "label": "Price Min/Max",
         }
 
@@ -604,15 +656,18 @@ class DexSwapsPageService(BasePageService):
         return self._swaps_sell_usx_distribution(params)
 
     def _swaps_ranked_events(self, params: dict[str, Any]) -> dict[str, Any]:
-        rows = self._swaps_ranked_events_rows(params)
+        split_rows = self._swaps_ranked_events_rows(params)
         return {
-            "kind": "table",
+            "kind": "table-split",
             "columns": [
                 {"key": "tx_time", "label": "Time"},
-                {"key": "side", "label": "Side"},
-                {"key": "primary_flow", "label": "USX Amount"},
-                {"key": "primary_flow_impact_bps_now", "label": "Est. Price Impact (bps)"},
+                {"key": "primary_flow", "label": "Swap Amount"},
+                {"key": "primary_flow_impact_bps_now", "label": "Est. Price Impact Now"},
                 {"key": "signature", "label": "Tx Signature"},
             ],
-            "rows": rows,
+            # Match React split layout semantics: Bought on left, Sold on right.
+            "left_title": "USX Bought",
+            "right_title": "USX Sold",
+            "left_rows": split_rows.get("buy", []),
+            "right_rows": split_rows.get("sell", []),
         }
