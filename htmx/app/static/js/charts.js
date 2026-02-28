@@ -2145,6 +2145,40 @@
       return;
     }
 
+    // Backward-compat: some API instances may still return a single table
+    // with a "side" column for swaps-ranked-events. Force split-table layout.
+    if (
+      widgetId === "swaps-ranked-events" &&
+      kind === "table" &&
+      Array.isArray(payload?.data?.rows) &&
+      payload.data.rows.some((row) => row && row.side !== undefined)
+    ) {
+      const rows = payload.data.rows || [];
+      const leftRows = rows.filter((row) => String(row?.side || "").toLowerCase().includes("buy"));
+      const rightRows = rows.filter((row) => String(row?.side || "").toLowerCase().includes("sell"));
+      const baseColumns = (payload.data.columns || []).filter((col) => col?.key !== "side");
+      const columns = baseColumns.length
+        ? baseColumns
+        : [
+            { key: "tx_time", label: "Time" },
+            { key: "primary_flow", label: "Swap Amount" },
+            { key: "primary_flow_impact_bps_now", label: "Est. Price Impact Now" },
+            { key: "signature", label: "Tx Signature" },
+          ];
+
+      const leftTitleEl = document.getElementById(`table-left-title-${widgetId}`);
+      const rightTitleEl = document.getElementById(`table-right-title-${widgetId}`);
+      if (leftTitleEl) {
+        leftTitleEl.textContent = pairAwareLabel("USX Bought");
+      }
+      if (rightTitleEl) {
+        rightTitleEl.textContent = pairAwareLabel("USX Sold");
+      }
+      renderTable(widgetId, `table-left-${widgetId}`, columns, leftRows);
+      renderTable(widgetId, `table-right-${widgetId}`, columns, rightRows);
+      return;
+    }
+
     if (kind === "kpi") {
       renderKpi(widgetId, payload.data);
       return;

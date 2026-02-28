@@ -16,7 +16,6 @@ class DexLiquidityPageService(BasePageService):
     _DEPTH_TABLE_TTL_SECONDS = float(os.getenv("DEX_LIQUIDITY_DEPTH_TABLE_TTL_SECONDS", "300"))
     _RANKED_LP_TTL_SECONDS = float(os.getenv("DEX_LIQUIDITY_RANKED_LP_TTL_SECONDS", "120"))
     _RANKED_LP_TIMEOUT_MS = int(os.getenv("DEX_LIQUIDITY_RANKED_LP_TIMEOUT_MS", "5000"))
-    _RANKED_LP_FALLBACK_LOOKBACK = os.getenv("DEX_LIQUIDITY_RANKED_LP_FALLBACK_LOOKBACK", "12 hours")
     _DEX_LAST_TIMEOUT_MS = int(os.getenv("DEX_LIQUIDITY_DEX_LAST_TIMEOUT_MS", "8000"))
 
     def __init__(self, *args, **kwargs):
@@ -557,17 +556,9 @@ class DexLiquidityPageService(BasePageService):
             )
 
         def _load_ranked(direction: str) -> list[dict[str, Any]]:
-            try:
-                return _run_ranked(direction, lookback)
-            except Exception as exc:
-                is_timeout = "statement timeout" in str(exc).lower()
-                if not is_timeout:
-                    raise
-                if lookback != self._RANKED_LP_FALLBACK_LOOKBACK:
-                    return _run_ranked(direction, self._RANKED_LP_FALLBACK_LOOKBACK)
-                if lookback != "24 hours":
-                    return _run_ranked(direction, "24 hours")
-                raise
+            # Respect the selected Last window exactly; do not silently shorten
+            # lookback horizons (e.g. 30d -> 12h) for this ranked table.
+            return _run_ranked(direction, lookback)
 
         top_in = self._cached(
             f"ranked_lp::{protocol}::{pair}::in::{rows}::{lookback}",
