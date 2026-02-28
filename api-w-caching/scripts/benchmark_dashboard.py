@@ -169,6 +169,10 @@ HEADER_HEALTH_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("health-status", {}, direct_path="/api/v1/health-status"),
 ]
 
+HEADER_HEALTH_PROXY_SCENARIOS: list[WidgetScenario] = [
+    WidgetScenario("health-status-proxy", {}, direct_path="/api/health-status"),
+]
+
 PAGE_DEFAULT_SCENARIOS: dict[str, list[WidgetScenario]] = {
     "playbook-liquidity": LIQUIDITY_SCENARIOS,
     "dex-liquidity": LIQUIDITY_SCENARIOS,
@@ -177,6 +181,7 @@ PAGE_DEFAULT_SCENARIOS: dict[str, list[WidgetScenario]] = {
     "exponent": EXPONENT_SCENARIOS,
     "health": HEALTH_SCENARIOS,
     "header-health": HEADER_HEALTH_SCENARIOS,
+    "header-health-proxy": HEADER_HEALTH_PROXY_SCENARIOS,
 }
 
 PAGE_ALIASES: dict[str, str] = {
@@ -188,6 +193,7 @@ PAGE_ALIASES: dict[str, str] = {
     "exponent": "exponent",
     "health": "health",
     "header-health": "header-health",
+    "header-health-proxy": "header-health-proxy",
 }
 
 QUICK_WIDGETS_BY_PAGE: dict[str, list[str]] = {
@@ -233,6 +239,9 @@ QUICK_WIDGETS_BY_PAGE: dict[str, list[str]] = {
     ],
     "header-health": [
         "health-status",
+    ],
+    "header-health-proxy": [
+        "health-status-proxy",
     ],
 }
 
@@ -303,13 +312,22 @@ def fetch_json(url: str, timeout_seconds: float) -> tuple[dict[str, Any] | None,
         return None, 0, str(exc)
     except URLError as exc:
         return None, 0, str(exc)
+    except Exception as exc:  # pragma: no cover - defensive path
+        return None, 0, str(exc)
 
 
 def benchmark_once(url: str, timeout_seconds: float) -> dict[str, Any]:
     started = time.perf_counter()
     payload, status_code, raw = fetch_json(url, timeout_seconds)
     elapsed_ms = (time.perf_counter() - started) * 1000.0
-    ok = status_code == 200 and payload is not None and payload.get("status") == "success"
+    ok = (
+        status_code == 200
+        and payload is not None
+        and (
+            payload.get("status") == "success"
+            or "is_green" in payload
+        )
+    )
     return {
         "ok": ok,
         "status_code": status_code,
@@ -333,7 +351,15 @@ def parse_pages(page_arg: str) -> list[str]:
     for item in raw_items:
         key = item.lower()
         if key == "all":
-            return ["playbook-liquidity", "dex-swaps", "kamino", "exponent", "health", "header-health"]
+            return [
+                "playbook-liquidity",
+                "dex-swaps",
+                "kamino",
+                "exponent",
+                "health",
+                "header-health",
+                "header-health-proxy",
+            ]
         alias = PAGE_ALIASES.get(key)
         if alias is None:
             raise ValueError(f"Unsupported page: {item}")

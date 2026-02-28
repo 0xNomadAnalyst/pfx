@@ -24,6 +24,7 @@ Run from `pfx/api-w-caching`:
 - `python scripts/benchmark_dashboard.py --page exponent --windows 24h,7d --repeats 5`
 - `python scripts/benchmark_dashboard.py --page health --windows 24h,7d --repeats 5`
 - `python scripts/benchmark_dashboard.py --page header-health --windows 24h --repeats 10`
+- `python scripts/benchmark_dashboard.py --base-url http://127.0.0.1:8002 --page header-health-proxy --windows 24h --repeats 10`
 - `python scripts/benchmark_dashboard.py --page all --parallel 4 --output-json reports/bench-all-pages.json`
 
 Useful options:
@@ -89,7 +90,7 @@ Cache tuning env vars (API process):
 - `HEALTH_TABLE_TTL_SECONDS` (default `60`)
 - `HEALTH_CHART_TTL_SECONDS` (default `120`)
 - `HEALTH_STATUS_TTL_SECONDS` (default `15`, cache TTL for the always-on header health check)
-- `HEALTH_STATUS_TIMEOUT_MS` (default `5000`, statement timeout for header health check query)
+- `HEALTH_STATUS_TIMEOUT_MS` (default `2000`, statement timeout for header health check query)
 - `API_LOG_SLOW_WIDGETS` (default `0`, set `1` to log slow widget handlers)
 - `API_SLOW_WIDGET_THRESHOLD_MS` (default `150`)
 - `DB_LOG_SLOW_QUERIES` (default `0`, set `1` to log slow SQL calls)
@@ -149,6 +150,7 @@ Output is grouped by widget + window (+ impact mode where applicable) with delta
 - `exponent`
 - `health`
 - `header-health` (always-on global header indicator endpoint)
+- `header-health-proxy` (HTMX same-origin proxy endpoint used by the header indicator)
 
 Use `--page all` to benchmark the full cross-page widget suite, including Kamino KPIs/charts/tables and modal table endpoints.
 

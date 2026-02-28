@@ -1,0 +1,46 @@
+{
+  "run_started_utc": "2026-02-28T10:20:00.525839+00:00",
+  "run_finished_utc": "2026-02-28T10:20:00.771152+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8114",
+    "pages": [
+      "header-health-proxy"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "24h"
+    ],
+    "repeats": 8,
+    "timeout_seconds": 10.0,
+    "parallel": 1,
+    "widget_filter": [],
+    "quick": false
+  },
+  "results": [
+    {
+      "page": "header-health-proxy",
+      "widget": "health-status-proxy",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 78.01,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 8,
+      "warm_success_count": 8,
+      "warm_error_count": 0,
+      "warm_min_ms": 2.86,
+      "warm_p50_ms": 21.99,
+      "warm_p95_ms": 32.13,
+      "warm_avg_ms": 21.36,
+      "warm_max_ms": 33.6,
+      "payload_bytes_p50": 17,
+      "error_samples": []
+    }
+  ]
+}

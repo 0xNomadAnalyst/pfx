@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -42,6 +43,10 @@ class DataService:
         self._default_page = "playbook-liquidity"
         self._log_slow_widgets = os.getenv("API_LOG_SLOW_WIDGETS", "0") == "1"
         self._slow_widget_threshold_ms = float(os.getenv("API_SLOW_WIDGET_THRESHOLD_MS", "150"))
+        self._health_status_cache_ttl_seconds = float(os.getenv("HEALTH_STATUS_TTL_SECONDS", "15"))
+        self._health_status_lock = threading.Lock()
+        self._health_status_cached: bool | None = None
+        self._health_status_expires_at = 0.0
 
     def close(self) -> None:
         self.sql.close()
@@ -228,8 +233,25 @@ class DataService:
         return health_svc.fetch_master_rows()  # type: ignore[union-attr]
 
     def get_health_indicator_status(self) -> bool | None:
-        health_svc = self._pages["health"]
-        return health_svc.fetch_master_is_green()  # type: ignore[union-attr]
+        now = time.time()
+        if now < self._health_status_expires_at:
+            return self._health_status_cached
+
+        with self._health_status_lock:
+            now = time.time()
+            if now < self._health_status_expires_at:
+                return self._health_status_cached
+
+            health_svc = self._pages["health"]
+            status = health_svc.fetch_master_is_green()  # type: ignore[union-attr]
+            if status is None and self._health_status_cached is not None:
+                # Hold last known good status briefly when DB is degraded.
+                self._health_status_expires_at = now + min(5.0, self._health_status_cache_ttl_seconds)
+                return self._health_status_cached
+
+            self._health_status_cached = status
+            self._health_status_expires_at = now + self._health_status_cache_ttl_seconds
+            return status
 
     def get_meta(self) -> dict[str, Any]:
         liquidity = self._pages["playbook-liquidity"]

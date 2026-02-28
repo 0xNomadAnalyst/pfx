@@ -1,7 +1,8 @@
+import json
 import os
+import urllib.request
 from pathlib import Path
 
-import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -146,12 +147,12 @@ def system_health(request: Request):
 
 
 @app.get("/api/health-status")
-async def health_status_proxy():
+def health_status_proxy():
     """Same-origin proxy so the header indicator avoids cross-origin fetch."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"{API_BASE_URL}/api/v1/health-status")
-            return JSONResponse(content=resp.json(), status_code=resp.status_code)
+        req = urllib.request.Request(f"{API_BASE_URL}/api/v1/health-status")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return JSONResponse(content=json.loads(resp.read()))
     except Exception:
         return JSONResponse(content={"is_green": None})
 

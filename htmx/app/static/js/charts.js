@@ -3066,12 +3066,24 @@ flowchart LR
     if (!dot) return;
     const url = "/api/health-status";
 
+    function normalizeStatus(value) {
+      if (value === true || value === false) return value;
+      if (value == null) return null;
+      if (typeof value === "number") return value !== 0;
+      if (typeof value === "string") {
+        const v = value.trim().toLowerCase();
+        if (["true", "t", "1", "yes", "y", "on"].includes(v)) return true;
+        if (["false", "f", "0", "no", "n", "off", ""].includes(v)) return false;
+      }
+      return null;
+    }
+
     async function fetchStatus() {
       try {
         const res = await fetch(url);
         if (!res.ok) return null;
         const json = await res.json();
-        return json.is_green;
+        return normalizeStatus(json.is_green);
       } catch {
         return null;
       }

@@ -9,8 +9,7 @@ from app.services.pages.base import BasePageService
 _TABLE_TTL = float(os.getenv("HEALTH_TABLE_TTL_SECONDS", "60"))
 _CHART_TTL = float(os.getenv("HEALTH_CHART_TTL_SECONDS", "120"))
 _CHART_TIMEOUT_MS = 30_000
-_HEALTH_STATUS_TTL = float(os.getenv("HEALTH_STATUS_TTL_SECONDS", "15"))
-_HEALTH_STATUS_TIMEOUT_MS = int(os.getenv("HEALTH_STATUS_TIMEOUT_MS", "5000"))
+_HEALTH_STATUS_TIMEOUT_MS = int(os.getenv("HEALTH_STATUS_TIMEOUT_MS", "2000"))
 
 QUEUE_COLORS = [
     "#4bb7ff", "#f8a94a", "#28c987", "#06b6d4", "#ae82ff",
@@ -49,7 +48,24 @@ def _status_emoji(status: str) -> str:
 
 
 def _bool_indicator(val: Any) -> str:
-    return "\U0001f534" if val else "\U0001f7e2"
+    return "\U0001f534" if _as_bool(val) else "\U0001f7e2"
+
+
+def _as_bool(val: Any) -> bool:
+    """Coerce DB values like 't'/'f', 1/0, and bool into a stable boolean."""
+    if isinstance(val, bool):
+        return val
+    if val is None:
+        return False
+    if isinstance(val, (int, float)):
+        return bool(val)
+    if isinstance(val, str):
+        s = val.strip().lower()
+        if s in {"true", "t", "1", "yes", "y", "on"}:
+            return True
+        if s in {"false", "f", "0", "no", "n", "off", ""}:
+            return False
+    return bool(val)
 
 
 def _fmt_duration(seconds: Any) -> str:
@@ -196,6 +212,7 @@ class HealthPageService(BasePageService):
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
+        self._last_master_status: bool | None = None
         self._handlers = {
             "health-master": self._health_master,
             "health-queue-table": self._health_queue_table,
@@ -216,24 +233,44 @@ class HealthPageService(BasePageService):
         return self._fetch_master()
 
     def fetch_master_is_green(self) -> bool | None:
-        """Fast path for header health indicator polling."""
-        def _load() -> bool | None:
+        """Fast path for always-on header health polling."""
+        def _load_status() -> bool | None:
             rows = self.sql.fetch_rows(
-                "SELECT is_red FROM health.v_health_master_table WHERE domain = 'MASTER' LIMIT 1",
+                "SELECT domain, is_red FROM health.v_health_master_table",
                 statement_timeout_ms=_HEALTH_STATUS_TIMEOUT_MS,
             )
             if not rows:
                 return None
-            return not bool(rows[0].get("is_red", True))
+
+            master_row = next((r for r in rows if str(r.get("domain", "")).upper() == "MASTER"), None)
+            if master_row is not None:
+                return not _as_bool(master_row.get("is_red"))
+
+            # Fallback for environments where the view omits/renames the MASTER row.
+            return not any(_as_bool(r.get("is_red")) for r in rows)
 
         try:
-            return self._cached(
-                "health::master_status",
-                _load,
-                ttl_seconds=_HEALTH_STATUS_TTL,
-            )
+            status = self._cached("health::master_status", _load_status, ttl_seconds=_TABLE_TTL)
+            if status is not None:
+                self._last_master_status = status
+            return status
         except Exception:
-            return None
+            # If the fast probe times out, derive from the regular cached loader.
+            # This lets the always-on header still report green/red when data exists.
+            try:
+                rows = self._fetch_master()
+                if rows:
+                    master_row = next((r for r in rows if str(r.get("domain", "")).upper() == "MASTER"), None)
+                    if master_row is not None:
+                        status = not _as_bool(master_row.get("is_red"))
+                    else:
+                        status = not any(_as_bool(r.get("is_red")) for r in rows)
+                    self._last_master_status = status
+                    return status
+            except Exception:
+                pass
+            # Preserve last known state during transient DB slowness/errors.
+            return self._last_master_status
 
     def _fetch_master(self) -> list[dict[str, Any]]:
         return self._cached(
@@ -276,10 +313,10 @@ class HealthPageService(BasePageService):
 
     def _health_master(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._fetch_master()
-        master_row = next((r for r in rows if r.get("domain") == "MASTER"), None)
-        domain_rows = [r for r in rows if r.get("domain") != "MASTER"]
+        master_row = next((r for r in rows if str(r.get("domain", "")).upper() == "MASTER"), None)
+        domain_rows = [r for r in rows if str(r.get("domain", "")).upper() != "MASTER"]
 
-        is_green = master_row and not master_row.get("is_red", True)
+        is_green = bool(master_row) and not _as_bool(master_row.get("is_red"))
         title_emoji = "\U0001f7e2" if is_green else "\U0001f534"
         title_text = "ALL SYSTEMS NOMINAL" if is_green else "ACTION REQUIRED"
 
@@ -292,7 +329,7 @@ class HealthPageService(BasePageService):
                 "triggers": _bool_indicator(r.get("trigger_red")),
                 "base_tables": _bool_indicator(r.get("base_red")),
                 "cagg_refresh": _bool_indicator(r.get("cagg_red")),
-                "is_red": r.get("is_red", False),
+                "is_red": _as_bool(r.get("is_red")),
             })
 
         return {
