@@ -13,7 +13,7 @@
     <div class="topbar-left">
       <div class="topbar-title">{{ app_title }}</div>
       <div class="topbar-meta topbar-filters">
-        <label class="filter-label" for="page-select">Page</label>
+        <label class="filter-label" for="page-select">View</label>
         <select id="page-select" class="filter-select" aria-label="Page">
           {% for option in page_options %}
             <option value="{{ option.path }}" {% if option.slug == current_page_slug %}selected{% endif %}>{{ option.label }}</option>

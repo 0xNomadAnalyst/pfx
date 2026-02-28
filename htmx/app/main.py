@@ -70,7 +70,7 @@ def render_page(request: Request, page: PageConfig):
             "show_protocol_pair_filters": page.show_protocol_pair_filters,
             "protocol": page.default_protocol,
             "pair": page.default_pair,
-            "last_window": "24h",
+            "last_window": "7d",
             "api_base_url": API_BASE_URL,
         },
     )

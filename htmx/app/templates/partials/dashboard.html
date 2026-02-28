@@ -35,15 +35,10 @@
         <option value="1m">1m</option>
         <option value="5m">5m</option>
         <option value="15m">15m</option>
-        <option value="1h">1h</option>
+        <option value="1h" selected>1h</option>
         <option value="4h">4h</option>
-        <option value="1d" selected>1d</option>
+        <option value="1d">1d</option>
       </select>
-    {% endif %}
-    {% if widget.kind == "chart" and widget.expandable|default(true) %}
-      <button class="action-button chart-expand-btn" type="button" data-widget-id="{{ widget.id }}" aria-label="Open larger chart view">
-        Expand
-      </button>
     {% endif %}
     <span class="panel-updated" id="updated-{{ widget.id }}">loading...</span>
   </div>
@@ -65,6 +60,17 @@
         </div>
       </div>
     {% else %}
+      {% if widget.expandable|default(true) %}
+        <button
+          class="action-button icon-button chart-expand-btn chart-expand-fab"
+          type="button"
+          data-widget-id="{{ widget.id }}"
+          aria-label="Open larger chart view"
+          title="Open larger chart view"
+        >
+          <span class="expand-icon" aria-hidden="true">⤢</span>
+        </button>
+      {% endif %}
       <div id="chart-{{ widget.id }}" class="chart-canvas chart-expand-target"></div>
     {% endif %}
   </div>

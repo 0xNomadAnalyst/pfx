@@ -52,6 +52,23 @@ body {
   gap: 12px;
 }
 
+.topbar-left .topbar-filters {
+  position: relative;
+  padding-left: 12px;
+  margin-left: 2px;
+}
+
+.topbar-left .topbar-filters::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+}
+
 .topbar-right {
   margin-left: auto;
   display: inline-flex;
@@ -174,6 +191,10 @@ body {
 
 .panel-body {
   padding: 8px;
+}
+
+.widget-loader[data-widget-kind="chart"] .panel-body {
+  position: relative;
 }
 
 .panel-large {
@@ -412,6 +433,23 @@ td:first-child {
 .chart-expand-btn {
   padding: 4px 8px;
   font-size: 11px;
+}
+
+.chart-expand-fab {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 4;
+  width: 28px;
+  height: 24px;
+  min-width: 28px;
+  padding: 0;
+  border-radius: 5px;
+}
+
+.expand-icon {
+  font-size: 13px;
+  line-height: 1;
 }
 
 @media (max-width: 1200px) {

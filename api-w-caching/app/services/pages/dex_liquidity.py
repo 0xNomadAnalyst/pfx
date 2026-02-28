@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from app.services.pages.base import BasePageService
@@ -70,6 +71,46 @@ class DexLiquidityPageService(BasePageService):
         return self._cached(cache_key, _load_rows)
 
     @staticmethod
+    def _finite_float(value: Any) -> float | None:
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(numeric):
+            return None
+        return numeric
+
+    def _snapped_tick_reference_price(self, rows: list[dict[str, Any]]) -> float | None:
+        raw_current_price = None
+        for row in rows:
+            candidate_price = self._finite_float(row.get("current_price_t1_per_t0"))
+            if candidate_price is not None and candidate_price > 0:
+                raw_current_price = candidate_price
+                break
+        if raw_current_price is None:
+            return None
+
+        # Prefer the active overlap tick where both token sides are populated.
+        overlap_tick_prices: list[float] = []
+        for row in rows:
+            tick_price = self._finite_float(row.get("tick_price_t1_per_t0"))
+            token0_value = self._finite_float(row.get("token0_value")) or 0.0
+            token1_value = self._finite_float(row.get("token1_value")) or 0.0
+            if tick_price is None:
+                continue
+            if token0_value > 0 and token1_value > 0:
+                overlap_tick_prices.append(tick_price)
+        if overlap_tick_prices:
+            return min(overlap_tick_prices, key=lambda tick_price: abs(tick_price - raw_current_price))
+
+        # Fallback: snap to nearest available tick bin so the reference line aligns with bars.
+        tick_prices = [self._finite_float(row.get("tick_price_t1_per_t0")) for row in rows]
+        valid_tick_prices = [price for price in tick_prices if price is not None]
+        if not valid_tick_prices:
+            return raw_current_price
+        return min(valid_tick_prices, key=lambda tick_price: abs(tick_price - raw_current_price))
+
+    @staticmethod
     def _timeseries_window_config(last_window: str) -> tuple[str, str, int]:
         window = (last_window or "24h").lower()
         mapping: dict[str, tuple[str, str, int]] = {
@@ -126,7 +167,7 @@ class DexLiquidityPageService(BasePageService):
 
     def _liquidity_distribution(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._tick_dist_rows(params)
-        current_price = next((row.get("current_price_t1_per_t0") for row in rows if row.get("current_price_t1_per_t0") is not None), None)
+        current_price = self._snapped_tick_reference_price(rows)
         return {
             "kind": "chart",
             "chart": "bar",
@@ -136,25 +177,68 @@ class DexLiquidityPageService(BasePageService):
                 "current_price": current_price,
             },
             "series": [
-                {"name": "USDC Liquidity", "type": "bar", "data": [row["token1_value"] for row in rows]},
-                {"name": "USX Liquidity", "type": "bar", "data": [row["token0_value"] for row in rows]},
+                {"name": "USX Liquidity", "type": "bar", "stack": "active-tick-liquidity", "data": [row["token0_value"] for row in rows]},
+                {"name": "USDC Liquidity", "type": "bar", "stack": "active-tick-liquidity", "data": [row["token1_value"] for row in rows]},
             ],
         }
 
     def _liquidity_depth(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._tick_dist_rows(params)
         current_price = next((row.get("current_price_t1_per_t0") for row in rows if row.get("current_price_t1_per_t0") is not None), None)
+        x_values = [row["tick_price_t1_per_t0"] for row in rows]
+
+        def _clean_depth_value(raw: Any) -> float:
+            try:
+                numeric = float(raw)
+            except (TypeError, ValueError):
+                return 0.0
+            return numeric if math.isfinite(numeric) else 0.0
+
+        usdc_cumul = [_clean_depth_value(row.get("token1_cumul")) for row in rows]
+        usx_cumul = [_clean_depth_value(row.get("token0_cumul")) for row in rows]
+
+        # Ensure both cumulative curves meet at the active tick on a shared x value.
+        if current_price is not None and x_values:
+            try:
+                current_price_float = float(current_price)
+            except (TypeError, ValueError):
+                current_price_float = None
+            if current_price_float is not None:
+                existing_index = None
+                for idx, value in enumerate(x_values):
+                    try:
+                        if abs(float(value) - current_price_float) <= 1e-12:
+                            existing_index = idx
+                            break
+                    except (TypeError, ValueError):
+                        continue
+                if existing_index is not None:
+                    usdc_cumul[existing_index] = 0
+                    usx_cumul[existing_index] = 0
+                else:
+                    insert_idx = 0
+                    while insert_idx < len(x_values):
+                        try:
+                            if float(x_values[insert_idx]) >= current_price_float:
+                                break
+                        except (TypeError, ValueError):
+                            pass
+                        insert_idx += 1
+                    x_values.insert(insert_idx, current_price_float)
+                    usdc_cumul.insert(insert_idx, 0)
+                    usx_cumul.insert(insert_idx, 0)
+
         return {
             "kind": "chart",
             "chart": "line-area",
-            "x": [row["tick_price_t1_per_t0"] for row in rows],
+            "x": x_values,
             "reference_lines": {
                 "peg": 1.0,
                 "current_price": current_price,
             },
             "series": [
-                {"name": "USDC Cumulative", "type": "line", "area": True, "data": [row["token1_cumul"] for row in rows]},
-                {"name": "USX Cumulative", "type": "line", "area": True, "data": [row["token0_cumul"] for row in rows]},
+                {"name": "USDC Cumulative", "type": "line", "area": True, "data": usdc_cumul},
+                {"name": "USX Cumulative", "type": "line", "area": True, "data": usx_cumul},
             ],
         }
 

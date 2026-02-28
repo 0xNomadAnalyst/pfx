@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import math
 import statistics
+from datetime import UTC, datetime
+from math import ceil
 from typing import Any
 
 from app.services.pages.base import BasePageService
@@ -47,6 +49,62 @@ class DexSwapsPageService(BasePageService):
             "90d": ("90 days", "12 hours", 180),
         }
         return mapping.get(window, mapping["24h"])
+
+    @staticmethod
+    def _window_seconds(last_window: str) -> int:
+        window = (last_window or "24h").lower()
+        mapping: dict[str, int] = {
+            "1h": 60 * 60,
+            "4h": 4 * 60 * 60,
+            "6h": 6 * 60 * 60,
+            "24h": 24 * 60 * 60,
+            "7d": 7 * 24 * 60 * 60,
+            "30d": 30 * 24 * 60 * 60,
+            "90d": 90 * 24 * 60 * 60,
+        }
+        return mapping.get(window, mapping["24h"])
+
+    @staticmethod
+    def _interval_seconds(interval: str) -> int:
+        normalized = (interval or "").strip().lower()
+        mapping: dict[str, int] = {
+            "1 minute": 60,
+            "5 minutes": 5 * 60,
+            "15 minutes": 15 * 60,
+            "1 hour": 60 * 60,
+            "4 hours": 4 * 60 * 60,
+            "12 hours": 12 * 60 * 60,
+            "1 day": 24 * 60 * 60,
+        }
+        return mapping.get(normalized, 0)
+
+    def _drop_incomplete_trailing_bucket(self, rows: list[dict[str, Any]], interval: str) -> list[dict[str, Any]]:
+        if len(rows) < 2:
+            return rows
+        expected_seconds = self._interval_seconds(interval)
+        if expected_seconds <= 0:
+            return rows
+        last_time_raw = rows[-1].get("time")
+        if not last_time_raw:
+            return rows
+        try:
+            last_time = datetime.fromisoformat(str(last_time_raw).replace("Z", "+00:00"))
+        except ValueError:
+            return rows
+        if last_time.tzinfo is None:
+            last_time = last_time.replace(tzinfo=UTC)
+        now_utc = datetime.now(UTC)
+        last_utc = last_time.astimezone(UTC)
+        age_seconds = (now_utc - last_utc).total_seconds()
+        # Treat latest bucket as incomplete if it is still inside the current interval window.
+        if age_seconds < expected_seconds:
+            return rows[:-1]
+        # Also drop if last bucket equals the current interval bucket start.
+        current_bucket_start = int(now_utc.timestamp() // expected_seconds) * expected_seconds
+        last_bucket_start = int(last_utc.timestamp() // expected_seconds) * expected_seconds
+        if last_bucket_start == current_bucket_start:
+            return rows[:-1]
+        return rows
 
     @staticmethod
     def _to_float_or_none(value: Any) -> float | None:
@@ -111,12 +169,14 @@ class DexSwapsPageService(BasePageService):
             """
             return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
 
-        cache_key = f"dex_swaps::dex_timeseries::{protocol}::{pair}::{interval}::{rows}"
-        return self._cached(cache_key, _load_rows)
+        cache_key = f"dex_swaps::dex_timeseries::v2::{protocol}::{pair}::{interval}::{rows}"
+        cached_rows = self._cached(cache_key, _load_rows)
+        return self._drop_incomplete_trailing_bucket(cached_rows, interval)
 
     def _dex_ohlcv_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         protocol = str(params.get("protocol", self.default_protocol))
         pair = str(params.get("pair", self.default_pair))
+        last_window = str(params.get("last_window", "24h"))
         interval_key = str(params.get("ohlcv_interval", "1d")).strip().lower()
         interval_map: dict[str, str] = {
             "1m": "1 minute",
@@ -127,11 +187,12 @@ class DexSwapsPageService(BasePageService):
             "1d": "1 day",
         }
         interval = interval_map.get(interval_key, "1 day")
-        try:
-            rows = int(params.get("ohlcv_rows", 180))
-        except (TypeError, ValueError):
-            rows = 180
-        rows = max(1, min(rows, 1000))
+        interval_seconds = self._interval_seconds(interval)
+        window_seconds = self._window_seconds(last_window)
+        rows = 180
+        if interval_seconds > 0 and window_seconds > 0:
+            rows = int(ceil(window_seconds / interval_seconds))
+        rows = max(2, min(rows, 1000))
 
         def _load_rows() -> list[dict[str, Any]]:
             query = """
@@ -141,8 +202,9 @@ class DexSwapsPageService(BasePageService):
             """
             return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
 
-        cache_key = f"dex_swaps::dex_ohlcv::{protocol}::{pair}::{interval}::{rows}"
-        return self._cached(cache_key, _load_rows)
+        cache_key = f"dex_swaps::dex_ohlcv::v2::{protocol}::{pair}::{last_window}::{interval}::{rows}"
+        cached_rows = self._cached(cache_key, _load_rows)
+        return self._drop_incomplete_trailing_bucket(cached_rows, interval)
 
     def _tick_dist_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         protocol = str(params.get("protocol", self.default_protocol))
@@ -157,7 +219,7 @@ class DexSwapsPageService(BasePageService):
             """
             return self.sql.fetch_rows(query, (protocol, pair, delta_time))
 
-        cache_key = f"dex_swaps::tick_dist::{protocol}::{pair}::{delta_time}"
+        cache_key = f"dex_swaps::tick_dist::v2::{protocol}::{pair}::{delta_time}"
         return self._cached(cache_key, _load_rows)
 
     def _sell_swaps_distribution_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -354,15 +416,38 @@ class DexSwapsPageService(BasePageService):
     def _swaps_ohlcv(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._dex_ohlcv_rows(params)
         tick_rows = self._tick_dist_rows(params)
+        anchor_price = 1.0
+        for row in tick_rows:
+            try:
+                candidate_anchor = float(row.get("current_price_t1_per_t0") or 0)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(candidate_anchor) and candidate_anchor > 0:
+                anchor_price = candidate_anchor
+                break
         liquidity_profile: list[dict[str, float]] = []
         for row in tick_rows:
             try:
                 price = float(row.get("tick_price_t1_per_t0") or 0)
-                token0 = float(row.get("token0_value") or 0)
-                token1 = float(row.get("token1_value") or 0)
+                token0_liquidity = float(row.get("token0_value") or 0)
+                token1_liquidity = float(row.get("token1_value") or 0)
             except (TypeError, ValueError):
                 continue
-            liquidity = abs(token0) + abs(token1)
+            # Token-order-consistent side selection for t1-per-t0 price charts:
+            # - below/at anchor: token0-side liquidity
+            # - above anchor: token1-side liquidity
+            # Convert token0 into token1 units so both sides share the same unit.
+            token0_in_t1_units = token0_liquidity * price
+            if price <= anchor_price:
+                primary_liquidity = token0_in_t1_units
+                secondary_liquidity = token1_liquidity
+            else:
+                primary_liquidity = token1_liquidity
+                secondary_liquidity = token0_in_t1_units
+            liquidity = abs(primary_liquidity)
+            if liquidity <= 0:
+                # Fallback handles sparse/edge rows where only the opposite token bucket is populated.
+                liquidity = abs(secondary_liquidity)
             if not math.isfinite(price) or not math.isfinite(liquidity) or liquidity <= 0:
                 continue
             liquidity_profile.append({"price": price, "liquidity": liquidity})

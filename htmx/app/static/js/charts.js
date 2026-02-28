@@ -1,6 +1,7 @@
 (() => {
   const chartState = new Map();
   let protocolPairs = [];
+  const FILTER_STORAGE_KEY = "dashboard.globalFilters.v1";
   const comparableLiquidityWidgets = new Set([
     "liquidity-distribution",
     "liquidity-depth",
@@ -113,6 +114,115 @@
     const hours = String(date.getHours()).padStart(2, "0");
     const minutes = String(date.getMinutes()).padStart(2, "0");
     return `${month}-${day} ${hours}:${minutes}`;
+  }
+
+  function parseIsoDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function trimIncompleteTailForTimeSeries(data) {
+    if (!Array.isArray(data?.x) || data.x.length < 3 || !Array.isArray(data?.series)) {
+      return data;
+    }
+    const xValues = data.x;
+    const last = parseIsoDate(xValues[xValues.length - 1]);
+    const prev = parseIsoDate(xValues[xValues.length - 2]);
+    if (!last || !prev) {
+      return data;
+    }
+    const intervalMs = last.getTime() - prev.getTime();
+    if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
+      return data;
+    }
+    const nowMs = Date.now();
+    // If the latest bucket is still within the currently-forming interval, drop it.
+    if (nowMs - last.getTime() >= intervalMs) {
+      return data;
+    }
+    return {
+      ...data,
+      x: xValues.slice(0, -1),
+      series: data.series.map((series) => ({
+        ...series,
+        data: Array.isArray(series.data) ? series.data.slice(0, -1) : series.data,
+      })),
+    };
+  }
+
+  function windowMsFromLastWindow(lastWindow) {
+    const key = String(lastWindow || "").toLowerCase();
+    const mapping = {
+      "1h": 60 * 60 * 1000,
+      "4h": 4 * 60 * 60 * 1000,
+      "6h": 6 * 60 * 60 * 1000,
+      "24h": 24 * 60 * 60 * 1000,
+      "7d": 7 * 24 * 60 * 60 * 1000,
+      "30d": 30 * 24 * 60 * 60 * 1000,
+      "90d": 90 * 24 * 60 * 60 * 1000,
+    };
+    return mapping[key] || mapping["24h"];
+  }
+
+  function trimOhlcvToLastWindow(data, lastWindow) {
+    if (!Array.isArray(data?.x) || data.x.length === 0) {
+      return data;
+    }
+    const xValues = data.x;
+    const lastDate = parseIsoDate(xValues[xValues.length - 1]);
+    if (!lastDate) {
+      return data;
+    }
+    const cutoffMs = lastDate.getTime() - windowMsFromLastWindow(lastWindow);
+    let startIdx = 0;
+    for (let i = 0; i < xValues.length; i += 1) {
+      const date = parseIsoDate(xValues[i]);
+      if (date && date.getTime() >= cutoffMs) {
+        startIdx = i;
+        break;
+      }
+    }
+    return {
+      ...data,
+      x: xValues.slice(startIdx),
+      candles: Array.isArray(data.candles) ? data.candles.slice(startIdx) : data.candles,
+      volume: Array.isArray(data.volume) ? data.volume.slice(startIdx) : data.volume,
+    };
+  }
+
+  function formatCompactMagnitude(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return "";
+    }
+    const absValue = Math.abs(numeric);
+    if (absValue >= 1_000_000_000) {
+      return `${(numeric / 1_000_000_000).toFixed(1)}b`;
+    }
+    if (absValue >= 1_000_000) {
+      return `${(numeric / 1_000_000).toFixed(1)}m`;
+    }
+    if (absValue >= 1_000) {
+      return `${(numeric / 1_000).toFixed(0)}k`;
+    }
+    return Math.round(numeric).toString();
+  }
+
+  function currentPairTokens() {
+    const pair = currentPair();
+    const parts = String(pair || "").split("-");
+    return {
+      token0: (parts[0] || "T0").trim(),
+      token1: (parts[1] || "T1").trim(),
+    };
+  }
+
+  function pairAwareLabel(text) {
+    if (text === null || text === undefined) {
+      return text;
+    }
+    const { token0, token1 } = currentPairTokens();
+    return String(text).replace(/\bUSX\b/g, token0).replace(/\bUSDC\b/g, token1);
   }
 
   function xAxisSignature(data) {
@@ -416,14 +526,15 @@
     }
 
     const normalizedColumns = normalizeColumns(widgetId, columns);
-    const header = normalizedColumns.map((column) => `<th>${column.label}</th>`).join("");
+    const header = normalizedColumns.map((column) => `<th>${pairAwareLabel(column.label)}</th>`).join("");
     const body = rows
       .map((row) => {
         const cells = normalizedColumns
           .map((column) => {
             const raw = row[column.key];
             const value = widgetId === "liquidity-depth-table" ? formatDepthTableValue(column.key, raw) : (raw ?? "");
-            return `<td>${value}</td>`;
+            const displayValue = typeof value === "string" ? pairAwareLabel(value) : value;
+            return `<td>${displayValue}</td>`;
           })
           .join("");
         return `<tr>${cells}</tr>`;
@@ -546,7 +657,7 @@
       },
       series: (data.series || []).map((series) => {
         const mapped = {
-          name: series.name,
+          name: pairAwareLabel(series.name),
           type: series.type || "line",
           data: series.data || [],
           showSymbol: series.showSymbol ?? false,
@@ -557,6 +668,15 @@
         }
         if (series.yAxisIndex !== undefined) {
           mapped.yAxisIndex = series.yAxisIndex;
+        }
+        if (series.stack !== undefined) {
+          mapped.stack = series.stack;
+        }
+        if (series.barWidth !== undefined) {
+          mapped.barWidth = series.barWidth;
+        }
+        if (series.barMaxWidth !== undefined) {
+          mapped.barMaxWidth = series.barMaxWidth;
         }
         if (series.connectNulls !== undefined) {
           mapped.connectNulls = Boolean(series.connectNulls);
@@ -611,20 +731,50 @@
       }
     }
 
+    let chartData = data;
+    if (widgetId === "swaps-flows-toggle") {
+      chartData = trimIncompleteTailForTimeSeries(chartData);
+    }
+    if (widgetId === "swaps-ohlcv") {
+      chartData = trimOhlcvToLastWindow(chartData, currentLastWindow());
+    }
+
     let option;
     const focusedTickZoom = isLeftLinked ? leftDefaultZoomWindow : null;
-    if (data.chart === "candlestick-volume") {
-      const xValues = data.x || [];
-      const candleData = data.candles || [];
-      const volumeData = data.volume || [];
-      const liquidityProfileRaw = Array.isArray(data.liquidity_profile) ? data.liquidity_profile : [];
+    if (chartData.chart === "candlestick-volume") {
+      const xValues = chartData.x || [];
+      const candleData = chartData.candles || [];
+      const volumeData = chartData.volume || [];
+      const liquidityProfileRaw = Array.isArray(chartData.liquidity_profile) ? chartData.liquidity_profile : [];
       const liquidityProfile = liquidityProfileRaw
         .map((row) => ({
           price: Number(row?.price),
           liquidity: Number(row?.liquidity),
+          // Keep linear scaling so profile shape matches source distribution.
+          scaledLiquidity: Math.max(Number(row?.liquidity) || 0, 0),
         }))
-        .filter((row) => Number.isFinite(row.price) && Number.isFinite(row.liquidity) && row.liquidity > 0);
-      const profileMax = liquidityProfile.reduce((maxValue, row) => Math.max(maxValue, row.liquidity), 0);
+        .filter(
+          (row) =>
+            Number.isFinite(row.price) &&
+            Number.isFinite(row.liquidity) &&
+            row.liquidity > 0
+        );
+      const profilePrices = Array.from(new Set(liquidityProfile.map((row) => row.price))).sort((a, b) => a - b);
+      let profilePriceStep = 0;
+      if (profilePrices.length > 1) {
+        const diffs = [];
+        for (let i = 1; i < profilePrices.length; i += 1) {
+          const diff = profilePrices[i] - profilePrices[i - 1];
+          if (Number.isFinite(diff) && diff > 0) {
+            diffs.push(diff);
+          }
+        }
+        if (diffs.length > 0) {
+          diffs.sort((a, b) => a - b);
+          profilePriceStep = diffs[Math.floor(diffs.length / 2)];
+        }
+      }
+      const profileMax = liquidityProfile.reduce((maxValue, row) => Math.max(maxValue, row.scaledLiquidity), 0);
       const profileColor = "rgba(142, 161, 199, 0.16)";
       option = {
         color: palette(),
@@ -712,8 +862,10 @@
             gridIndex: 1,
             scale: true,
             position: "right",
+            splitNumber: 3,
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { show: false },
+            axisTick: { show: false },
             axisLabel: {
               color: chartTextColor(),
               width: 62,
@@ -721,7 +873,7 @@
               padding: [0, 0, 0, 8],
               margin: 10,
               inside: false,
-              formatter: (v) => Math.round(Number(v)).toString(),
+              formatter: (v) => formatCompactMagnitude(v),
             },
           },
         ],
@@ -757,20 +909,27 @@
                   z: 1,
                   tooltip: { show: false },
                   renderItem: (params, api) => {
-                    const liquidity = Number(api.value(0));
+                    const scaledLiquidity = Number(api.value(0));
                     const price = Number(api.value(1));
-                    if (!Number.isFinite(liquidity) || !Number.isFinite(price) || liquidity <= 0) {
+                    if (!Number.isFinite(scaledLiquidity) || !Number.isFinite(price) || scaledLiquidity <= 0) {
                       return null;
                     }
                     const rightEdge = api.coord([0, price]);
-                    const leftEdge = api.coord([liquidity, price]);
+                    const leftEdge = api.coord([scaledLiquidity, price]);
                     const x = Math.min(leftEdge[0], rightEdge[0]);
                     const width = Math.abs(rightEdge[0] - leftEdge[0]);
                     if (!Number.isFinite(x) || !Number.isFinite(width) || width <= 0) {
                       return null;
                     }
-                    const coordSys = params.coordSys;
-                    const barHeight = Math.max(1.5, coordSys.height / Math.max(liquidityProfile.length, 180));
+                    let barHeight = 2.5;
+                    if (profilePriceStep > 0) {
+                      const y0 = api.coord([0, price])[1];
+                      const y1 = api.coord([0, price + profilePriceStep])[1];
+                      const stepPx = Math.abs(y1 - y0);
+                      if (Number.isFinite(stepPx) && stepPx > 0) {
+                        barHeight = Math.max(2.5, Math.min(12, stepPx * 0.72));
+                      }
+                    }
                     return {
                       type: "rect",
                       shape: {
@@ -785,7 +944,7 @@
                       silent: true,
                     };
                   },
-                  data: liquidityProfile.map((row) => [row.liquidity, row.price]),
+                  data: liquidityProfile.map((row) => [row.scaledLiquidity, row.price]),
                 },
               ]
             : []),
@@ -814,13 +973,13 @@
         ],
       };
     } else if (data.chart === "heatmap") {
-      const minValue = Number(data.min ?? -1);
-      const maxValue = Number(data.max ?? 1);
+      const minValue = Number(chartData.min ?? -1);
+      const maxValue = Number(chartData.max ?? 1);
       const leftLegend = `${minValue.toFixed(2)}%`;
       const rightLegend = `${maxValue >= 0 ? "+" : ""}${maxValue.toFixed(2)}%`;
-      const heatmapSeries = { type: "heatmap", data: data.points || [] };
+      const heatmapSeries = { type: "heatmap", data: chartData.points || [] };
       if (tickReferenceWidgets.has(widgetId)) {
-        const markLine = buildTickReferenceMarkLine(data);
+        const markLine = buildTickReferenceMarkLine(chartData);
         if (markLine) {
           heatmapSeries.markLine = markLine;
         }
@@ -831,7 +990,7 @@
         grid: { left: 82, right: 18, top: 16, bottom: 58, containLabel: false },
         xAxis: {
           type: "category",
-          data: data.x || [],
+          data: chartData.x || [],
           boundaryGap: false,
           axisLine: { lineStyle: { color: chartGridColor() } },
           axisLabel: {
@@ -881,7 +1040,18 @@
         ];
       }
     } else {
-      option = baseChartOption(data);
+      option = baseChartOption(chartData);
+      if (widgetId === "liquidity-depth") {
+        option.series = (option.series || []).map((series) => ({
+          ...series,
+          // Backstop for null/NaN depth payloads: keep both curves continuous across active tick.
+          data: (series.data || []).map((value) => {
+            const numeric = Number(value);
+            return Number.isFinite(numeric) ? numeric : 0;
+          }),
+          connectNulls: true,
+        }));
+      }
       if (comparableLiquidityWidgets.has(widgetId)) {
         option.grid.left = 82;
         option.grid.right = 18;
@@ -903,6 +1073,81 @@
       option.xAxis.boundaryGap = false;
       if (widgetId === "liquidity-distribution") {
         option.grid.bottom = 60;
+        const xValues = Array.isArray(chartData?.x) ? chartData.x : [];
+        const series = Array.isArray(option.series) ? option.series : [];
+        if (series.length >= 2) {
+          const token0LiquidityLabel = pairAwareLabel("USX Liquidity");
+          const token1LiquidityLabel = pairAwareLabel("USDC Liquidity");
+          const rankSeries = (item, index) => {
+            const name = String(item?.name || "");
+            if (name === token0LiquidityLabel) {
+              return [0, index];
+            }
+            if (name === token1LiquidityLabel) {
+              return [1, index];
+            }
+            return [2, index];
+          };
+          const orderedSeries = [...series]
+            .map((item, index) => ({ item, rank: rankSeries(item, index) }))
+            .sort((a, b) => {
+              if (a.rank[0] !== b.rank[0]) {
+                return a.rank[0] - b.rank[0];
+              }
+              return a.rank[1] - b.rank[1];
+            })
+            .map((entry) => entry.item);
+          // Ensure both token bars render on the same tick column.
+          option.series = orderedSeries.map((item) => {
+            const name = String(item?.name || "");
+            let color = null;
+            if (name === token0LiquidityLabel) {
+              color = "#f8a94a";
+            } else if (name === token1LiquidityLabel) {
+              color = "#4bb7ff";
+            }
+            return {
+              ...item,
+              stack: "active-tick-liquidity",
+              ...(color
+                ? {
+                    itemStyle: { ...(item.itemStyle || {}), color },
+                    lineStyle: { ...(item.lineStyle || {}), color },
+                  }
+                : {}),
+            };
+          });
+          const firstData = Array.isArray(orderedSeries[0]?.data) ? orderedSeries[0].data : [];
+          const secondData = Array.isArray(orderedSeries[1]?.data) ? orderedSeries[1].data : [];
+          const rawCurrent = Number(chartData?.reference_lines?.current_price);
+          if (xValues.length > 0 && Number.isFinite(rawCurrent)) {
+            let overlapIndex = null;
+            for (let i = 0; i < Math.min(xValues.length, firstData.length, secondData.length); i += 1) {
+              const left = Number(firstData[i] || 0);
+              const right = Number(secondData[i] || 0);
+              if (Number.isFinite(left) && Number.isFinite(right) && left > 0 && right > 0) {
+                if (overlapIndex === null) {
+                  overlapIndex = i;
+                } else {
+                  const bestDist = Math.abs(Number(xValues[overlapIndex]) - rawCurrent);
+                  const nextDist = Math.abs(Number(xValues[i]) - rawCurrent);
+                  if (nextDist < bestDist) {
+                    overlapIndex = i;
+                  }
+                }
+              }
+            }
+            if (overlapIndex !== null) {
+              chartData = {
+                ...chartData,
+                reference_lines: {
+                  ...(chartData.reference_lines || {}),
+                  current_price: Number(xValues[overlapIndex]),
+                },
+              };
+            }
+          }
+        }
       }
       if (leftLinkedZoomWidgets.has(widgetId) || rightLinkedZoomWidgets.has(widgetId)) {
         option.dataZoom = [
@@ -956,7 +1201,7 @@
         };
       }
       if (tickReferenceWidgets.has(widgetId) && Array.isArray(option.series) && option.series.length > 0) {
-        const markLine = buildTickReferenceMarkLine(data);
+        const markLine = buildTickReferenceMarkLine(chartData);
         if (markLine) {
           option.series[0] = {
             ...option.series[0],
@@ -1166,8 +1411,8 @@
 
     if (kind === "table-split") {
       const columns = payload.data.columns || [];
-      document.getElementById(`table-left-title-${widgetId}`).textContent = payload.data.left_title || "Left";
-      document.getElementById(`table-right-title-${widgetId}`).textContent = payload.data.right_title || "Right";
+      document.getElementById(`table-left-title-${widgetId}`).textContent = pairAwareLabel(payload.data.left_title || "Left");
+      document.getElementById(`table-right-title-${widgetId}`).textContent = pairAwareLabel(payload.data.right_title || "Right");
       renderTable(widgetId, `table-left-${widgetId}`, columns, payload.data.left_rows || []);
       renderTable(widgetId, `table-right-${widgetId}`, columns, payload.data.right_rows || []);
       return;
@@ -1276,7 +1521,39 @@
 
   function currentLastWindow() {
     const select = document.getElementById("last-window-select");
-    return select ? select.value : "24h";
+    return select ? select.value : "7d";
+  }
+
+  function readPersistedFilters() {
+    try {
+      const raw = window.localStorage.getItem(FILTER_STORAGE_KEY);
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw);
+      return {
+        protocol: typeof parsed?.protocol === "string" ? parsed.protocol : "",
+        pair: typeof parsed?.pair === "string" ? parsed.pair : "",
+        lastWindow: typeof parsed?.lastWindow === "string" ? parsed.lastWindow : "",
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function persistFilters(protocol, pair, lastWindow) {
+    try {
+      window.localStorage.setItem(
+        FILTER_STORAGE_KEY,
+        JSON.stringify({
+          protocol: protocol || "",
+          pair: pair || "",
+          lastWindow: lastWindow || "",
+        })
+      );
+    } catch (_) {
+      // Ignore storage failures (private mode / quota).
+    }
   }
 
   function applyGlobalFilters(protocol, pair, lastWindow, shouldRefresh = true) {
@@ -1298,6 +1575,11 @@
         lastWindowSelect.value = lastWindow;
       }
     }
+    persistFilters(
+      protocol || currentProtocol(),
+      pair || currentPair(),
+      lastWindow || currentLastWindow()
+    );
     if (shouldRefresh) {
       htmx.trigger(document.body, "dashboard-refresh");
     }
@@ -1323,6 +1605,14 @@
     return protocolPairs.filter((item) => item.protocol === protocol).map((item) => item.pair);
   }
 
+  function applyPairAwarePanelTitles() {
+    document.querySelectorAll(".widget-loader .panel-header h3").forEach((titleEl) => {
+      const baseTitle = titleEl.dataset.baseTitle || titleEl.textContent || "";
+      titleEl.dataset.baseTitle = baseTitle;
+      titleEl.textContent = pairAwareLabel(baseTitle);
+    });
+  }
+
   function initPageSelector() {
     const pageSelect = document.getElementById("page-select");
     if (!pageSelect) {
@@ -1342,10 +1632,25 @@
     if (!lastWindowSelect) {
       return;
     }
+    const persisted = readPersistedFilters();
+    if (persisted?.lastWindow && lastWindowSelect.querySelector(`option[value="${persisted.lastWindow}"]`)) {
+      lastWindowSelect.value = persisted.lastWindow;
+    } else if (lastWindowSelect.querySelector('option[value="7d"]')) {
+      lastWindowSelect.value = "7d";
+    }
 
     let selectedProtocol = protocolSelect ? protocolSelect.value : currentProtocol();
     let selectedPair = pairSelect ? pairSelect.value : currentPair();
-    let selectedLastWindow = lastWindowSelect.value || "24h";
+    let selectedLastWindow = lastWindowSelect.value || "7d";
+    if (persisted?.protocol) {
+      selectedProtocol = persisted.protocol;
+    }
+    if (persisted?.pair) {
+      selectedPair = persisted.pair;
+    }
+    if (persisted?.lastWindow) {
+      selectedLastWindow = persisted.lastWindow;
+    }
 
     if (protocolSelect && pairSelect) {
       try {
@@ -1363,16 +1668,21 @@
     }
 
     applyGlobalFilters(selectedProtocol, selectedPair, selectedLastWindow, true);
+    applyPairAwarePanelTitles();
 
     if (protocolSelect && pairSelect) {
       protocolSelect.addEventListener("change", () => {
         const protocol = protocolSelect.value;
         setSelectOptions(pairSelect, pairsForProtocol(protocol), pairSelect.value);
+        applyPairAwarePanelTitles();
+        initSwapsFlowModeToggle();
         resetDashboardLoading();
         applyGlobalFilters(protocol, pairSelect.value, lastWindowSelect.value, true);
       });
 
       pairSelect.addEventListener("change", () => {
+        applyPairAwarePanelTitles();
+        initSwapsFlowModeToggle();
         resetDashboardLoading();
         applyGlobalFilters(protocolSelect.value, pairSelect.value, lastWindowSelect.value, true);
       });
@@ -1434,6 +1744,15 @@
     if (!modeSelect || !widget) {
       return;
     }
+    const { token0, token1 } = currentPairTokens();
+    const token0Option = modeSelect.querySelector('option[value="usx"]');
+    const token1Option = modeSelect.querySelector('option[value="usdc"]');
+    if (token0Option) {
+      token0Option.textContent = token0;
+    }
+    if (token1Option) {
+      token1Option.textContent = token1;
+    }
     widget.dataset.flowMode = modeSelect.value || "usx";
     modeSelect.addEventListener("change", () => {
       widget.dataset.flowMode = modeSelect.value || "usx";
@@ -1449,7 +1768,6 @@
       return;
     }
     widget.dataset.ohlcvInterval = intervalSelect.value || "1d";
-    widget.dataset.ohlcvRows = "180";
     intervalSelect.addEventListener("change", () => {
       widget.dataset.ohlcvInterval = intervalSelect.value || "1d";
       resetWidgetView(widget);
@@ -1504,7 +1822,6 @@
     }
     if (sourceEl.dataset.widgetId === "swaps-ohlcv") {
       event.detail.parameters.ohlcv_interval = sourceEl.dataset.ohlcvInterval || "1d";
-      event.detail.parameters.ohlcv_rows = sourceEl.dataset.ohlcvRows || "180";
     }
   });
 
