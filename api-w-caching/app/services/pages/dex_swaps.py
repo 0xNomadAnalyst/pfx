@@ -18,9 +18,7 @@ class DexSwapsPageService(BasePageService):
     _TICK_DIST_TTL_SECONDS = float(os.getenv("DEX_SWAPS_TICK_DIST_TTL_SECONDS", "120"))
     _DISTRIBUTION_TTL_SECONDS = float(os.getenv("DEX_SWAPS_DISTRIBUTION_TTL_SECONDS", "120"))
     _RANKED_EVENTS_TTL_SECONDS = float(os.getenv("DEX_SWAPS_RANKED_EVENTS_TTL_SECONDS", "120"))
-    _RANKED_EVENTS_MAX_LOOKBACK = os.getenv("DEX_SWAPS_RANKED_EVENTS_MAX_LOOKBACK", "24 hours")
     _RANKED_EVENTS_TIMEOUT_MS = int(os.getenv("DEX_SWAPS_RANKED_EVENTS_TIMEOUT_MS", "5000"))
-    _RANKED_EVENTS_FALLBACK_LOOKBACK = os.getenv("DEX_SWAPS_RANKED_EVENTS_FALLBACK_LOOKBACK", "12 hours")
     _DEX_LAST_TIMEOUT_MS = int(os.getenv("DEX_SWAPS_DEX_LAST_TIMEOUT_MS", "8000"))
 
     def __init__(self, *args, **kwargs):
@@ -339,10 +337,6 @@ class DexSwapsPageService(BasePageService):
         protocol = str(params.get("protocol", self.default_protocol))
         pair = str(params.get("pair", self.default_pair))
         lookback = self._lookback(params)
-        last_window = str(params.get("last_window", "24h")).lower()
-        bounded_lookback = lookback
-        if self._RANKED_EVENTS_MAX_LOOKBACK and last_window in {"7d", "30d", "90d"}:
-            bounded_lookback = self._RANKED_EVENTS_MAX_LOOKBACK
         rows = 6
 
         def _load_rows() -> list[dict[str, Any]]:
@@ -370,19 +364,10 @@ class DexSwapsPageService(BasePageService):
                 )
                 return {"sell": sell_rows, "buy": buy_rows}
 
-            try:
-                return _run_for_lookback(bounded_lookback)
-            except Exception as exc:
-                is_timeout = "statement timeout" in str(exc).lower()
-                if not is_timeout:
-                    raise
-                if bounded_lookback != self._RANKED_EVENTS_FALLBACK_LOOKBACK:
-                    return _run_for_lookback(self._RANKED_EVENTS_FALLBACK_LOOKBACK)
-                if bounded_lookback != "24 hours":
-                    return _run_for_lookback("24 hours")
-                raise
+            # Respect selected Last window exactly; never silently shorten lookback.
+            return _run_for_lookback(lookback)
 
-        cache_key = f"dex_swaps::ranked_events::{protocol}::{pair}::{bounded_lookback}"
+        cache_key = f"dex_swaps::ranked_events::{protocol}::{pair}::{lookback}"
         return self._cached(cache_key, _load_rows, ttl_seconds=self._RANKED_EVENTS_TTL_SECONDS)
 
     def _dex_last_row_fixed_lookback(self, params: dict[str, Any], lookback: str) -> dict[str, Any]:
