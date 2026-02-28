@@ -35,6 +35,7 @@ def get_meta() -> dict[str, object]:
 
 
 @router.get("/api/v1/{page}/{widget}", response_model=WidgetResponse)
+@router.get("/api/v1/pages/{page}/widgets/{widget}", response_model=WidgetResponse)
 def get_widget(
     page: str,
     widget: str,

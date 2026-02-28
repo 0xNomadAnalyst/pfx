@@ -10,13 +10,16 @@ from dotenv import load_dotenv
 from app.pages.common import PageConfig, build_widget_endpoint
 from app.pages.dex_liquidity import PAGE_CONFIG as DEX_LIQUIDITY_PAGE
 from app.pages.dex_swaps import PAGE_CONFIG as DEX_SWAPS_PAGE
+from app.pages.kamino import PAGE_CONFIG as KAMINO_PAGE
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(PROJECT_ROOT / ".env", override=True)
+load_dotenv(PROJECT_ROOT / ".env", override=False)
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8001")
 APP_TITLE = "DeFi Ecosystem Dashboard"
 
-PAGES: list[PageConfig] = [DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE]
+# Keep page registration centralized so the shared header view selector
+# is consistent across all routes.
+PAGES: list[PageConfig] = [DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE, KAMINO_PAGE]
 PAGES_BY_SLUG: dict[str, PageConfig] = {page.slug: page for page in PAGES}
 
 app = FastAPI(
@@ -84,6 +87,11 @@ def dex_liquidity(request: Request):
 @app.get("/dex-swaps")
 def dex_swaps(request: Request):
     return render_page(request, PAGES_BY_SLUG["dex-swaps"])
+
+
+@app.get("/kamino")
+def kamino(request: Request):
+    return render_page(request, PAGES_BY_SLUG["kamino"])
 
 
 if __name__ == "__main__":

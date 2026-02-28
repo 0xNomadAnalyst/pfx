@@ -248,16 +248,44 @@ body {
 .swaps-slot-kpi-a5 { grid-column: 1 / 3; grid-row: 5 / 6; }
 .swaps-slot-kpi-b5 { grid-column: 3 / 5; grid-row: 5 / 6; }
 
-.swaps-slot-mid-1 { grid-column: 9 / 13; grid-row: 1 / 3; }
-.swaps-slot-mid-2 { grid-column: 9 / 13; grid-row: 3 / 5; }
-.swaps-slot-mid-3 { grid-column: 9 / 13; grid-row: 5 / 7; }
+.swaps-slot-mid-1 { grid-column: 9 / 13; grid-row: 5 / 7; }
+.swaps-slot-mid-2 { grid-column: 5 / 9; grid-row: 1 / 4; }
+.swaps-slot-mid-3 { grid-column: 5 / 9; grid-row: 4 / 7; }
 
 .swaps-slot-right-1 { grid-column: 9 / 13; grid-row: 1 / 4; }
 .swaps-slot-right-2 { grid-column: 9 / 13; grid-row: 4 / 7; }
-.swaps-slot-right-top { grid-column: 5 / 9; grid-row: 1 / 4; }
-.swaps-slot-right-bottom { grid-column: 5 / 9; grid-row: 4 / 7; }
+.swaps-slot-right-top { grid-column: 9 / 13; grid-row: 1 / 3; }
+.swaps-slot-right-bottom { grid-column: 9 / 13; grid-row: 3 / 5; }
 
 .swaps-slot-bottom { grid-column: 1 / 13; grid-row: 7 / 11; }
+
+.kamino-slot-kpi-a1 { grid-column: 1 / 3; grid-row: 1 / 2; }
+.kamino-slot-kpi-a2 { grid-column: 1 / 3; grid-row: 2 / 3; }
+.kamino-slot-kpi-a3 { grid-column: 1 / 3; grid-row: 3 / 4; }
+.kamino-slot-kpi-a4 { grid-column: 1 / 3; grid-row: 4 / 5; }
+.kamino-slot-kpi-a5 { grid-column: 1 / 3; grid-row: 5 / 6; }
+.kamino-slot-kpi-a6 { grid-column: 1 / 3; grid-row: 6 / 7; }
+
+.kamino-slot-kpi-b1 { grid-column: 3 / 5; grid-row: 1 / 2; }
+.kamino-slot-kpi-b2 { grid-column: 3 / 5; grid-row: 2 / 3; }
+.kamino-slot-kpi-b3 { grid-column: 3 / 5; grid-row: 3 / 4; }
+.kamino-slot-kpi-b4 { grid-column: 3 / 5; grid-row: 4 / 5; }
+.kamino-slot-kpi-b5 { grid-column: 3 / 5; grid-row: 5 / 6; }
+.kamino-slot-kpi-b6 { grid-column: 3 / 5; grid-row: 6 / 7; }
+
+.kamino-slot-config { grid-column: 1 / 5; grid-row: 7 / 10; min-height: 320px; }
+
+.kamino-slot-main-left { grid-column: 5 / 8; grid-row: 4 / 7; min-height: 320px; }
+.kamino-slot-main-mid { grid-column: 8 / 11; grid-row: 4 / 7; min-height: 320px; }
+.kamino-slot-main-right { grid-column: 11 / 13; grid-row: 4 / 7; min-height: 320px; }
+
+.kamino-slot-row2-left { grid-column: 5 / 8; grid-row: 7 / 10; min-height: 320px; }
+.kamino-slot-row2-mid { grid-column: 8 / 11; grid-row: 7 / 10; min-height: 320px; }
+.kamino-slot-row2-right { grid-column: 11 / 13; grid-row: 7 / 10; min-height: 320px; }
+
+.kamino-slot-row3-left { grid-column: 5 / 9; grid-row: 10 / 13; min-height: 320px; }
+.kamino-slot-row3-right { grid-column: 9 / 13; grid-row: 10 / 13; min-height: 320px; }
+.kamino-slot-bottom { grid-column: 1 / 13; grid-row: 13 / 17; min-height: 360px; }
 
 /* Keep these charts compact at approximately two KPI-card height. */
 .slot-left-top,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from urllib.parse import urlencode
 
 
 @dataclass(frozen=True)
@@ -9,8 +8,8 @@ class WidgetConfig:
     id: str
     title: str
     kind: str
-    refresh_interval_seconds: int
     css_class: str
+    refresh_interval_seconds: int = 30
     expandable: bool = True
 
 
@@ -20,19 +19,14 @@ class PageConfig:
     label: str
     api_page_id: str
     widgets: list[WidgetConfig]
-    default_protocol: str = "raydium"
-    default_pair: str = "USX-USDC"
     show_protocol_pair_filters: bool = False
+    default_protocol: str = ""
+    default_pair: str = ""
     widget_filter_env_var: str = ""
 
 
-def build_widget_endpoint(api_base_url: str, api_page_id: str, widget_id: str) -> str:
-    query = urlencode(
-        {
-            "lookback": "1 day",
-            "interval": "5 minutes",
-            "rows": 120,
-            "tick_delta_time": "1 hour",
-        }
-    )
-    return f"{api_base_url}/api/v1/{api_page_id}/{widget_id}?{query}"
+def build_widget_endpoint(api_base_url: str, page_id: str, widget_id: str) -> str:
+    base = api_base_url.rstrip("/")
+    # Use the canonical legacy-compatible route shape.
+    # Some running API variants only expose /api/v1/{page}/{widget}.
+    return f"{base}/api/v1/{page_id}/{widget_id}"

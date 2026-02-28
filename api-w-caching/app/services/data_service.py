@@ -6,6 +6,7 @@ from typing import Any
 
 from app.services.pages.dex_liquidity import DexLiquidityPageService
 from app.services.pages.dex_swaps import DexSwapsPageService
+from app.services.pages.kamino import KaminoPageService
 from app.services.shared.cache_store import QueryCache
 from app.services.sql_adapter import SqlAdapter
 
@@ -21,10 +22,12 @@ class DataService:
         )
         liquidity = DexLiquidityPageService(sql_adapter, cache)
         swaps = DexSwapsPageService(sql_adapter, cache)
+        kamino = KaminoPageService(sql_adapter, cache)
         self._pages = {
             "playbook-liquidity": liquidity,
             "dex-liquidity": liquidity,
             "dex-swaps": swaps,
+            "kamino": kamino,
         }
         self._default_page = "playbook-liquidity"
 
