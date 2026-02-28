@@ -10,6 +10,7 @@ from typing import Any
 from app.services.pages.dex_liquidity import DexLiquidityPageService
 from app.services.pages.dex_swaps import DexSwapsPageService
 from app.services.pages.exponent import ExponentPageService
+from app.services.pages.global_ecosystem import GlobalEcosystemPageService
 from app.services.pages.health import HealthPageService
 from app.services.pages.kamino import KaminoPageService
 from app.services.shared.cache_store import QueryCache
@@ -32,6 +33,7 @@ class DataService:
         kamino = KaminoPageService(sql_adapter, cache)
         exponent = ExponentPageService(sql_adapter, cache)
         health = HealthPageService(sql_adapter, cache)
+        global_eco = GlobalEcosystemPageService(sql_adapter, cache)
         self._pages = {
             "playbook-liquidity": liquidity,
             "dex-liquidity": liquidity,
@@ -39,6 +41,7 @@ class DataService:
             "kamino": kamino,
             "exponent": exponent,
             "health": health,
+            "global-ecosystem": global_eco,
         }
         self._default_page = "playbook-liquidity"
         self._log_slow_widgets = os.getenv("API_LOG_SLOW_WIDGETS", "0") == "1"
@@ -82,6 +85,7 @@ class DataService:
         }
         exponent_jobs: list[tuple[str, str, dict[str, Any]]] = []
         health_jobs: list[tuple[str, str, dict[str, Any]]] = []
+        global_jobs: list[tuple[str, str, dict[str, Any]]] = []
 
         # Prime Kamino shared rows and heavy table/chart queries.
         warmup_jobs.extend(
@@ -202,6 +206,27 @@ class DataService:
         else:
             warmup_jobs.extend(health_jobs)
 
+        if os.getenv("API_PREWARM_GLOBAL_ENABLED", "1") == "1":
+            global_windows = [
+                item.strip()
+                for item in os.getenv("API_PREWARM_GLOBAL_WINDOWS", "24h,7d").split(",")
+                if item.strip()
+            ]
+            # Shared last-row cache path.
+            global_jobs.append(("global-ecosystem", "ge-issuance-bar", dict(base_params)))
+            for window in global_windows:
+                params = dict(base_params)
+                params["last_window"] = window
+                # Prime shared global caches: timeseries, interval snapshot, and yield vesting rows.
+                global_jobs.append(("global-ecosystem", "ge-issuance-time", params))
+                global_jobs.append(("global-ecosystem", "ge-activity-pct-usx", params))
+                global_jobs.append(("global-ecosystem", "ge-yield-generation", params))
+
+        if os.getenv("API_PREWARM_GLOBAL_FIRST", "0") == "1":
+            warmup_jobs = global_jobs + warmup_jobs
+        else:
+            warmup_jobs.extend(global_jobs)
+
         failures = 0
         completed = 0
         for page, widget_id, params in warmup_jobs:
@@ -232,12 +257,23 @@ class DataService:
         health_svc = self._pages["health"]
         return health_svc.fetch_master_rows()  # type: ignore[union-attr]
 
-    def get_health_indicator_status(self) -> bool | None:
+    def get_health_indicator_status(
+        self,
+        *,
+        non_blocking: bool = False,
+        allow_stale_on_lock_contention: bool = False,
+    ) -> bool | None:
         now = time.time()
         if now < self._health_status_expires_at:
             return self._health_status_cached
 
-        with self._health_status_lock:
+        acquired = self._health_status_lock.acquire(blocking=not non_blocking)
+        if not acquired:
+            if allow_stale_on_lock_contention:
+                return self._health_status_cached
+            return None
+
+        try:
             now = time.time()
             if now < self._health_status_expires_at:
                 return self._health_status_cached
@@ -252,6 +288,8 @@ class DataService:
             self._health_status_cached = status
             self._health_status_expires_at = now + self._health_status_cache_ttl_seconds
             return status
+        finally:
+            self._health_status_lock.release()
 
     def get_meta(self) -> dict[str, Any]:
         liquidity = self._pages["playbook-liquidity"]

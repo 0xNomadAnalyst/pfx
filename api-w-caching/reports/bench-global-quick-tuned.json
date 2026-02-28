@@ -1,0 +1,263 @@
+{
+  "run_started_utc": "2026-02-28T12:10:04.573668+00:00",
+  "run_finished_utc": "2026-02-28T12:10:06.893010+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8113",
+    "pages": [
+      "global-ecosystem"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "24h",
+      "7d"
+    ],
+    "repeats": 3,
+    "timeout_seconds": 30.0,
+    "parallel": 2,
+    "widget_filter": [],
+    "quick": true
+  },
+  "results": [
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-activity-vol-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 13.91,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 3,
+      "warm_success_count": 3,
+      "warm_error_count": 0,
+      "warm_min_ms": 15.04,
+      "warm_p50_ms": 15.76,
+      "warm_p95_ms": 15.98,
+      "warm_avg_ms": 15.6,
+      "warm_max_ms": 16.0,
+      "payload_bytes_p50": 1660,
+      "error_samples": []
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-bar",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2212.91,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 3,
+      "warm_success_count": 3,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.11,
+      "warm_p50_ms": 1.17,
+      "warm_p95_ms": 11.81,
+      "warm_avg_ms": 5.09,
+      "warm_max_ms": 12.99,
+      "payload_bytes_p50": 1248,
+      "error_samples": []
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 47.21,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 3,
+      "warm_success_count": 3,
+      "warm_error_count": 0,
+      "warm_min_ms": 2.18,
+      "warm_p50_ms": 13.47,
+      "warm_p95_ms": 19.94,
+      "warm_avg_ms": 12.1,
+      "warm_max_ms": 20.66,
+      "payload_bytes_p50": 1688,
+      "error_samples": []
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-tvl-share-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 12.52,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 3,
+      "warm_success_count": 3,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.09,
+      "warm_p50_ms": 1.58,
+      "warm_p95_ms": 10.93,
+      "warm_avg_ms": 4.88,
+      "warm_max_ms": 11.97,
+      "payload_bytes_p50": 1853,
+      "error_samples": []
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-yields-vs-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.73,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 3,
+      "warm_success_count": 3,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.27,
+      "warm_p50_ms": 1.35,
+      "warm_p95_ms": 12.26,
+      "warm_avg_ms": 5.36,
+      "warm_max_ms": 13.47,
+      "payload_bytes_p50": 1670,
+      "error_samples": []
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-activity-vol-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.47,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 3,
+      "warm_success_count": 3,
+      "warm_error_count": 0,
+      "warm_min_ms": 14.69,
+      "warm_p50_ms": 16.07,
+      "warm_p95_ms": 16.9,
+      "warm_avg_ms": 15.92,
+      "warm_max_ms": 16.99,
+      "payload_bytes_p50": 2723,
+      "error_samples": []
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-bar",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2022.78,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 3,
+      "warm_success_count": 3,
+      "warm_error_count": 0,
+      "warm_min_ms": 0.96,
+      "warm_p50_ms": 1.57,
+      "warm_p95_ms": 22.88,
+      "warm_avg_ms": 9.26,
+      "warm_max_ms": 25.25,
+      "payload_bytes_p50": 1248,
+      "error_samples": []
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.09,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 3,
+      "warm_success_count": 3,
+      "warm_error_count": 0,
+      "warm_min_ms": 0.88,
+      "warm_p50_ms": 0.96,
+      "warm_p95_ms": 1.1,
+      "warm_avg_ms": 0.98,
+      "warm_max_ms": 1.11,
+      "payload_bytes_p50": 2444,
+      "error_samples": []
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-tvl-share-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.4,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 3,
+      "warm_success_count": 3,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.1,
+      "warm_p50_ms": 1.19,
+      "warm_p95_ms": 1.34,
+      "warm_avg_ms": 1.21,
+      "warm_max_ms": 1.35,
+      "payload_bytes_p50": 2681,
+      "error_samples": []
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-yields-vs-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.05,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 3,
+      "warm_success_count": 3,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.04,
+      "warm_p50_ms": 1.11,
+      "warm_p95_ms": 18.88,
+      "warm_avg_ms": 7.67,
+      "warm_max_ms": 20.86,
+      "payload_bytes_p50": 2548,
+      "error_samples": []
+    }
+  ]
+}

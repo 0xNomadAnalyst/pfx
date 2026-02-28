@@ -23,6 +23,7 @@ Run from `pfx/api-w-caching`:
 - `python scripts/benchmark_dashboard.py --page kamino --windows 24h,7d --repeats 5`
 - `python scripts/benchmark_dashboard.py --page exponent --windows 24h,7d --repeats 5`
 - `python scripts/benchmark_dashboard.py --page health --windows 24h,7d --repeats 5`
+- `python scripts/benchmark_dashboard.py --page global-ecosystem --windows 24h,7d --repeats 5`
 - `python scripts/benchmark_dashboard.py --page header-health --windows 24h --repeats 10`
 - `python scripts/benchmark_dashboard.py --base-url http://127.0.0.1:8002 --page header-health-proxy --windows 24h --repeats 10`
 - `python scripts/benchmark_dashboard.py --page all --parallel 4 --output-json reports/bench-all-pages.json`
@@ -57,6 +58,9 @@ Cache tuning env vars (API process):
 - `API_PREWARM_HEALTH_BASE_SCHEMA` (default `dexes`, schema for base chart warmup)
 - `API_PREWARM_HEALTH_INCLUDE_HEAVY` (default `0`, set `1` to also prewarm `health-master` + `health-cagg-table`)
 - `API_PREWARM_HEALTH_FIRST` (default `0`, set `1` to prioritize health warmup before other jobs)
+- `API_PREWARM_GLOBAL_ENABLED` (default `1`, warms selected global-ecosystem shared caches on startup)
+- `API_PREWARM_GLOBAL_WINDOWS` (default `24h,7d`)
+- `API_PREWARM_GLOBAL_FIRST` (default `0`, set `1` to prioritize global warmup before other jobs)
 - `API_PREWARM_MAX_SECONDS` (default `30`, prewarm time budget during startup)
 - `KAMINO_V_LAST_TTL_SECONDS` (default `120`)
 - `KAMINO_CONFIG_TTL_SECONDS` (default `300`)
@@ -149,6 +153,7 @@ Output is grouped by widget + window (+ impact mode where applicable) with delta
 - `kamino`
 - `exponent`
 - `health`
+- `global-ecosystem`
 - `header-health` (always-on global header indicator endpoint)
 - `header-health-proxy` (HTMX same-origin proxy endpoint used by the header indicator)
 

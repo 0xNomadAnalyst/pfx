@@ -31,6 +31,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: Inter, Segoe UI, Arial, sans-serif;
+  padding-bottom: 58px;
 }
 
 .topbar {
@@ -816,6 +817,45 @@ td:first-child {
 }
 .page-action-btn svg { flex-shrink: 0; }
 
+/* Video Guide header link */
+.topbar-video-guide {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  padding-left: 12px;
+  margin-left: 2px;
+}
+.topbar-video-guide::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+}
+.video-guide-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .15s, color .15s;
+}
+.video-guide-link:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.video-guide-link svg { flex-shrink: 0; }
+
 /* Page-action modal */
 .page-action-modal-backdrop {
   position: fixed;
@@ -899,6 +939,45 @@ td:first-child {
   font-size: 12px;
 }
 
+/* ── Global Ecosystem page ── */
+
+/* Row 1: Full-width bar chart */
+.ge-slot-full-1 { grid-column: 1 / 13; grid-row: 1 / 4; min-height: 320px; }
+
+/* Rows 4+: Side-by-side chart pairs, each spanning 3 rows */
+.ge-slot-left-1  { grid-column: 1 / 7;  grid-row: 4  / 7;  min-height: 320px; }
+.ge-slot-right-1 { grid-column: 7 / 13; grid-row: 4  / 7;  min-height: 320px; }
+
+.ge-slot-left-2  { grid-column: 1 / 7;  grid-row: 7  / 10; min-height: 320px; }
+.ge-slot-right-2 { grid-column: 7 / 13; grid-row: 7  / 10; min-height: 320px; }
+
+.ge-slot-left-3  { grid-column: 1 / 7;  grid-row: 10 / 13; min-height: 320px; }
+.ge-slot-right-3 { grid-column: 7 / 13; grid-row: 10 / 13; min-height: 320px; }
+
+.ge-slot-left-4  { grid-column: 1 / 7;  grid-row: 13 / 16; min-height: 320px; }
+.ge-slot-right-4 { grid-column: 7 / 13; grid-row: 13 / 16; min-height: 320px; }
+
+.ge-slot-left-5  { grid-column: 1 / 7;  grid-row: 16 / 19; min-height: 320px; }
+.ge-slot-right-5 { grid-column: 7 / 13; grid-row: 16 / 19; min-height: 320px; }
+
+.ge-slot-left-6  { grid-column: 1 / 7;  grid-row: 19 / 22; min-height: 320px; }
+.ge-slot-right-6 { grid-column: 7 / 13; grid-row: 19 / 22; min-height: 320px; }
+
+.ge-slot-left-7  { grid-column: 1 / 7;  grid-row: 22 / 25; min-height: 320px; }
+.ge-slot-right-7 { grid-column: 7 / 13; grid-row: 22 / 25; min-height: 320px; }
+
+.ge-slot-left-8  { grid-column: 1 / 7;  grid-row: 25 / 28; min-height: 320px; }
+.ge-slot-right-8 { grid-column: 7 / 13; grid-row: 25 / 28; min-height: 320px; }
+
+.ge-slot-left-9  { grid-column: 1 / 7;  grid-row: 28 / 31; min-height: 320px; }
+.ge-slot-right-9 { grid-column: 7 / 13; grid-row: 28 / 31; min-height: 320px; }
+
+.ge-slot-left-10  { grid-column: 1 / 7;  grid-row: 31 / 34; min-height: 320px; }
+.ge-slot-right-10 { grid-column: 7 / 13; grid-row: 31 / 34; min-height: 320px; }
+
+.ge-slot-left-11  { grid-column: 1 / 7;  grid-row: 34 / 37; min-height: 320px; }
+.ge-slot-right-11 { grid-column: 7 / 13; grid-row: 34 / 37; min-height: 320px; }
+
 @media (max-width: 1200px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
@@ -908,4 +987,112 @@ td:first-child {
     grid-column: auto !important;
     grid-row: auto !important;
   }
+}
+
+/* ── Fixed bottom bar ── */
+
+.bottombar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: var(--panel-2);
+  border-top: 1px solid var(--border);
+  z-index: 20;
+  gap: 20px;
+}
+
+.bottombar-left,
+.bottombar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bottombar-label {
+  font-size: 15px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.bottombar-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.bottombar-sep {
+  font-size: 17px;
+  color: var(--border);
+}
+
+.bottombar-partner {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.bottombar-partner:hover {
+  opacity: 1;
+}
+
+.bottombar-logo {
+  height: 24px;
+  width: auto;
+}
+
+/* Per-brand optical size normalisation */
+.bottombar-logo--shyft     { height: 22px; }
+.bottombar-logo--tigerdata { height: 26px; }
+
+/* Pill container — always same size, background switches with theme */
+.bottombar-partner {
+  background: transparent;
+  border-radius: 5px;
+  padding: 3px 8px;
+  transition: background 0.2s;
+}
+
+html[data-theme="light"] .bottombar-partner {
+  background: #0f1a2d;
+}
+
+.bottombar-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  padding-left: 17px;
+  margin-left: 2px;
+}
+
+.bottombar-social::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 19px;
+  background: var(--border);
+}
+
+.bottombar-social-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.bottombar-social-link:hover {
+  color: var(--accent);
 }

@@ -24,32 +24,14 @@ def health() -> dict[str, str]:
 @router.get("/api/v1/health-status")
 def health_status(svc: DataService = Depends(get_data_service)) -> dict[str, object]:
     """Lightweight master health check consumed by the global header indicator."""
-    def _as_bool(val: object) -> bool:
-        if isinstance(val, bool):
-            return val
-        if val is None:
-            return False
-        if isinstance(val, (int, float)):
-            return val != 0
-        if isinstance(val, str):
-            s = val.strip().lower()
-            if s in {"true", "t", "1", "yes", "y", "on"}:
-                return True
-            if s in {"false", "f", "0", "no", "n", "off", ""}:
-                return False
-        return bool(val)
-
     try:
-        rows = svc.get_health_master_status()
-        if not rows:
-            return {"is_green": None}
-
-        master_row = next((r for r in rows if str(r.get("domain", "")).upper() == "MASTER"), None)
-        if master_row is not None:
-            return {"is_green": not _as_bool(master_row.get("is_red"))}
-
-        # Fallback if upstream view shape changes and MASTER row is absent.
-        return {"is_green": not any(_as_bool(r.get("is_red")) for r in rows)}
+        # Prioritize dashboard widget/page traffic over header polling by avoiding
+        # blocking waits when a refresh is already in flight.
+        status = svc.get_health_indicator_status(
+            non_blocking=True,
+            allow_stale_on_lock_contention=True,
+        )
+        return {"is_green": status}
     except Exception:
         return {"is_green": None}
 

@@ -1,5 +1,7 @@
 import json
 import os
+import threading
+import time
 import urllib.request
 from pathlib import Path
 
@@ -16,14 +18,22 @@ from app.pages.exponent import PAGE_CONFIG as EXPONENT_PAGE
 from app.pages.health import PAGE_CONFIG as HEALTH_PAGE
 from app.pages.kamino import PAGE_CONFIG as KAMINO_PAGE
 
+import importlib as _il
+_ge_mod = _il.import_module("app.pages.global")
+GLOBAL_ECOSYSTEM_PAGE: PageConfig = _ge_mod.PAGE_CONFIG
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8001")
 APP_TITLE = "Solana DeFi Ecosystem Dashboard"
+HEALTH_PROXY_TIMEOUT_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_TIMEOUT_SECONDS", "3"))
+HEALTH_PROXY_TTL_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_CACHE_TTL_SECONDS", "5"))
+_health_proxy_lock = threading.Lock()
+_health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 
 # Keep page registration centralized so the shared header view selector
 # is consistent across all routes.
-PAGES: list[PageConfig] = [DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE, KAMINO_PAGE, EXPONENT_PAGE, HEALTH_PAGE]
+PAGES: list[PageConfig] = [GLOBAL_ECOSYSTEM_PAGE, DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE, KAMINO_PAGE, EXPONENT_PAGE, HEALTH_PAGE]
 PAGES_BY_SLUG: dict[str, PageConfig] = {page.slug: page for page in PAGES}
 
 app = FastAPI(
@@ -121,6 +131,11 @@ def render_page(request: Request, page: PageConfig):
     )
 
 
+@app.get("/global-ecosystem")
+def global_ecosystem(request: Request):
+    return render_page(request, PAGES_BY_SLUG["global-ecosystem"])
+
+
 @app.get("/dex-liquidity")
 def dex_liquidity(request: Request):
     return render_page(request, PAGES_BY_SLUG["dex-liquidity"])
@@ -149,11 +164,34 @@ def system_health(request: Request):
 @app.get("/api/health-status")
 def health_status_proxy():
     """Same-origin proxy so the header indicator avoids cross-origin fetch."""
+    now = time.time()
+    if now < float(_health_proxy_cache.get("expires_at", 0.0)):
+        cached = _health_proxy_cache.get("value")
+        if isinstance(cached, dict):
+            return JSONResponse(content=cached)
+
+    with _health_proxy_lock:
+        now = time.time()
+        if now < float(_health_proxy_cache.get("expires_at", 0.0)):
+            cached = _health_proxy_cache.get("value")
+            if isinstance(cached, dict):
+                return JSONResponse(content=cached)
+
+        cached_before = _health_proxy_cache.get("value")
+        if not isinstance(cached_before, dict):
+            cached_before = None
+
     try:
         req = urllib.request.Request(f"{API_BASE_URL}/api/v1/health-status")
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return JSONResponse(content=json.loads(resp.read()))
+        with urllib.request.urlopen(req, timeout=HEALTH_PROXY_TIMEOUT_SECONDS) as resp:
+            payload = json.loads(resp.read())
+            with _health_proxy_lock:
+                _health_proxy_cache["value"] = payload
+                _health_proxy_cache["expires_at"] = time.time() + HEALTH_PROXY_TTL_SECONDS
+            return JSONResponse(content=payload)
     except Exception:
+        if isinstance(cached_before, dict):
+            return JSONResponse(content=cached_before)
         return JSONResponse(content={"is_green": None})
 
 

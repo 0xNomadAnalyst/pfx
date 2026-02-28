@@ -867,7 +867,8 @@
     const hasYLabel = !!yLabel;
     const hasYRightLabel = !!yRightLabel;
     const dual = hasDualAxis(data);
-    const rightPad = dual ? (hasYRightLabel ? 60 : 50) : 18;
+    const hasBars = (data.series || []).some((s) => s.type === "bar");
+    const rightPad = dual ? (hasYRightLabel ? 60 : 50) : (hasBars ? 30 : 18);
     const option = {
       color: palette(),
       tooltip: { trigger: "axis" },
@@ -946,6 +947,9 @@
         }
         if (series.barMaxWidth !== undefined) {
           mapped.barMaxWidth = series.barMaxWidth;
+        }
+        if (series.barCategoryGap !== undefined) {
+          mapped.barCategoryGap = series.barCategoryGap;
         }
         if (series.connectNulls !== undefined) {
           mapped.connectNulls = Boolean(series.connectNulls);
@@ -1759,7 +1763,12 @@
           hideOverlap: true,
         };
       }
-      option.xAxis.boundaryGap = false;
+      if (option.xAxis && !Array.isArray(option.xAxis)) {
+        const seriesList = Array.isArray(option.series) ? option.series : [];
+        const hasBarSeries = seriesList.some((series) => series?.type === "bar");
+        const hasNonBarSeries = seriesList.some((series) => (series?.type || "line") !== "bar");
+        option.xAxis.boundaryGap = hasBarSeries && !hasNonBarSeries;
+      }
       if (widgetId === "liquidity-distribution") {
         option.grid.bottom = chartData.xAxisLabel ? 72 : 60;
         const xValues = Array.isArray(chartData?.x) ? chartData.x : [];
@@ -3058,8 +3067,12 @@ flowchart LR
 
   // ── Global health indicator (runs on every page) ──
   const HEALTH_POLL_INTERVAL_MS = 60_000;
-  const HEALTH_RED_CONFIRM_RETRIES = 2;
-  const HEALTH_RED_CONFIRM_DELAY_MS = 5_000;
+  const HEALTH_RED_RECOVERY_POLL_INTERVAL_MS = 10_000;
+  const HEALTH_CACHE_TTL_MS = 90_000;
+  const HEALTH_RED_CACHE_TTL_MS = 20_000;
+  const HEALTH_CACHE_KEY = "riskdash:header-health-status:v1";
+  const HEALTH_RED_CONFIRM_RETRIES = 3;
+  const HEALTH_RED_CONFIRM_DELAY_MS = 2_000;
 
   function initHealthIndicator() {
     const dot = document.querySelector("#health-indicator .health-dot");
@@ -3078,6 +3091,40 @@ flowchart LR
       return null;
     }
 
+    function setDotStatus(status) {
+      dot.classList.remove("health-dot--unknown", "health-dot--green", "health-dot--red");
+      if (status === true) dot.classList.add("health-dot--green");
+      else if (status === false) dot.classList.add("health-dot--red");
+      else dot.classList.add("health-dot--unknown");
+
+      const label = status === true ? "All systems nominal" : status === false ? "Action required – click to view" : "Health status unavailable";
+      dot.closest(".health-indicator").title = label;
+    }
+
+    function readCachedStatus() {
+      try {
+        const raw = localStorage.getItem(HEALTH_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        const cachedStatus = normalizeStatus(parsed.status);
+        const ttlMs = cachedStatus === false ? HEALTH_RED_CACHE_TTL_MS : HEALTH_CACHE_TTL_MS;
+        const ageMs = Date.now() - Number(parsed.ts || 0);
+        if (!Number.isFinite(ageMs) || ageMs > ttlMs) return null;
+        return cachedStatus;
+      } catch {
+        return null;
+      }
+    }
+
+    function writeCachedStatus(status) {
+      try {
+        localStorage.setItem(HEALTH_CACHE_KEY, JSON.stringify({ status, ts: Date.now() }));
+      } catch {
+        // Ignore quota/storage issues; indicator still works without persistence.
+      }
+    }
+
     async function fetchStatus() {
       try {
         const res = await fetch(url);
@@ -3089,28 +3136,48 @@ flowchart LR
       }
     }
 
-    async function poll() {
-      let status = await fetchStatus();
+    let pollTimer = null;
+    let pollInFlight = false;
 
-      if (status === false) {
-        for (let i = 0; i < HEALTH_RED_CONFIRM_RETRIES; i++) {
-          await new Promise((r) => setTimeout(r, HEALTH_RED_CONFIRM_DELAY_MS));
-          const retry = await fetchStatus();
-          if (retry !== false) { status = retry; break; }
-        }
-      }
-
-      dot.classList.remove("health-dot--unknown", "health-dot--green", "health-dot--red");
-      if (status === true) dot.classList.add("health-dot--green");
-      else if (status === false) dot.classList.add("health-dot--red");
-      else dot.classList.add("health-dot--unknown");
-
-      const label = status === true ? "All systems nominal" : status === false ? "Action required – click to view" : "Health status unavailable";
-      dot.closest(".health-indicator").title = label;
+    function schedulePoll(delayMs) {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = setTimeout(() => {
+        poll();
+      }, delayMs);
     }
 
+    async function poll() {
+      if (pollInFlight) return;
+      pollInFlight = true;
+      const cached = readCachedStatus();
+      if (cached !== null) {
+        setDotStatus(cached);
+      }
+
+      try {
+        let status = await fetchStatus();
+
+        if (status === false) {
+          for (let i = 0; i < HEALTH_RED_CONFIRM_RETRIES; i++) {
+            await new Promise((r) => setTimeout(r, HEALTH_RED_CONFIRM_DELAY_MS));
+            const retry = await fetchStatus();
+            if (retry !== false) { status = retry; break; }
+          }
+        }
+
+        writeCachedStatus(status);
+        setDotStatus(status);
+        schedulePoll(status === false ? HEALTH_RED_RECOVERY_POLL_INTERVAL_MS : HEALTH_POLL_INTERVAL_MS);
+      } finally {
+        pollInFlight = false;
+      }
+    }
+
+    const cached = readCachedStatus();
+    if (cached !== null) {
+      setDotStatus(cached);
+    }
     poll();
-    setInterval(poll, HEALTH_POLL_INTERVAL_MS);
   }
 
   document.addEventListener("DOMContentLoaded", () => {

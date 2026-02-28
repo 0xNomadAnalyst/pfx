@@ -53,7 +53,9 @@ class BenchmarkHeaderHealthCoverageTests(unittest.TestCase):
         self.assertIn('id="health-indicator"', base_html)
         self.assertIn("/api/health-status", charts_js)
         self.assertIn("/api/v1/health-status", htmx_main)
-        self.assertIn("setInterval(poll, HEALTH_POLL_INTERVAL_MS)", charts_js)
+        self.assertIn("localStorage.setItem(HEALTH_CACHE_KEY", charts_js)
+        self.assertIn("schedulePoll(", charts_js)
+        self.assertIn("setTimeout(() =>", charts_js)
 
 
 if __name__ == "__main__":

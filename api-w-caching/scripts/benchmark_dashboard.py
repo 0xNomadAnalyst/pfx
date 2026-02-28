@@ -165,6 +165,32 @@ HEALTH_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("health-cagg-table", {}),
 ]
 
+GLOBAL_ECOSYSTEM_SCENARIOS: list[WidgetScenario] = [
+    WidgetScenario("ge-issuance-bar", {}),
+    WidgetScenario("ge-issuance-pie", {}),
+    WidgetScenario("ge-issuance-time", {}),
+    WidgetScenario("ge-yield-generation", {}),
+    WidgetScenario("ge-yield-vesting-rate", {}),
+    WidgetScenario("ge-current-yields", {}),
+    WidgetScenario("ge-yields-vs-time", {}),
+    WidgetScenario("ge-supply-dist-usx-pie", {}),
+    WidgetScenario("ge-supply-dist-eusx-pie", {}),
+    WidgetScenario("ge-supply-dist-usx-bar", {}),
+    WidgetScenario("ge-supply-dist-eusx-bar", {}),
+    WidgetScenario("ge-token-avail-usx", {}),
+    WidgetScenario("ge-token-avail-eusx", {}),
+    WidgetScenario("ge-tvl-defi-usx", {}),
+    WidgetScenario("ge-tvl-defi-eusx", {}),
+    WidgetScenario("ge-tvl-share-usx", {}),
+    WidgetScenario("ge-tvl-share-eusx", {}),
+    WidgetScenario("ge-activity-pct-usx", {}),
+    WidgetScenario("ge-activity-pct-eusx", {}),
+    WidgetScenario("ge-activity-vol-usx", {}),
+    WidgetScenario("ge-activity-vol-eusx", {}),
+    WidgetScenario("ge-activity-share-usx", {}),
+    WidgetScenario("ge-activity-share-eusx", {}),
+]
+
 HEADER_HEALTH_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("health-status", {}, direct_path="/api/v1/health-status"),
 ]
@@ -180,6 +206,7 @@ PAGE_DEFAULT_SCENARIOS: dict[str, list[WidgetScenario]] = {
     "kamino": KAMINO_SCENARIOS,
     "exponent": EXPONENT_SCENARIOS,
     "health": HEALTH_SCENARIOS,
+    "global-ecosystem": GLOBAL_ECOSYSTEM_SCENARIOS,
     "header-health": HEADER_HEALTH_SCENARIOS,
     "header-health-proxy": HEADER_HEALTH_PROXY_SCENARIOS,
 }
@@ -192,6 +219,7 @@ PAGE_ALIASES: dict[str, str] = {
     "kamino": "kamino",
     "exponent": "exponent",
     "health": "health",
+    "global-ecosystem": "global-ecosystem",
     "header-health": "header-health",
     "header-health-proxy": "header-health-proxy",
 }
@@ -236,6 +264,13 @@ QUICK_WIDGETS_BY_PAGE: dict[str, list[str]] = {
         "health-queue-chart",
         "health-base-chart-events",
         "health-cagg-table",
+    ],
+    "global-ecosystem": [
+        "ge-issuance-bar",
+        "ge-issuance-time",
+        "ge-yields-vs-time",
+        "ge-tvl-share-usx",
+        "ge-activity-vol-usx",
     ],
     "header-health": [
         "health-status",
@@ -357,6 +392,7 @@ def parse_pages(page_arg: str) -> list[str]:
                 "kamino",
                 "exponent",
                 "health",
+                "global-ecosystem",
                 "header-health",
                 "header-health-proxy",
             ]

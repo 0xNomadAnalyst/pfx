@@ -1,0 +1,42 @@
+{
+  "run_started_utc": "2026-02-28T10:38:02.419032+00:00",
+  "run_finished_utc": "2026-02-28T10:38:24.087592+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8113",
+    "pages": [
+      "header-health"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "24h"
+    ],
+    "repeats": 8,
+    "timeout_seconds": 10.0,
+    "parallel": 1,
+    "widget_filter": [],
+    "quick": false
+  },
+  "results": [
+    {
+      "page": "header-health",
+      "widget": "health-status",
+      "params": {},
+      "cold_ms": 10033.37,
+      "cold_ok": false,
+      "cold_status_code": 0,
+      "warm_repeats": 8,
+      "warm_success_count": 7,
+      "warm_error_count": 1,
+      "warm_min_ms": 14.77,
+      "warm_p50_ms": 17.65,
+      "warm_p95_ms": 7042.77,
+      "warm_avg_ms": 1454.42,
+      "warm_max_ms": 10023.07,
+      "payload_bytes_p50": 17,
+      "error_samples": [
+        "timed out"
+      ]
+    }
+  ]
+}
