@@ -51,7 +51,8 @@ class QueryCache:
                 is_loader = True
 
         if not is_loader:
-            wait_event.wait(timeout=max(self._ttl_seconds, 1.0))
+            wait_ttl = self._ttl_seconds if ttl_seconds is None else ttl_seconds
+            wait_event.wait(timeout=max(wait_ttl, 1.0))
             existing_after_wait = self.get(key)
             if existing_after_wait is not None:
                 return existing_after_wait

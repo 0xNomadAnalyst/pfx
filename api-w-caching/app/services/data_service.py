@@ -214,11 +214,15 @@ class DataService:
             ]
             # Shared last-row cache path.
             global_jobs.append(("global-ecosystem", "ge-issuance-bar", dict(base_params)))
+            include_heavy_global_ts = os.getenv("API_PREWARM_GLOBAL_INCLUDE_HEAVY_TS", "0") == "1"
             for window in global_windows:
                 params = dict(base_params)
                 params["last_window"] = window
-                # Prime shared global caches: timeseries, interval snapshot, and yield vesting rows.
-                global_jobs.append(("global-ecosystem", "ge-issuance-time", params))
+                # Prime interval and yield caches by default. The shared
+                # global timeseries function can take tens of seconds on cold
+                # start, so only prewarm it when explicitly enabled.
+                if include_heavy_global_ts:
+                    global_jobs.append(("global-ecosystem", "ge-issuance-time", params))
                 global_jobs.append(("global-ecosystem", "ge-activity-pct-usx", params))
                 global_jobs.append(("global-ecosystem", "ge-yield-generation", params))
 

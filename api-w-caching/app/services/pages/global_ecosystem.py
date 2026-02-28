@@ -27,7 +27,9 @@ class GlobalEcosystemPageService(BasePageService):
     _TS_TTL = float(os.getenv("GE_TIMESERIES_TTL_SECONDS", "300"))
     _INTERVAL_TTL = float(os.getenv("GE_INTERVAL_TTL_SECONDS", "120"))
     _YIELD_TTL = float(os.getenv("GE_YIELD_TTL_SECONDS", "120"))
-    _TS_TIMEOUT_MS = int(os.getenv("GE_TIMESERIES_TIMEOUT_MS", "5000"))
+    # Global ecosystem timeseries can be expensive on cold paths. Keep the
+    # query timeout high enough so at least one request can populate cache.
+    _TS_TIMEOUT_MS = int(os.getenv("GE_TIMESERIES_TIMEOUT_MS", "60000"))
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)

@@ -13,7 +13,7 @@
   data-base-endpoint="{{ widget.endpoint }}"
   {% if widget.detail_table_endpoint %}data-detail-table-endpoint="{{ widget.detail_table_endpoint }}"{% endif %}
   hx-get="{{ widget.endpoint }}"
-  hx-request='{"timeout":45000}'
+  hx-request='{"timeout":90000}'
   hx-trigger="load delay:{{ widget.load_delay_seconds }}s, dashboard-refresh from:body, impact-mode-change, flow-mode-change, distribution-mode-change, ohlcv-interval-change, health-schema-change from:body, health-attribute-change from:body, health-base-schema-change from:body, every {{ widget.refresh_interval_seconds }}s"
   hx-sync="this:replace"
   hx-swap="none"
