@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os
 from typing import Any
 
 from app.services.pages.base import BasePageService
@@ -8,6 +9,15 @@ from app.services.pages.base import BasePageService
 
 class DexLiquidityPageService(BasePageService):
     page_id = "playbook-liquidity"
+    _META_TTL_SECONDS = float(os.getenv("DEX_LIQUIDITY_META_TTL_SECONDS", "300"))
+    _TICK_DIST_TTL_SECONDS = float(os.getenv("DEX_LIQUIDITY_TICK_DIST_TTL_SECONDS", "120"))
+    _DEX_LAST_TTL_SECONDS = float(os.getenv("DEX_LIQUIDITY_DEX_LAST_TTL_SECONDS", "120"))
+    _TIMESERIES_TTL_SECONDS = float(os.getenv("DEX_LIQUIDITY_TIMESERIES_TTL_SECONDS", "120"))
+    _DEPTH_TABLE_TTL_SECONDS = float(os.getenv("DEX_LIQUIDITY_DEPTH_TABLE_TTL_SECONDS", "300"))
+    _RANKED_LP_TTL_SECONDS = float(os.getenv("DEX_LIQUIDITY_RANKED_LP_TTL_SECONDS", "120"))
+    _RANKED_LP_TIMEOUT_MS = int(os.getenv("DEX_LIQUIDITY_RANKED_LP_TIMEOUT_MS", "5000"))
+    _RANKED_LP_FALLBACK_LOOKBACK = os.getenv("DEX_LIQUIDITY_RANKED_LP_FALLBACK_LOOKBACK", "12 hours")
+    _DEX_LAST_TIMEOUT_MS = int(os.getenv("DEX_LIQUIDITY_DEX_LAST_TIMEOUT_MS", "8000"))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -52,23 +62,33 @@ class DexLiquidityPageService(BasePageService):
                     protocols.append(protocol)
             return {"protocols": protocols, "protocol_pairs": protocol_pairs}
 
-        return self._cached("meta::protocol_pairs", _load_meta, ttl_seconds=60.0)
+        return self._cached("meta::protocol_pairs", _load_meta, ttl_seconds=self._META_TTL_SECONDS)
 
     def _tick_dist_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         protocol = str(params.get("protocol", "raydium"))
         pair = str(params.get("pair", "USX-USDC"))
         delta_time = str(params.get("tick_delta_time", "1 hour"))
 
-        def _load_rows() -> list[dict[str, Any]]:
+        def _run_query(active_delta_time: str) -> list[dict[str, Any]]:
             query = """
                 SELECT *
                 FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval)
                 ORDER BY tick_price_t1_per_t0
             """
-            return self.sql.fetch_rows(query, (protocol, pair, delta_time))
+            return self.sql.fetch_rows(query, (protocol, pair, active_delta_time))
+
+        def _load_rows() -> list[dict[str, Any]]:
+            try:
+                return _run_query(delta_time)
+            except Exception as exc:
+                is_timeout = "statement timeout" in str(exc).lower()
+                if not is_timeout or delta_time == "24 hours":
+                    raise
+                # Fallback keeps widget responsive when short-window queries time out.
+                return _run_query("24 hours")
 
         cache_key = f"tick_dist::{protocol}::{pair}::{delta_time}"
-        return self._cached(cache_key, _load_rows)
+        return self._cached(cache_key, _load_rows, ttl_seconds=self._TICK_DIST_TTL_SECONDS)
 
     @staticmethod
     def _finite_float(value: Any) -> float | None:
@@ -132,17 +152,31 @@ class DexLiquidityPageService(BasePageService):
         lookback_from_window, _, _ = self._timeseries_window_config(last_window)
         lookback = lookback_from_window or lookback
 
-        def _load_row() -> dict[str, Any]:
+        def _run_query(active_lookback: str) -> dict[str, Any]:
             query = """
                 SELECT *
                 FROM dexes.get_view_dex_last(%s, %s, %s::interval)
                 LIMIT 1
             """
-            rows = self.sql.fetch_rows(query, (protocol, pair, lookback))
+            rows = self.sql.fetch_rows(
+                query,
+                (protocol, pair, active_lookback),
+                statement_timeout_ms=self._DEX_LAST_TIMEOUT_MS,
+            )
             return rows[0] if rows else {}
 
+        def _load_row() -> dict[str, Any]:
+            try:
+                return _run_query(lookback)
+            except Exception as exc:
+                is_timeout = "statement timeout" in str(exc).lower()
+                fallback_lookback = str(params.get("lookback", "1 day"))
+                if not is_timeout or lookback == fallback_lookback:
+                    raise
+                return _run_query(fallback_lookback)
+
         cache_key = f"dex_last::{protocol}::{pair}::{lookback}"
-        return self._cached(cache_key, _load_row)
+        return self._cached(cache_key, _load_row, ttl_seconds=self._DEX_LAST_TTL_SECONDS)
 
     def _dex_timeseries_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         protocol = str(params.get("protocol", "raydium"))
@@ -163,7 +197,7 @@ class DexLiquidityPageService(BasePageService):
             return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
 
         cache_key = f"dex_timeseries::{protocol}::{pair}::{interval}::{rows}"
-        return self._cached(cache_key, _load_rows)
+        return self._cached(cache_key, _load_rows, ttl_seconds=self._TIMESERIES_TTL_SECONDS)
 
     def _liquidity_distribution(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._tick_dist_rows(params)
@@ -172,6 +206,9 @@ class DexLiquidityPageService(BasePageService):
             "kind": "chart",
             "chart": "bar",
             "x": [row["tick_price_t1_per_t0"] for row in rows],
+            "xAxisLabel": "Price (USDC per USX)",
+            "yAxisLabel": "Liquidity Amount",
+            "yAxisFormat": "compact",
             "reference_lines": {
                 "peg": 1.0,
                 "current_price": current_price,
@@ -232,6 +269,9 @@ class DexLiquidityPageService(BasePageService):
             "kind": "chart",
             "chart": "line-area",
             "x": x_values,
+            "xAxisLabel": "Price (USDC per USX)",
+            "yAxisLabel": "Cumulative Liquidity",
+            "yAxisFormat": "compact",
             "reference_lines": {
                 "peg": 1.0,
                 "current_price": current_price,
@@ -335,7 +375,7 @@ class DexLiquidityPageService(BasePageService):
             return self.sql.fetch_rows(query, (protocol, pair))
 
         cache_key = f"depth_table::{protocol}::{pair}"
-        rows = self._cached(cache_key, _load_rows)
+        rows = self._cached(cache_key, _load_rows, ttl_seconds=self._DEPTH_TABLE_TTL_SECONDS)
         return {
             "kind": "table",
             "columns": [
@@ -355,6 +395,7 @@ class DexLiquidityPageService(BasePageService):
             "kind": "chart",
             "chart": "line-area",
             "x": [row["time"] for row in rows],
+            "yAxisLabel": "% of Pool",
             "series": [
                 {"name": "USDC %", "type": "line", "data": [row.get("reserve_t1_pct") for row in rows]},
                 {
@@ -372,6 +413,7 @@ class DexLiquidityPageService(BasePageService):
             "kind": "chart",
             "chart": "line",
             "x": [row["time"] for row in rows],
+            "yAxisLabel": "Equivalent Swap Size",
             "series": [
                 {"name": "1 bps", "type": "line", "data": [row.get("sell_t0_for_impact1_avg_w_last") for row in rows]},
                 {"name": "2 bps", "type": "line", "data": [row.get("sell_t0_for_impact2_avg_w_last") for row in rows]},
@@ -385,6 +427,8 @@ class DexLiquidityPageService(BasePageService):
             "kind": "chart",
             "chart": "bar-line",
             "x": [row["time"] for row in rows],
+            "yAxisLabel": "USDC",
+            "yRightAxisLabel": "% USDC Reserve",
             "series": [
                 {"name": "LP In", "type": "bar", "color": "#2fbf71", "data": [row.get("lp_t1_in") for row in rows]},
                 {"name": "LP Out", "type": "bar", "color": "#e24c4c", "data": [-(abs(float(row.get("lp_t1_out") or 0))) for row in rows]},
@@ -398,6 +442,7 @@ class DexLiquidityPageService(BasePageService):
             "kind": "chart",
             "chart": "line",
             "x": [row["time"] for row in rows],
+            "yAxisLabel": "Simulated Trade Impact (bps)",
             "series": [
                 {"name": "1 bps bucket", "type": "line", "data": [row.get("impact_from_t0_sell1_bps_avg_w_last") for row in rows]},
                 {"name": "2 bps bucket", "type": "line", "data": [row.get("impact_from_t0_sell2_bps_avg_w_last") for row in rows]},
@@ -430,6 +475,7 @@ class DexLiquidityPageService(BasePageService):
                 "chart": "line",
                 "mode": "impact",
                 "x": [row["time"] for row in rows],
+                "yAxisLabel": "Simulated Trade Impact (bps)",
                 "series": [
                     {"name": _level_label(0), "type": "line", "data": [row.get("impact_from_t0_sell1_bps_avg_w_last") for row in rows]},
                     {"name": _level_label(1), "type": "line", "data": [row.get("impact_from_t0_sell2_bps_avg_w_last") for row in rows]},
@@ -442,6 +488,7 @@ class DexLiquidityPageService(BasePageService):
             "chart": "line",
             "mode": "size",
             "x": [row["time"] for row in rows],
+            "yAxisLabel": "Equivalent Swap Size",
             "series": [
                 {"name": "1 bps", "type": "line", "data": [row.get("sell_t0_for_impact1_avg_w_last") for row in rows]},
                 {"name": "2 bps", "type": "line", "data": [row.get("sell_t0_for_impact2_avg_w_last") for row in rows]},
@@ -455,17 +502,42 @@ class DexLiquidityPageService(BasePageService):
         rows = int(params.get("rows", 12))
         lookback = str(params.get("lookback", "1 day"))
 
-        def _load_ranked(direction: str) -> list[dict[str, Any]]:
+        def _run_ranked(direction: str, active_lookback: str) -> list[dict[str, Any]]:
             query = """
                 SELECT *
                 FROM dexes.get_view_dex_table_ranked_events(
                     %s, %s, 'lp', 't1', %s, %s, %s
                 )
             """
-            return self.sql.fetch_rows(query, (protocol, pair, direction, rows, lookback))
+            return self.sql.fetch_rows(
+                query,
+                (protocol, pair, direction, rows, active_lookback),
+                statement_timeout_ms=self._RANKED_LP_TIMEOUT_MS,
+            )
 
-        top_in = self._cached(f"ranked_lp::{protocol}::{pair}::in::{rows}::{lookback}", lambda: _load_ranked("in"))
-        top_out = self._cached(f"ranked_lp::{protocol}::{pair}::out::{rows}::{lookback}", lambda: _load_ranked("out"))
+        def _load_ranked(direction: str) -> list[dict[str, Any]]:
+            try:
+                return _run_ranked(direction, lookback)
+            except Exception as exc:
+                is_timeout = "statement timeout" in str(exc).lower()
+                if not is_timeout:
+                    raise
+                if lookback != self._RANKED_LP_FALLBACK_LOOKBACK:
+                    return _run_ranked(direction, self._RANKED_LP_FALLBACK_LOOKBACK)
+                if lookback != "24 hours":
+                    return _run_ranked(direction, "24 hours")
+                raise
+
+        top_in = self._cached(
+            f"ranked_lp::{protocol}::{pair}::in::{rows}::{lookback}",
+            lambda: _load_ranked("in"),
+            ttl_seconds=self._RANKED_LP_TTL_SECONDS,
+        )
+        top_out = self._cached(
+            f"ranked_lp::{protocol}::{pair}::out::{rows}::{lookback}",
+            lambda: _load_ranked("out"),
+            ttl_seconds=self._RANKED_LP_TTL_SECONDS,
+        )
         return {
             "kind": "table-split",
             "columns": [

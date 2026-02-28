@@ -81,6 +81,7 @@ def get_widget(page_id: str, widget_id: str, request: Request):
 def healthz():
     return {"status": "ok"}
 import os
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -92,6 +93,7 @@ from app.api.routes import get_data_service, router
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
+logger = logging.getLogger(__name__)
 
 
 def _validate_env() -> None:
@@ -105,8 +107,13 @@ def _validate_env() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     _validate_env()
+    service = get_data_service()
+    try:
+        service.warmup()
+    except Exception as exc:  # pragma: no cover - startup best effort
+        logger.warning("DataService warmup skipped due to error: %s", exc)
     yield
-    get_data_service().close()
+    service.close()
 
 
 app = FastAPI(

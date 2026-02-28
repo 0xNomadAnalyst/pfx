@@ -107,19 +107,27 @@ class SQLClient:
         except Exception:
             return False
 
-    def fetch_rows(self, query: str, params: tuple[Any, ...] | None = None) -> list[dict[str, Any]]:
+    def fetch_rows(
+        self,
+        query: str,
+        params: tuple[Any, ...] | None = None,
+        statement_timeout_ms: int | None = None,
+    ) -> list[dict[str, Any]]:
         last_error: Exception | None = None
-        for attempt in range(self.max_retries + 1):
+        retries = 0 if statement_timeout_ms else self.max_retries
+        for attempt in range(retries + 1):
             try:
                 conn = self._connect()
+                if statement_timeout_ms:
+                    return self._fetch_with_timeout(conn, query, params, statement_timeout_ms)
                 with conn.cursor() as cur:
                     cur.execute(query, params or ())
                     rows = cur.fetchall()
                 return [dict(row) for row in rows]
             except Exception as exc:
                 last_error = exc
-                logger.warning("SQL fetch failed attempt %s/%s: %s", attempt + 1, self.max_retries + 1, exc)
-                if attempt >= self.max_retries:
+                logger.warning("SQL fetch failed attempt %s/%s: %s", attempt + 1, retries + 1, exc)
+                if attempt >= retries:
                     break
                 sleep_seconds = self.retry_backoff_seconds**attempt
                 time.sleep(sleep_seconds)
@@ -127,3 +135,32 @@ class SQLClient:
         if last_error:
             raise last_error
         return []
+
+    def _fetch_with_timeout(
+        self,
+        conn: Any,
+        query: str,
+        params: tuple[Any, ...] | None,
+        timeout_ms: int,
+    ) -> list[dict[str, Any]]:
+        if _DB_DRIVER == "psycopg":
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(f"SET LOCAL statement_timeout = {int(timeout_ms)}")
+                    cur.execute(query, params or ())
+                    return [dict(row) for row in cur.fetchall()]
+        else:
+            old_autocommit = conn.autocommit
+            try:
+                conn.autocommit = False
+                with conn.cursor() as cur:
+                    cur.execute(f"SET LOCAL statement_timeout = {int(timeout_ms)}")
+                    cur.execute(query, params or ())
+                    rows = [dict(row) for row in cur.fetchall()]
+                conn.commit()
+                return rows
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.autocommit = old_autocommit

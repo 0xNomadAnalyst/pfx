@@ -2,6 +2,10 @@
   const chartState = new Map();
   let protocolPairs = [];
   const FILTER_STORAGE_KEY = "dashboard.globalFilters.v1";
+  const DETAIL_TABLE_CACHE_TTL_MS = 30_000;
+  const PAGE_ACTION_CACHE_TTL_MS = 60_000;
+  const detailTableCache = new Map();
+  const pageActionCache = new Map();
   const comparableLiquidityWidgets = new Set([
     "liquidity-distribution",
     "liquidity-depth",
@@ -12,15 +16,52 @@
     "liquidity-depth",
     "liquidity-change-heatmap",
   ]);
-  const rightLinkedZoomWidgets = new Set([
-    "usdc-lp-flows",
-    "usdc-pool-share-concentration",
-    "trade-impact-toggle",
-    "swaps-flows-toggle",
-    "swaps-price-impacts",
-    "swaps-spread-volatility",
-    "swaps-ohlcv",
+  const linkedTimeseriesGroups = new Map([
+    ["linked-ts-right", new Set([
+      "usdc-lp-flows",
+      "usdc-pool-share-concentration",
+      "trade-impact-toggle",
+      "swaps-flows-toggle",
+      "swaps-price-impacts",
+      "swaps-spread-volatility",
+      "swaps-ohlcv",
+    ])],
+    ["linked-ts-kamino", new Set([
+      "kamino-utilization-timeseries",
+      "kamino-ltv-hf-timeseries",
+      "kamino-liability-flows",
+      "kamino-liquidations",
+    ])],
+    ["linked-ts-exp-mkt1", new Set([
+      "exponent-pt-swap-flows-mkt1",
+      "exponent-token-strip-flows-mkt1",
+      "exponent-vault-sy-balance-mkt1",
+      "exponent-yt-staked-mkt1",
+      "exponent-yield-trading-liq-mkt1",
+      "exponent-realized-rates-mkt1",
+      "exponent-divergence-mkt1",
+    ])],
+    ["linked-ts-exp-mkt2", new Set([
+      "exponent-pt-swap-flows-mkt2",
+      "exponent-token-strip-flows-mkt2",
+      "exponent-vault-sy-balance-mkt2",
+      "exponent-yt-staked-mkt2",
+      "exponent-yield-trading-liq-mkt2",
+      "exponent-realized-rates-mkt2",
+      "exponent-divergence-mkt2",
+    ])],
+    ["linked-ts-health-base", new Set([
+      "health-base-chart-events",
+      "health-base-chart-accounts",
+    ])],
   ]);
+
+  function getTimeseriesGroupId(widgetId) {
+    for (const [groupId, widgets] of linkedTimeseriesGroups) {
+      if (widgets.has(widgetId)) return groupId;
+    }
+    return null;
+  }
   const tickReferenceWidgets = new Set([
     "liquidity-distribution",
     "liquidity-depth",
@@ -28,7 +69,6 @@
   ]);
   const linkedGroups = {
     left: "linked-zoom-left",
-    right: "linked-zoom-right",
   };
   let leftDefaultZoomWindow = null;
   let leftDefaultZoomSignature = "";
@@ -72,10 +112,13 @@
   }
 
   function formatNumber(value) {
-    if (value === null || value === undefined || Number.isNaN(value)) {
+    if (value === null || value === undefined) {
       return "--";
     }
     const number = Number(value);
+    if (!Number.isFinite(number)) {
+      return String(value) || "--";
+    }
     return number.toLocaleString(undefined, { maximumFractionDigits: 2 });
   }
 
@@ -119,6 +162,66 @@
   function parseIsoDate(value) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function applyLinkedTimeseriesFormat(option) {
+    const hasRightAxis = Array.isArray(option.yAxis) && option.yAxis.length > 1;
+    const hasRightLabel = hasRightAxis && !!option.yAxis[1].name;
+    option.grid = { ...(option.grid || {}), left: 82, right: hasRightAxis ? (hasRightLabel ? 76 : 64) : 24, bottom: 60, containLabel: false };
+
+    if (option.xAxis && !Array.isArray(option.xAxis)) {
+      option.xAxis.axisLabel = {
+        ...(option.xAxis.axisLabel || {}),
+        formatter: (value) => formatCompactTimestamp(value),
+      };
+    }
+
+    if (Array.isArray(option.yAxis)) {
+      option.yAxis[0] = {
+        ...option.yAxis[0],
+        axisLabel: {
+          ...(option.yAxis[0].axisLabel || {}),
+          width: 62,
+          align: "right",
+          padding: [0, 8, 0, 0],
+        },
+      };
+    } else if (option.yAxis) {
+      option.yAxis = {
+        ...option.yAxis,
+        axisLabel: {
+          ...(option.yAxis.axisLabel || {}),
+          width: 62,
+          align: "right",
+          padding: [0, 8, 0, 0],
+        },
+      };
+    }
+
+    option.dataZoom = [
+      { type: "inside", xAxisIndex: 0, filterMode: "none" },
+      {
+        type: "slider",
+        xAxisIndex: 0,
+        height: 12,
+        bottom: 28,
+        borderColor: chartGridColor(),
+        brushSelect: false,
+      },
+    ];
+
+    option.tooltip = {
+      trigger: "axis",
+      formatter: (params) => {
+        const items = Array.isArray(params) ? params : [params];
+        if (items.length === 0) return "";
+        const header = formatCompactTimestamp(items[0].axisValue);
+        const rows = items
+          .map((item) => `${item.marker} ${item.seriesName}: ${formatNumber(item.value)}`)
+          .join("<br/>");
+        return `${header}<br/>${rows}`;
+      },
+    };
   }
 
   function trimIncompleteTailForTimeSeries(data) {
@@ -421,6 +524,15 @@
     };
   }
 
+  function autoSizeKpi(el) {
+    if (!el) return;
+    const text = el.textContent || "";
+    const valueCount = text.split(" / ").length;
+    if (valueCount <= 1) el.style.fontSize = "28px";
+    else if (valueCount <= 2) el.style.fontSize = "22px";
+    else el.style.fontSize = "16px";
+  }
+
   function renderKpi(widgetId, data) {
     const primary = document.getElementById(`kpi-primary-${widgetId}`);
     const secondary = document.getElementById(`kpi-secondary-${widgetId}`);
@@ -431,44 +543,26 @@
     if (widgetId === "kpi-impact-500k" || widgetId === "kpi-largest-impact" || widgetId === "kpi-average-impact") {
       primary.textContent = `${formatSigned(data.primary, " bps")}`;
       secondary.textContent = data.secondary ? `Size: ${formatNumber(data.secondary)}` : "";
-      return;
-    }
-
-    if (widgetId === "kpi-pool-balance") {
+    } else if (widgetId === "kpi-pool-balance") {
       primary.textContent = `${formatNumber(data.primary)}%`;
       secondary.textContent = `${formatNumber(data.secondary)}%`;
-      return;
-    }
-
-    if (widgetId === "kpi-reserves") {
+    } else if (widgetId === "kpi-reserves") {
       primary.textContent = `${formatNumber(data.primary)}m`;
       secondary.textContent = `${formatNumber(data.secondary)}m`;
-      return;
-    }
-
-    if (widgetId === "kpi-price-min-max") {
+    } else if (widgetId === "kpi-price-min-max") {
       const minValue = Number(data.primary);
       const maxValue = Number(data.secondary);
       primary.textContent = `${Number.isFinite(minValue) ? minValue.toFixed(4) : "--"} / ${Number.isFinite(maxValue) ? maxValue.toFixed(4) : "--"}`;
       secondary.textContent = "min / max";
-      return;
-    }
-
-    if (widgetId === "kpi-vwap-buy-sell") {
+    } else if (widgetId === "kpi-vwap-buy-sell") {
       const buy = Number(data.primary);
       const sell = Number(data.secondary);
       primary.textContent = `${Number.isFinite(buy) ? buy.toFixed(4) : "--"} / ${Number.isFinite(sell) ? sell.toFixed(4) : "--"}`;
       secondary.textContent = "buy / sell";
-      return;
-    }
-
-    if (widgetId === "kpi-vwap-spread") {
+    } else if (widgetId === "kpi-vwap-spread") {
       primary.textContent = formatBps2dp(data.primary);
       secondary.textContent = "";
-      return;
-    }
-
-    if (
+    } else if (
       widgetId === "kpi-largest-usx-sell" ||
       widgetId === "kpi-largest-usx-buy" ||
       widgetId === "kpi-max-1h-sell-pressure" ||
@@ -476,11 +570,12 @@
     ) {
       primary.textContent = formatNumber(data.primary);
       secondary.textContent = `Est impact: ${formatBps2dp(data.secondary)}`;
-      return;
+    } else {
+      primary.textContent = formatNumber(data.primary);
+      secondary.textContent = data.secondary ? formatNumber(data.secondary) : "";
     }
 
-    primary.textContent = formatNumber(data.primary);
-    secondary.textContent = data.secondary ? formatNumber(data.secondary) : "";
+    autoSizeKpi(primary);
   }
 
   function normalizeColumns(widgetId, columns) {
@@ -525,11 +620,14 @@
       return;
     }
 
+    const isHealthTable = widgetId.startsWith("health-");
     const normalizedColumns = normalizeColumns(widgetId, columns);
-    const header = normalizedColumns.map((column) => `<th>${pairAwareLabel(column.label)}</th>`).join("");
+    const visibleColumns = normalizedColumns.filter((c) => c.key !== "is_red");
+    const header = visibleColumns.map((column) => `<th>${pairAwareLabel(column.label)}</th>`).join("");
     const body = rows
       .map((row) => {
-        const cells = normalizedColumns
+        const rowClass = isHealthTable && row.is_red ? ' class="health-row-red"' : "";
+        const cells = visibleColumns
           .map((column) => {
             const raw = row[column.key];
             const value = widgetId === "liquidity-depth-table" ? formatDepthTableValue(column.key, raw) : (raw ?? "");
@@ -537,10 +635,36 @@
             return `<td>${displayValue}</td>`;
           })
           .join("");
-        return `<tr>${cells}</tr>`;
+        return `<tr${rowClass}>${cells}</tr>`;
       })
       .join("");
     target.innerHTML = `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  function renderHealthInfoToggle(widgetId, info) {
+    const container = document.getElementById(`info-toggle-${widgetId}`);
+    if (!container || !info || !info.content) return;
+    const storageKey = `health-info-${info.key}`;
+    const stored = localStorage.getItem(storageKey);
+    const isOpen = stored === null ? true : stored === "true";
+    container.innerHTML =
+      `<button class="health-info-toggle-btn" type="button" aria-label="Toggle information">` +
+      `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.3"/><text x="8" y="12" text-anchor="middle" fill="currentColor" font-size="11" font-weight="600">i</text></svg>` +
+      `<span>${isOpen ? "Hide" : "Show"} information</span>` +
+      `<svg class="chevron ${isOpen ? "open" : ""}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>` +
+      `</button>` +
+      `<div class="health-info-content"${isOpen ? "" : " hidden"}>${info.content}</div>`;
+    const btn = container.querySelector(".health-info-toggle-btn");
+    btn.addEventListener("click", () => {
+      const content = container.querySelector(".health-info-content");
+      const chevron = container.querySelector(".chevron");
+      const label = btn.querySelector("span");
+      const nowOpen = content.hidden;
+      content.hidden = !nowOpen;
+      chevron.classList.toggle("open", nowOpen);
+      label.textContent = nowOpen ? "Hide information" : "Show information";
+      localStorage.setItem(storageKey, String(nowOpen));
+    });
   }
 
   function modalElements() {
@@ -631,29 +755,174 @@
     syncModalChart();
   }
 
+  /* ── Detail-table modal (fetches table data and renders inside a modal) ── */
+
+  function ensureTableModalMarkup() {
+    if (document.getElementById("table-modal-backdrop")) return;
+    const host = document.createElement("div");
+    host.id = "table-modal-backdrop";
+    host.className = "table-modal-backdrop";
+    host.hidden = true;
+    host.innerHTML = `
+      <section class="table-modal" role="dialog" aria-modal="true" aria-labelledby="table-modal-title">
+        <div class="table-modal-header">
+          <h3 id="table-modal-title">Detail</h3>
+          <button id="table-modal-close" class="action-button" type="button" aria-label="Close detail table">Close</button>
+        </div>
+        <div class="table-modal-body">
+          <div id="table-modal-content" class="table-wrap"></div>
+        </div>
+      </section>
+    `;
+    document.body.appendChild(host);
+    host.addEventListener("click", (e) => {
+      if (e.target === host) closeTableModal();
+    });
+    document.getElementById("table-modal-close").addEventListener("click", closeTableModal);
+  }
+
+  function closeTableModal() {
+    const backdrop = document.getElementById("table-modal-backdrop");
+    if (backdrop) {
+      backdrop.hidden = true;
+      document.body.style.overflow = "";
+    }
+  }
+
+  function openDetailTable(widgetId) {
+    const widget = document.getElementById(`widget-${widgetId}`);
+    if (!widget) return;
+    const endpoint = widget.dataset.detailTableEndpoint;
+    if (!endpoint) return;
+
+    ensureTableModalMarkup();
+    const backdrop = document.getElementById("table-modal-backdrop");
+    const titleEl = document.getElementById("table-modal-title");
+    const contentEl = document.getElementById("table-modal-content");
+    const chartTitle = widget.querySelector(".panel-header h3");
+    if (titleEl) titleEl.textContent = (chartTitle?.textContent || "Detail") + " — Full Detail";
+    if (contentEl) contentEl.innerHTML = "<div class='kpi-secondary'>Loading…</div>";
+    backdrop.hidden = false;
+    document.body.style.overflow = "hidden";
+
+    const url = new URL(endpoint, window.location.origin);
+    url.searchParams.set("protocol", currentProtocol());
+    url.searchParams.set("pair", currentPair());
+    url.searchParams.set("last_window", currentLastWindow());
+    const m1 = currentMkt1();
+    const m2 = currentMkt2();
+    if (m1) url.searchParams.set("mkt1", m1);
+    if (m2) url.searchParams.set("mkt2", m2);
+    const cacheKey = url.toString();
+    const cached = detailTableCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      renderTable("detail-modal", "table-modal-content", cached.columns || [], cached.rows || []);
+      return;
+    }
+
+    fetch(url)
+      .then((r) => r.json())
+      .then((payload) => {
+        if (payload.status !== "success" || payload.data?.kind !== "table") {
+          contentEl.innerHTML = "<div class='kpi-secondary'>Failed to load table</div>";
+          return;
+        }
+        detailTableCache.set(cacheKey, {
+          expiresAt: Date.now() + DETAIL_TABLE_CACHE_TTL_MS,
+          columns: payload.data.columns || [],
+          rows: payload.data.rows || [],
+        });
+        renderTable("detail-modal", "table-modal-content", payload.data.columns || [], payload.data.rows || []);
+      })
+      .catch(() => {
+        contentEl.innerHTML = "<div class='kpi-secondary'>Failed to load table</div>";
+      });
+  }
+
+  function hasDualAxis(data) {
+    return (data.series || []).some((s) => s.yAxisIndex === 1);
+  }
+
+  function axisFormatter(fmt) {
+    if (fmt === "pct0") return (v) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n) + "%" : v; };
+    if (fmt === "pct1") return (v) => { const n = Number(v); return Number.isFinite(n) ? n.toFixed(1) + "%" : v; };
+    if (fmt === "compact") return (v) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return v;
+      if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(1) + "B";
+      if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + "M";
+      if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(1) + "k";
+      return n.toFixed(0);
+    };
+    return null;
+  }
+
   function baseChartOption(data) {
+    const xFmt = axisFormatter(data.xAxisFormat);
+    const yFmt = axisFormatter(data.yAxisFormat);
+    const xLabel = pairAwareLabel(data.xAxisLabel) || "";
+    const yLabel = pairAwareLabel(data.yAxisLabel) || "";
+    const yRightLabel = pairAwareLabel(data.yRightAxisLabel) || "";
+    const hasXLabel = !!xLabel;
+    const hasYLabel = !!yLabel;
+    const hasYRightLabel = !!yRightLabel;
+    const dual = hasDualAxis(data);
+    const rightPad = dual ? (hasYRightLabel ? 60 : 50) : 18;
     const option = {
       color: palette(),
       tooltip: { trigger: "axis" },
       legend: { bottom: 2, textStyle: { color: chartTextColor() } },
-      grid: { left: 40, right: 18, top: 22, bottom: 60, containLabel: true },
+      grid: { left: hasYLabel ? 55 : 40, right: rightPad, top: 22, bottom: hasXLabel ? 72 : 60, containLabel: true },
       xAxis: {
         type: "category",
         data: data.x || [],
+        name: xLabel || undefined,
+        nameLocation: "middle",
+        nameGap: hasXLabel ? 36 : undefined,
+        nameTextStyle: hasXLabel ? { color: chartTextColor(), fontSize: 12 } : undefined,
         axisLine: { lineStyle: { color: chartGridColor() } },
         axisLabel: {
           color: chartTextColor(),
           fontSize: 11,
           margin: 8,
-          formatter: (value) => formatPrice4dp(value),
+          formatter: xFmt || ((value) => formatPrice4dp(value)),
           hideOverlap: true,
         },
       },
-      yAxis: {
+      yAxis: hasDualAxis(data) ? [
+        {
+          type: "value",
+          name: yLabel || undefined,
+          nameLocation: "middle",
+          nameGap: hasYLabel ? 42 : undefined,
+          nameTextStyle: hasYLabel ? { color: chartTextColor(), fontSize: 12 } : undefined,
+          axisLine: { lineStyle: { color: chartGridColor() } },
+          splitLine: { lineStyle: { color: chartGridColor() } },
+          axisLabel: { color: chartTextColor(), fontSize: 11, formatter: yFmt || undefined },
+        },
+        {
+          type: "value",
+          name: yRightLabel || undefined,
+          nameLocation: "middle",
+          nameGap: hasYRightLabel ? 36 : undefined,
+          nameTextStyle: hasYRightLabel ? { color: chartTextColor(), fontSize: 12 } : undefined,
+          axisLine: { lineStyle: { color: chartGridColor() } },
+          splitLine: { show: false },
+          axisLabel: { color: chartTextColor(), fontSize: 11, formatter: axisFormatter(data.yRightAxisFormat) || undefined },
+        },
+      ] : {
         type: "value",
+        name: yLabel || undefined,
+        nameLocation: "middle",
+        nameGap: hasYLabel ? 42 : undefined,
+        nameTextStyle: hasYLabel ? { color: chartTextColor(), fontSize: 12 } : undefined,
         axisLine: { lineStyle: { color: chartGridColor() } },
         splitLine: { lineStyle: { color: chartGridColor() } },
-        axisLabel: { color: chartTextColor(), fontSize: 11 },
+        axisLabel: {
+          color: chartTextColor(),
+          fontSize: 11,
+          formatter: yFmt || undefined,
+        },
       },
       series: (data.series || []).map((series) => {
         const mapped = {
@@ -685,12 +954,50 @@
           mapped.itemStyle = { color: series.color };
           mapped.lineStyle = { color: series.color };
         }
+        if (series.lineStyle === "dashed") {
+          mapped.lineStyle = { ...(mapped.lineStyle || {}), type: "dashed" };
+        }
         if (series.area) {
           mapped.areaStyle = { opacity: 0.2 };
         }
         return mapped;
       })
     };
+    if (data.yAxisMin !== undefined || data.yAxisMax !== undefined) {
+      const target = Array.isArray(option.yAxis) ? option.yAxis[0] : option.yAxis;
+      if (data.yAxisMin !== undefined) target.min = data.yAxisMin;
+      if (data.yAxisMax !== undefined) target.max = data.yAxisMax;
+    }
+    if (Array.isArray(data.mark_lines) && data.mark_lines.length > 0 && option.series.length > 0) {
+      const xLabels = (data.x || []).map(String);
+      const isDark = document.documentElement.getAttribute("data-theme") !== "light";
+      const labelBg = isDark ? "rgba(0,0,0,0.65)" : "rgba(255,255,255,0.85)";
+      option.series[0].markLine = {
+        silent: true,
+        symbol: "none",
+        data: data.mark_lines.map((ml) => {
+          const closest = xLabels.reduce((best, lbl, idx) => {
+            const diff = Math.abs(parseFloat(lbl) - ml.value);
+            return diff < best.diff ? { idx, diff } : best;
+          }, { idx: 0, diff: Infinity });
+          return {
+            xAxis: closest.idx,
+            lineStyle: { type: "dashed", color: ml.color || "#aaa", width: 2 },
+            label: {
+              show: true,
+              formatter: ml.label,
+              position: "end",
+              color: ml.color || "#aaa",
+              fontSize: 12,
+              fontWeight: "bold",
+              backgroundColor: labelBg,
+              padding: [3, 6],
+              borderRadius: 3,
+            },
+          };
+        }),
+      };
+    }
     return option;
   }
 
@@ -972,6 +1279,159 @@
           },
         ],
       };
+    } else if (chartData.chart === "bar-line-dual") {
+      option = {
+        color: palette(),
+        tooltip: { trigger: "axis" },
+        legend: { bottom: 2, textStyle: { color: chartTextColor() } },
+        grid: { left: 60, right: 40, top: 22, bottom: 60, containLabel: true },
+        xAxis: {
+          type: "category",
+          data: chartData.x || [],
+          axisLine: { lineStyle: { color: chartGridColor() } },
+          axisLabel: { show: false },
+        },
+        yAxis: [
+          {
+            type: "value",
+            name: pairAwareLabel(chartData.yLeftLabel) || "",
+            nameLocation: "middle",
+            nameGap: 50,
+            nameTextStyle: { color: chartTextColor(), fontSize: 11 },
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { lineStyle: { color: chartGridColor() } },
+            axisLabel: {
+              color: chartTextColor(),
+              fontSize: 11,
+              formatter: (v) => {
+                if (Math.abs(v) >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
+                if (Math.abs(v) >= 1e3) return "$" + (v / 1e3).toFixed(0) + "k";
+                return "$" + v;
+              },
+            },
+          },
+          {
+            type: "value",
+            name: pairAwareLabel(chartData.yRightLabel) || "",
+            nameLocation: "middle",
+            nameGap: 30,
+            nameTextStyle: { color: chartTextColor(), fontSize: 11 },
+            axisLine: { lineStyle: { color: chartGridColor() } },
+            splitLine: { show: false },
+            axisLabel: {
+              color: chartTextColor(),
+              fontSize: 11,
+              formatter: (v) => Number(v).toFixed(1),
+            },
+          },
+        ],
+        series: (chartData.series || []).map((s) => {
+          const mapped = {
+            name: s.name,
+            type: s.type || "bar",
+            yAxisIndex: s.yAxisIndex || 0,
+            data: s.data || [],
+            showSymbol: s.showSymbol ?? false,
+            smooth: s.smooth ?? false,
+          };
+          if (s.color) {
+            mapped.itemStyle = { color: s.color };
+            if (s.type === "line") mapped.lineStyle = { color: s.color, width: 2 };
+          }
+          return mapped;
+        }),
+      };
+      if (Array.isArray(chartData.reference_lines_y)) {
+        const rightMax = Math.max(...(chartData.series || []).filter((s) => s.yAxisIndex === 1).flatMap((s) => s.data || []).map(Number).filter(Number.isFinite), 2);
+        option.yAxis[1].max = Math.max(rightMax * 1.05, 2);
+        const refSeries = chartData.reference_lines_y.map((rl) => ({
+          name: rl.label,
+          type: "line",
+          yAxisIndex: rl.yAxisIndex ?? 1,
+          data: (chartData.x || []).map(() => rl.value),
+          lineStyle: { type: "dashed", color: rl.color || "#ef4444", width: 2 },
+          itemStyle: { color: rl.color || "#ef4444" },
+          symbol: "none",
+          tooltip: { show: false },
+        }));
+        option.series.push(...refSeries);
+      }
+    } else if (chartData.chart === "bar-horizontal") {
+      const legendGroups = Array.isArray(chartData.legend_groups) ? chartData.legend_groups : [];
+      const seriesColorMap = {};
+      (chartData.series || []).forEach((s) => { if (s.color) seriesColorMap[s.name] = s.color; });
+      const legendData = [];
+      if (legendGroups.length > 0) {
+        legendGroups.forEach((group, idx) => {
+          if (idx > 0) {
+            legendData.push("");
+          }
+          legendData.push({ name: group.title, icon: "none", textStyle: { fontWeight: "bold", color: chartTextColor() } });
+          (group.items || []).forEach((item) => {
+            const entry = { name: item };
+            if (seriesColorMap[item]) {
+              entry.itemStyle = { color: seriesColorMap[item] };
+            }
+            legendData.push(entry);
+          });
+        });
+      }
+      const bottomPad = legendGroups.length > 0 ? 80 : 60;
+      const barWidth = chartData.barWidth || undefined;
+      option = baseChartOption(chartData);
+      option.grid = { left: 10, right: 24, top: 18, bottom: bottomPad, containLabel: true };
+      option.xAxis = {
+        type: "value",
+        axisLine: { lineStyle: { color: chartGridColor() } },
+        splitLine: { lineStyle: { color: chartGridColor() } },
+        axisLabel: {
+          color: chartTextColor(),
+          fontSize: 11,
+          formatter: (v) => {
+            if (Math.abs(v) >= 1e9) return "$" + (v / 1e9).toFixed(1) + "B";
+            if (Math.abs(v) >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
+            if (Math.abs(v) >= 1e3) return "$" + (v / 1e3).toFixed(0) + "k";
+            return "$" + v;
+          },
+        },
+      };
+      option.yAxis = {
+        type: "category",
+        data: chartData.x || [],
+        axisLine: { lineStyle: { color: chartGridColor() } },
+        axisLabel: { color: chartTextColor(), fontSize: 12, fontWeight: "bold" },
+      };
+      if (legendData.length > 0) {
+        option.legend = { bottom: 2, textStyle: { color: chartTextColor() }, data: legendData };
+      }
+      option.series = (chartData.series || []).map((series) => {
+        const mapped = {
+          name: pairAwareLabel(series.name),
+          type: "bar",
+          data: series.data || [],
+          stack: series.stack,
+        };
+        if (barWidth) {
+          mapped.barWidth = barWidth;
+        }
+        if (series.color) {
+          mapped.itemStyle = { color: series.color };
+        }
+        return mapped;
+      });
+      if (legendGroups.length > 0) {
+        legendGroups.forEach((group) => {
+          option.series.push({
+            name: group.title,
+            type: "bar",
+            data: [],
+            stack: "__legend_placeholder__",
+            silent: true,
+            itemStyle: { color: "transparent" },
+            tooltip: { show: false },
+          });
+        });
+      }
     } else if (data.chart === "heatmap") {
       const minValue = Number(chartData.min ?? -1);
       const maxValue = Number(chartData.max ?? 1);
@@ -984,18 +1444,23 @@
           heatmapSeries.markLine = markLine;
         }
       }
+      const hmXLabel = pairAwareLabel(chartData.xAxisLabel) || "";
       option = {
         color: palette(),
         tooltip: { position: "top" },
-        grid: { left: 82, right: 18, top: 16, bottom: 58, containLabel: false },
+        grid: { left: 82, right: 18, top: 16, bottom: hmXLabel ? 68 : 58, containLabel: false },
         xAxis: {
           type: "category",
           data: chartData.x || [],
           boundaryGap: false,
+          name: hmXLabel || undefined,
+          nameLocation: "middle",
+          nameGap: hmXLabel ? 36 : undefined,
+          nameTextStyle: hmXLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
           axisLine: { lineStyle: { color: chartGridColor() } },
           axisLabel: {
             color: chartTextColor(),
-            fontSize: 10,
+            fontSize: 11,
             margin: 8,
             formatter: (value) => formatPrice4dp(value),
             hideOverlap: true,
@@ -1039,6 +1504,230 @@
           },
         ];
       }
+    } else if (chartData.chart === "line-area" && chartData.direction_arrows) {
+      const arrows = chartData.direction_arrows;
+      const topPad = arrows ? 40 : 22;
+      const areaYLabel = pairAwareLabel(chartData.yAxisLabel) || (arrows ? "Debt Value ($)" : "");
+      const areaXLabel = pairAwareLabel(chartData.xAxisLabel) || "";
+      const areaYFmt = axisFormatter(chartData.yAxisFormat);
+      const defaultYFmt = arrows
+        ? (v) => { if (Math.abs(v) >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M"; if (Math.abs(v) >= 1e3) return "$" + (v / 1e3).toFixed(0) + "k"; return "$" + v; }
+        : undefined;
+      const defaultXFmt = arrows
+        ? (v) => { const n = Number(v); return Number.isFinite(n) ? (n >= 0 ? "+" : "") + n.toFixed(1) : v; }
+        : (v) => formatPrice4dp(v);
+      option = {
+        color: palette(),
+        tooltip: { trigger: "axis" },
+        legend: { bottom: 2, textStyle: { color: chartTextColor() } },
+        grid: { left: areaYLabel ? 55 : 50, right: 18, top: topPad, bottom: areaXLabel ? 72 : 60, containLabel: true },
+        xAxis: {
+          type: "category",
+          data: chartData.x || [],
+          boundaryGap: false,
+          name: areaXLabel || undefined,
+          nameLocation: "middle",
+          nameGap: areaXLabel ? 36 : undefined,
+          nameTextStyle: areaXLabel ? { color: chartTextColor(), fontSize: 12 } : undefined,
+          axisLine: { lineStyle: { color: chartGridColor() } },
+          axisLabel: {
+            color: chartTextColor(),
+            fontSize: 11,
+            formatter: defaultXFmt,
+            hideOverlap: true,
+          },
+        },
+        yAxis: {
+          type: "value",
+          name: areaYLabel || undefined,
+          nameLocation: "middle",
+          nameGap: areaYLabel ? 45 : undefined,
+          nameTextStyle: areaYLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
+          axisLine: { lineStyle: { color: chartGridColor() } },
+          splitLine: { lineStyle: { color: chartGridColor() } },
+          axisLabel: {
+            color: chartTextColor(),
+            fontSize: 11,
+            formatter: areaYFmt || defaultYFmt || undefined,
+          },
+        },
+        series: (chartData.series || []).map((s) => {
+          const mapped = {
+            name: s.name,
+            type: s.type || "line",
+            data: s.data || [],
+            showSymbol: false,
+            smooth: s.smooth ?? false,
+          };
+          if (s.stack) mapped.stack = s.stack;
+          if (s.area) mapped.areaStyle = { opacity: 0.85 };
+          if (s.color) {
+            mapped.itemStyle = { color: s.color };
+            mapped.lineStyle = { color: s.color, width: 1 };
+            if (s.area) mapped.areaStyle = { opacity: 0.85, color: s.color };
+          }
+          return mapped;
+        }),
+      };
+      if (arrows) {
+        const xLabels = (chartData.x || []).map(Number);
+        const zeroIdx = xLabels.indexOf(0);
+        const zeroFrac = zeroIdx >= 0 ? ((zeroIdx / Math.max(xLabels.length - 1, 1)) * 100) : 50;
+        const tc = chartTextColor();
+        option.graphic = [
+          { type: "text", left: "8%", top: 8, style: { text: arrows.left, fill: tc, fontSize: 12 } },
+          { type: "text", left: (zeroFrac - 4) + "%", top: 8, style: { text: "\u2190\u2190", fill: tc, fontSize: 13, fontWeight: "bold" } },
+          { type: "text", left: zeroFrac + "%", top: 6, style: { text: "0", fill: tc, fontSize: 14, fontWeight: "bold", textAlign: "center" } },
+          { type: "text", left: (zeroFrac + 3) + "%", top: 8, style: { text: "\u2192\u2192", fill: tc, fontSize: 13, fontWeight: "bold" } },
+          { type: "text", right: "4%", top: 8, style: { text: arrows.right, fill: tc, fontSize: 12 } },
+        ];
+      }
+      if (Array.isArray(chartData.volatility_lines) && chartData.volatility_lines.length > 0) {
+        const xLabels = (chartData.x || []).map(String);
+        const volSeries = option.series.find((s) => s.data && s.data.length > 0) || option.series[0];
+        if (volSeries) {
+          volSeries.markLine = {
+            silent: true,
+            symbol: "none",
+            data: chartData.volatility_lines.map((vl) => {
+              const closest = xLabels.reduce((best, lbl, idx) => {
+                const diff = Math.abs(parseFloat(lbl) - vl.value);
+                return diff < best.diff ? { idx, diff } : best;
+              }, { idx: 0, diff: Infinity });
+              return {
+                xAxis: closest.idx,
+                lineStyle: { type: "dashed", color: vl.color || "#28c987", width: 2 },
+                label: { show: false },
+              };
+            }),
+          };
+        }
+      }
+    } else if (chartData.chart === "pie") {
+      const slices = chartData.slices || [];
+      option = {
+        tooltip: {
+          trigger: "item",
+          formatter: (params) => {
+            const pct = params.percent != null ? params.percent.toFixed(1) : "?";
+            return `${params.marker} ${params.name}: ${formatNumber(params.value)} (${pct}%)`;
+          },
+        },
+        legend: {
+          bottom: 2,
+          textStyle: { color: chartTextColor() },
+          data: slices.map((s) => s.name),
+        },
+        series: [
+          {
+            type: "pie",
+            radius: ["25%", "65%"],
+            center: ["50%", "45%"],
+            avoidLabelOverlap: true,
+            label: {
+              show: true,
+              formatter: "{d}%",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: "bold",
+              position: "inside",
+            },
+            emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: "rgba(0,0,0,0.5)" } },
+            data: slices.map((s) => ({
+              name: s.name,
+              value: s.value,
+              itemStyle: s.color ? { color: s.color } : undefined,
+            })),
+          },
+        ],
+      };
+      if (chartData.title_extra) {
+        option.graphic = [
+          {
+            type: "text",
+            left: "center",
+            bottom: 30,
+            style: {
+              text: chartData.title_extra,
+              fill: chartTextColor(),
+              fontSize: 11,
+              opacity: 0.7,
+            },
+          },
+        ];
+      }
+    } else if (chartData.chart === "timeline") {
+      const bars = chartData.bars || [];
+      const nowStr = chartData.now;
+      const categories = bars.map((b) => b.label);
+      const allTimes = bars.flatMap((b) => [new Date(b.start).getTime(), new Date(b.end).getTime()]);
+      const minT = Math.min(...allTimes);
+      const maxT = Math.max(...allTimes);
+      const pad = (maxT - minT) * 0.05 || 86400000;
+      const renderItems = bars.map((b, idx) => ({
+        value: [idx, new Date(b.start).getTime(), new Date(b.end).getTime()],
+        itemStyle: { color: b.color || "#4bb7ff" },
+      }));
+      const markLineData = [];
+      if (nowStr) {
+        const nowMs = new Date(nowStr).getTime();
+        if (nowMs >= minT - pad && nowMs <= maxT + pad) {
+          markLineData.push({
+            xAxis: nowMs,
+            lineStyle: { type: "dashed", color: "#ef4444", width: 2 },
+            label: { show: true, formatter: "Now", color: "#ef4444", fontSize: 12, fontWeight: "bold", position: "start" },
+          });
+        }
+      }
+      option = {
+        tooltip: {
+          trigger: "item",
+          formatter: (params) => {
+            if (!params.value) return "";
+            const s = new Date(params.value[1]);
+            const e = new Date(params.value[2]);
+            const fmt = (d) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+            return `${categories[params.value[0]]}<br/>${fmt(s)} \u2192 ${fmt(e)}`;
+          },
+        },
+        grid: { left: 140, right: 24, top: 28, bottom: 32 },
+        xAxis: {
+          type: "time",
+          min: minT - pad,
+          max: maxT + pad,
+          axisLine: { lineStyle: { color: chartGridColor() } },
+          axisLabel: { color: chartTextColor(), fontSize: 11, hideOverlap: true },
+          splitLine: { show: false },
+        },
+        yAxis: {
+          type: "category",
+          data: categories,
+          inverse: true,
+          axisLine: { lineStyle: { color: chartGridColor() } },
+          axisLabel: { color: chartTextColor(), fontSize: 12, fontWeight: 500 },
+          axisTick: { show: false },
+        },
+        series: [
+          {
+            type: "custom",
+            renderItem: (params, api) => {
+              const catIdx = api.value(0);
+              const startPx = api.coord([api.value(1), catIdx]);
+              const endPx = api.coord([api.value(2), catIdx]);
+              const barH = api.size([0, 1])[1] * 0.55;
+              return {
+                type: "rect",
+                shape: { x: startPx[0], y: startPx[1] - barH / 2, width: endPx[0] - startPx[0], height: barH },
+                style: { ...api.style(), fill: api.visual("color") },
+                styleEmphasis: api.style(),
+              };
+            },
+            encode: { x: [1, 2], y: 0 },
+            data: renderItems,
+            markLine: markLineData.length > 0 ? { silent: true, symbol: "none", data: markLineData } : undefined,
+          },
+        ],
+      };
     } else {
       option = baseChartOption(chartData);
       if (widgetId === "liquidity-depth") {
@@ -1055,7 +1744,7 @@
       if (comparableLiquidityWidgets.has(widgetId)) {
         option.grid.left = 82;
         option.grid.right = 18;
-        option.grid.bottom = 60;
+        option.grid.bottom = chartData.xAxisLabel ? 72 : 60;
         option.grid.containLabel = false;
         option.yAxis.axisLabel = {
           ...option.yAxis.axisLabel,
@@ -1072,7 +1761,7 @@
       }
       option.xAxis.boundaryGap = false;
       if (widgetId === "liquidity-distribution") {
-        option.grid.bottom = 60;
+        option.grid.bottom = chartData.xAxisLabel ? 72 : 60;
         const xValues = Array.isArray(chartData?.x) ? chartData.x : [];
         const series = Array.isArray(option.series) ? option.series : [];
         if (series.length >= 2) {
@@ -1149,7 +1838,7 @@
           }
         }
       }
-      if (leftLinkedZoomWidgets.has(widgetId) || rightLinkedZoomWidgets.has(widgetId)) {
+      if (leftLinkedZoomWidgets.has(widgetId)) {
         option.dataZoom = [
           {
             type: "inside",
@@ -1170,35 +1859,8 @@
           },
         ];
       }
-      if (rightLinkedZoomWidgets.has(widgetId)) {
-        option.grid.left = 82;
-        option.grid.right = 64;
-        option.grid.bottom = 60;
-        option.grid.containLabel = false;
-        option.yAxis = {
-          ...option.yAxis,
-          axisLabel: {
-            ...option.yAxis.axisLabel,
-            width: 62,
-            align: "right",
-            padding: [0, 8, 0, 0],
-          },
-        };
-        option.xAxis.axisLabel = {
-          ...option.xAxis.axisLabel,
-          formatter: (value) => formatCompactTimestamp(value),
-        };
-        option.tooltip.formatter = (params) => {
-          const items = Array.isArray(params) ? params : [params];
-          if (items.length === 0) {
-            return "";
-          }
-          const header = formatCompactTimestamp(items[0].axisValue);
-          const rows = items
-            .map((item) => `${item.marker} ${item.seriesName}: ${formatNumber(item.value)}`)
-            .join("<br/>");
-          return `${header}<br/>${rows}`;
-        };
+      if (getTimeseriesGroupId(widgetId)) {
+        applyLinkedTimeseriesFormat(option);
       }
       if (tickReferenceWidgets.has(widgetId) && Array.isArray(option.series) && option.series.length > 0) {
         const markLine = buildTickReferenceMarkLine(chartData);
@@ -1383,9 +2045,12 @@
           end: focusedTickZoom.end,
         });
       }
-    } else if (rightLinkedZoomWidgets.has(widgetId)) {
-      instance.group = linkedGroups.right;
-      echarts.connect(linkedGroups.right);
+    } else {
+      const tsGroupId = getTimeseriesGroupId(widgetId);
+      if (tsGroupId) {
+        instance.group = tsGroupId;
+        echarts.connect(tsGroupId);
+      }
     }
     chartState.set(widgetId, { instance, data });
     if (modalWidgetId === widgetId) {
@@ -1405,7 +2070,18 @@
     }
 
     if (kind === "table") {
+      if (payload.data.info) {
+        renderHealthInfoToggle(widgetId, payload.data.info);
+      }
+      if (payload.data.title_override) {
+        const titleEl = document.querySelector(`#widget-${widgetId} .panel-title-group h3`);
+        if (titleEl) titleEl.textContent = payload.data.title_override;
+      }
       renderTable(widgetId, `table-${widgetId}`, payload.data.columns || [], payload.data.rows || []);
+      if (payload.data.subtitle) {
+        const subEl = document.getElementById(`table-subtitle-${widgetId}`);
+        if (subEl) subEl.textContent = payload.data.subtitle;
+      }
       return;
     }
 
@@ -1454,6 +2130,7 @@
       const secondary = document.getElementById(`kpi-secondary-${widgetId}`);
       if (primary) {
         primary.textContent = "--";
+        autoSizeKpi(primary);
       }
       if (secondary) {
         secondary.textContent = "";
@@ -1522,6 +2199,16 @@
   function currentLastWindow() {
     const select = document.getElementById("last-window-select");
     return select ? select.value : "7d";
+  }
+
+  function currentMkt1() {
+    const select = document.getElementById("mkt1-select");
+    return select ? select.value : "";
+  }
+
+  function currentMkt2() {
+    const select = document.getElementById("mkt2-select");
+    return select ? select.value : "";
   }
 
   function readPersistedFilters() {
@@ -1704,10 +2391,59 @@
       });
     }
 
+    await initMarketSelectors();
+
     initTradeImpactModeToggle();
     initSwapsFlowModeToggle();
     initSwapsDistributionModeToggle();
     initSwapsOhlcvIntervalToggle();
+    initHealthSchemaToggle();
+    initHealthAttributeToggle();
+    initHealthBaseSchemaToggle();
+  }
+
+  async function initMarketSelectors() {
+    const container = document.getElementById("market-selectors");
+    if (!container) return;
+
+    const mkt1Select = document.getElementById("mkt1-select");
+    const mkt2Select = document.getElementById("mkt2-select");
+    if (!mkt1Select || !mkt2Select) return;
+
+    const pageId = container.dataset.apiPageId;
+    try {
+      const url = `${getApiBaseUrl()}/api/v1/${pageId}/exponent-market-meta`;
+      const resp = await fetch(url);
+      const payload = await resp.json();
+      const meta = payload.data || payload;
+      const markets = meta.markets || [];
+      const defaultMkt1 = meta.selected_mkt1 || "";
+      const defaultMkt2 = meta.selected_mkt2 || "";
+
+      setSelectOptions(mkt1Select, markets, defaultMkt1);
+      setSelectOptions(mkt2Select, markets, defaultMkt2);
+    } catch (_) {
+      mkt1Select.innerHTML = '<option value="">Unavailable</option>';
+      mkt2Select.innerHTML = '<option value="">Unavailable</option>';
+    }
+
+    const lastWindowSelect = document.getElementById("last-window-select");
+
+    mkt1Select.addEventListener("change", () => {
+      resetDashboardLoading();
+      const protocol = currentProtocol();
+      const pair = currentPair();
+      const lw = lastWindowSelect ? lastWindowSelect.value : currentLastWindow();
+      applyGlobalFilters(protocol, pair, lw, true);
+    });
+
+    mkt2Select.addEventListener("change", () => {
+      resetDashboardLoading();
+      const protocol = currentProtocol();
+      const pair = currentPair();
+      const lw = lastWindowSelect ? lastWindowSelect.value : currentLastWindow();
+      applyGlobalFilters(protocol, pair, lw, true);
+    });
   }
 
   function initTradeImpactModeToggle() {
@@ -1775,6 +2511,54 @@
     });
   }
 
+  function initHealthSchemaToggle() {
+    const schemaSelect = document.getElementById("health-schema-select");
+    const widget = document.getElementById("widget-health-queue-chart");
+    if (!schemaSelect || !widget) return;
+    widget.dataset.healthSchema = schemaSelect.value || "dexes";
+    schemaSelect.addEventListener("change", () => {
+      widget.dataset.healthSchema = schemaSelect.value || "dexes";
+      resetWidgetView(widget);
+      htmx.trigger(document.body, "health-schema-change");
+    });
+  }
+
+  function initHealthAttributeToggle() {
+    const attrSelect = document.getElementById("health-attribute-select");
+    const widget = document.getElementById("widget-health-queue-chart");
+    if (!attrSelect || !widget) return;
+    widget.dataset.healthAttribute = attrSelect.value || "Write Rate";
+    attrSelect.addEventListener("change", () => {
+      widget.dataset.healthAttribute = attrSelect.value || "Write Rate";
+      resetWidgetView(widget);
+      htmx.trigger(document.body, "health-attribute-change");
+    });
+  }
+
+  function initHealthBaseSchemaToggle() {
+    const selects = document.querySelectorAll(".health-base-schema-select");
+    if (!selects.length) return;
+    const eventsWidget = document.getElementById("widget-health-base-chart-events");
+    const accountsWidget = document.getElementById("widget-health-base-chart-accounts");
+    selects.forEach((sel) => {
+      sel.addEventListener("change", () => {
+        const val = sel.value || "dexes";
+        selects.forEach((s) => { s.value = val; });
+        if (eventsWidget) {
+          eventsWidget.dataset.healthBaseSchema = val;
+          resetWidgetView(eventsWidget);
+        }
+        if (accountsWidget) {
+          accountsWidget.dataset.healthBaseSchema = val;
+          resetWidgetView(accountsWidget);
+        }
+        htmx.trigger(document.body, "health-base-schema-change");
+      });
+    });
+    if (eventsWidget) eventsWidget.dataset.healthBaseSchema = selects[0].value || "dexes";
+    if (accountsWidget) accountsWidget.dataset.healthBaseSchema = selects[0].value || "dexes";
+  }
+
   document.body.addEventListener("htmx:afterRequest", (event) => {
     const sourceEl = event.detail.elt;
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
@@ -1811,6 +2595,10 @@
     event.detail.parameters.protocol = currentProtocol();
     event.detail.parameters.pair = currentPair();
     event.detail.parameters.last_window = currentLastWindow();
+    const m1 = currentMkt1();
+    const m2 = currentMkt2();
+    if (m1) event.detail.parameters.mkt1 = m1;
+    if (m2) event.detail.parameters.mkt2 = m2;
     if (sourceEl.dataset.widgetId === "trade-impact-toggle") {
       event.detail.parameters.impact_mode = sourceEl.dataset.impactMode || "size";
     }
@@ -1822,6 +2610,24 @@
     }
     if (sourceEl.dataset.widgetId === "swaps-ohlcv") {
       event.detail.parameters.ohlcv_interval = sourceEl.dataset.ohlcvInterval || "1d";
+    }
+    if (sourceEl.dataset.widgetId === "health-queue-chart") {
+      event.detail.parameters.health_schema = sourceEl.dataset.healthSchema || "dexes";
+      event.detail.parameters.health_attribute = sourceEl.dataset.healthAttribute || "Write Rate";
+    }
+    if (sourceEl.dataset.widgetId === "health-base-chart-events" || sourceEl.dataset.widgetId === "health-base-chart-accounts") {
+      event.detail.parameters.health_base_schema = sourceEl.dataset.healthBaseSchema || "dexes";
+    }
+  });
+
+  document.body.addEventListener("htmx:beforeRequest", (event) => {
+    const sourceEl = event.detail.elt;
+    if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
+      return;
+    }
+    // Avoid background polling/request churn when the tab is hidden.
+    if (document.hidden) {
+      event.preventDefault();
     }
   });
 
@@ -1872,6 +2678,14 @@
   });
 
   document.body.addEventListener("click", (event) => {
+    const detailBtn = event.target.closest(".detail-table-btn");
+    if (detailBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      openDetailTable(detailBtn.dataset.widgetId || "");
+      return;
+    }
+
     const expandButton = event.target.closest(".chart-expand-btn");
     if (expandButton) {
       event.preventDefault();
@@ -1893,6 +2707,8 @@
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closeChartModal();
+      closeTableModal();
+      closePageActionModal();
     }
   });
 
@@ -1927,8 +2743,370 @@
     }
   });
 
+  /* ── Page-Action Modal ────────────────────────────────────── */
+  function pageActionModalEls() {
+    return {
+      backdrop: document.getElementById("page-action-modal-backdrop"),
+      title: document.getElementById("page-action-modal-title"),
+      body: document.getElementById("page-action-modal-body"),
+    };
+  }
+
+  function closePageActionModal() {
+    const { backdrop } = pageActionModalEls();
+    if (backdrop) backdrop.hidden = true;
+  }
+
+  function openPageActionModal(label, html) {
+    const { backdrop, title, body } = pageActionModalEls();
+    if (!backdrop) return;
+    title.textContent = label;
+    body.innerHTML = html;
+    backdrop.hidden = false;
+  }
+
+  function buildExplainerHTML() {
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const themeDirective = isDark
+      ? "%%{init: {'theme':'dark', 'themeVariables': { 'lineColor':'#22c55e', 'primaryColor':'#1e40af', 'primaryBorderColor':'#3b82f6', 'secondaryColor':'#0891b2', 'tertiaryColor':'#0d9488'}}}%%"
+      : "%%{init: {'theme':'default', 'themeVariables': { 'lineColor':'#16a34a'}}}%%";
+
+    const mermaidDef = `${themeDirective}
+flowchart LR
+    subgraph LEFT[ ]
+        direction TB
+        subgraph MARKET[Lending Market]
+            MKT((Market<br/>Account))
+        end
+        MKT -->|owns| RB1
+        MKT -->|owns| RB2
+        MKT -->|owns| RC1
+        subgraph RESERVES[Reserve Accounts]
+            RB1[Reserve: USX<br/>borrow]
+            RB2[Reserve: USDC<br/>borrow]
+            RC1[Reserve: eUSX<br/>collateral]
+        end
+    end
+    subgraph OBLIGATIONS[Obligation Accounts]
+        direction TB
+        O1[Obligation<br/>user_1]
+        O2[Obligation<br/>user_2]
+        O3[Obligation<br/>user_n]
+    end
+    O1 -.->|positions| RESERVES
+    O2 -.->|positions| RESERVES
+    O3 -.->|positions| RESERVES
+    OBLIGATIONS -.->|belongs to| MKT
+    linkStyle default stroke:#22c55e,stroke-width:3px
+    style LEFT fill:none,stroke:none`;
+
+    return `
+<h4>Summary</h4>
+<p>The Kamino protocol facilitates a cross-margined lending market, where multiple assets can be borrowed against a common basket of accepted collateral tokens.</p>
+
+<div class="mermaid-wrap"><pre class="mermaid">${mermaidDef}</pre></div>
+
+<h4>Protocol Infrastructure</h4>
+<p>Three on-chain account types form the protocol structure:</p>
+<ul>
+  <li><strong>Market Account</strong> &mdash; Top-level structure that owns all reserve and obligation accounts. Defines a quote currency (typically USD) to value all assets on a common basis using pricing oracles.</li>
+  <li><strong>Reserve Account</strong> &mdash; Each token has a unique reserve account serving both borrow and collateral roles. Accepts deposits from suppliers and manages liquidity for borrowers.</li>
+  <li><strong>Obligation Account</strong> &mdash; Each user has one obligation per market tracking all borrow, collateral, and supply positions. Aggregates risk and valuation in the market's quote currency.</li>
+</ul>
+
+<h4>New Loans</h4>
+<p>Borrowing capacity is determined by loan-to-value (LTV) parameters:</p>
+<ul>
+  <li>Each collateral deposit converts to market quote currency</li>
+  <li>Multiplied by its collateral LTV</li>
+  <li>Sum defines maximum borrowable value</li>
+</ul>
+<p>Each borrow asset has a risk weight (borrow factor) that rescales its market value before comparison against maximum borrowable value.</p>
+
+<h4>Health Monitoring</h4>
+<p>Unhealthy borrow value = &Sigma;(Collateral value &times; liquidation LTV)</p>
+<p>Health Factor (HF) = Unhealthy borrow value &divide; Adjusted borrow value</p>
+<ul>
+  <li>HF = 1 &rarr; liquidation eligible</li>
+  <li>HF &gt; 1 &rarr; healthy</li>
+  <li>HF &lt; 1 &rarr; actively liquidatable</li>
+</ul>
+<p>New loan LTVs are set below liquidation thresholds to buffer against price volatility.</p>
+
+<h4>Liquidations &amp; Loss Socialization</h4>
+<ul>
+  <li>Liquidators repay borrowed assets for discounted collateral</li>
+  <li>Operates on individual borrow-collateral pairs</li>
+  <li>Cap applies (~20% max per transaction during standard liquidation)</li>
+  <li>Eligibility ends once HF restored above 1</li>
+</ul>
+<p>A severe LTV threshold defines insolvency risk level where up to 100% may be liquidatable. If liquidators fail to restore solvency, the protocol may socialize losses via haircuts on depositor claims.</p>
+
+<h4>Asset Valuation</h4>
+<p>Kamino uses on-chain price oracles. Exponent principal tokens (PT-USX and PT-eUSX) use a custom pricing model:</p>
+<blockquote><code>PT price = (1 - (time_to_maturity_seconds &times; annual_discount_rate / seconds_per_year)) &times; underlying_price</code></blockquote>
+<p>Current annual discount rate: 25%. Underlying asset for both PT tokens is USX (not eUSX), so they don't transmit eUSX price risk and increase predictably toward maturity.</p>
+
+<h4>APY Pricing</h4>
+<p>Supply and borrow APYs are determined by each reserve's utilization rate. Rates increase as utilization rises. The spread between supply and borrow APY is defined by the protocol's take rate.</p>
+`;
+  }
+
+  function buildExplainerExponentHTML() {
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const themeDirective = isDark
+      ? "%%{init: {'theme':'dark', 'themeVariables': { 'lineColor':'#22c55e', 'primaryColor':'#1e40af', 'primaryBorderColor':'#3b82f6', 'secondaryColor':'#0891b2', 'tertiaryColor':'#0d9488'}}}%%"
+      : "%%{init: {'theme':'default', 'themeVariables': { 'lineColor':'#16a34a'}}}%%";
+
+    const mermaidDef = `${themeDirective}
+flowchart LR
+    subgraph WRAP[Wrapping]
+        direction TB
+        BASE[Base Token<br/>e.g. eUSX] -->|wrap| SY[SY Token]
+        SY -->|unwrap| BASE
+    end
+    subgraph STRIP[Stripping]
+        direction TB
+        SY2[SY] -->|split 1:1| PTYT["PT + YT<br/>(per maturity)"]
+        PTYT -->|merge pair| SY2
+    end
+    subgraph AMM[Yield Trading AMM]
+        direction TB
+        POOL["SY + PT<br/>Liquidity Pool"]
+        LP[LP Providers] -->|deposit| POOL
+        POOL -->|fees| LP
+    end
+    WRAP --> STRIP
+    STRIP --> AMM
+    linkStyle default stroke:#22c55e,stroke-width:3px
+    style WRAP fill:none,stroke:#3b82f6
+    style STRIP fill:none,stroke:#0891b2
+    style AMM fill:none,stroke:#0d9488`;
+
+    return `
+<h4>Summary</h4>
+<p>The Exponent protocol enables the creation of yield derivatives and supporting liquidity, forming a yield trading market that allows users to convert variable yield into fixed-yield exposure, or to speculate on the future variable yield of an underlying token.</p>
+
+<div class="mermaid-wrap"><pre class="mermaid">${mermaidDef}</pre></div>
+
+<h4>Token Ecosystem</h4>
+<p>The Exponent protocol operates by minting three token derivatives that are ultimately tied to base token capital: SY, PT, and YT.</p>
+<ul>
+  <li><strong>Base Tokens &rarr; SY</strong> &mdash; Base tokens are wrapped as SY ("standard yield") tokens. SY tokens can be redeemed for base tokens at any time. SY is not just an entry point into the protocol, it also serves as the liquidity pair in the AMM used to price fixed yield.</li>
+  <li><strong>SY &rarr; PT + YT</strong> &mdash; SY tokens can be split into PT-YT token pairs. YT (Yield Token) represents the right to all variable yield that will accrue during the market's term. PT (Principal Token) represents the right to the principal at maturity, with its price determined by the fixed-yield AMM. PT-YT pairs are minted for a specific maturity and are linked to a specific SY token.</li>
+</ul>
+
+<h4>Token Claims and Convertibility</h4>
+<ul>
+  <li><strong>SY &harr; Base Token Conversion</strong> &mdash; The conversion rate between SY and the underlying base token is determined by the accumulated value of the underlying relative to its value when the SY was first minted. This rate is updated via oracle. In the case of a yield-bearing token such as eUSX, as long as the underlying continues to distribute yield and the principal remains intact, the value of 1 SY in base tokens will gradually increase over time.</li>
+  <li><strong>SY &harr; PT-YT Conversion</strong> &mdash; SY is convertible into PT-YT token pairs on a fixed 1:1 basis (1 SY = 1 PT and 1 YT). Prior to maturity, PT-YT pairs can only be converted back into SY as complete pairs. At maturity and beyond, PT becomes directly redeemable on its own, at the SY-base exchange rate fixed at maturity. This enforces a 1 PT = 1 base token unit claim at maturity.</li>
+  <li><strong>PT Pricing and Fixed Yield</strong> &mdash; PT can be bought and sold for base-token-redeemable SY on a dedicated AMM specific to each PT maturity, with SY as the liquidity pair. The AMM's pricing formula is adapted for yield trading by forcing the PT price toward 1 base token unit as maturity approaches and reducing price sensitivity to trades as maturity nears. The PT/Base price reflects the market-implied discount on principal and therefore defines the fixed yield available to PT buyers.</li>
+  <li><strong>YT and Variable Yield Claims</strong> &mdash; YT holders are entitled to withdraw the variable yield portion of SY prior to market maturity, provided they stake their YT tokens into the protocol's staking contract. These mechanics imply that the claims on the SY tokens locked during PT-YT minting evolve over time. A portion becomes withdrawable as variable yield (via YT), and the remaining portion remains claimable through PT redemption at maturity.</li>
+</ul>
+`;
+  }
+
+  const configTableTooltips = {
+    "Quote Currency": "On-chain address of the protocol pricing oracle. (Market level)",
+    "User Borrow Limits": "Maximum total value an individual address can borrow from this market. (Market level)",
+    "Risk Weight for Loan LTV": 'Risk weight applied to borrowed value when calculating collateral requirements. Referred to as the "borrow factor" by the protocol. All protocol health checks use borrow-factor-adjusted debt in LTV and HF calculations. (Reserve level \u2013 Borrowable assets)',
+    "General New Loan LTV": "Collateral LTV used to set borrowing limits before borrow-factor risk adjustment. (Reserve level \u2013 Collateral assets)",
+    "Unhealthy Threshold LTV": "LTV at which an obligation becomes marked as unhealthy and collateral becomes eligible for liquidation. (Reserve level \u2013 Collateral assets)",
+    "Bad Debt Threshold LTV": "LTV at which an obligation is marked as at risk of insolvency and becomes eligible for full liquidation. (Market level)",
+    "Unhealthy Loan Share Liquidatable": "Share of loan value eligible for liquidation when an obligation becomes unhealthy. (Market level)",
+    "Small Loans Fully Liquidatable": "Loans below this market-value threshold are always liquidatable in full. (Market level)",
+    "Max Amount Liquidatable [Any]": "Maximum loan value that can be liquidated in a single transaction. (Market level)",
+    "Min Liquidation Fee": "Minimum liquidation bonus (in basis points) awarded to liquidators when an obligation becomes unhealthy; scales upward as LTV exceeds the liquidation threshold. (Reserve level \u2013 Borrowable assets)",
+    "Max Liquidation Fee": "Maximum liquidation bonus (in basis points) that liquidators can receive for unhealthy positions; caps the incentive as insolvency risk is approached. (Reserve level \u2013 Borrowable assets)",
+    "Bad Debt Liquidation Bonus": "Liquidation bonus (in basis points) applied when an obligation has bad debt, meaning borrowed value exceeds collateral value. (Reserve level \u2013 Borrowable assets)",
+    "Aggregate Deposit Cap": "Absolute maximum total deposits allowed in this reserve; new deposits are blocked once this limit is reached. (Reserve level \u2013 Borrowable assets)",
+    "Aggregate Borrow Cap": "Absolute maximum total borrows allowed from this reserve; new borrows are blocked once this limit is reached. (Reserve level \u2013 Borrowable assets)",
+    "Deposit & Redeem Caps [24hr]": "Rolling 24-hour rate limit for net withdrawals or redemptions from this reserve to prevent rapid liquidity drain. (Reserve level \u2013 Borrowable assets)",
+    "Borrow & Repay Cap [24hr]": "Rolling 24-hour rate limit for net new borrows from this reserve to control borrow velocity. (Reserve level \u2013 Borrowable assets)",
+    "Market Utilization Limit": 'Utilization percentage above which new borrows are blocked. "None" means no utilization-based restriction is applied. (Reserve level \u2013 Borrowable assets)',
+  };
+
+  function escapeHtml(text) {
+    const el = document.createElement("span");
+    el.textContent = text;
+    return el.innerHTML;
+  }
+
+  function renderPageActionTable(data) {
+    if (!data || !data.columns || !data.rows) return "<p>No data.</p>";
+    let html = '<table class="data-table" style="width:100%"><thead><tr>';
+    for (const col of data.columns) {
+      html += `<th>${col.label}</th>`;
+    }
+    html += "</tr></thead><tbody>";
+    for (const row of data.rows) {
+      const tip = configTableTooltips[row.term];
+      const cls = tip ? ' class="has-row-tip"' : "";
+      html += `<tr${cls}>`;
+      for (const col of data.columns) {
+        const val = row[col.key];
+        const display = val === null || val === undefined ? "" : val;
+        if (col.key === "term" && tip) {
+          html += `<td><span class="row-tip-wrap">${escapeHtml(String(display))}<svg class="info-tip-icon" width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.3"/><text x="8" y="12" text-anchor="middle" fill="currentColor" font-size="11" font-weight="600">i</text></svg><span class="info-tip-card">${escapeHtml(tip)}</span></span></td>`;
+        } else {
+          html += `<td>${display}</td>`;
+        }
+      }
+      html += "</tr>";
+    }
+    html += "</tbody></table>";
+    return html;
+  }
+
+  function bindRowTipPositioning(container) {
+    const wraps = container.querySelectorAll(".row-tip-wrap");
+    wraps.forEach((wrap) => {
+      wrap.addEventListener("mouseenter", () => {
+        const card = wrap.querySelector(".info-tip-card");
+        if (!card) return;
+        const iconRect = wrap.getBoundingClientRect();
+        const cardW = 340;
+        let left = iconRect.left;
+        if (left + cardW > window.innerWidth - 12) {
+          left = window.innerWidth - cardW - 12;
+        }
+        if (left < 12) left = 12;
+        let top = iconRect.top - 6;
+        card.style.left = left + "px";
+        card.style.top = "";
+        card.style.bottom = (window.innerHeight - top) + "px";
+        card.style.display = "block";
+      });
+      wrap.addEventListener("mouseleave", () => {
+        const card = wrap.querySelector(".info-tip-card");
+        if (card) card.style.display = "";
+      });
+    });
+  }
+
+  async function handlePageActionClick(btn) {
+    const actionId = btn.dataset.actionId;
+    const modalKind = btn.dataset.modalKind;
+    const endpoint = btn.dataset.endpoint || "";
+    const label = btn.querySelector("span")?.textContent || "Details";
+
+    if (actionId === "kamino-explainer") {
+      openPageActionModal(label, buildExplainerHTML());
+      if (window.mermaid) {
+        await mermaid.run({ nodes: document.querySelectorAll(".page-action-modal-body .mermaid") });
+      }
+      return;
+    }
+
+    if (actionId === "exponent-explainer") {
+      openPageActionModal(label, buildExplainerExponentHTML());
+      if (window.mermaid) {
+        await mermaid.run({ nodes: document.querySelectorAll(".page-action-modal-body .mermaid") });
+      }
+      return;
+    }
+
+    if (!endpoint) {
+      openPageActionModal(label, "<p>No endpoint configured.</p>");
+      return;
+    }
+
+    openPageActionModal(label, '<p style="color:var(--muted)">Loading…</p>');
+    try {
+      const actionUrl = new URL(endpoint, window.location.origin);
+      const am1 = currentMkt1();
+      const am2 = currentMkt2();
+      if (am1) actionUrl.searchParams.set("mkt1", am1);
+      if (am2) actionUrl.searchParams.set("mkt2", am2);
+      const cacheKey = actionUrl.toString();
+      const cached = pageActionCache.get(cacheKey);
+      let data;
+      if (cached && cached.expiresAt > Date.now()) {
+        data = cached.payload;
+      } else {
+        const resp = await fetch(actionUrl);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        data = await resp.json();
+        pageActionCache.set(cacheKey, {
+          expiresAt: Date.now() + PAGE_ACTION_CACHE_TTL_MS,
+          payload: data,
+        });
+      }
+      const tableData = data?.data || data;
+      const { body } = pageActionModalEls();
+      body.innerHTML = renderPageActionTable(tableData);
+      bindRowTipPositioning(body);
+    } catch (err) {
+      const { body } = pageActionModalEls();
+      body.innerHTML = `<p style="color:#ef4444">Failed to load data: ${err.message}</p>`;
+    }
+  }
+
+  document.body.addEventListener("click", (event) => {
+    const actionBtn = event.target.closest(".page-action-btn");
+    if (actionBtn) {
+      handlePageActionClick(actionBtn);
+      return;
+    }
+    const paBackdrop = document.getElementById("page-action-modal-backdrop");
+    if (paBackdrop && !paBackdrop.hidden) {
+      const closeBtn = event.target.closest("#page-action-modal-close");
+      if (closeBtn) { closePageActionModal(); return; }
+      if (event.target === paBackdrop) { closePageActionModal(); }
+    }
+  });
+
+  // ── Global health indicator (runs on every page) ──
+  const HEALTH_POLL_INTERVAL_MS = 60_000;
+  const HEALTH_RED_CONFIRM_RETRIES = 2;
+  const HEALTH_RED_CONFIRM_DELAY_MS = 5_000;
+
+  function initHealthIndicator() {
+    const dot = document.querySelector("#health-indicator .health-dot");
+    if (!dot) return;
+    const url = "/api/health-status";
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const json = await res.json();
+        return json.is_green;
+      } catch {
+        return null;
+      }
+    }
+
+    async function poll() {
+      let status = await fetchStatus();
+
+      if (status === false) {
+        for (let i = 0; i < HEALTH_RED_CONFIRM_RETRIES; i++) {
+          await new Promise((r) => setTimeout(r, HEALTH_RED_CONFIRM_DELAY_MS));
+          const retry = await fetchStatus();
+          if (retry !== false) { status = retry; break; }
+        }
+      }
+
+      dot.classList.remove("health-dot--unknown", "health-dot--green", "health-dot--red");
+      if (status === true) dot.classList.add("health-dot--green");
+      else if (status === false) dot.classList.add("health-dot--red");
+      else dot.classList.add("health-dot--unknown");
+
+      const label = status === true ? "All systems nominal" : status === false ? "Action required – click to view" : "Health status unavailable";
+      dot.closest(".health-indicator").title = label;
+    }
+
+    poll();
+    setInterval(poll, HEALTH_POLL_INTERVAL_MS);
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     initPageSelector();
     initFilters();
+    initHealthIndicator();
+    if (window.mermaid) {
+      mermaid.initialize({ startOnLoad: false, theme: "dark" });
+    }
   });
 })();

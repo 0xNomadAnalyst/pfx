@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os
 import statistics
 from datetime import UTC, datetime
 from math import ceil
@@ -11,6 +12,16 @@ from app.services.pages.base import BasePageService
 
 class DexSwapsPageService(BasePageService):
     page_id = "dex-swaps"
+    _DEX_LAST_TTL_SECONDS = float(os.getenv("DEX_SWAPS_DEX_LAST_TTL_SECONDS", "120"))
+    _TIMESERIES_TTL_SECONDS = float(os.getenv("DEX_SWAPS_TIMESERIES_TTL_SECONDS", "120"))
+    _OHLCV_TTL_SECONDS = float(os.getenv("DEX_SWAPS_OHLCV_TTL_SECONDS", "120"))
+    _TICK_DIST_TTL_SECONDS = float(os.getenv("DEX_SWAPS_TICK_DIST_TTL_SECONDS", "120"))
+    _DISTRIBUTION_TTL_SECONDS = float(os.getenv("DEX_SWAPS_DISTRIBUTION_TTL_SECONDS", "120"))
+    _RANKED_EVENTS_TTL_SECONDS = float(os.getenv("DEX_SWAPS_RANKED_EVENTS_TTL_SECONDS", "120"))
+    _RANKED_EVENTS_MAX_LOOKBACK = os.getenv("DEX_SWAPS_RANKED_EVENTS_MAX_LOOKBACK", "24 hours")
+    _RANKED_EVENTS_TIMEOUT_MS = int(os.getenv("DEX_SWAPS_RANKED_EVENTS_TIMEOUT_MS", "5000"))
+    _RANKED_EVENTS_FALLBACK_LOOKBACK = os.getenv("DEX_SWAPS_RANKED_EVENTS_FALLBACK_LOOKBACK", "12 hours")
+    _DEX_LAST_TIMEOUT_MS = int(os.getenv("DEX_SWAPS_DEX_LAST_TIMEOUT_MS", "8000"))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -139,17 +150,31 @@ class DexSwapsPageService(BasePageService):
         pair = str(params.get("pair", self.default_pair))
         lookback = self._lookback(params)
 
-        def _load_row() -> dict[str, Any]:
+        def _run_query(active_lookback: str) -> dict[str, Any]:
             query = """
                 SELECT *
                 FROM dexes.get_view_dex_last(%s, %s, %s::interval)
                 LIMIT 1
             """
-            rows = self.sql.fetch_rows(query, (protocol, pair, lookback))
+            rows = self.sql.fetch_rows(
+                query,
+                (protocol, pair, active_lookback),
+                statement_timeout_ms=self._DEX_LAST_TIMEOUT_MS,
+            )
             return rows[0] if rows else {}
 
+        def _load_row() -> dict[str, Any]:
+            try:
+                return _run_query(lookback)
+            except Exception as exc:
+                is_timeout = "statement timeout" in str(exc).lower()
+                fallback_lookback = str(params.get("lookback", "1 day"))
+                if not is_timeout or lookback == fallback_lookback:
+                    raise
+                return _run_query(fallback_lookback)
+
         cache_key = f"dex_swaps::dex_last::{protocol}::{pair}::{lookback}"
-        return self._cached(cache_key, _load_row)
+        return self._cached(cache_key, _load_row, ttl_seconds=self._DEX_LAST_TTL_SECONDS)
 
     def _dex_timeseries_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         protocol = str(params.get("protocol", self.default_protocol))
@@ -170,7 +195,7 @@ class DexSwapsPageService(BasePageService):
             return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
 
         cache_key = f"dex_swaps::dex_timeseries::v2::{protocol}::{pair}::{interval}::{rows}"
-        cached_rows = self._cached(cache_key, _load_rows)
+        cached_rows = self._cached(cache_key, _load_rows, ttl_seconds=self._TIMESERIES_TTL_SECONDS)
         return self._drop_incomplete_trailing_bucket(cached_rows, interval)
 
     def _dex_ohlcv_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -203,7 +228,7 @@ class DexSwapsPageService(BasePageService):
             return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
 
         cache_key = f"dex_swaps::dex_ohlcv::v2::{protocol}::{pair}::{last_window}::{interval}::{rows}"
-        cached_rows = self._cached(cache_key, _load_rows)
+        cached_rows = self._cached(cache_key, _load_rows, ttl_seconds=self._OHLCV_TTL_SECONDS)
         return self._drop_incomplete_trailing_bucket(cached_rows, interval)
 
     def _tick_dist_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -211,16 +236,25 @@ class DexSwapsPageService(BasePageService):
         pair = str(params.get("pair", self.default_pair))
         delta_time = str(params.get("tick_delta_time", "1 hour"))
 
-        def _load_rows() -> list[dict[str, Any]]:
+        def _run_query(active_delta_time: str) -> list[dict[str, Any]]:
             query = """
                 SELECT *
                 FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval)
                 ORDER BY tick_price_t1_per_t0
             """
-            return self.sql.fetch_rows(query, (protocol, pair, delta_time))
+            return self.sql.fetch_rows(query, (protocol, pair, active_delta_time))
+
+        def _load_rows() -> list[dict[str, Any]]:
+            try:
+                return _run_query(delta_time)
+            except Exception as exc:
+                is_timeout = "statement timeout" in str(exc).lower()
+                if not is_timeout or delta_time == "24 hours":
+                    raise
+                return _run_query("24 hours")
 
         cache_key = f"dex_swaps::tick_dist::v2::{protocol}::{pair}::{delta_time}"
-        return self._cached(cache_key, _load_rows)
+        return self._cached(cache_key, _load_rows, ttl_seconds=self._TICK_DIST_TTL_SECONDS)
 
     def _sell_swaps_distribution_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         protocol = str(params.get("protocol", self.default_protocol))
@@ -236,7 +270,7 @@ class DexSwapsPageService(BasePageService):
             return self.sql.fetch_rows(query, (protocol, pair, lookback, 10))
 
         cache_key = f"dex_swaps::sell_swaps_distribution::{protocol}::{pair}::{lookback}"
-        return self._cached(cache_key, _load_rows)
+        return self._cached(cache_key, _load_rows, ttl_seconds=self._DISTRIBUTION_TTL_SECONDS)
 
     def _sell_pressure_distribution_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         protocol = str(params.get("protocol", self.default_protocol))
@@ -252,12 +286,16 @@ class DexSwapsPageService(BasePageService):
             return self.sql.fetch_rows(query, (protocol, pair, lookback, 10))
 
         cache_key = f"dex_swaps::sell_pressure_distribution::{protocol}::{pair}::{lookback}"
-        return self._cached(cache_key, _load_rows)
+        return self._cached(cache_key, _load_rows, ttl_seconds=self._DISTRIBUTION_TTL_SECONDS)
 
     def _swaps_ranked_events_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         protocol = str(params.get("protocol", self.default_protocol))
         pair = str(params.get("pair", self.default_pair))
         lookback = self._lookback(params)
+        last_window = str(params.get("last_window", "24h")).lower()
+        bounded_lookback = lookback
+        if self._RANKED_EVENTS_MAX_LOOKBACK and last_window in {"7d", "30d", "90d"}:
+            bounded_lookback = self._RANKED_EVENTS_MAX_LOOKBACK
         rows = 6
 
         def _load_rows() -> list[dict[str, Any]]:
@@ -269,8 +307,16 @@ class DexSwapsPageService(BasePageService):
             """
 
             def _run_for_lookback(active_lookback: str) -> list[dict[str, Any]]:
-                sell_rows = self.sql.fetch_rows(query, (protocol, pair, "in", rows, active_lookback))
-                buy_rows = self.sql.fetch_rows(query, (protocol, pair, "out", rows, active_lookback))
+                sell_rows = self.sql.fetch_rows(
+                    query,
+                    (protocol, pair, "in", rows, active_lookback),
+                    statement_timeout_ms=self._RANKED_EVENTS_TIMEOUT_MS,
+                )
+                buy_rows = self.sql.fetch_rows(
+                    query,
+                    (protocol, pair, "out", rows, active_lookback),
+                    statement_timeout_ms=self._RANKED_EVENTS_TIMEOUT_MS,
+                )
                 enriched_sell = [{**row, "side": "Sell USX"} for row in sell_rows]
                 enriched_buy = [{**row, "side": "Buy USX"} for row in buy_rows]
                 combined = enriched_sell + enriched_buy
@@ -278,30 +324,55 @@ class DexSwapsPageService(BasePageService):
                 return combined[: rows * 2]
 
             try:
-                return _run_for_lookback(lookback)
+                return _run_for_lookback(bounded_lookback)
             except Exception as exc:
-                if "statement timeout" not in str(exc).lower() or lookback == "24 hours":
+                is_timeout = "statement timeout" in str(exc).lower()
+                if not is_timeout:
                     raise
-                # Fallback keeps widget responsive for very long windows.
-                return _run_for_lookback("24 hours")
+                if bounded_lookback != self._RANKED_EVENTS_FALLBACK_LOOKBACK:
+                    return _run_for_lookback(self._RANKED_EVENTS_FALLBACK_LOOKBACK)
+                if bounded_lookback != "24 hours":
+                    return _run_for_lookback("24 hours")
+                raise
 
-        cache_key = f"dex_swaps::ranked_events::{protocol}::{pair}::{lookback}"
-        return self._cached(cache_key, _load_rows)
+        cache_key = f"dex_swaps::ranked_events::{protocol}::{pair}::{bounded_lookback}"
+        return self._cached(cache_key, _load_rows, ttl_seconds=self._RANKED_EVENTS_TTL_SECONDS)
+
+    def _dex_last_row_fixed_lookback(self, params: dict[str, Any], lookback: str) -> dict[str, Any]:
+        fixed_params = dict(params)
+        fixed_params.pop("last_window", None)
+        fixed_params["lookback"] = lookback
+        return self._dex_last_row(fixed_params)
 
     def _kpi_swap_volume_24h(self, params: dict[str, Any]) -> dict[str, Any]:
-        row = self._dex_last_row(params)
+        row = self._dex_last_row_fixed_lookback(params, "24 hours")
         return {"kind": "kpi", "primary": row.get("swap_vol_t1_total_24h"), "label": "24h Transaction Volume"}
 
     def _kpi_swap_count_24h(self, params: dict[str, Any]) -> dict[str, Any]:
-        row = self._dex_last_row(params)
+        row = self._dex_last_row_fixed_lookback(params, "24 hours")
         return {"kind": "kpi", "primary": row.get("swap_count_24h"), "label": "24h Swap Count"}
 
     def _kpi_price_min_max(self, params: dict[str, Any]) -> dict[str, Any]:
-        row = self._dex_last_row(params)
+        try:
+            row = self._dex_last_row(params)
+        except Exception:
+            row = {}
+        min_price = row.get("price_t1_per_t0_min")
+        max_price = row.get("price_t1_per_t0_max")
+        if min_price is None or max_price is None:
+            timeseries_rows = self._dex_timeseries_rows(params)
+            prices = [
+                self._to_float_or_none(item.get("price_t1_per_t0"))
+                for item in timeseries_rows
+            ]
+            valid_prices = [value for value in prices if value is not None]
+            if valid_prices:
+                min_price = min(valid_prices)
+                max_price = max(valid_prices)
         return {
             "kind": "kpi",
-            "primary": row.get("price_t1_per_t0_min"),
-            "secondary": row.get("price_t1_per_t0_max"),
+            "primary": min_price,
+            "secondary": max_price,
             "label": "Price Min/Max",
         }
 
@@ -366,10 +437,13 @@ class DexSwapsPageService(BasePageService):
         sell_key = "swap_t1_in" if is_usdc else "swap_t0_in"
         buy_label = "Buy USDC" if is_usdc else "Buy USX"
         sell_label = "Sell USDC" if is_usdc else "Sell USX"
+        volume_label = "USDC" if is_usdc else "USX"
         return {
             "kind": "chart",
             "chart": "bar-line",
             "x": [row["time"] for row in rows],
+            "yAxisLabel": volume_label,
+            "yRightAxisLabel": "Swap Count",
             "series": [
                 {"name": buy_label, "type": "bar", "yAxisIndex": 0, "color": "#2fbf71", "data": [row.get(buy_key) for row in rows]},
                 {"name": sell_label, "type": "bar", "yAxisIndex": 0, "color": "#e24c4c", "data": [-(abs(float(row.get(sell_key) or 0))) for row in rows]},
@@ -386,6 +460,7 @@ class DexSwapsPageService(BasePageService):
             "kind": "chart",
             "chart": "line",
             "x": [row["time"] for row in rows],
+            "yAxisLabel": "Price Impact (bps)",
             "series": [
                 {"name": "Avg. Swap Impact", "type": "line", "yAxisIndex": 0, "color": "#f8a94a", "connectNulls": True, "data": avg_impacts},
                 {"name": "Max. Sell USX Impact", "type": "line", "yAxisIndex": 0, "color": "#c186ff", "connectNulls": True, "data": max_sell_impacts},
@@ -407,6 +482,8 @@ class DexSwapsPageService(BasePageService):
             "kind": "chart",
             "chart": "line",
             "x": [row["time"] for row in rows],
+            "yAxisLabel": "VWAP Spread (bps)",
+            "yRightAxisLabel": "Std. Dev.",
             "series": [
                 {"name": "VWAP Spread", "type": "bar", "yAxisIndex": 0, "color": "#f8a94a", "data": [self._to_float_or_none(row.get("avg_vwap_spread_bps_w_last")) for row in rows]},
                 {"name": "Std. Dev.", "type": "line", "yAxisIndex": 1, "color": "#4bb7ff", "data": std_values},
@@ -481,6 +558,8 @@ class DexSwapsPageService(BasePageService):
             "kind": "chart",
             "chart": "bar-line",
             "x": x,
+            "yAxisLabel": "Swap Count",
+            "yRightAxisLabel": "Price Impact (bps)",
             "series": [
                 {"name": "Swap Count", "type": "bar", "yAxisIndex": 0, "color": "#4bb7ff", "data": [row.get("swap_count") for row in rows]},
                 {
@@ -502,6 +581,8 @@ class DexSwapsPageService(BasePageService):
             "kind": "chart",
             "chart": "bar-line",
             "x": x,
+            "yAxisLabel": "Interval Count",
+            "yRightAxisLabel": "Price Impact (bps)",
             "series": [
                 {"name": "Pressure Counted", "type": "bar", "yAxisIndex": 0, "color": "#4bb7ff", "data": [row.get("interval_count") for row in rows]},
                 {

@@ -1,0 +1,226 @@
+{
+  "run_started_utc": "2026-02-28T07:20:14.406760+00:00",
+  "run_finished_utc": "2026-02-28T07:20:39.806433+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8011",
+    "pages": [
+      "dex-swaps"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "1h",
+      "24h",
+      "7d"
+    ],
+    "repeats": 2,
+    "timeout_seconds": 30.0,
+    "parallel": 1,
+    "widget_filter": [
+      "kpi-swap-count-24h",
+      "kpi-swap-volume-24h",
+      "swaps-ranked-events"
+    ],
+    "quick": false
+  },
+  "results": [
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-count-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h"
+      },
+      "cold_ms": 1.67,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 22.34,
+      "warm_p50_ms": 23.36,
+      "warm_p95_ms": 24.27,
+      "warm_avg_ms": 23.36,
+      "warm_max_ms": 24.37,
+      "payload_bytes_p50": 196,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-volume-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h"
+      },
+      "cold_ms": 5081.0,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.89,
+      "warm_p50_ms": 9.6,
+      "warm_p95_ms": 16.54,
+      "warm_avg_ms": 9.6,
+      "warm_max_ms": 17.31,
+      "payload_bytes_p50": 206,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "swaps-ranked-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h"
+      },
+      "cold_ms": 6711.04,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 16.42,
+      "warm_p50_ms": 20.01,
+      "warm_p95_ms": 23.24,
+      "warm_avg_ms": 20.01,
+      "warm_max_ms": 23.6,
+      "payload_bytes_p50": 9344,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-count-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 2.0,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.62,
+      "warm_p50_ms": 1.68,
+      "warm_p95_ms": 1.73,
+      "warm_avg_ms": 1.68,
+      "warm_max_ms": 1.73,
+      "payload_bytes_p50": 196,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-volume-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 2664.79,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 2.28,
+      "warm_p50_ms": 11.96,
+      "warm_p95_ms": 20.67,
+      "warm_avg_ms": 11.96,
+      "warm_max_ms": 21.64,
+      "payload_bytes_p50": 206,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "swaps-ranked-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 6608.93,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.93,
+      "warm_p50_ms": 11.7,
+      "warm_p95_ms": 20.49,
+      "warm_avg_ms": 11.7,
+      "warm_max_ms": 21.47,
+      "payload_bytes_p50": 15916,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-count-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d"
+      },
+      "cold_ms": 13.79,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.99,
+      "warm_p50_ms": 7.83,
+      "warm_p95_ms": 13.09,
+      "warm_avg_ms": 7.83,
+      "warm_max_ms": 13.68,
+      "payload_bytes_p50": 196,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-volume-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d"
+      },
+      "cold_ms": 4077.54,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.86,
+      "warm_p50_ms": 11.95,
+      "warm_p95_ms": 21.03,
+      "warm_avg_ms": 11.95,
+      "warm_max_ms": 22.03,
+      "payload_bytes_p50": 206,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "swaps-ranked-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d"
+      },
+      "cold_ms": 26.71,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.85,
+      "warm_p50_ms": 7.37,
+      "warm_p95_ms": 12.34,
+      "warm_avg_ms": 7.37,
+      "warm_max_ms": 12.89,
+      "payload_bytes_p50": 15916,
+      "error_samples": []
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+{
+  "run_started_utc": "2026-02-28T07:22:02.075086+00:00",
+  "run_finished_utc": "2026-02-28T07:22:02.373833+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8011",
+    "pages": [
+      "dex-swaps"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "1h",
+      "24h",
+      "7d"
+    ],
+    "repeats": 2,
+    "timeout_seconds": 30.0,
+    "parallel": 1,
+    "widget_filter": [
+      "kpi-swap-count-24h",
+      "kpi-swap-volume-24h"
+    ],
+    "quick": false
+  },
+  "results": [
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-count-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h"
+      },
+      "cold_ms": 1.46,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 13.6,
+      "warm_p50_ms": 14.62,
+      "warm_p95_ms": 15.54,
+      "warm_avg_ms": 14.62,
+      "warm_max_ms": 15.64,
+      "payload_bytes_p50": 196,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-volume-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h"
+      },
+      "cold_ms": 50.44,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.35,
+      "warm_p50_ms": 12.26,
+      "warm_p95_ms": 22.08,
+      "warm_avg_ms": 12.26,
+      "warm_max_ms": 23.17,
+      "payload_bytes_p50": 206,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-count-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 16.37,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 18.38,
+      "warm_p50_ms": 22.39,
+      "warm_p95_ms": 26.0,
+      "warm_avg_ms": 22.39,
+      "warm_max_ms": 26.4,
+      "payload_bytes_p50": 196,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-volume-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h"
+      },
+      "cold_ms": 15.5,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 12.81,
+      "warm_p50_ms": 13.26,
+      "warm_p95_ms": 13.67,
+      "warm_avg_ms": 13.26,
+      "warm_max_ms": 13.71,
+      "payload_bytes_p50": 206,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-count-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d"
+      },
+      "cold_ms": 1.62,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 15.82,
+      "warm_p50_ms": 20.85,
+      "warm_p95_ms": 25.39,
+      "warm_avg_ms": 20.85,
+      "warm_max_ms": 25.89,
+      "payload_bytes_p50": 196,
+      "error_samples": []
+    },
+    {
+      "page": "dex-swaps",
+      "widget": "kpi-swap-volume-24h",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d"
+      },
+      "cold_ms": 15.3,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_min_ms": 14.57,
+      "warm_p50_ms": 14.97,
+      "warm_p95_ms": 15.33,
+      "warm_avg_ms": 14.97,
+      "warm_max_ms": 15.37,
+      "payload_bytes_p50": 206,
+      "error_samples": []
+    }
+  ]
+}

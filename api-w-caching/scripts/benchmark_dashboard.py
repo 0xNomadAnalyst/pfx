@@ -31,6 +31,7 @@ from urllib.request import Request, urlopen
 class WidgetScenario:
     widget: str
     extra_params: dict[str, str]
+    direct_path: str = ""
 
 
 LIQUIDITY_SCENARIOS: list[WidgetScenario] = [
@@ -72,10 +73,110 @@ SWAPS_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("swaps-ranked-events", {}),
 ]
 
+KAMINO_SCENARIOS: list[WidgetScenario] = [
+    # Group 1 KPIs
+    WidgetScenario("kpi-utilization-by-reserve", {}),
+    WidgetScenario("kpi-loan-value", {}),
+    WidgetScenario("kpi-obligations-debt-size", {}),
+    WidgetScenario("kpi-share-borrow-asset", {}),
+    WidgetScenario("kpi-ltv-hf", {}),
+    WidgetScenario("kpi-collateral-value", {}),
+    WidgetScenario("kpi-unhealthy-share", {}),
+    WidgetScenario("kpi-share-collateral-asset", {}),
+    # Group 2 KPIs
+    WidgetScenario("kpi-zero-use-count", {}),
+    WidgetScenario("kpi-zero-use-capacity", {}),
+    WidgetScenario("kpi-borrow-apy", {}),
+    WidgetScenario("kpi-supply-apy", {}),
+    # Group 3 KPIs
+    WidgetScenario("kpi-borrow-vol-24h", {}),
+    WidgetScenario("kpi-repay-vol-24h", {}),
+    WidgetScenario("kpi-liquidation-vol-30d", {}),
+    WidgetScenario("kpi-liquidation-count-30d", {}),
+    WidgetScenario("kpi-withdraw-vol-24h", {}),
+    WidgetScenario("kpi-deposit-vol-24h", {}),
+    WidgetScenario("kpi-liquidation-avg-size", {}),
+    WidgetScenario("kpi-days-no-liquidation", {}),
+    # Charts
+    WidgetScenario("kamino-supply-collateral-status", {}),
+    WidgetScenario("kamino-rate-curve", {}),
+    WidgetScenario("kamino-loan-size-dist", {}),
+    WidgetScenario("kamino-stress-debt", {}),
+    WidgetScenario("kamino-utilization-timeseries", {}),
+    WidgetScenario("kamino-ltv-hf-timeseries", {}),
+    WidgetScenario("kamino-liability-flows", {}),
+    WidgetScenario("kamino-liquidations", {}),
+    # Tables and page actions
+    WidgetScenario("kamino-obligation-watchlist", {"rows": "20", "page": "1"}),
+    WidgetScenario("kamino-config-table", {}),
+    WidgetScenario("kamino-market-assets", {}),
+    WidgetScenario("kamino-sensitivity-table", {}),
+]
+
+EXPONENT_SCENARIOS: list[WidgetScenario] = [
+    # Market selector metadata
+    WidgetScenario("exponent-market-meta", {}),
+    # Group 1 KPIs and headline charts
+    WidgetScenario("exponent-pie-tvl", {}),
+    WidgetScenario("kpi-base-token-yield", {}),
+    WidgetScenario("kpi-locked-base-tokens", {}),
+    WidgetScenario("kpi-current-fixed-yield", {}),
+    WidgetScenario("kpi-sy-base-collateral", {}),
+    WidgetScenario("exponent-timeline", {}),
+    WidgetScenario("kpi-fixed-variable-spread", {}),
+    WidgetScenario("kpi-sy-coll-ratio", {}),
+    WidgetScenario("kpi-yt-staked-share", {}),
+    WidgetScenario("kpi-amm-depth", {}),
+    # Group 2 KPIs
+    WidgetScenario("kpi-pt-base-price", {}),
+    WidgetScenario("kpi-apy-impact-pt-trade", {}),
+    WidgetScenario("kpi-pt-vol-24h", {}),
+    WidgetScenario("kpi-amm-deployment-ratio", {}),
+    # Market info cards
+    WidgetScenario("exponent-market-info-mkt1", {}),
+    WidgetScenario("exponent-market-info-mkt2", {}),
+    # Timeseries charts
+    WidgetScenario("exponent-pt-swap-flows-mkt1", {}),
+    WidgetScenario("exponent-pt-swap-flows-mkt2", {}),
+    WidgetScenario("exponent-token-strip-flows-mkt1", {}),
+    WidgetScenario("exponent-token-strip-flows-mkt2", {}),
+    WidgetScenario("exponent-vault-sy-balance-mkt1", {}),
+    WidgetScenario("exponent-vault-sy-balance-mkt2", {}),
+    WidgetScenario("exponent-yt-staked-mkt1", {}),
+    WidgetScenario("exponent-yt-staked-mkt2", {}),
+    WidgetScenario("exponent-yield-trading-liq-mkt1", {}),
+    WidgetScenario("exponent-yield-trading-liq-mkt2", {}),
+    WidgetScenario("exponent-realized-rates-mkt1", {}),
+    WidgetScenario("exponent-realized-rates-mkt2", {}),
+    WidgetScenario("exponent-divergence-mkt1", {}),
+    WidgetScenario("exponent-divergence-mkt2", {}),
+    # Table-backed modal action
+    WidgetScenario("exponent-market-assets", {}),
+]
+
+HEALTH_SCENARIOS: list[WidgetScenario] = [
+    WidgetScenario("health-master", {}),
+    WidgetScenario("health-queue-table", {}),
+    WidgetScenario("health-queue-chart", {}),
+    WidgetScenario("health-trigger-table", {}),
+    WidgetScenario("health-base-table", {}),
+    WidgetScenario("health-base-chart-events", {}),
+    WidgetScenario("health-base-chart-accounts", {}),
+    WidgetScenario("health-cagg-table", {}),
+]
+
+HEADER_HEALTH_SCENARIOS: list[WidgetScenario] = [
+    WidgetScenario("health-status", {}, direct_path="/api/v1/health-status"),
+]
+
 PAGE_DEFAULT_SCENARIOS: dict[str, list[WidgetScenario]] = {
     "playbook-liquidity": LIQUIDITY_SCENARIOS,
     "dex-liquidity": LIQUIDITY_SCENARIOS,
     "dex-swaps": SWAPS_SCENARIOS,
+    "kamino": KAMINO_SCENARIOS,
+    "exponent": EXPONENT_SCENARIOS,
+    "health": HEALTH_SCENARIOS,
+    "header-health": HEADER_HEALTH_SCENARIOS,
 }
 
 PAGE_ALIASES: dict[str, str] = {
@@ -83,6 +184,56 @@ PAGE_ALIASES: dict[str, str] = {
     "playbook-liquidity": "playbook-liquidity",
     "dex-liquidity": "dex-liquidity",
     "dex-swaps": "dex-swaps",
+    "kamino": "kamino",
+    "exponent": "exponent",
+    "health": "health",
+    "header-health": "header-health",
+}
+
+QUICK_WIDGETS_BY_PAGE: dict[str, list[str]] = {
+    "playbook-liquidity": [
+        "liquidity-distribution",
+        "liquidity-depth",
+        "kpi-tvl",
+        "trade-impact-toggle",
+        "ranked-lp-events",
+    ],
+    "dex-liquidity": [
+        "liquidity-distribution",
+        "liquidity-depth",
+        "kpi-tvl",
+        "trade-impact-toggle",
+        "ranked-lp-events",
+    ],
+    "dex-swaps": [
+        "kpi-swap-volume-24h",
+        "swaps-flows-toggle",
+        "swaps-ohlcv",
+        "swaps-ranked-events",
+    ],
+    "kamino": [
+        "kpi-utilization-by-reserve",
+        "kamino-market-assets",
+        "kamino-rate-curve",
+        "kamino-utilization-timeseries",
+        "kamino-obligation-watchlist",
+    ],
+    "exponent": [
+        "exponent-market-meta",
+        "kpi-base-token-yield",
+        "exponent-pie-tvl",
+        "exponent-pt-swap-flows-mkt1",
+        "exponent-market-assets",
+    ],
+    "health": [
+        "health-master",
+        "health-queue-chart",
+        "health-base-chart-events",
+        "health-cagg-table",
+    ],
+    "header-health": [
+        "health-status",
+    ],
 }
 
 
@@ -96,6 +247,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--protocol", default="raydium", help="Protocol filter")
     parser.add_argument("--pair", default="USX-USDC", help="Pair filter")
+    parser.add_argument("--mkt1", default="", help="Optional market selector #1 (exponent page)")
+    parser.add_argument("--mkt2", default="", help="Optional market selector #2 (exponent page)")
     parser.add_argument(
         "--windows",
         default="1h,24h,7d,30d",
@@ -109,6 +262,16 @@ def parse_args() -> argparse.Namespace:
         "--widgets",
         default="",
         help="Optional comma-separated widget ids to include (filters default scenario list)",
+    )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Use a small representative widget subset per page for fast checks",
+    )
+    parser.add_argument(
+        "--fail-on-errors",
+        action="store_true",
+        help="Exit non-zero when any scenario has cold/warm request errors",
     )
     return parser.parse_args()
 
@@ -170,7 +333,7 @@ def parse_pages(page_arg: str) -> list[str]:
     for item in raw_items:
         key = item.lower()
         if key == "all":
-            return ["playbook-liquidity", "dex-swaps"]
+            return ["playbook-liquidity", "dex-swaps", "kamino", "exponent", "health", "header-health"]
         alias = PAGE_ALIASES.get(key)
         if alias is None:
             raise ValueError(f"Unsupported page: {item}")
@@ -178,10 +341,15 @@ def parse_pages(page_arg: str) -> list[str]:
     return normalized
 
 
-def scenario_list_for_page(page: str, widget_filter: set[str]) -> list[WidgetScenario]:
+def scenario_list_for_page(page: str, widget_filter: set[str], quick: bool) -> list[WidgetScenario]:
     scenarios = PAGE_DEFAULT_SCENARIOS.get(page, [])
     if not scenarios:
         raise ValueError(f"No scenarios defined for page: {page}")
+    if quick and not widget_filter:
+        quick_widgets = set(QUICK_WIDGETS_BY_PAGE.get(page, []))
+        quick_scenarios = [scenario for scenario in scenarios if scenario.widget in quick_widgets]
+        if quick_scenarios:
+            return quick_scenarios
     if not widget_filter:
         return list(scenarios)
     filtered = [scenario for scenario in scenarios if scenario.widget in widget_filter]
@@ -200,7 +368,14 @@ def run_scenario(
 ) -> dict[str, Any]:
     params = dict(common_params)
     params.update(scenario.extra_params)
-    url = build_url(base_url, page, scenario.widget, params)
+    if scenario.direct_path:
+        query = urlencode(params)
+        base = base_url.rstrip("/")
+        url = f"{base}{scenario.direct_path}"
+        if query:
+            url = f"{url}?{query}"
+    else:
+        url = build_url(base_url, page, scenario.widget, params)
 
     cold = benchmark_once(url, timeout_seconds)
     warm_runs = [benchmark_once(url, timeout_seconds) for _ in range(repeats)]
@@ -260,6 +435,23 @@ def print_report(results: list[dict[str, Any]]) -> None:
             f"{row['warm_avg_ms']:9.2f} {row['warm_error_count']:5d} {row['payload_bytes_p50']:10d}"
         )
     print("=" * 110)
+    failures = [
+        row for row in results
+        if (not row.get("cold_ok", False)) or int(row.get("warm_error_count", 0)) > 0
+    ]
+    print(f"Scenarios: {len(results)} | Failures: {len(failures)}")
+    if failures:
+        print("Failure samples:")
+        for row in failures[:10]:
+            samples = row.get("error_samples") or []
+            sample = str(samples[0]) if samples else ""
+            sample = sample.replace("\n", " ")[:160]
+            print(
+                f"- {row.get('page')}/{row.get('widget')} "
+                f"(cold_status={row.get('cold_status_code')}, warm_errors={row.get('warm_error_count')}): {sample}"
+            )
+        if len(failures) > 10:
+            print(f"- ... and {len(failures) - 10} more failing scenarios")
 
 
 def main() -> int:
@@ -271,14 +463,19 @@ def main() -> int:
     start = datetime.now(timezone.utc)
     jobs: list[tuple[str, WidgetScenario, dict[str, Any]]] = []
     for page in pages:
-        scenarios = scenario_list_for_page(page, widget_filter)
+        scenarios = scenario_list_for_page(page, widget_filter, args.quick)
         for window in windows:
             for scenario in scenarios:
-                common_params = {
-                    "protocol": args.protocol,
-                    "pair": args.pair,
-                    "last_window": window,
-                }
+                if page == "header-health":
+                    common_params = {}
+                else:
+                    common_params = {
+                        "protocol": args.protocol,
+                        "pair": args.pair,
+                        "last_window": window,
+                        "mkt1": args.mkt1,
+                        "mkt2": args.mkt2,
+                    }
                 jobs.append((page, scenario, common_params))
 
     results: list[dict[str, Any]] = []
@@ -336,6 +533,7 @@ def main() -> int:
             "timeout_seconds": args.timeout_seconds,
             "parallel": args.parallel,
             "widget_filter": sorted(widget_filter),
+            "quick": args.quick,
         },
         "results": results,
     }
@@ -345,6 +543,13 @@ def main() -> int:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
         print(f"\nJSON report written: {output_path}")
+
+    failures = [
+        row for row in results
+        if (not row.get("cold_ok", False)) or int(row.get("warm_error_count", 0)) > 0
+    ]
+    if args.fail_on_errors and failures:
+        return 1
 
     return 0
 

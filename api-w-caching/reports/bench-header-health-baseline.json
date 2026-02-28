@@ -1,0 +1,43 @@
+{
+  "run_started_utc": "2026-02-28T10:01:01.790464+00:00",
+  "run_finished_utc": "2026-02-28T10:01:44.544978+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8001",
+    "pages": [
+      "header-health"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "24h"
+    ],
+    "repeats": 20,
+    "timeout_seconds": 30.0,
+    "parallel": 1,
+    "widget_filter": [],
+    "quick": false
+  },
+  "results": [
+    {
+      "page": "header-health",
+      "widget": "health-status",
+      "params": {},
+      "cold_ms": 2047.37,
+      "cold_ok": false,
+      "cold_status_code": 0,
+      "warm_repeats": 20,
+      "warm_success_count": 0,
+      "warm_error_count": 20,
+      "warm_min_ms": 2014.62,
+      "warm_p50_ms": 2033.92,
+      "warm_p95_ms": 2048.49,
+      "warm_avg_ms": 2034.82,
+      "warm_max_ms": 2059.61,
+      "payload_bytes_p50": 107,
+      "error_samples": [
+        "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>",
+        "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+      ]
+    }
+  ]
+}

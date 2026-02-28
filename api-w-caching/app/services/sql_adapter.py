@@ -1,4 +1,7 @@
 import os
+import threading
+import time
+import logging
 from decimal import Decimal
 from typing import Any
 
@@ -6,12 +9,15 @@ import psycopg2
 import psycopg2.extras
 from psycopg2.pool import ThreadedConnectionPool
 
+logger = logging.getLogger(__name__)
+
 
 class SqlAdapter:
     """Small SQL execution adapter independent from FastAPI."""
 
     def __init__(self) -> None:
         self._pool: ThreadedConnectionPool | None = None
+        self._pool_lock = threading.Lock()
 
     def _dsn(self) -> str:
         sslmode = os.getenv("DB_SSLMODE", "require")
@@ -33,24 +39,76 @@ class SqlAdapter:
 
     def _get_pool(self) -> ThreadedConnectionPool:
         if self._pool is None:
-            minconn = int(os.getenv("DB_POOL_MIN", "1"))
-            maxconn = int(os.getenv("DB_POOL_MAX", "8"))
-            self._pool = ThreadedConnectionPool(minconn=minconn, maxconn=maxconn, dsn=self._dsn())
+            with self._pool_lock:
+                if self._pool is None:
+                    minconn = int(os.getenv("DB_POOL_MIN", "1"))
+                    maxconn = int(os.getenv("DB_POOL_MAX", "8"))
+                    if maxconn < minconn:
+                        maxconn = minconn
+                    self._pool = ThreadedConnectionPool(minconn=minconn, maxconn=maxconn, dsn=self._dsn())
+                    if os.getenv("DB_POOL_PREWARM", "1") == "1":
+                        self._prewarm_pool(self._pool)
         return self._pool
 
-    def fetch_rows(self, query: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
-        pool = self._get_pool()
+    @staticmethod
+    def _prewarm_pool(pool: ThreadedConnectionPool) -> None:
         conn = pool.getconn()
         try:
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(query, params)
-                return [self._normalize_row(row) for row in cur.fetchall()]
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
         finally:
             if not conn.closed:
                 conn.rollback()
                 pool.putconn(conn)
             else:
                 pool.putconn(conn, close=True)
+
+    def fetch_rows(
+        self,
+        query: str,
+        params: tuple[Any, ...] = (),
+        statement_timeout_ms: int | None = None,
+    ) -> list[dict[str, Any]]:
+        started = time.perf_counter()
+        pool = self._get_pool()
+        conn = pool.getconn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                if statement_timeout_ms is not None:
+                    cur.execute(f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}")
+                cur.execute(query, params)
+                rows = [self._normalize_row(row) for row in cur.fetchall()]
+                self._log_slow_query(started, query, len(rows), statement_timeout_ms)
+                return rows
+        finally:
+            if not conn.closed:
+                conn.rollback()
+                pool.putconn(conn)
+            else:
+                pool.putconn(conn, close=True)
+
+    def _log_slow_query(
+        self,
+        started: float,
+        query: str,
+        row_count: int,
+        statement_timeout_ms: int | None,
+    ) -> None:
+        if os.getenv("DB_LOG_SLOW_QUERIES", "0") != "1":
+            return
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        threshold_ms = float(os.getenv("DB_SLOW_QUERY_THRESHOLD_MS", "200"))
+        if elapsed_ms < threshold_ms:
+            return
+        compact_query = " ".join(query.split())
+        query_preview = compact_query[:180]
+        logger.warning(
+            "Slow SQL query %.2fms rows=%s timeout_ms=%s sql=%s",
+            elapsed_ms,
+            row_count,
+            statement_timeout_ms,
+            query_preview,
+        )
 
     def close(self) -> None:
         if self._pool is not None:

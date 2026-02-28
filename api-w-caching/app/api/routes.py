@@ -21,6 +21,15 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@router.get("/api/v1/health-status")
+def health_status(svc: DataService = Depends(get_data_service)) -> dict[str, object]:
+    """Lightweight master health check consumed by the global header indicator."""
+    try:
+        return {"is_green": svc.get_health_indicator_status()}
+    except Exception:
+        return {"is_green": None}
+
+
 @router.get("/api/v1/widgets")
 def list_widgets(page: Annotated[str, Query()] = "playbook-liquidity") -> dict[str, list[str]]:
     return {"widgets": _service.list_widgets(page=page)}
@@ -51,6 +60,11 @@ def get_widget(
     distribution_mode: Annotated[str, Query()] = "sell-order",
     ohlcv_interval: Annotated[str, Query()] = "1d",
     ohlcv_rows: Annotated[int, Query(ge=1, le=1000)] = 180,
+    mkt1: Annotated[str, Query()] = "",
+    mkt2: Annotated[str, Query()] = "",
+    health_schema: Annotated[str, Query()] = "dexes",
+    health_attribute: Annotated[str, Query()] = "Write Rate",
+    health_base_schema: Annotated[str, Query()] = "dexes",
     svc: DataService = Depends(get_data_service),
 ) -> WidgetResponse:
     params = {
@@ -66,6 +80,11 @@ def get_widget(
         "distribution_mode": distribution_mode,
         "ohlcv_interval": ohlcv_interval,
         "ohlcv_rows": ohlcv_rows,
+        "mkt1": mkt1,
+        "mkt2": mkt2,
+        "health_schema": health_schema,
+        "health_attribute": health_attribute,
+        "health_base_schema": health_base_schema,
     }
     try:
         payload = svc.get_widget_data(page=page, widget_id=widget, params=params)

@@ -23,9 +23,11 @@ PAGE_CONFIG = PageConfig(
         WidgetConfig("kpi-max-1h-buy-pressure", "Max 1h Buy Pressure", "kpi", "panel panel-kpi swaps-slot-kpi-b5"),
         WidgetConfig("swaps-flows-toggle", "Swap Flows + Count", "chart", "panel panel-medium swaps-slot-right-top"),
         WidgetConfig("swaps-price-impacts", "Swap Price Impacts", "chart", "panel panel-medium swaps-slot-right-bottom"),
-        WidgetConfig("swaps-spread-volatility", "Spread + Volatility", "chart", "panel panel-medium swaps-slot-mid-1"),
+        WidgetConfig("swaps-spread-volatility", "Spread + Volatility", "chart", "panel panel-medium swaps-slot-mid-1",
+                     tooltip="Spread values are only reported for intervals in which both buy and sell trades are present."),
         WidgetConfig("swaps-ohlcv", "OHLCV", "chart", "panel panel-medium swaps-slot-mid-2"),
-        WidgetConfig("swaps-distribution-toggle", "Swap Distribution", "chart", "panel panel-medium swaps-slot-mid-3"),
+        WidgetConfig("swaps-distribution-toggle", "Swap Distribution", "chart", "panel panel-medium swaps-slot-mid-3",
+                     tooltip="Distribution of sell swaps by trade size, along with cumulative percentiles for each size based on all swaps in the sample. A straight line on the impact curve indicates that liquidity depth is consistent across the price range to which swaps of these sizes would reprice."),
         WidgetConfig("swaps-ranked-events", "Ranked Swap Events", "table", "panel panel-wide-table swaps-slot-bottom", expandable=False),
     ],
 )
