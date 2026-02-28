@@ -532,7 +532,8 @@ class DexLiquidityPageService(BasePageService):
     def _ranked_lp_events(self, params: dict[str, Any]) -> dict[str, Any]:
         protocol = str(params.get("protocol", "raydium"))
         pair = str(params.get("pair", "USX-USDC"))
-        rows = int(params.get("rows", 12))
+        # Keep parity with React reference: always show top 10 per side.
+        rows = 10
         lookback = str(params.get("lookback", "1 day"))
         last_window = str(params.get("last_window", "24h"))
         lookback_from_window, _, _ = self._timeseries_window_config(last_window)
@@ -581,6 +582,7 @@ class DexLiquidityPageService(BasePageService):
             # Match React split layout semantics: Removed on left, Added on right.
             "left_title": "Liquidity Removed",
             "right_title": "Liquidity Added",
-            "left_rows": top_out,
-            "right_rows": top_in,
+            # Hard-cap rows client-visible, even if SQL function returns extra.
+            "left_rows": (top_out or [])[:rows],
+            "right_rows": (top_in or [])[:rows],
         }

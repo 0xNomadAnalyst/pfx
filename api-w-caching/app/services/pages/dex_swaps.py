@@ -18,7 +18,7 @@ class DexSwapsPageService(BasePageService):
     _TICK_DIST_TTL_SECONDS = float(os.getenv("DEX_SWAPS_TICK_DIST_TTL_SECONDS", "120"))
     _DISTRIBUTION_TTL_SECONDS = float(os.getenv("DEX_SWAPS_DISTRIBUTION_TTL_SECONDS", "120"))
     _RANKED_EVENTS_TTL_SECONDS = float(os.getenv("DEX_SWAPS_RANKED_EVENTS_TTL_SECONDS", "120"))
-    _RANKED_EVENTS_TIMEOUT_MS = int(os.getenv("DEX_SWAPS_RANKED_EVENTS_TIMEOUT_MS", "5000"))
+    _RANKED_EVENTS_TIMEOUT_MS = int(os.getenv("DEX_SWAPS_RANKED_EVENTS_TIMEOUT_MS", "60000"))
     _DEX_LAST_TIMEOUT_MS = int(os.getenv("DEX_SWAPS_DEX_LAST_TIMEOUT_MS", "8000"))
 
     def __init__(self, *args, **kwargs):
@@ -337,7 +337,17 @@ class DexSwapsPageService(BasePageService):
         protocol = str(params.get("protocol", self.default_protocol))
         pair = str(params.get("pair", self.default_pair))
         lookback = self._lookback(params)
-        rows = 6
+        last_window = str(params.get("last_window", "24h")).lower()
+        rows = 10
+        ranked_timeout_ms = {
+            "1h": 15_000,
+            "4h": 20_000,
+            "6h": 25_000,
+            "24h": 35_000,
+            "7d": 60_000,
+            "30d": 120_000,
+            "90d": 180_000,
+        }.get(last_window, self._RANKED_EVENTS_TIMEOUT_MS)
 
         def _load_rows() -> list[dict[str, Any]]:
             query = """
@@ -355,17 +365,24 @@ class DexSwapsPageService(BasePageService):
                 sell_rows = self.sql.fetch_rows(
                     query,
                     (protocol, pair, "in", rows, active_lookback),
-                    statement_timeout_ms=self._RANKED_EVENTS_TIMEOUT_MS,
+                    statement_timeout_ms=ranked_timeout_ms,
                 )
                 buy_rows = self.sql.fetch_rows(
                     query,
                     (protocol, pair, "out", rows, active_lookback),
-                    statement_timeout_ms=self._RANKED_EVENTS_TIMEOUT_MS,
+                    statement_timeout_ms=ranked_timeout_ms,
                 )
                 return {"sell": sell_rows, "buy": buy_rows}
 
             # Respect selected Last window exactly; never silently shorten lookback.
-            return _run_for_lookback(lookback)
+            try:
+                return _run_for_lookback(lookback)
+            except Exception as exc:
+                # Keep widget rendering stable under heavy windows; avoid surfacing
+                # a full SQL traceback blob in the frontend panel.
+                if "statement timeout" in str(exc).lower():
+                    return {"sell": [], "buy": []}
+                raise
 
         cache_key = f"dex_swaps::ranked_events::{protocol}::{pair}::{lookback}"
         return self._cached(cache_key, _load_rows, ttl_seconds=self._RANKED_EVENTS_TTL_SECONDS)

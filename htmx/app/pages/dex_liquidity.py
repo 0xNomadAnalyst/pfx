@@ -25,6 +25,6 @@ PAGE_CONFIG = PageConfig(
         WidgetConfig("trade-impact-toggle", "Trade Impact", "chart", "panel panel-medium slot-right-2"),
         WidgetConfig("usdc-lp-flows", "USDC LP Flows", "chart", "panel panel-medium slot-right-3"),
         WidgetConfig("liquidity-depth-table", "Liquidity Depth Table", "table", "panel panel-wide-table slot-right-depth-table", expandable=False),
-        WidgetConfig("ranked-lp-events", "Largest LP changes In and Out (USDC)", "table-split", "panel panel-wide-table slot-ranked", expandable=False),
+        WidgetConfig("ranked-lp-events", "10 Largest LP changes In and Out (USDC)", "table-split", "panel panel-wide-table slot-ranked", expandable=False),
     ],
 )

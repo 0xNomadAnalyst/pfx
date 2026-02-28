@@ -28,6 +28,6 @@ PAGE_CONFIG = PageConfig(
         WidgetConfig("swaps-ohlcv", "OHLCV", "chart", "panel panel-medium swaps-slot-mid-2"),
         WidgetConfig("swaps-distribution-toggle", "Swap Distribution", "chart", "panel panel-medium swaps-slot-mid-3",
                      tooltip="Distribution of sell swaps by trade size, along with cumulative percentiles for each size based on all swaps in the sample. A straight line on the impact curve indicates that liquidity depth is consistent across the price range to which swaps of these sizes would reprice."),
-        WidgetConfig("swaps-ranked-events", "Largest Buy/Sell Swaps for USX", "table-split", "panel panel-wide-table swaps-slot-bottom", expandable=False),
+        WidgetConfig("swaps-ranked-events", "10 Largest Buy/Sell Swaps for USX", "table-split", "panel panel-wide-table swaps-slot-bottom", expandable=False),
     ],
 )
