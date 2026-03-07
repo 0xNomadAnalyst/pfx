@@ -1,0 +1,74 @@
+{
+  "solscan_api_key": "set-via-env-or-local-config",
+  "vault_program_id": "KvauGMspG5k6rtzrqqn7WNn3oZdyKqLKwK2XWQ8FLjd",
+  "tracked_accounts": {
+    "lending_market_address": "47tfyEG9SsdEnUm9cw5kY9BXngQGqu3LBoop9j5uTAv8",
+    "reserve_addresses": [
+      "AYL4LMc4ZCVyq3Z7XPJGWDM4H9PiWjqXAAuuHBEGVR2Z",
+      "JBmLCoKqjdKSStK45onRqe6U6sxVgSpdXoeXe4h7NwJw",
+      "6ZxkBSJEqsXA3Kdm2PDAzHLUdPTPUK93Lf4bAezec1UQ",
+      "3yDc9ARvtPLhYxZLgucZGuBtZ9bHshBvXTwHxGe3nhmC",
+      "3JmDtKLsCmBsns4e5svC1tpxEEd79Bk2SpoYFwVGxqwU"
+    ],
+    "include_obligations_from_db": false,
+    "obligations_limit": 5000
+  },
+  "reserves": [
+    {
+      "address": "AYL4LMc4ZCVyq3Z7XPJGWDM4H9PiWjqXAAuuHBEGVR2Z",
+      "market_address": "47tfyEG9SsdEnUm9cw5kY9BXngQGqu3LBoop9j5uTAv8",
+      "token_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "collateral_mint": "DBieuGmP1xh36oZRwTtw722yJ8pzZ8wycYD9nY2BSxwn",
+      "liquidity_vault": "8BkQTZsT8ssKMU643De4iiV5Wf3pENdUFTsdtHPueKjB",
+      "symbol": "USDC",
+      "decimals": 6,
+      "type": "borrow"
+    },
+    {
+      "address": "JBmLCoKqjdKSStK45onRqe6U6sxVgSpdXoeXe4h7NwJw",
+      "market_address": "47tfyEG9SsdEnUm9cw5kY9BXngQGqu3LBoop9j5uTAv8",
+      "token_mint": "2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH",
+      "collateral_mint": "AhQTWDKTg3VTZPZT69pAuUcpdPiK7DJc5EimwFYuQTs7",
+      "liquidity_vault": "3oHtmrDBP3qGb3PNkCg9kW59D3qUeCD96EBugr9zNcpf",
+      "symbol": "USDG",
+      "decimals": 6,
+      "type": "borrow"
+    },
+    {
+      "address": "6ZxkBSJEqsXA3Kdm2PDAzHLUdPTPUK93Lf4bAezec1UQ",
+      "market_address": "47tfyEG9SsdEnUm9cw5kY9BXngQGqu3LBoop9j5uTAv8",
+      "token_mint": "5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5",
+      "collateral_mint": "CtzvqjvpxJDXyraDjP2QrEr8b1xvGvxADRV7w29qrmxd",
+      "liquidity_vault": "9YuHgsPVGgWrkpsaRZmeZCV2uXweMEn6TEAcusQKRjgG",
+      "symbol": "ONyc",
+      "decimals": 9,
+      "type": "collateral"
+    },
+    {
+      "address": "3yDc9ARvtPLhYxZLgucZGuBtZ9bHshBvXTwHxGe3nhmC",
+      "market_address": "47tfyEG9SsdEnUm9cw5kY9BXngQGqu3LBoop9j5uTAv8",
+      "token_mint": "USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA",
+      "collateral_mint": "FPKrhujvqK79aXJXYLYmChTGQq9rwnfZs68oXXVQ5qmE",
+      "liquidity_vault": "21Skwocv5cJoftyejSTtXVaHJWTg88xcWGQtnRvUyKLx",
+      "symbol": "USDS",
+      "decimals": 6,
+      "type": "borrow"
+    },
+    {
+      "address": "3JmDtKLsCmBsns4e5svC1tpxEEd79Bk2SpoYFwVGxqwU",
+      "market_address": "47tfyEG9SsdEnUm9cw5kY9BXngQGqu3LBoop9j5uTAv8",
+      "token_mint": "AUSD1jCcCyPLybk1YnvPWsHQSrZ46dxwoMniN4N2UEB9",
+      "collateral_mint": "28EwG3ddv9xSVexGpPbbkST3xtvgaTjyt6WLfHugLmDP",
+      "liquidity_vault": "2TSQNLpKTodsHNVabLPevuqMLJzYZZ8Eq97F8vcFQecT",
+      "symbol": "AUSD",
+      "decimals": 6,
+      "type": "collateral"
+    }
+  ],
+  "upload_target": {
+    "schema": "kamino_lend",
+    "transactions_table": "src_txn",
+    "events_table": "src_txn_events",
+    "dependent_caggs": []
+  }
+}
