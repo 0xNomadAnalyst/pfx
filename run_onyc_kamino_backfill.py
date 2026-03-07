@@ -8,8 +8,13 @@ Reserves: USDC, USDG, ONyc, USDS, AUSD
 Window: market deployment (Jul 15 2025) → DB ingestion start (Mar 5 2026)
 
 Does NOT upload to DB.  Output lands in pfx/parquet/backfill_full/.
+
+Usage:
+    python pfx/run_onyc_kamino_backfill.py                # full run
+    python pfx/run_onyc_kamino_backfill.py --resume        # skip sigs, resume detail fetch
 """
 
+import argparse
 import os
 import subprocess
 import sys
@@ -27,8 +32,14 @@ END_DATE = "2026-03-05"
 
 
 def run_backfill():
-    os.environ["KAMINO_BACKFILL_CONFIG"] = str(CONFIG_PATH)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--resume", action="store_true",
+        help="Skip signature collection, resume detail fetch from checkpoint",
+    )
+    args = parser.parse_args()
 
+    os.environ["KAMINO_BACKFILL_CONFIG"] = str(CONFIG_PATH)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     cmd = [
@@ -42,11 +53,14 @@ def run_backfill():
         "--reserves-only",
         "--skip-obligations",
     ]
+    if args.resume:
+        cmd.append("--skip-account-txs")
 
-    print(f"Start: {START_DATE}  End: {END_DATE}")
+    mode = "RESUME (skip sigs, resume details)" if args.resume else "FULL (sigs + details + decode)"
+    print(f"Mode:   {mode}")
+    print(f"Start:  {START_DATE}  End: {END_DATE}")
     print(f"Config: {CONFIG_PATH}")
     print(f"Output: {OUTPUT_DIR}")
-    print(f"Running: {' '.join(cmd[-6:])}")
     print("=" * 80)
 
     result = subprocess.run(cmd, cwd=str(BACKFILL_SCRIPT.parent))
