@@ -121,7 +121,7 @@ BEGIN
             latest_yt AS (
                 SELECT *
                 FROM exponent.src_vault_yt_escrow y
-                WHERE y.vault_address = v_rec.vault_address
+                WHERE y.vault = v_rec.vault_address
                 ORDER BY y.block_time DESC
                 LIMIT 1
             ),
@@ -133,7 +133,7 @@ BEGIN
                 LIMIT 1
             ),
             vol_24h AS (
-                SELECT COALESCE(SUM(t.amm_pt_volume), 0) AS vol
+                SELECT COALESCE(SUM(ABS(t.amount_amm_pt_in) + ABS(t.amount_amm_pt_out)), 0) AS vol
                 FROM exponent.cagg_tx_events_5s t
                 WHERE t.vault_address = v_rec.vault_address
                   AND t.bucket_time >= NOW() - INTERVAL '24 hours'
@@ -149,7 +149,7 @@ BEGIN
                 vlt.duration,
                 vlt.maturity_ts,
                 NOW() > to_timestamp(vlt.maturity_ts),
-                vlt.total_sy / POWER(10, v_rec.decimals),
+                vlt.total_sy_in_escrow / POWER(10, v_rec.decimals),
                 vlt.sy_for_pt / POWER(10, v_rec.decimals),
                 vlt.pt_supply / POWER(10, v_rec.decimals),
                 vlt.treasury_sy / POWER(10, v_rec.decimals),
@@ -157,30 +157,27 @@ BEGIN
                 vlt.last_seen_sy_exchange_rate,
                 vlt.all_time_high_sy_exchange_rate,
                 vlt.final_sy_exchange_rate,
-                vlt.c_vault_collateralization_ratio,
-                vlt.c_vault_yield_index_health,
-                vlt.c_vault_available_liquidity / POWER(10, v_rec.decimals),
+                vlt.c_collateralization_ratio,
+                vlt.c_yield_index_health,
+                vlt.c_available_liquidity / POWER(10, v_rec.decimals),
                 mkt.pt_balance / POWER(10, v_rec.decimals),
                 mkt.sy_balance / POWER(10, v_rec.decimals),
-                mkt.c_market_implied_apy,
-                mkt.c_market_discount_rate,
-                mkt.c_pt_base_price,
-                -- Pool depth in SY
-                CASE WHEN mkt.c_pt_base_price IS NOT NULL AND sy.exchange_rate > 0
+                mkt.c_implied_apy,
+                mkt.c_discount_rate,
+                mkt.c_implied_pt_price,
+                CASE WHEN mkt.c_implied_pt_price IS NOT NULL AND sy.sy_exchange_rate > 0
                      THEN (mkt.sy_balance / POWER(10, v_rec.decimals)) +
-                          (mkt.pt_balance / POWER(10, v_rec.decimals)) * mkt.c_pt_base_price / sy.exchange_rate
+                          (mkt.pt_balance / POWER(10, v_rec.decimals)) * mkt.c_implied_pt_price / sy.sy_exchange_rate
                      ELSE NULL END,
-                -- AMM share of SY claims
-                CASE WHEN vlt.total_sy > 0
-                     THEN ROUND((mkt.sy_balance / POWER(10, v_rec.decimals)) / (vlt.total_sy / POWER(10, v_rec.decimals)) * 100, 2)
+                CASE WHEN vlt.total_sy_in_escrow > 0
+                     THEN ROUND(((mkt.sy_balance / POWER(10, v_rec.decimals)) / (vlt.total_sy_in_escrow / POWER(10, v_rec.decimals)) * 100)::NUMERIC, 2)
                      ELSE NULL END,
-                yt.yt_balance / POWER(10, v_rec.decimals),
-                -- YT staked %
+                yt.amount / POWER(10, v_rec.decimals),
                 CASE WHEN (vlt.pt_supply / POWER(10, v_rec.decimals)) > 0
-                     THEN ROUND(((vlt.pt_supply / POWER(10, v_rec.decimals)) - (yt.yt_balance / POWER(10, v_rec.decimals))) /
-                                (vlt.pt_supply / POWER(10, v_rec.decimals)) * 100, 2)
+                     THEN ROUND((((vlt.pt_supply / POWER(10, v_rec.decimals)) - (yt.amount / POWER(10, v_rec.decimals))) /
+                                (vlt.pt_supply / POWER(10, v_rec.decimals)) * 100)::NUMERIC, 2)
                      ELSE NULL END,
-                sy.exchange_rate,
+                sy.sy_exchange_rate,
                 vol.vol / POWER(10, v_rec.decimals),
                 GREATEST(vlt.block_time, mkt.block_time),
                 GREATEST(vlt.slot, mkt.slot),

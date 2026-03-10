@@ -121,7 +121,7 @@ BEGIN
         refreshed_at
     )
     WITH pools AS (
-        SELECT pool_address, token0_symbol, token1_symbol
+        SELECT pool_address, token0_symbol, token1_symbol, protocol, token_pair
         FROM dexes.pool_tokens_reference
     ),
     -- 1-minute buckets for each CAGG source
@@ -188,11 +188,11 @@ BEGIN
             AVG(t.liq_pct_within_xticks_of_peg_1) AS concentration_peg_pct_1,
             AVG(t.liq_pct_within_xticks_of_peg_2) AS concentration_peg_pct_2,
             AVG(t.liq_pct_within_xticks_of_peg_3) AS concentration_peg_pct_3,
-            LAST(t.liq_pct_within_xticks_of_peg_levels, t.bucket)    AS concentration_peg_halfspread_bps_array,
+            (SELECT ARRAY_AGG(x::NUMERIC::INTEGER) FROM jsonb_array_elements_text(LAST(t.liq_pct_within_xticks_of_peg_levels, t.bucket)) AS x) AS concentration_peg_halfspread_bps_array,
             AVG(t.liq_pct_within_xticks_of_active_1) AS concentration_active_pct_1,
             AVG(t.liq_pct_within_xticks_of_active_2) AS concentration_active_pct_2,
             AVG(t.liq_pct_within_xticks_of_active_3) AS concentration_active_pct_3,
-            LAST(t.liq_pct_within_xticks_of_active_levels, t.bucket) AS concentration_active_halfspread_bps_array
+            (SELECT ARRAY_AGG(x::NUMERIC::INTEGER) FROM jsonb_array_elements_text(LAST(t.liq_pct_within_xticks_of_active_levels, t.bucket)) AS x) AS concentration_active_halfspread_bps_array
         FROM dexes.cagg_tickarrays_5s t
         WHERE t.bucket >= v_seed_from
         GROUP BY time_bucket('1 minute', t.bucket), t.pool_address
@@ -231,8 +231,8 @@ BEGIN
         SELECT
             ab.bt,
             ab.pool_address,
-            COALESCE(sw.protocol, tk.protocol, p.protocol) AS protocol,
-            COALESCE(sw.token_pair, tk.token_pair, p.token_pair) AS token_pair,
+            COALESCE(sw.protocol, p.protocol) AS protocol,
+            COALESCE(sw.token_pair, p.token_pair) AS token_pair,
             ARRAY[p.token0_symbol, p.token1_symbol] AS symbols_t0_t1,
             COALESCE(sw.swap_count, 0)     AS swap_count,
             COALESCE(sw.swap_t0_in, 0)     AS swap_t0_in,

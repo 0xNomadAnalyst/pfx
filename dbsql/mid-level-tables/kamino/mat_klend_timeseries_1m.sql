@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS kamino_lend.mat_klend_activity_ts_1m (
     total_volume             NUMERIC     DEFAULT 0,
 
     refreshed_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (symbol, bucket_time)
+    UNIQUE (symbol, reserve_address, bucket_time)
 );
 
 SELECT create_hypertable(
@@ -172,7 +172,7 @@ BEGIN
         LAST(o.obligation_query_id, o.bucket),
         LAST(o.market_capacity_utilization_pct, o.bucket),
         LAST(o.weighted_avg_loan_to_value_sig, o.bucket),
-        LAST(o.median_loan_to_value_sig, o.bucket),
+        LAST(o.median_loan_to_value, o.bucket),
         LAST(o.weighted_avg_health_factor_sig, o.bucket),
         LAST(o.total_unhealthy_debt, o.bucket),
         LAST(o.total_bad_debt, o.bucket),
