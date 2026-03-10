@@ -18,6 +18,11 @@ _DB_KEYS = ("DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_SSLMO
 PIPELINES: dict[str, dict[str, str]] = {}
 _current_pipeline: str = ""
 
+PIPELINE_DEFAULTS: dict[str, dict[str, str]] = {
+    "solstice": {"protocol": "raydium", "pair": "USX-USDC"},
+    "onyc":     {"protocol": "orca",    "pair": "ONyc-USDC"},
+}
+
 
 def _parse_env_file(path: Path) -> dict[str, str]:
     """Minimal .env parser — handles KEY=VALUE lines, ignores comments/blanks."""
@@ -73,6 +78,10 @@ def is_enabled() -> bool:
 
 def get_current() -> str:
     return _current_pipeline
+
+
+def get_defaults() -> dict[str, str]:
+    return PIPELINE_DEFAULTS.get(_current_pipeline, {})
 
 
 def get_available() -> list[dict[str, str]]:

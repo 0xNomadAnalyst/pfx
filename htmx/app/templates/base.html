@@ -26,7 +26,7 @@
         </svg>
         {{ app_title }}
       </div>
-      {% if show_pipeline_switcher and pipeline_info %}
+      {% if show_pipeline_switcher %}
       <div class="topbar-meta topbar-filters pipeline-switcher">
         <label class="filter-label" for="pipeline-select">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10M4.22 4.22l4.24 4.24m7.08 7.08l4.24 4.24M1 12h6m6 0h10M4.22 19.78l4.24-4.24m7.08-7.08l4.24-4.24"/></svg>
@@ -34,9 +34,14 @@
         </label>
         <select id="pipeline-select" class="filter-select" aria-label="Database pipeline"
                 onchange="switchPipeline(this.value)">
-          {% for p in pipeline_info.available %}
-            <option value="{{ p.id }}" {% if p.current %}selected{% endif %}>{{ p.label }}</option>
-          {% endfor %}
+          {% if pipeline_info and pipeline_info.available %}
+            {% for p in pipeline_info.available %}
+              <option value="{{ p.id }}" {% if p.current %}selected{% endif %}>{{ p.label }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="solstice">Solstice</option>
+            <option value="onyc">Onyc</option>
+          {% endif %}
         </select>
       </div>
       {% endif %}
@@ -190,6 +195,22 @@
   <script src="/static/js/charts.js?v=25"></script>
   {% if show_pipeline_switcher %}
   <script>
+  (function() {
+    var sel = document.getElementById('pipeline-select');
+    if (!sel) return;
+
+    // If server-side fetch missed (API wasn't ready), hydrate client-side
+    fetch('/api/pipeline-info')
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data || !data.current) return;
+        for (var i = 0; i < sel.options.length; i++) {
+          sel.options[i].selected = (sel.options[i].value === data.current);
+        }
+      })
+      .catch(function() {});
+  })();
+
   function switchPipeline(name) {
     var sel = document.getElementById('pipeline-select');
     if (sel) sel.disabled = true;

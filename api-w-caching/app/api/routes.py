@@ -35,6 +35,7 @@ def get_pipeline() -> dict[str, object]:
     return {
         "current": pipeline_config.get_current(),
         "available": pipeline_config.get_available(),
+        "defaults": pipeline_config.get_defaults(),
     }
 
 @router.post("/api/v1/pipeline")
@@ -47,6 +48,7 @@ def switch_pipeline(body: _SwitchRequest) -> dict[str, object]:
     return {
         "status": "switched",
         "current": pipeline_config.get_current(),
+        "defaults": pipeline_config.get_defaults(),
     }
 
 

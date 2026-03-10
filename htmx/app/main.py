@@ -112,6 +112,14 @@ def render_page(request: Request, page: PageConfig):
         for action in page.page_actions
     ]
     pipeline_info = _get_pipeline_info() if ENABLE_PIPELINE_SWITCHER else None
+    protocol = page.default_protocol
+    pair = page.default_pair
+    if pipeline_info and pipeline_info.get("defaults"):
+        defaults = pipeline_info["defaults"]
+        if defaults.get("protocol"):
+            protocol = defaults["protocol"]
+        if defaults.get("pair"):
+            pair = defaults["pair"]
 
     return templates.TemplateResponse(
         request=request,
@@ -126,8 +134,8 @@ def render_page(request: Request, page: PageConfig):
             "show_protocol_pair_filters": page.show_protocol_pair_filters,
             "show_market_selectors": page.show_market_selectors,
             "api_page_id": page.api_page_id,
-            "protocol": page.default_protocol,
-            "pair": page.default_pair,
+            "protocol": protocol,
+            "pair": pair,
             "last_window": "7d",
             "api_base_url": API_BASE_URL,
             "show_pipeline_switcher": ENABLE_PIPELINE_SWITCHER,
@@ -166,14 +174,34 @@ def system_health(request: Request):
     return render_page(request, PAGES_BY_SLUG["system-health"])
 
 
+_pipeline_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
+
 def _get_pipeline_info() -> dict | None:
-    """Fetch pipeline state from the API server.  Returns None on failure."""
+    """Fetch pipeline state from the API server.  Cached for 5s."""
+    now = time.time()
+    if now < float(_pipeline_cache.get("expires_at", 0.0)):
+        cached = _pipeline_cache.get("value")
+        if isinstance(cached, dict):
+            return cached
+
     try:
         req = urllib.request.Request(f"{API_BASE_URL}/api/v1/pipeline")
         with urllib.request.urlopen(req, timeout=2) as resp:
-            return json.loads(resp.read())
+            data = json.loads(resp.read())
+            _pipeline_cache["value"] = data
+            _pipeline_cache["expires_at"] = time.time() + 5.0
+            return data
     except Exception:
-        return None
+        return _pipeline_cache.get("value") if isinstance(_pipeline_cache.get("value"), dict) else None
+
+
+@app.get("/api/pipeline-info")
+def pipeline_info_proxy():
+    """Client-side hydration endpoint for when server-side fetch missed."""
+    info = _get_pipeline_info()
+    if info:
+        return JSONResponse(content=info)
+    return JSONResponse(content={"current": None, "available": []}, status_code=503)
 
 
 @app.post("/api/switch-pipeline")
@@ -190,6 +218,8 @@ def switch_pipeline_proxy(request: Request):
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             payload = json.loads(resp.read())
+            _pipeline_cache["value"] = None
+            _pipeline_cache["expires_at"] = 0.0
             return JSONResponse(content=payload)
     except urllib.error.HTTPError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=exc.code)
