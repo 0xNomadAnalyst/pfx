@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from app.api.schemas import WidgetResponse
 from app.services.data_service import DataService
+from app.services import pipeline_config
 from app.services.sql_adapter import SqlAdapter
 
 router = APIRouter()
@@ -19,6 +21,33 @@ def get_data_service() -> DataService:
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+# ── Pipeline switcher (dev only, gated by ENABLE_PIPELINE_SWITCHER=1) ────────
+
+class _SwitchRequest(BaseModel):
+    pipeline: str
+
+@router.get("/api/v1/pipeline")
+def get_pipeline() -> dict[str, object]:
+    if not pipeline_config.is_enabled():
+        raise HTTPException(status_code=404, detail="Pipeline switcher is disabled")
+    return {
+        "current": pipeline_config.get_current(),
+        "available": pipeline_config.get_available(),
+    }
+
+@router.post("/api/v1/pipeline")
+def switch_pipeline(body: _SwitchRequest) -> dict[str, object]:
+    if not pipeline_config.is_enabled():
+        raise HTTPException(status_code=404, detail="Pipeline switcher is disabled")
+    if not pipeline_config.switch_to(body.pipeline):
+        raise HTTPException(status_code=400, detail=f"Unknown pipeline '{body.pipeline}'")
+    _service.sql.reset_pool()
+    return {
+        "status": "switched",
+        "current": pipeline_config.get_current(),
+    }
 
 
 @router.get("/api/v1/health-status")

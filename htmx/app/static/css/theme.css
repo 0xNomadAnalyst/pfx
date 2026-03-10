@@ -181,6 +181,14 @@ body {
   min-width: 110px;
 }
 
+.pipeline-switcher .filter-select {
+  border-color: #f0a020;
+  min-width: 90px;
+}
+.pipeline-switcher .filter-label {
+  color: #f0a020;
+}
+
 .chart-mode-select {
   min-width: 210px;
   margin-left: auto;

@@ -110,6 +110,16 @@ class SqlAdapter:
             query_preview,
         )
 
+    def reset_pool(self) -> None:
+        """Close the current pool so the next query reconnects with fresh env vars."""
+        with self._pool_lock:
+            if self._pool is not None:
+                try:
+                    self._pool.closeall()
+                except Exception:
+                    pass
+                self._pool = None
+
     def close(self) -> None:
         if self._pool is not None:
             self._pool.closeall()

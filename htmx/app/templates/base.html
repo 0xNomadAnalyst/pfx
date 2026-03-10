@@ -26,6 +26,20 @@
         </svg>
         {{ app_title }}
       </div>
+      {% if show_pipeline_switcher and pipeline_info %}
+      <div class="topbar-meta topbar-filters pipeline-switcher">
+        <label class="filter-label" for="pipeline-select">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10M4.22 4.22l4.24 4.24m7.08 7.08l4.24 4.24M1 12h6m6 0h10M4.22 19.78l4.24-4.24m7.08-7.08l4.24-4.24"/></svg>
+          DB
+        </label>
+        <select id="pipeline-select" class="filter-select" aria-label="Database pipeline"
+                onchange="switchPipeline(this.value)">
+          {% for p in pipeline_info.available %}
+            <option value="{{ p.id }}" {% if p.current %}selected{% endif %}>{{ p.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
       <div class="topbar-meta topbar-filters">
         <label class="filter-label" for="page-select">View</label>
         <select id="page-select" class="filter-select" aria-label="Page">
@@ -174,5 +188,20 @@
 
   <script src="/static/js/theme.js?v=2"></script>
   <script src="/static/js/charts.js?v=25"></script>
+  {% if show_pipeline_switcher %}
+  <script>
+  function switchPipeline(name) {
+    var sel = document.getElementById('pipeline-select');
+    if (sel) sel.disabled = true;
+    fetch('/api/switch-pipeline?pipeline=' + encodeURIComponent(name), {method: 'POST'})
+      .then(function(r) { return r.json(); })
+      .then(function() { window.location.reload(); })
+      .catch(function(err) {
+        console.error('Pipeline switch failed:', err);
+        if (sel) sel.disabled = false;
+      });
+  }
+  </script>
+  {% endif %}
 </body>
 </html>

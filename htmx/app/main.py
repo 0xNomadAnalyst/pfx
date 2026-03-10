@@ -26,6 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8001")
 APP_TITLE = "Solana DeFi Ecosystem Dashboard"
+ENABLE_PIPELINE_SWITCHER = os.getenv("ENABLE_PIPELINE_SWITCHER", "0") == "1"
 HEALTH_PROXY_TIMEOUT_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_TIMEOUT_SECONDS", "3"))
 HEALTH_PROXY_TTL_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_CACHE_TTL_SECONDS", "5"))
 _health_proxy_lock = threading.Lock()
@@ -110,6 +111,8 @@ def render_page(request: Request, page: PageConfig):
         }
         for action in page.page_actions
     ]
+    pipeline_info = _get_pipeline_info() if ENABLE_PIPELINE_SWITCHER else None
+
     return templates.TemplateResponse(
         request=request,
         name="base.html",
@@ -127,6 +130,8 @@ def render_page(request: Request, page: PageConfig):
             "pair": page.default_pair,
             "last_window": "7d",
             "api_base_url": API_BASE_URL,
+            "show_pipeline_switcher": ENABLE_PIPELINE_SWITCHER,
+            "pipeline_info": pipeline_info,
         },
     )
 
@@ -159,6 +164,37 @@ def exponent_yield(request: Request):
 @app.get("/system-health")
 def system_health(request: Request):
     return render_page(request, PAGES_BY_SLUG["system-health"])
+
+
+def _get_pipeline_info() -> dict | None:
+    """Fetch pipeline state from the API server.  Returns None on failure."""
+    try:
+        req = urllib.request.Request(f"{API_BASE_URL}/api/v1/pipeline")
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            return json.loads(resp.read())
+    except Exception:
+        return None
+
+
+@app.post("/api/switch-pipeline")
+def switch_pipeline_proxy(request: Request):
+    """Same-origin proxy to avoid CORS for the pipeline switch POST."""
+    import urllib.error
+    try:
+        body = json.dumps({"pipeline": dict(request.query_params).get("pipeline", "")})
+        req = urllib.request.Request(
+            f"{API_BASE_URL}/api/v1/pipeline",
+            data=body.encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            payload = json.loads(resp.read())
+            return JSONResponse(content=payload)
+    except urllib.error.HTTPError as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=exc.code)
+    except Exception as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=502)
 
 
 @app.get("/api/health-status")
