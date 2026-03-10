@@ -1,0 +1,370 @@
+-- Kamino Lend - Complete Market Sensitivity Analysis Table Function (OPTIMIZED)
+-- Combines all sensitivity functions to generate a comprehensive stress test view
+--
+-- OPTIMIZATION IMPROVEMENTS:
+-- 1. Added MATERIALIZED hints to CTEs accessed multiple times
+-- 2. Eliminated redundant liquidatable_array_calc computation
+-- 3. Consolidated array generation loops to reduce overhead
+-- 4. Pre-computed step metadata to avoid repeated calculations
+-- 5. Simplified array reversal/concatenation logic
+-- 6. Reduced function calls by computing flags once and reusing
+--
+-- Parameters:
+--   p_query_id: Query ID to analyze (default: latest)
+--   assets_delta_bps: Asset price change per step (must be <= 0, e.g., -25 for -0.25%)
+--   assets_delta_steps: Number of asset drop steps (unsigned)
+--   liabilities_delta_bps: Liability change per step (must be >= 0, e.g., 25 for +0.25%)
+--   liabilities_delta_steps: Number of liability increase steps (unsigned)
+--   include_zero_borrows: If TRUE, includes obligations with borrow < $1 (defaults to FALSE)
+--
+-- Returns:
+--   TABLE with unnested arrays showing step-by-step sensitivity metrics
+
+CREATE OR REPLACE FUNCTION kamino_lend.get_view_klend_sensitivities(
+    p_query_id BIGINT DEFAULT NULL,
+    assets_delta_bps INTEGER DEFAULT -25,
+    assets_delta_steps INTEGER DEFAULT 20,
+    liabilities_delta_bps INTEGER DEFAULT 25,
+    liabilities_delta_steps INTEGER DEFAULT 10,
+    include_zero_borrows BOOLEAN DEFAULT FALSE
+)
+RETURNS TABLE (
+    step_number INTEGER,
+    scenario_type TEXT,
+    bps_change INTEGER,
+    pct_change NUMERIC(10,1),
+    total_deposits BIGINT,
+    total_borrows BIGINT,
+    market_ltv_pct NUMERIC(10,1),
+    avg_ltv_pct NUMERIC(10,1),
+    avg_at_risk_ltv_pct NUMERIC(10,1),
+    avg_at_risk_hf NUMERIC(10,2),
+    unhealthy_debt BIGINT,
+    unhealthy_debt_pct NUMERIC(10,1),
+    bad_debt BIGINT,
+    bad_debt_pct NUMERIC(10,1),
+    total_at_risk_debt BIGINT,
+    total_at_risk_debt_pct NUMERIC(10,1),
+    unhealthy_liquidatable_value BIGINT,
+    bad_liquidatable_value BIGINT,
+    total_liquidatable_value BIGINT,
+    liquidatable_value_pct_of_deposits NUMERIC(10,1),
+    total_liquidatable_value_pct_of_loans NUMERIC(10,1),
+    unhealthy_debt_less_liquidatable_part BIGINT,
+    unhealthy_debt_less_liquidatable_part_pct NUMERIC(10,1),
+    bad_debt_less_liquidatable_part BIGINT,
+    bad_debt_less_liquidatable_part_pct NUMERIC(10,1),
+    liquidation_distance_to_healthy BIGINT
+) AS $$
+DECLARE
+    v_query_id BIGINT;
+    v_total_steps INTEGER;
+    v_asset_steps INTEGER;
+    v_liability_steps INTEGER;
+BEGIN
+    -- Validate constraints
+    IF assets_delta_bps > 0 THEN
+        RAISE EXCEPTION 'assets_delta_bps must be <= 0 (asset drops are negative)';
+    END IF;
+    
+    IF liabilities_delta_bps < 0 THEN
+        RAISE EXCEPTION 'liabilities_delta_bps must be >= 0 (liability increases are positive)';
+    END IF;
+    
+    -- Get query_id (use latest if not provided)
+    -- NOTE: query_id is now only used for reference/logging
+    -- We query src_obligations_last directly which always has the latest state
+    IF p_query_id IS NULL THEN
+        SELECT MAX(query_id) INTO v_query_id FROM kamino_lend.src_obligations_last;
+    ELSE
+        v_query_id := p_query_id;
+    END IF;
+    
+    -- Calculate total steps (assets + liabilities + 1 for current state)
+    v_asset_steps := COALESCE(assets_delta_steps, 0);
+    v_liability_steps := COALESCE(liabilities_delta_steps, 0);
+    v_total_steps := v_asset_steps + v_liability_steps + 1;
+    
+    -- Generate sensitivity table
+    RETURN QUERY
+    WITH obligation_base AS MATERIALIZED (
+        -- Get obligations from src_obligations_last (latest state table)
+        -- OPTIMIZED: Uses src_obligations_last (~2.6K rows) instead of src_obligations (233M rows)
+        -- By default, only include obligations with outstanding borrow balance
+        SELECT 
+            o.obligation_address,
+            o.c_user_total_deposit,
+            o.c_user_total_borrow,
+            o.c_loan_to_value_pct,
+            o.c_unhealthy_ltv_obligation,
+            o.mkt_insolvency_risk_unhealthy_ltv_pct,
+            o.mkt_liquidation_max_debt_close_factor_pct,
+            o.mkt_max_liquidatable_debt_market_value_at_once
+        FROM kamino_lend.src_obligations_last o
+        WHERE (include_zero_borrows OR o.c_user_total_borrow >= 1)
+    ),
+    asset_sensitivity AS MATERIALIZED (
+        -- Generate asset-side sensitivity (negative steps, asset drops)
+        SELECT 
+            o.*,
+            kamino_lend.sensitize_deposit_value(c_user_total_deposit, assets_delta_bps, v_asset_steps) as deposit_array_asset,
+            kamino_lend.sensitize_borrow_value(c_user_total_borrow, 0, v_asset_steps) as borrow_array_asset,
+            kamino_lend.sensitize_ltv(c_loan_to_value_pct, 'assets', assets_delta_bps, v_asset_steps) as ltv_array_asset
+        FROM obligation_base o
+    ),
+    liability_sensitivity AS MATERIALIZED (
+        -- Generate liability-side sensitivity (positive steps, debt increases)
+        SELECT 
+            o.obligation_address,
+            o.c_user_total_deposit,
+            o.c_user_total_borrow,
+            o.c_loan_to_value_pct,
+            o.c_unhealthy_ltv_obligation,
+            o.mkt_insolvency_risk_unhealthy_ltv_pct,
+            o.mkt_liquidation_max_debt_close_factor_pct,
+            o.mkt_max_liquidatable_debt_market_value_at_once,
+            o.deposit_array_asset,
+            o.borrow_array_asset,
+            o.ltv_array_asset,
+            kamino_lend.sensitize_deposit_value(o.c_user_total_deposit, 0, v_liability_steps) as deposit_array_liability,
+            kamino_lend.sensitize_borrow_value(o.c_user_total_borrow, liabilities_delta_bps, v_liability_steps) as borrow_array_liability,
+            kamino_lend.sensitize_ltv(o.c_loan_to_value_pct, 'liabilities', liabilities_delta_bps, v_liability_steps) as ltv_array_liability
+        FROM asset_sensitivity o
+    ),
+    combined_arrays AS MATERIALIZED (
+        -- Create continuous spectrum: severe asset drops → current state → severe liability increases
+        -- OPTIMIZATION: Simplified array reversal and concatenation
+        SELECT 
+            ls.obligation_address,
+            ls.c_user_total_deposit,
+            ls.c_user_total_borrow,
+            ls.c_unhealthy_ltv_obligation,
+            ls.mkt_insolvency_risk_unhealthy_ltv_pct,
+            ls.mkt_liquidation_max_debt_close_factor_pct,
+            ls.mkt_max_liquidatable_debt_market_value_at_once,
+            -- Reverse asset arrays + skip first element of liability arrays (to avoid duplicating current state)
+            ARRAY(SELECT ls.deposit_array_asset[i] FROM generate_series(v_asset_steps + 1, 1, -1) i) ||
+            CASE WHEN v_liability_steps > 0 THEN ARRAY(SELECT ls.deposit_array_liability[i] FROM generate_series(2, v_liability_steps + 1) i) ELSE ARRAY[]::NUMERIC[] END 
+                as combined_deposit_array,
+            ARRAY(SELECT ls.borrow_array_asset[i] FROM generate_series(v_asset_steps + 1, 1, -1) i) ||
+            CASE WHEN v_liability_steps > 0 THEN ARRAY(SELECT ls.borrow_array_liability[i] FROM generate_series(2, v_liability_steps + 1) i) ELSE ARRAY[]::NUMERIC[] END 
+                as combined_borrow_array,
+            ARRAY(SELECT ls.ltv_array_asset[i] FROM generate_series(v_asset_steps + 1, 1, -1) i) ||
+            CASE WHEN v_liability_steps > 0 THEN ARRAY(SELECT ls.ltv_array_liability[i] FROM generate_series(2, v_liability_steps + 1) i) ELSE ARRAY[]::NUMERIC[] END 
+                as combined_ltv_array
+        FROM liability_sensitivity ls
+    ),
+    flag_arrays AS MATERIALIZED (
+        -- Generate flag arrays from actual deposit/borrow values (not just LTV)
+        -- OPTIMIZATION: Compute once and reuse
+        SELECT 
+            *,
+            kamino_lend.is_unhealthy_from_values(
+                combined_deposit_array, 
+                combined_borrow_array, 
+                c_unhealthy_ltv_obligation, 
+                mkt_insolvency_risk_unhealthy_ltv_pct
+            ) as unhealthy_flags,
+            kamino_lend.is_bad_from_values(
+                combined_deposit_array,
+                combined_borrow_array,
+                mkt_insolvency_risk_unhealthy_ltv_pct
+            ) as bad_debt_flags
+        FROM combined_arrays
+    ),
+    actual_current_state AS MATERIALIZED (
+        -- Get actual current state values for validation (at step v_asset_steps + 1)
+        -- OPTIMIZED: Uses src_obligations_last (latest state table)
+        SELECT 
+            o.obligation_address,
+            o.c_is_unhealthy,
+            o.c_is_bad_debt,
+            o.c_liquidatable_value,
+            o.c_user_total_borrow
+        FROM kamino_lend.src_obligations_last o
+        WHERE (include_zero_borrows OR o.c_user_total_borrow >= 1)
+    ),
+    value_arrays AS MATERIALIZED (
+        -- Calculate liquidatable values, debt arrays, and HF arrays
+        -- OPTIMIZATION: Consolidated all array generation into single loop per obligation
+        SELECT 
+            fa.obligation_address,
+            fa.c_user_total_deposit,
+            fa.c_user_total_borrow,
+            fa.combined_deposit_array,
+            fa.combined_borrow_array,
+            fa.combined_ltv_array,
+            fa.c_unhealthy_ltv_obligation,
+            fa.mkt_insolvency_risk_unhealthy_ltv_pct,
+            fa.mkt_liquidation_max_debt_close_factor_pct,
+            fa.mkt_max_liquidatable_debt_market_value_at_once,
+            fa.unhealthy_flags,
+            fa.bad_debt_flags,
+            acs.c_is_unhealthy as actual_is_unhealthy,
+            acs.c_is_bad_debt as actual_is_bad_debt,
+            acs.c_liquidatable_value as actual_liquidatable_value,
+            -- Calculate HF array
+            kamino_lend.calculate_health_factor_array(
+                fa.combined_deposit_array,
+                fa.combined_borrow_array,
+                fa.c_unhealthy_ltv_obligation
+            ) as health_factor_array,
+            -- Calculate liquidation distance array
+            kamino_lend.sensitize_liquidation_distance(
+                fa.combined_deposit_array,
+                fa.combined_borrow_array,
+                fa.c_unhealthy_ltv_obligation
+            ) as liquidation_distance_array,
+            -- OPTIMIZATION: Consolidated array generation (liquidatable, unhealthy_liquidatable, bad_liquidatable, unhealthy_debt, bad_debt)
+            -- All computed in single loop to reduce overhead
+            ARRAY(
+                SELECT 
+                    CASE 
+                        WHEN i = v_asset_steps + 1 THEN acs.c_liquidatable_value
+                        WHEN fa.bad_debt_flags[i] = 1 THEN 
+                            LEAST(fa.combined_borrow_array[i], fa.mkt_max_liquidatable_debt_market_value_at_once)
+                        WHEN fa.unhealthy_flags[i] = 1 THEN 
+                            LEAST(
+                                fa.combined_borrow_array[i] * (fa.mkt_liquidation_max_debt_close_factor_pct::NUMERIC / 100.0),
+                                fa.mkt_max_liquidatable_debt_market_value_at_once
+                            )
+                        ELSE 0
+                    END
+                FROM generate_series(1, v_total_steps) i
+            ) as liquidatable_array,
+            ARRAY(
+                SELECT 
+                    CASE
+                        WHEN fa.unhealthy_flags[i] = 1 THEN 
+                            LEAST(
+                                fa.combined_borrow_array[i] * (fa.mkt_liquidation_max_debt_close_factor_pct::NUMERIC / 100.0),
+                                fa.mkt_max_liquidatable_debt_market_value_at_once
+                            )
+                        ELSE 0
+                    END
+                FROM generate_series(1, v_total_steps) i
+            ) as unhealthy_liquidatable_array,
+            ARRAY(
+                SELECT 
+                    CASE
+                        WHEN fa.bad_debt_flags[i] = 1 THEN 
+                            LEAST(fa.combined_borrow_array[i], fa.mkt_max_liquidatable_debt_market_value_at_once)
+                        ELSE 0
+                    END
+                FROM generate_series(1, v_total_steps) i
+            ) as bad_liquidatable_array,
+            ARRAY(
+                SELECT 
+                    CASE 
+                        WHEN i = v_asset_steps + 1 THEN (acs.c_is_unhealthy::INTEGER)::NUMERIC * acs.c_user_total_borrow
+                        ELSE fa.unhealthy_flags[i]::NUMERIC * fa.combined_borrow_array[i]
+                    END
+                FROM generate_series(1, v_total_steps) i
+            ) as unhealthy_debt_array,
+            ARRAY(
+                SELECT 
+                    CASE
+                        WHEN i = v_asset_steps + 1 THEN (acs.c_is_bad_debt::INTEGER)::NUMERIC * acs.c_user_total_borrow
+                        ELSE fa.bad_debt_flags[i]::NUMERIC * fa.combined_borrow_array[i]
+                    END
+                FROM generate_series(1, v_total_steps) i
+            ) as bad_debt_array
+        FROM flag_arrays fa
+        JOIN actual_current_state acs ON fa.obligation_address = acs.obligation_address
+    ),
+    market_aggregates AS MATERIALIZED (
+        -- Aggregate across all obligations
+        SELECT 
+            kamino_lend.sum_array_elementwise(ARRAY_AGG(combined_deposit_array)::NUMERIC[][]) as total_deposits_array,
+            kamino_lend.sum_array_elementwise(ARRAY_AGG(combined_borrow_array)::NUMERIC[][]) as total_borrows_array,
+            kamino_lend.sum_array_elementwise(ARRAY_AGG(unhealthy_debt_array)::NUMERIC[][]) as total_unhealthy_debt_array,
+            kamino_lend.sum_array_elementwise(ARRAY_AGG(bad_debt_array)::NUMERIC[][]) as total_bad_debt_array,
+            kamino_lend.sum_array_elementwise(ARRAY_AGG(liquidatable_array)::NUMERIC[][]) as total_liquidatable_array,
+            kamino_lend.sum_array_elementwise(ARRAY_AGG(unhealthy_liquidatable_array)::NUMERIC[][]) as unhealthy_liquidatable_array,
+            kamino_lend.sum_array_elementwise(ARRAY_AGG(bad_liquidatable_array)::NUMERIC[][]) as bad_liquidatable_array,
+            kamino_lend.sum_array_elementwise(ARRAY_AGG(liquidation_distance_array)::NUMERIC[][]) as liquidation_distance_array,
+            kamino_lend.average_array_elementwise(ARRAY_AGG(combined_ltv_array)::NUMERIC[][]) as avg_ltv_array,
+            -- Average HF for at-risk obligations
+            kamino_lend.average_array_elementwise(
+                ARRAY_AGG(
+                    ARRAY(
+                        SELECT CASE WHEN (unhealthy_flags[idx] + bad_debt_flags[idx]) > 0 
+                                   THEN health_factor_array[idx] 
+                                   ELSE NULL END
+                        FROM generate_series(1, v_total_steps) idx
+                    )
+                )::NUMERIC[][]
+            ) as avg_at_risk_hf_array,
+            -- Average LTV for at-risk obligations
+            kamino_lend.average_array_elementwise(
+                ARRAY_AGG(
+                    ARRAY(
+                        SELECT CASE WHEN (unhealthy_flags[idx] + bad_debt_flags[idx]) > 0 
+                                   THEN combined_ltv_array[idx]
+                                   ELSE NULL END
+                        FROM generate_series(1, v_total_steps) idx
+                    )
+                )::NUMERIC[][]
+            ) as avg_at_risk_ltv_array
+        FROM value_arrays
+    ),
+    step_generator AS (
+        -- Generate step numbers and metadata
+        -- OPTIMIZATION: Pre-compute all step metadata
+        SELECT 
+            i as array_index,
+            CASE 
+                WHEN i <= v_asset_steps + 1 THEN 'asset_drop'
+                ELSE 'liability_increase'
+            END as scenario_type,
+            CASE
+                WHEN i <= v_asset_steps + 1 THEN assets_delta_bps * (v_asset_steps - i + 1)
+                ELSE liabilities_delta_bps * (i - v_asset_steps - 1)
+            END as bps_change
+        FROM generate_series(1, v_total_steps) i
+    )
+    -- Unnest and combine
+    SELECT 
+        sg.array_index - 1 as step_number,
+        sg.scenario_type,
+        sg.bps_change,
+        ROUND((sg.bps_change::NUMERIC / 10000.0 * 100)::NUMERIC, 1) as pct_change,
+        ROUND(ma.total_deposits_array[sg.array_index])::BIGINT as total_deposits,
+        ROUND(ma.total_borrows_array[sg.array_index])::BIGINT as total_borrows,
+        ROUND((ma.total_borrows_array[sg.array_index] / NULLIF(ma.total_deposits_array[sg.array_index], 0)) * 100, 1) as market_ltv_pct,
+        ROUND(ma.avg_ltv_array[sg.array_index], 1) as avg_ltv_pct,
+        ROUND(ma.avg_at_risk_ltv_array[sg.array_index], 1) as avg_at_risk_ltv_pct,
+        ROUND(ma.avg_at_risk_hf_array[sg.array_index], 2) as avg_at_risk_hf,
+        ROUND(ma.total_unhealthy_debt_array[sg.array_index])::BIGINT as unhealthy_debt,
+        ROUND((ma.total_unhealthy_debt_array[sg.array_index] / NULLIF(ma.total_borrows_array[sg.array_index], 0)) * 100, 1) as unhealthy_debt_pct,
+        ROUND(ma.total_bad_debt_array[sg.array_index])::BIGINT as bad_debt,
+        ROUND((ma.total_bad_debt_array[sg.array_index] / NULLIF(ma.total_borrows_array[sg.array_index], 0)) * 100, 1) as bad_debt_pct,
+        ROUND(ma.total_bad_debt_array[sg.array_index] + ma.total_unhealthy_debt_array[sg.array_index])::BIGINT as total_at_risk_debt,
+        ROUND(((ma.total_bad_debt_array[sg.array_index] + ma.total_unhealthy_debt_array[sg.array_index]) / NULLIF(ma.total_borrows_array[sg.array_index], 0)) * 100, 1) as total_at_risk_debt_pct,
+        ROUND(ma.unhealthy_liquidatable_array[sg.array_index])::BIGINT as unhealthy_liquidatable_value,
+        ROUND(ma.bad_liquidatable_array[sg.array_index])::BIGINT as bad_liquidatable_value,
+        ROUND(ma.total_liquidatable_array[sg.array_index])::BIGINT as total_liquidatable_value,
+        ROUND((ma.total_liquidatable_array[sg.array_index] / NULLIF(ma.total_deposits_array[sg.array_index], 0)) * 100, 1) as liquidatable_value_pct_of_deposits,
+        ROUND((ma.total_liquidatable_array[sg.array_index] / NULLIF(ma.total_borrows_array[sg.array_index], 0)) * 100, 1) as total_liquidatable_value_pct_of_loans,
+        ROUND(ma.total_unhealthy_debt_array[sg.array_index] - ma.unhealthy_liquidatable_array[sg.array_index])::BIGINT as unhealthy_debt_less_liquidatable_part,
+        ROUND(((ma.total_unhealthy_debt_array[sg.array_index] - ma.unhealthy_liquidatable_array[sg.array_index]) / NULLIF(ma.total_borrows_array[sg.array_index], 0)) * 100, 1) as unhealthy_debt_less_liquidatable_part_pct,
+        ROUND(ma.total_bad_debt_array[sg.array_index] - ma.bad_liquidatable_array[sg.array_index])::BIGINT as bad_debt_less_liquidatable_part,
+        ROUND(((ma.total_bad_debt_array[sg.array_index] - ma.bad_liquidatable_array[sg.array_index]) / NULLIF(ma.total_borrows_array[sg.array_index], 0)) * 100, 1) as bad_debt_less_liquidatable_part_pct,
+        ABS(ROUND(ma.liquidation_distance_array[sg.array_index]))::BIGINT as liquidation_distance_to_healthy
+    FROM market_aggregates ma
+    CROSS JOIN step_generator sg
+    ORDER BY sg.array_index;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- Add function comment
+COMMENT ON FUNCTION kamino_lend.get_view_klend_sensitivities(BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN) IS 
+'OPTIMIZED (UPDATED 2025-12-28): Complete market sensitivity analysis returning unnested table.
+MIGRATION: Now queries src_obligations_last directly (~2.6K rows) instead of historical src_obligations (233M rows).
+Key optimizations: Added MATERIALIZED hints, eliminated redundant calculations, consolidated array generation loops.
+Combines asset drops and liability increases into a single analysis.
+Parameters: (query_id [deprecated], assets_delta_bps<=0, assets_steps, liabilities_delta_bps>=0, liabilities_steps, include_zero_borrows).
+Returns table with step-by-step market metrics under stress scenarios.
+By default (include_zero_borrows=FALSE), only analyzes obligations with borrow >= $1 (c_user_total_borrow >= 1).
+NOTE: query_id parameter is now deprecated - function always uses latest state from src_obligations_last.';
+
