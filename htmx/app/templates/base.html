@@ -214,9 +214,35 @@
   function switchPipeline(name) {
     var sel = document.getElementById('pipeline-select');
     if (sel) sel.disabled = true;
+
+    document.querySelectorAll('.widget-loader').forEach(function(el) {
+      var kind = el.dataset.widgetKind;
+      var wid = el.dataset.widgetId;
+      var upd = document.getElementById('updated-' + wid);
+      if (upd) upd.textContent = 'switching…';
+      if (kind === 'kpi') {
+        var p = document.getElementById('kpi-primary-' + wid);
+        if (p) p.textContent = '--';
+        var s = document.getElementById('kpi-secondary-' + wid);
+        if (s) s.textContent = '';
+      } else if (kind === 'chart') {
+        var c = document.getElementById('chart-' + wid);
+        if (c) c.innerHTML = '';
+      }
+    });
+
     fetch('/api/switch-pipeline?pipeline=' + encodeURIComponent(name), {method: 'POST'})
       .then(function(r) { return r.json(); })
-      .then(function() { window.location.reload(); })
+      .then(function(data) {
+        try {
+          var defaults = (data && data.defaults) || {};
+          var stored = { lastWindow: '7d' };
+          if (defaults.protocol) stored.protocol = defaults.protocol;
+          if (defaults.pair) stored.pair = defaults.pair;
+          window.localStorage.setItem('dashboard.globalFilters.v1', JSON.stringify(stored));
+        } catch(_) {}
+        window.location.reload();
+      })
       .catch(function(err) {
         console.error('Pipeline switch failed:', err);
         if (sel) sel.disabled = false;

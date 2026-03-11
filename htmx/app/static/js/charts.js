@@ -1164,12 +1164,12 @@
         const expectedMs = windowMsFromLastWindow(lastWindow);
         if (first && last && expectedMs > 0) {
           const spanMs = last.getTime() - first.getTime();
-          if (spanMs < expectedMs * 0.85) {
+          const prev = chartState.get(widgetId);
+          const prevLen = prev?.data?.x?.length || 0;
+          if (spanMs < expectedMs * 0.85 && prevLen >= xs.length) {
             return;
           }
         }
-      } else if (Array.isArray(xs) && xs.length < 2) {
-        return;
       }
     }
 
