@@ -1848,15 +1848,21 @@
             const n = Number(value);
             if (!Number.isFinite(n)) return value;
             if (n === 0) return "0";
-            return (n >= 0 ? "+" : "") + n.toFixed(1);
+            const s = (n >= 0 ? "+" : "") + (n % 1 === 0 ? n.toFixed(0) : n.toFixed(1));
+            return s;
           }
         : defaultXFmt;
       const stressXInterval = arrows
-        ? (index, value) => {
-            const n = Number(value);
-            if (n === 0) return true;
-            return Number.isFinite(n) && Math.abs(n) % 2 < 0.01;
-          }
+        ? (() => {
+            const xNums = (chartData.x || []).map(Number).filter(Number.isFinite);
+            const range = xNums.length > 1 ? Math.max(...xNums) - Math.min(...xNums) : 0;
+            const step = range > 60 ? 10 : range > 20 ? 5 : 2;
+            return (index, value) => {
+              const n = Number(value);
+              if (n === 0) return true;
+              return Number.isFinite(n) && Math.abs(Math.abs(n) % step) < 0.01;
+            };
+          })()
         : undefined;
       option = {
         color: palette(),
@@ -1974,17 +1980,16 @@
               const posKey = `${side}_${vl.xIdx}`;
               const slot = usedPositions[posKey] || 0;
               usedPositions[posKey] = slot + 1;
-              const vertOffset = slot * 38;
               return {
                 xAxis: vl.xIdx,
                 lineStyle: { type: "dashed", color: vl.color || "#28c987", width: slot === 0 ? 2 : 1 },
                 label: {
-                  show: true,
+                  show: slot === 0,
                   formatter: sigmaLabel,
                   position: "end",
                   rotate: 0,
                   align: vl.isNeg ? "right" : "left",
-                  distance: vl.isNeg ? [8, vertOffset] : [-8, vertOffset],
+                  distance: vl.isNeg ? [8, 0] : [-8, 0],
                   color: vl.color || "#28c987",
                   fontSize: 10,
                   lineHeight: 13,

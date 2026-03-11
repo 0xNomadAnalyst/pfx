@@ -138,11 +138,14 @@ class KaminoPageService(BasePageService):
     def _dex_token_pairs(self) -> dict[str, str]:
         """Map token symbol -> 'SYMBOL/QUOTE' from dexes.pool_tokens_reference."""
         def _load() -> dict[str, str]:
-            rows = self.sql.fetch_rows(
-                "SELECT token0_symbol, token1_symbol, token_pair "
-                "FROM dexes.pool_tokens_reference "
-                "WHERE token0_symbol IS NOT NULL AND token1_symbol IS NOT NULL"
-            )
+            try:
+                rows = self.sql.fetch_rows(
+                    "SELECT token0_symbol, token1_symbol, token_pair "
+                    "FROM dexes.pool_tokens_reference "
+                    "WHERE token0_symbol IS NOT NULL AND token1_symbol IS NOT NULL"
+                )
+            except Exception:
+                return {}
             pairs: dict[str, str] = {}
             for r in rows:
                 tp = str(r.get("token_pair") or "")
@@ -155,13 +158,48 @@ class KaminoPageService(BasePageService):
             return pairs
         return self._cached("kamino::dex_token_pairs", _load, ttl_seconds=self._CONFIG_TTL_SECONDS)
 
+    def _price_volatility_7d(self) -> dict[str, float]:
+        """Return {symbol: sigma_pct} from 7-day oracle price stddev in cagg_reserves_5s."""
+        def _load() -> dict[str, float]:
+            try:
+                rows = self.sql.fetch_rows(
+                    "SELECT symbol, "
+                    "  STDDEV(market_price) AS sd, "
+                    "  AVG(market_price) AS ap "
+                    "FROM kamino_lend.cagg_reserves_5s "
+                    "WHERE bucket >= NOW() - INTERVAL '7 days' "
+                    "GROUP BY symbol"
+                )
+            except Exception:
+                return {}
+            out: dict[str, float] = {}
+            for r in rows:
+                sym = str(r.get("symbol") or "")
+                sd = float(r.get("sd") or 0)
+                ap = float(r.get("ap") or 0)
+                if sym and ap > 0 and sd > 0:
+                    out[sym] = sd / ap * 100
+            return out
+        return self._cached("kamino::price_vol_7d", _load, ttl_seconds=self._CONFIG_TTL_SECONDS)
+
     def _rate_curve_rows(self) -> list[dict[str, Any]]:
+        def _load() -> list[dict[str, Any]]:
+            try:
+                return self.sql.fetch_rows(
+                    "SELECT utilization_pct AS utilization_rate_pct, "
+                    "       borrow_rate_pct "
+                    "FROM kamino_lend.rate_curve_all() "
+                    "ORDER BY utilization_bps "
+                    "LIMIT 37"
+                )
+            except Exception:
+                return self.sql.fetch_rows(
+                    "SELECT utilization_rate_pct, borrow_rate_pct "
+                    "FROM kamino_lend.v_rate_curve_usx"
+                )
         return self._cached(
-            "kamino::v_rate_curve_usx",
-            lambda: self.sql.fetch_rows(
-                "SELECT utilization_rate_pct, borrow_rate_pct "
-                "FROM kamino_lend.v_rate_curve_usx"
-            ),
+            "kamino::rate_curve",
+            _load,
             ttl_seconds=self._RATE_CURVE_TTL_SECONDS,
         )
 
@@ -218,7 +256,7 @@ class KaminoPageService(BasePageService):
                 "  unhealthy_debt, bad_debt, total_liquidatable_value, "
                 "  liquidation_distance_to_healthy, "
                 "  unhealthy_debt_less_liquidatable_part, bad_debt_less_liquidatable_part "
-                "FROM kamino_lend.get_view_klend_sensitivities(NULL, -50, 25, 50, 25, FALSE) "
+                "FROM kamino_lend.get_view_klend_sensitivities(NULL, -100, 50, 100, 50, FALSE) "
                 "ORDER BY step_number"
             ),
             ttl_seconds=self._SENSITIVITY_TTL_SECONDS,
@@ -325,7 +363,7 @@ class KaminoPageService(BasePageService):
     def _kpi_unhealthy_share(self, _: dict[str, Any]) -> dict[str, Any]:
         row = self._v_last_row()
         val = row.get("obl_debt_total_unhealthy_pct")
-        display = f"{float(val):.2f}%" if val is not None else "--"
+        display = f"{float(val):.2f}" if val is not None else "--"
         return {"kind": "kpi", "primary": display, "secondary": "Portion of all debt marked as unhealthy"}
 
     def _kpi_share_collateral_asset(self, _: dict[str, Any]) -> dict[str, Any]:
@@ -730,9 +768,9 @@ class KaminoPageService(BasePageService):
             "yAxisFormat": "pct0",
             "yRightAxisLabel": "Health Factor",
             "series": [
-                {"name": "Loan Wtd Avg LTV", "type": "line", "data": [row.get("obl_loan_ltv_wtd_avg_pct") for row in rows]},
-                {"name": "Loan Median LTV", "type": "line", "data": [row.get("obl_loan_ltv_median_pct") for row in rows]},
-                {"name": "Loan Wtd Avg HF", "type": "line", "yAxisIndex": 1, "data": [row.get("obl_loan_hf_wtd_avg") for row in rows]},
+                {"name": "Loan Wtd Avg LTV", "type": "line", "connectNulls": True, "data": [row.get("obl_loan_ltv_wtd_avg_pct") for row in rows]},
+                {"name": "Loan Median LTV", "type": "line", "connectNulls": True, "data": [row.get("obl_loan_ltv_median_pct") for row in rows]},
+                {"name": "Loan Wtd Avg HF", "type": "line", "connectNulls": True, "yAxisIndex": 1, "data": [row.get("obl_loan_hf_wtd_avg") for row in rows]},
             ],
         }
 
@@ -775,22 +813,35 @@ class KaminoPageService(BasePageService):
         brw_symbols = ", ".join(str(s) for s in (last.get("reserve_brw_all_symbols_array") or []) if s)
         coll_list = [str(s) for s in (last.get("reserve_coll_all_symbols_array") or []) if s]
         brw_list = [str(s) for s in (last.get("reserve_brw_all_symbols_array") or []) if s]
-        dex_pairs = self._dex_token_pairs()
-        coll_sym = coll_list[0] if coll_list else "eUSX"
-        brw_sym = brw_list[0] if brw_list else "USX"
-        coll_pair = dex_pairs.get(coll_sym, coll_sym)
-        brw_pair = dex_pairs.get(brw_sym, brw_sym)
-        vol_lines = []
-        for field, symbol, pair, side in [
-            ("reserve_eusx_price_2sigma_7d_pct", coll_sym, coll_pair, "coll"),
-            ("reserve_usx_price_2sigma_7d_pct", brw_sym, brw_pair, "brw"),
-        ]:
-            val = last.get(field)
-            if val is not None:
-                sign = "-" if side == "coll" else "+"
-                label = f"{sign}2\u03c3 {pair}"
-                signed = -abs(float(val)) if side == "coll" else abs(float(val))
-                vol_lines.append({"label": label, "value": signed, "color": "#28c987"})
+
+        vol_map = self._price_volatility_7d()
+
+        def _most_volatile(symbols: list[str]) -> tuple[str, float]:
+            best_sym, best_pct = "", 0.0
+            for s in symbols:
+                pct = vol_map.get(s, 0.0)
+                if pct > best_pct:
+                    best_sym, best_pct = s, pct
+            return best_sym, best_pct
+
+        coll_sym, coll_sigma = _most_volatile(coll_list)
+        brw_sym, brw_sigma = _most_volatile(brw_list)
+
+        vol_lines: list[dict[str, Any]] = []
+        for n in (2, 1):
+            if coll_sym and coll_sigma > 0:
+                vol_lines.append({
+                    "label": f"-{n}\u03c3 {coll_sym}",
+                    "value": -(coll_sigma * n),
+                    "color": "#28c987",
+                })
+            if brw_sym and brw_sigma > 0:
+                vol_lines.append({
+                    "label": f"+{n}\u03c3 {brw_sym}",
+                    "value": brw_sigma * n,
+                    "color": "#28c987",
+                })
+
         return {
             "kind": "chart",
             "chart": "line-area",
