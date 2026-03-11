@@ -631,12 +631,12 @@
       if (secondary.textContent && secondary.textContent !== "--%") {
         primary.textContent = `${primary.textContent} / ${secondary.textContent}`;
       }
-      secondary.textContent = `${token0} / ${token1}`;
+      secondary.textContent = `${token1} / ${token0}`;
     } else if (widgetId === "kpi-reserves") {
       const left = `${formatNumber(data.primary)}m`;
       const right = `${formatNumber(data.secondary)}m`;
       primary.textContent = `${left} / ${right}`;
-      secondary.textContent = `${token0} / ${token1}`;
+      secondary.textContent = `${token1} / ${token0}`;
     } else if (widgetId === "kpi-swap-volume-24h") {
       const vol = formatNumber(data.primary);
       const pctTvl = data.secondary === null || data.secondary === undefined ? "--" : `${formatNumber(data.secondary)}%`;
@@ -714,7 +714,7 @@
       return numeric.toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
     if (columnKey === "pct_of_reserve") {
-      return numeric.toLocaleString(undefined, { maximumFractionDigits: 0 });
+      return numeric.toLocaleString(undefined, { maximumFractionDigits: 0 }) + "%";
     }
     return String(value);
   }
@@ -1619,14 +1619,22 @@
       const hmSubEl = document.getElementById(`chart-subtitle-${widgetId}`);
       if (hmSubEl) {
         const windowLabel = currentLastWindowLabel();
-        const totalValued = chartData.total_change != null
-          ? Number(chartData.total_change)
-          : null;
-        const totalStr = totalValued != null
-          ? formatNumber(Math.round(totalValued))
-          : null;
-        hmSubEl.innerHTML = `<span style="color:#2fbf71">Change over ${windowLabel.replace(/^Last\s*/i, "last ")}</span>`
-          + (totalStr ? `<br>Total change: ${totalStr} (valued in current USDC)` : "");
+        const added = chartData.gross_added != null ? Number(chartData.gross_added) : null;
+        const removed = chartData.gross_removed != null ? Number(chartData.gross_removed) : null;
+        const grossTotal = chartData.gross_turnover != null ? Number(chartData.gross_turnover) : null;
+        const totalChange = chartData.total_change != null ? Number(chartData.total_change) : null;
+        const { token1 } = currentPairTokens();
+        let line = `<span style="color:#2fbf71">Change over ${windowLabel.replace(/^Last\s*/i, "last ")}</span>`;
+        if (added != null || removed != null) {
+          const metrics = [];
+          if (added != null) metrics.push(`Added: ${formatNumber(Math.round(added))}`);
+          if (removed != null) metrics.push(`Removed: ${formatNumber(Math.round(removed))}`);
+          if (grossTotal != null) metrics.push(`Total: ${formatNumber(Math.round(grossTotal))}`);
+          line += `<br>${metrics.join(" | ")} (valued in current ${token1})`;
+        } else if (totalChange != null) {
+          line += `<br>Total change: ${formatNumber(Math.round(totalChange))} (valued in current ${token1})`;
+        }
+        hmSubEl.innerHTML = line;
       }
 
       option = {
@@ -2413,6 +2421,19 @@
         const subEl = document.getElementById(`table-subtitle-${widgetId}`);
         if (subEl) subEl.textContent = payload.data.subtitle;
       }
+      if (widgetId === "liquidity-depth-table") {
+        const dtTitleEl = document.querySelector(`#widget-${widgetId} .panel-title-group h3`);
+        if (dtTitleEl) {
+          const { token0, token1 } = currentPairTokens();
+          const base = dtTitleEl.dataset.baseTitle || dtTitleEl.textContent || "";
+          dtTitleEl.innerHTML = `${pairAwareLabel(base)} `
+            + `<span style="color:var(--text-secondary,#6b7a8d);font-weight:400">|</span> `
+            + `<span class="depth-table-legend">`
+            + `<span class="depth-legend-swatch" style="background:#4bb7ff"></span>${token1} Liquidity`
+            + `<span class="depth-legend-swatch" style="background:#f8a94a"></span>${token0} Liquidity`
+            + `</span>`;
+        }
+      }
       return;
     }
 
@@ -2422,6 +2443,11 @@
       document.getElementById(`table-right-title-${widgetId}`).textContent = pairAwareLabel(payload.data.right_title || "Right");
       renderTable(widgetId, `table-left-${widgetId}`, columns, payload.data.left_rows || []);
       renderTable(widgetId, `table-right-${widgetId}`, columns, payload.data.right_rows || []);
+      const splitTitleEl = document.querySelector(`#widget-${widgetId} .panel-header h3`);
+      if (splitTitleEl) {
+        const baseTitle = splitTitleEl.dataset.baseTitle || splitTitleEl.textContent || "";
+        splitTitleEl.innerHTML = `${pairAwareLabel(baseTitle)} <span style="color:var(--text-secondary,#6b7a8d);font-weight:400">|</span> <span style="color:#2fbf71">${currentLastWindowLabel()}</span>`;
+      }
       return;
     }
 

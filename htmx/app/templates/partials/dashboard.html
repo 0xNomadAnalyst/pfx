@@ -52,14 +52,16 @@
           <option value="4h">4h</option>
           <option value="1d">1d</option>
         </select>
+      {% elif widget.id == "trade-impact-toggle" %}
+        <span class="title-separator">|</span>
+        <span class="title-inline-label">Select:</span>
+        <select id="trade-impact-mode" class="filter-select chart-mode-select" aria-label="Trade impact chart mode">
+          <option value="size">Order Size for Target bps</option>
+          <option value="impact">Impact bps at 3 Size Levels</option>
+        </select>
       {% endif %}
     </div>
-    {% if widget.id == "trade-impact-toggle" %}
-      <select id="trade-impact-mode" class="filter-select chart-mode-select" aria-label="Trade impact chart mode">
-        <option value="size">Order Size for Target bps</option>
-        <option value="impact">Impact bps at 3 Size Levels</option>
-      </select>
-    {% elif widget.id == "health-queue-chart" %}
+    {% if widget.id == "health-queue-chart" %}
       <select id="health-schema-select" class="filter-select chart-mode-select" aria-label="Schema">
         <option value="dexes" selected>dexes</option>
         <option value="exponent">exponent</option>

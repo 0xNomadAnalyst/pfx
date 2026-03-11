@@ -70,14 +70,7 @@ class DexLiquidityPageService(BasePageService):
 
         def _run_query(active_delta_time: str) -> list[dict[str, Any]]:
             query = """
-                SELECT
-                    tick_price_t1_per_t0,
-                    current_price_t1_per_t0,
-                    token0_value,
-                    token1_value,
-                    token1_cumul,
-                    token0_cumul,
-                    liquidity_period_delta_in_t1_units_pct
+                SELECT *
                 FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval)
                 ORDER BY tick_price_t1_per_t0
             """
@@ -310,9 +303,20 @@ class DexLiquidityPageService(BasePageService):
         }
 
     def _liquidity_change_heatmap(self, params: dict[str, Any]) -> dict[str, Any]:
-        rows = self._tick_dist_rows(params)
+        last_window = str(params.get("last_window", "24h"))
+        lookback, _, _ = self._timeseries_window_config(last_window)
+        heatmap_params = {**params, "tick_delta_time": lookback}
+        rows = self._tick_dist_rows(heatmap_params)
         x_axis = [row["tick_price_t1_per_t0"] for row in rows]
         current_price = next((row.get("current_price_t1_per_t0") for row in rows if row.get("current_price_t1_per_t0") is not None), None)
+        total_change = next(
+            (row.get("liquidity_period_delta_net_reallocation_in_t1_units") for row in rows
+             if row.get("liquidity_period_delta_net_reallocation_in_t1_units") is not None),
+            None,
+        )
+        gross_pos = sum(float(row.get("ticks_tvl_in_int1units_delta_pos_sum") or 0) for row in rows)
+        gross_neg = sum(abs(float(row.get("ticks_tvl_in_int1units_delta_neg_sum") or 0)) for row in rows)
+        gross_turnover = gross_pos + gross_neg
         raw_values = [float(row.get("liquidity_period_delta_in_t1_units_pct") or 0) for row in rows]
         max_abs = max((abs(value) for value in raw_values), default=0.0)
         if max_abs == 0:
@@ -325,7 +329,7 @@ class DexLiquidityPageService(BasePageService):
             min_value = -max_abs
             max_value = max_abs
         points = [[idx, 0, value] for idx, value in enumerate(values)]
-        return {
+        result: dict[str, Any] = {
             "kind": "chart",
             "chart": "heatmap",
             "x": x_axis,
@@ -337,6 +341,15 @@ class DexLiquidityPageService(BasePageService):
             "min": min_value,
             "max": max_value,
         }
+        if total_change is not None:
+            result["total_change"] = total_change
+        if gross_pos > 0:
+            result["gross_added"] = gross_pos
+        if gross_neg > 0:
+            result["gross_removed"] = gross_neg
+        if gross_turnover > 0:
+            result["gross_turnover"] = gross_turnover
+        return result
 
     def _kpi_tvl(self, params: dict[str, Any]) -> dict[str, Any]:
         row = self._dex_last_row(params)
@@ -356,8 +369,8 @@ class DexLiquidityPageService(BasePageService):
         reserve_pair = row.get("reserve_t0_t1_millions") or [None, None]
         return {
             "kind": "kpi",
-            "primary": reserve_pair[0] if len(reserve_pair) > 0 else None,
-            "secondary": reserve_pair[1] if len(reserve_pair) > 1 else None,
+            "primary": reserve_pair[1] if len(reserve_pair) > 1 else None,
+            "secondary": reserve_pair[0] if len(reserve_pair) > 0 else None,
             "label": "Reserve balances (millions)",
         }
 
@@ -375,8 +388,8 @@ class DexLiquidityPageService(BasePageService):
         balance_pair = row.get("reserve_t0_t1_balance_pct") or [None, None]
         return {
             "kind": "kpi",
-            "primary": balance_pair[0] if len(balance_pair) > 0 else None,
-            "secondary": balance_pair[1] if len(balance_pair) > 1 else None,
+            "primary": balance_pair[1] if len(balance_pair) > 1 else None,
+            "secondary": balance_pair[0] if len(balance_pair) > 0 else None,
             "label": "Pool balance (%)",
         }
 

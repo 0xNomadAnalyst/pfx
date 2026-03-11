@@ -699,6 +699,22 @@ body {
   white-space: nowrap;
 }
 
+.depth-table-legend {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary, #8899aa);
+  margin-left: 4px;
+}
+
+.depth-legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin: 0 4px 0 10px;
+  vertical-align: middle;
+}
+
 .panel-kpi .panel-body {
   flex: 1;
   display: flex;
@@ -950,6 +966,7 @@ td:first-child {
 .topbar-video-guide {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   position: relative;
   padding-left: 12px;
   margin-left: 2px;
