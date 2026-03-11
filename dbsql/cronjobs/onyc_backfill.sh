@@ -89,26 +89,27 @@ psql "$DB_CONNECTION" <<EOF
 -- Dexes: pool_tokens_reference
 INSERT INTO ${DEX_SCHEMA}.pool_tokens_reference (
     protocol, pool_address, token_pair,
-    token_a_mint, token_b_mint, token_a_symbol, token_b_symbol,
-    token_a_decimals, token_b_decimals
+    token0_address, token1_address, token0_symbol, token1_symbol,
+    token0_decimals, token1_decimals
 )
 SELECT DISTINCT ON (pool_address)
-    env_protocol, pool_address,
-    env_token_pair,
-    token_mint_a, token_mint_b,
-    env_token_a_symbol, env_token_b_symbol,
-    env_token_a_decimals, env_token_b_decimals
-FROM ${DEX_SCHEMA}.src_poolstate
+    protocol, pool_address,
+    token_pair,
+    token_mint_0, token_mint_1,
+    SPLIT_PART(token_pair, '-', 1),
+    SPLIT_PART(token_pair, '-', 2),
+    mint_decimals_0, mint_decimals_1
+FROM ${DEX_SCHEMA}.src_acct_pool
 ORDER BY pool_address, block_time DESC
 ON CONFLICT (pool_address) DO UPDATE
     SET protocol = EXCLUDED.protocol,
         token_pair = EXCLUDED.token_pair,
-        token_a_mint = EXCLUDED.token_a_mint,
-        token_b_mint = EXCLUDED.token_b_mint,
-        token_a_symbol = EXCLUDED.token_a_symbol,
-        token_b_symbol = EXCLUDED.token_b_symbol,
-        token_a_decimals = EXCLUDED.token_a_decimals,
-        token_b_decimals = EXCLUDED.token_b_decimals,
+        token0_address = EXCLUDED.token0_address,
+        token1_address = EXCLUDED.token1_address,
+        token0_symbol = EXCLUDED.token0_symbol,
+        token1_symbol = EXCLUDED.token1_symbol,
+        token0_decimals = EXCLUDED.token0_decimals,
+        token1_decimals = EXCLUDED.token1_decimals,
         updated_at = NOW();
 
 -- Kamino: aux_market_reserve_tokens
