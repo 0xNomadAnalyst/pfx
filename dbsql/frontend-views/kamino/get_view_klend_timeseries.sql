@@ -3,6 +3,7 @@
 -- Reads from pre-joined 1-minute materialized tables instead of LATERAL joins on src tables.
 -- Uses dynamic reserve pivoting based on aux_market_reserve_tokens (no hardcoded addresses).
 
+DROP FUNCTION IF EXISTS kamino_lend.get_view_klend_timeseries(TEXT, TIMESTAMPTZ, TIMESTAMPTZ) CASCADE;
 CREATE OR REPLACE FUNCTION kamino_lend.get_view_klend_timeseries(
     bucket_interval TEXT DEFAULT '1 minute',
     from_ts TIMESTAMPTZ DEFAULT NOW() - INTERVAL '1 hour',
@@ -83,6 +84,7 @@ RETURNS TABLE (
     obl_debt_total_unhealthy NUMERIC,
     obl_debt_total_bad NUMERIC,
     obl_debt_total_at_risk NUMERIC,
+    reserve_brw_all_liquidate_sum_pct_at_risk NUMERIC,
     -- Metadata
     last_updated TIMESTAMPTZ,
     market_address TEXT
@@ -100,22 +102,22 @@ BEGIN
     END;
 
     -- Dynamically determine borrow and collateral reserve symbols
-    SELECT symbol INTO v_brw1_symbol
+    SELECT token_symbol INTO v_brw1_symbol
     FROM kamino_lend.aux_market_reserve_tokens
     WHERE reserve_type = 'borrow'
-    ORDER BY symbol
+    ORDER BY token_symbol
     LIMIT 1;
 
-    SELECT symbol INTO v_brw2_symbol
+    SELECT token_symbol INTO v_brw2_symbol
     FROM kamino_lend.aux_market_reserve_tokens
-    WHERE reserve_type = 'borrow' AND symbol != v_brw1_symbol
-    ORDER BY symbol
+    WHERE reserve_type = 'borrow' AND token_symbol != v_brw1_symbol
+    ORDER BY token_symbol
     LIMIT 1;
 
-    SELECT symbol INTO v_coll1_symbol
+    SELECT token_symbol INTO v_coll1_symbol
     FROM kamino_lend.aux_market_reserve_tokens
     WHERE reserve_type = 'collateral'
-    ORDER BY symbol
+    ORDER BY token_symbol
     LIMIT 1;
 
     RETURN QUERY
@@ -141,8 +143,8 @@ BEGIN
     ),
     pivoted AS (
         SELECT
-            bt,
-            MAX(market_address) AS market_address,
+            rr.bt,
+            MAX(rr.market_address) AS mkt_address,
             -- Borrow reserve 1
             MAX(supply_total)   FILTER (WHERE symbol = v_brw1_symbol) AS brw1_supply_total,
             MAX(utilization_ratio) FILTER (WHERE symbol = v_brw1_symbol) AS brw1_utilization,
@@ -167,8 +169,8 @@ BEGIN
             -- Collateral
             MAX(collateral_total_supply) FILTER (WHERE symbol = v_coll1_symbol) AS coll1_collateral,
             SUM(collateral_total_supply) FILTER (WHERE reserve_type = 'collateral') AS coll_all_collateral
-        FROM reserve_rebucketed
-        GROUP BY bt
+        FROM reserve_rebucketed rr
+        GROUP BY rr.bt
     ),
     obligation_rebucketed AS (
         SELECT
@@ -273,9 +275,15 @@ BEGIN
         ROUND(o.unhealthy_debt::NUMERIC, 0),
         ROUND(o.bad_debt::NUMERIC, 0),
         ROUND((COALESCE(o.unhealthy_debt, 0) + COALESCE(o.bad_debt, 0))::NUMERIC, 0),
+        ROUND(CASE
+            WHEN (COALESCE(o.unhealthy_debt, 0) + COALESCE(o.bad_debt, 0)) > 0
+            THEN COALESCE((SELECT SUM(liquidate_sum * CASE WHEN aa.symbol = v_brw1_symbol THEN p.brw1_price WHEN aa.symbol = v_brw2_symbol THEN p.brw2_price ELSE 1 END) FROM activity_rebucketed aa WHERE aa.bt = p.bt), 0)
+                 / (COALESCE(o.unhealthy_debt, 0) + COALESCE(o.bad_debt, 0)) * 100
+            ELSE NULL
+        END::NUMERIC, 2),
         -- Metadata
         p.bt,
-        p.market_address
+        p.mkt_address
     FROM pivoted p
     LEFT JOIN obligation_rebucketed o ON o.bt = p.bt
     ORDER BY p.bt;

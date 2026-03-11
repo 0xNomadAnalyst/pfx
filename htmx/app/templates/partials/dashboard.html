@@ -27,30 +27,37 @@
         <span class="info-tip-card">{{ widget.tooltip }}</span>
       </span>
       {% endif %}
+      {% if widget.id == "swaps-distribution-toggle" %}
+        <span class="title-separator">|</span>
+        <span class="title-inline-label">Select Event:</span>
+        <select id="swaps-distribution-mode" class="filter-select chart-mode-select" aria-label="Swaps distribution chart mode">
+          <option value="sell-order">Sell Swaps</option>
+          <option value="net-sell-pressure">1hr Net Sell Pressure</option>
+        </select>
+      {% elif widget.id == "swaps-flows-toggle" %}
+        <span class="title-separator">|</span>
+        <span class="title-inline-label">Select Token:</span>
+        <select id="swaps-flow-mode" class="filter-select chart-mode-select" aria-label="Swap flow token and side">
+          <option value="usx" selected>USX</option>
+          <option value="usdc">USDC</option>
+        </select>
+      {% elif widget.id == "swaps-ohlcv" %}
+        <span class="title-separator">|</span>
+        <span class="title-inline-label">Candle Size:</span>
+        <select id="swaps-ohlcv-interval" class="filter-select chart-mode-select" aria-label="OHLCV candle interval">
+          <option value="1m">1m</option>
+          <option value="5m">5m</option>
+          <option value="15m">15m</option>
+          <option value="1h" selected>1h</option>
+          <option value="4h">4h</option>
+          <option value="1d">1d</option>
+        </select>
+      {% endif %}
     </div>
     {% if widget.id == "trade-impact-toggle" %}
       <select id="trade-impact-mode" class="filter-select chart-mode-select" aria-label="Trade impact chart mode">
         <option value="size">Order Size for Target bps</option>
         <option value="impact">Impact bps at 3 Size Levels</option>
-      </select>
-    {% elif widget.id == "swaps-distribution-toggle" %}
-      <select id="swaps-distribution-mode" class="filter-select chart-mode-select" aria-label="Swaps distribution chart mode">
-        <option value="sell-order">Sell Order Distribution</option>
-        <option value="net-sell-pressure">Net Sell Pressure Distribution</option>
-      </select>
-    {% elif widget.id == "swaps-flows-toggle" %}
-      <select id="swaps-flow-mode" class="filter-select chart-mode-select" aria-label="Swap flow token and side">
-        <option value="usx" selected>USX</option>
-        <option value="usdc">USDC</option>
-      </select>
-    {% elif widget.id == "swaps-ohlcv" %}
-      <select id="swaps-ohlcv-interval" class="filter-select chart-mode-select" aria-label="OHLCV candle interval">
-        <option value="1m">1m</option>
-        <option value="5m">5m</option>
-        <option value="15m">15m</option>
-        <option value="1h" selected>1h</option>
-        <option value="4h">4h</option>
-        <option value="1d">1d</option>
       </select>
     {% elif widget.id == "health-queue-chart" %}
       <select id="health-schema-select" class="filter-select chart-mode-select" aria-label="Schema">
@@ -75,6 +82,9 @@
     {% endif %}
     <span class="panel-updated" id="updated-{{ widget.id }}">loading...</span>
   </div>
+  {% if widget.kind == "chart" %}
+  <div class="chart-subtitle" id="chart-subtitle-{{ widget.id }}"></div>
+  {% endif %}
   <div class="panel-body">
     {% if widget.kind == "kpi" %}
       <div class="kpi-primary" id="kpi-primary-{{ widget.id }}">--</div>

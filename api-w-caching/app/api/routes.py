@@ -45,6 +45,7 @@ def switch_pipeline(body: _SwitchRequest) -> dict[str, object]:
     if not pipeline_config.switch_to(body.pipeline):
         raise HTTPException(status_code=400, detail=f"Unknown pipeline '{body.pipeline}'")
     _service.sql.reset_pool()
+    _service.flush_caches()
     return {
         "status": "switched",
         "current": pipeline_config.get_current(),
@@ -77,7 +78,7 @@ def get_meta() -> dict[str, object]:
     try:
         return _service.get_meta()
     except Exception as exc:  # pragma: no cover - defensive path
-        raise HTTPException(status_code=500, detail=f"Meta query failed: {exc}") from exc
+        raise HTTPException(status_code=500, detail=f"Meta query failed: {str(exc)[:200]}") from exc
 
 
 @router.get("/api/v1/{page}/{widget}", response_model=WidgetResponse)
@@ -127,6 +128,7 @@ def get_widget(
         payload = svc.get_widget_data(page=page, widget_id=widget, params=params)
         return WidgetResponse(**payload)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail=str(exc)[:200]) from exc
     except Exception as exc:  # pragma: no cover - defensive path
-        raise HTTPException(status_code=500, detail=f"Widget query failed: {exc}") from exc
+        short = str(exc)[:200]
+        raise HTTPException(status_code=500, detail=f"Widget query failed: {short}") from exc

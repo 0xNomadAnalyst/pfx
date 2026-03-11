@@ -37,6 +37,10 @@ class QueryCache:
                 self._cache.popitem(last=False)
         return value
 
+    def clear(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
     def cached(self, key: str, loader: Callable[[], Any], ttl_seconds: float | None = None) -> Any:
         existing = self.get(key)
         if existing is not None:

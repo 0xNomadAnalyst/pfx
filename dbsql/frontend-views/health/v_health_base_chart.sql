@@ -48,7 +48,7 @@ BEGIN
     SELECT
         time_bucket(_interval, hr.hour) AS bucket,
         hr.category,
-        AVG(hr.hourly_rows) AS avg_row_count
+        AVG(hr.hourly_rows)::DOUBLE PRECISION AS avg_row_count
     FROM hourly hr
     GROUP BY 1, 2
     ORDER BY 1, 2;

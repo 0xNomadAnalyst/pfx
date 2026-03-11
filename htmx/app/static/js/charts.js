@@ -86,6 +86,33 @@
   const linkedGroups = {
     left: "linked-zoom-left",
   };
+
+  const defaultBucketIntervals = {
+    "1h": "1 minute", "4h": "5 minutes", "6h": "5 minutes",
+    "24h": "15 minutes", "7d": "1 hour", "30d": "4 hours", "90d": "12 hours",
+  };
+  const globalBucketIntervals = {
+    "1h": "5 minutes", "4h": "15 minutes", "6h": "30 minutes",
+    "24h": "1 hour", "7d": "4 hours", "30d": "1 day", "90d": "3 days",
+  };
+  const healthBucketIntervals = {
+    "1h": "2 minutes", "4h": "5 minutes", "6h": "5 minutes",
+    "24h": "30 minutes", "7d": "3 hours", "30d": "12 hours", "90d": "1 day",
+  };
+  const bucketIntervalsByGroup = {
+    "linked-ts-global": globalBucketIntervals,
+    "linked-ts-health-base": healthBucketIntervals,
+  };
+  const noIntervalSubtitle = new Set(["swaps-ohlcv"]);
+
+  function bucketIntervalLabel(widgetId) {
+    const groupId = getTimeseriesGroupId(widgetId);
+    if (!groupId || noIntervalSubtitle.has(widgetId)) return null;
+    const key = String(currentLastWindow() || "24h").toLowerCase();
+    const mapping = bucketIntervalsByGroup[groupId] || defaultBucketIntervals;
+    return mapping[key] || null;
+  }
+
   let leftDefaultZoomWindow = null;
   let leftDefaultZoomSignature = "";
   let modalInstance = null;
@@ -583,13 +610,14 @@
     }
     const { token0, token1 } = currentPairTokens();
     const lastLabel = currentLastWindowLabel();
+    const lastLabelHtml = `<span style="color:#2fbf71">${lastLabel}</span>`;
 
     if (widgetId === "kpi-impact-500k") {
       primary.textContent = `${formatSigned4dp(data.primary)} / ${formatNumber(data.secondary)}`;
       secondary.textContent = "bps";
     } else if (widgetId === "kpi-largest-impact" || widgetId === "kpi-average-impact") {
       primary.textContent = `${formatSigned4dp(data.primary)} / ${formatNumber(data.secondary)}`;
-      secondary.textContent = `bps / ${token0}, ${lastLabel}`;
+      secondary.innerHTML = `bps / ${token0}, ${lastLabelHtml}`;
     } else if (widgetId === "kpi-pool-balance") {
       primary.textContent = `${formatNumber(data.primary)}%`;
       secondary.textContent = `${formatNumber(data.secondary)}%`;
@@ -610,29 +638,37 @@
     } else if (widgetId === "kpi-price-min-max") {
       const maxValue = Number(data.primary);
       const minValue = Number(data.secondary);
-      primary.textContent = `${Number.isFinite(maxValue) ? maxValue.toFixed(4) : "--"} / ${Number.isFinite(minValue) ? minValue.toFixed(4) : "--"}`;
-      secondary.textContent = `${token1} / ${token0}, ${lastLabel}`;
+      const maxStr = Number.isFinite(maxValue) ? maxValue.toFixed(4) : "--";
+      const minStr = Number.isFinite(minValue) ? minValue.toFixed(4) : "--";
+      primary.innerHTML = `<span style="color:#2fbf71">${maxStr}</span> / <span style="color:#e24c4c">${minStr}</span>`;
+      secondary.innerHTML = `${token1} / ${token0}, ${lastLabelHtml}`;
     } else if (widgetId === "kpi-vwap-buy-sell") {
       const buy = Number(data.primary);
       const sell = Number(data.secondary);
-      primary.textContent = `${Number.isFinite(buy) ? buy.toFixed(4) : "--"} / ${Number.isFinite(sell) ? sell.toFixed(4) : "--"}`;
-      secondary.textContent = `${token1} / ${token0}, ${lastLabel}`;
+      const buyStr = Number.isFinite(buy) ? buy.toFixed(4) : "--";
+      const sellStr = Number.isFinite(sell) ? sell.toFixed(4) : "--";
+      primary.innerHTML = `<span style="color:#2fbf71">${buyStr}</span> / <span style="color:#e24c4c">${sellStr}</span>`;
+      secondary.innerHTML = `${token1} / ${token0}, ${lastLabelHtml}`;
     } else if (widgetId === "kpi-price-std-dev") {
       const stdDev = Number(data.primary);
       primary.textContent = Number.isFinite(stdDev) ? stdDev.toFixed(4) : "--";
-      secondary.textContent = `${token1} / ${token0}, ${lastLabel}`;
+      secondary.innerHTML = `${token1} / ${token0}, ${lastLabelHtml}`;
     } else if (widgetId === "kpi-vwap-spread") {
       const spread = Number(data.primary);
       primary.textContent = Number.isFinite(spread) ? spread.toFixed(4) : "--";
-      secondary.textContent = `bps, ${lastLabel}`;
+      secondary.innerHTML = `bps, ${lastLabelHtml}`;
     } else if (
       widgetId === "kpi-largest-usx-sell" ||
       widgetId === "kpi-largest-usx-buy" ||
       widgetId === "kpi-max-1h-sell-pressure" ||
       widgetId === "kpi-max-1h-buy-pressure"
     ) {
-      primary.textContent = `${formatNumber(data.primary)} / ${formatSigned4dp(data.secondary)}`;
-      secondary.textContent = `${token0} / bps, ${lastLabel}`;
+      const bpsValue = data.secondary === null || data.secondary === undefined ? null : Number(data.secondary);
+      const bpsStr = formatSigned4dp(data.secondary);
+      const bpsColor = bpsValue === null || !Number.isFinite(bpsValue) ? "" : bpsValue < 0 ? "#e24c4c" : "#2fbf71";
+      const bpsHtml = bpsColor ? `<span style="color:${bpsColor}">${bpsStr}</span>` : bpsStr;
+      primary.innerHTML = `${formatNumber(data.primary)} / ${bpsHtml}`;
+      secondary.innerHTML = `${token0} / bps, ${lastLabelHtml}`;
     } else {
       primary.textContent = formatNumber(data.primary);
       secondary.textContent = data.secondary ? formatNumber(data.secondary) : "";
@@ -1119,7 +1155,22 @@
       chartData = trimIncompleteTailForTimeSeries(chartData);
     }
     if (widgetId === "swaps-ohlcv") {
-      chartData = trimOhlcvToLastWindow(chartData, currentLastWindow());
+      const lastWindow = currentLastWindow();
+      chartData = trimOhlcvToLastWindow(chartData, lastWindow);
+      const xs = chartData.x;
+      if (Array.isArray(xs) && xs.length >= 2) {
+        const first = parseIsoDate(xs[0]);
+        const last = parseIsoDate(xs[xs.length - 1]);
+        const expectedMs = windowMsFromLastWindow(lastWindow);
+        if (first && last && expectedMs > 0) {
+          const spanMs = last.getTime() - first.getTime();
+          if (spanMs < expectedMs * 0.85) {
+            return;
+          }
+        }
+      } else if (Array.isArray(xs) && xs.length < 2) {
+        return;
+      }
     }
 
     let option;
@@ -1159,10 +1210,20 @@
       }
       const profileMax = liquidityProfile.reduce((maxValue, row) => Math.max(maxValue, row.scaledLiquidity), 0);
       const profileColor = "rgba(142, 161, 199, 0.16)";
+      const { token0: ohlcToken0, token1: ohlcToken1 } = currentPairTokens();
+      const ohlcLegendIcon = "image://data:image/svg+xml," + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14">'
+        + '<polygon points="0,0 14,0 0,14" fill="#2fbf71"/>'
+        + '<polygon points="14,0 14,14 0,14" fill="#e24c4c"/>'
+        + '</svg>'
+      );
       option = {
         color: palette(),
         legend: {
-          data: ["OHLC", "Volume"],
+          data: [
+            { name: "OHLC", icon: ohlcLegendIcon },
+            "Volume",
+          ],
           bottom: 2,
           textStyle: { color: chartTextColor() },
         },
@@ -1188,8 +1249,8 @@
           },
         },
         grid: [
-          { left: 82, right: 88, top: 14, height: "56%", containLabel: false },
-          { left: 82, right: 88, top: "74%", height: "12%", containLabel: false },
+          { left: 82, right: 88, top: 14, height: "48%", containLabel: false },
+          { left: 82, right: 88, top: "64%", height: "16%", containLabel: false },
         ],
         xAxis: [
           {
@@ -1228,6 +1289,10 @@
             type: "value",
             scale: true,
             position: "right",
+            name: `${ohlcToken1} / ${ohlcToken0}`,
+            nameLocation: "middle",
+            nameGap: 70,
+            nameTextStyle: { color: chartTextColor(), fontSize: 11 },
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { lineStyle: { color: chartGridColor() } },
             axisLabel: {
@@ -1245,6 +1310,10 @@
             gridIndex: 1,
             scale: true,
             position: "right",
+            name: `Vol. (${ohlcToken1})`,
+            nameLocation: "middle",
+            nameGap: 70,
+            nameTextStyle: { color: chartTextColor(), fontSize: 11 },
             splitNumber: 3,
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { show: false },
@@ -2001,25 +2070,41 @@
         });
       }
       if (widgetId === "swaps-flows-toggle") {
+        const flowYLabel = pairAwareLabel(chartData.yAxisLabel) || "";
+        const flowYRightLabel = pairAwareLabel(chartData.yRightAxisLabel) || "";
         option.yAxis = [
           {
             type: "value",
+            name: flowYLabel || undefined,
+            nameLocation: "middle",
+            nameGap: flowYLabel ? 58 : undefined,
+            nameTextStyle: flowYLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { lineStyle: { color: chartGridColor() } },
-            axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0] },
+            axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0], formatter: (v) => formatCompactMagnitude(v) },
           },
           {
             type: "value",
             position: "right",
+            name: flowYRightLabel || undefined,
+            nameLocation: "middle",
+            nameGap: flowYRightLabel ? 36 : undefined,
+            nameTextStyle: flowYRightLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { show: false },
             axisLabel: { color: chartTextColor(), formatter: (value) => Math.round(Number(value)).toString() },
           },
         ];
+        option.grid = { ...(option.grid || {}), right: 90 };
       }
       if (widgetId === "swaps-price-impacts") {
+        const impactYLabel = pairAwareLabel(chartData.yAxisLabel) || "";
         option.yAxis = {
           type: "value",
+          name: impactYLabel || undefined,
+          nameLocation: "middle",
+          nameGap: impactYLabel ? 58 : undefined,
+          nameTextStyle: impactYLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
           axisLine: { lineStyle: { color: chartGridColor() } },
           splitLine: { lineStyle: { color: chartGridColor() } },
           axisLabel: {
@@ -2030,11 +2115,18 @@
             formatter: (value) => Number(value).toFixed(3),
           },
         };
+        option.grid = { ...(option.grid || {}), right: 90 };
       }
       if (widgetId === "swaps-spread-volatility") {
+        const spreadYLabel = pairAwareLabel(chartData.yAxisLabel) || "";
+        const spreadYRightLabel = pairAwareLabel(chartData.yRightAxisLabel) || "";
         option.yAxis = [
           {
             type: "value",
+            name: spreadYLabel || undefined,
+            nameLocation: "middle",
+            nameGap: spreadYLabel ? 58 : undefined,
+            nameTextStyle: spreadYLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
             min: (axis) => {
               const min = Number(axis.min) || 0;
               const max = Number(axis.max) || 0;
@@ -2060,6 +2152,10 @@
           {
             type: "value",
             position: "right",
+            name: spreadYRightLabel || undefined,
+            nameLocation: "middle",
+            nameGap: spreadYRightLabel ? 68 : undefined,
+            nameTextStyle: spreadYRightLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
             min: (axis) => {
               const min = Number(axis.min) || 0;
               const max = Number(axis.max) || 0;
@@ -2077,24 +2173,44 @@
             axisLabel: { color: chartTextColor(), formatter: (value) => Number(value).toFixed(6) },
           },
         ];
+        option.grid = { ...(option.grid || {}), right: 90 };
       }
       if (
         widgetId === "swaps-sell-usx-distribution" ||
         widgetId === "swaps-1h-net-sell-pressure-distribution" ||
         widgetId === "swaps-distribution-toggle"
       ) {
+        const distYLabel = pairAwareLabel(chartData.yAxisLabel) || "";
+        const distYRightLabel = pairAwareLabel(chartData.yRightAxisLabel) || "";
+        const distLabelFontSize = 11;
+        const distLineHeight = 16;
+        const distLabelMargin = 6;
+        const distGridBottom = 26 + distLabelMargin + distLineHeight * 2;
         option.xAxis = {
           ...option.xAxis,
           boundaryGap: true,
+          axisLabel: {
+            ...option.xAxis.axisLabel,
+            margin: distLabelMargin,
+            lineHeight: distLineHeight,
+            fontSize: distLabelFontSize,
+            formatter: (value) => value,
+          },
         };
         option.grid = {
           ...option.grid,
           left: 72,
-          right: 52,
+          right: distYRightLabel ? 70 : 52,
+          bottom: distGridBottom,
+          containLabel: false,
         };
         option.yAxis = [
           {
             type: "value",
+            name: distYLabel || undefined,
+            nameLocation: "middle",
+            nameGap: distYLabel ? 48 : undefined,
+            nameTextStyle: distYLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { lineStyle: { color: chartGridColor() } },
             axisLabel: { color: chartTextColor(), formatter: (value) => Math.round(Number(value)).toString() },
@@ -2102,9 +2218,29 @@
           {
             type: "value",
             position: "right",
+            name: distYRightLabel || undefined,
+            nameLocation: "middle",
+            nameGap: distYRightLabel ? 56 : undefined,
+            nameTextStyle: distYRightLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { show: false },
             axisLabel: { color: chartTextColor(), formatter: (value) => Number(value).toFixed(2) },
+          },
+        ];
+        const row1Bottom = distGridBottom - distLabelMargin - distLineHeight;
+        const row2Bottom = row1Bottom - distLineHeight;
+        option.graphic = [
+          {
+            type: "text",
+            left: 4,
+            bottom: row1Bottom,
+            style: { text: "U Bound", fill: chartTextColor(), fontSize: distLabelFontSize, textAlign: "left", textVerticalAlign: "top" },
+          },
+          {
+            type: "text",
+            left: 4,
+            bottom: row2Bottom,
+            style: { text: "Percentile", fill: chartTextColor(), fontSize: distLabelFontSize, textAlign: "left", textVerticalAlign: "top" },
           },
         ];
       }
@@ -2209,6 +2345,19 @@
       return;
     }
 
+    const chartSubEl = document.getElementById(`chart-subtitle-${widgetId}`);
+    if (chartSubEl) {
+      if (payload.data.event_count != null) {
+        const noun = payload.data.event_noun || "Events";
+        const windowLabel = currentLastWindowLabel().replace(/^Last\s*/i, "");
+        const pctSuffix = payload.data.event_pct != null ? ` (${payload.data.event_pct}%)` : "";
+        chartSubEl.textContent = `${Number(payload.data.event_count).toLocaleString()} ${noun} in ${windowLabel} Sample${pctSuffix}`;
+      } else {
+        const interval = bucketIntervalLabel(widgetId);
+        chartSubEl.textContent = interval ? `Reported at ${interval} intervals` : "";
+      }
+    }
+
     renderChart(widgetId, payload.data);
   }
 
@@ -2224,7 +2373,8 @@
   function setWidgetError(widgetId, message) {
     const el = document.getElementById(`updated-${widgetId}`);
     if (el) {
-      el.textContent = `error: ${message}`;
+      const short = String(message || "unknown error").slice(0, 60).replace(/\s+/g, " ");
+      el.textContent = `error: ${short}`;
     }
   }
 

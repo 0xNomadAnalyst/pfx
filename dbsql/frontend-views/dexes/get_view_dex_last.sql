@@ -2,6 +2,7 @@
 -- Same signature and output schema as the original (dexes/dbsql/views/get_view_dex_last.sql)
 -- but reads from the pre-computed snapshot table instead of scanning multiple source tables.
 
+DROP FUNCTION IF EXISTS dexes.get_view_dex_last(TEXT, TEXT, INTERVAL) CASCADE;
 CREATE OR REPLACE FUNCTION dexes.get_view_dex_last(
     protocol_param TEXT,
     pair_param TEXT,
@@ -75,8 +76,13 @@ RETURNS TABLE (
     price_t1_per_t0_std NUMERIC,
     swap_vol_t1_total_24h BIGINT,
     swap_vol_t1_total_24h_pct_tvl_in_t1 NUMERIC,
+    swap_count_24h BIGINT,
     max_1h_t0_sell_pressure_pct_reserve NUMERIC,
-    max_1h_t0_sell_pressure_start TIMESTAMPTZ
+    max_1h_t0_sell_pressure_start TIMESTAMPTZ,
+    max_1h_t0_sell_pressure_in_period BIGINT,
+    max_1h_t0_sell_pressure_in_period_impact_bps NUMERIC,
+    max_1h_t0_buy_pressure_in_period BIGINT,
+    max_1h_t0_buy_pressure_in_period_impact_bps NUMERIC
 )
 LANGUAGE plpgsql
 AS $$
@@ -150,8 +156,13 @@ BEGIN
         ml.price_t1_per_t0_std,
         ml.swap_vol_t1_total_24h,
         ml.swap_vol_t1_total_24h_pct_tvl_in_t1,
+        ml.swap_count_24h,
         ml.max_1h_t0_sell_pressure_pct_reserve,
-        ml.max_1h_t0_sell_pressure_start
+        ml.max_1h_t0_sell_pressure_start,
+        ml.max_1h_t0_sell_pressure_in_period,
+        ml.max_1h_t0_sell_pressure_in_period_impact_bps,
+        ml.max_1h_t0_buy_pressure_in_period,
+        ml.max_1h_t0_buy_pressure_in_period_impact_bps
     FROM dexes.mat_dex_last ml
     WHERE ml.protocol = protocol_param
       AND ml.token_pair = pair_param;

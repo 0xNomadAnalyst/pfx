@@ -51,6 +51,19 @@ class DataService:
         self._health_status_cached: bool | None = None
         self._health_status_expires_at = 0.0
 
+    def flush_caches(self) -> None:
+        """Drop all cached query results (e.g. after a pipeline switch)."""
+        if hasattr(self, "_query_cache"):
+            self._query_cache.clear()
+        for svc in set(self._pages.values()):
+            if hasattr(svc, "_cache"):
+                with svc._cache_lock:
+                    svc._cache.clear()
+            if hasattr(svc, "cache") and svc.cache is not None and hasattr(svc.cache, "clear"):
+                svc.cache.clear()
+        self._health_status_cached = None
+        self._health_status_expires_at = 0.0
+
     def close(self) -> None:
         self.sql.close()
 

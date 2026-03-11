@@ -706,8 +706,8 @@ BEGIN
         -- METADATA
         NOW(),
         GREATEST(
-            COALESCE((SELECT slot FROM m1), 0),
-            COALESCE((SELECT slot FROM m2), 0)
+            COALESCE((SELECT m1.slot FROM m1 LIMIT 1), 0),
+            COALESCE((SELECT m2.slot FROM m2 LIMIT 1), 0)
         );
 END;
 $$ LANGUAGE plpgsql STABLE;

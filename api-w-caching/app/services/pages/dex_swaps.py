@@ -514,7 +514,7 @@ class DexSwapsPageService(BasePageService):
             "kind": "chart",
             "chart": "line",
             "x": [row["time"] for row in rows],
-            "yAxisLabel": "Price Impact (bps)",
+            "yAxisLabel": "bps (USDC/USX)",
             "series": [
                 {"name": "Avg. Swap Impact", "type": "line", "yAxisIndex": 0, "color": "#f8a94a", "connectNulls": True, "data": avg_impacts},
                 {"name": "Max. Sell USX Impact", "type": "line", "yAxisIndex": 0, "color": "#c186ff", "connectNulls": True, "data": max_sell_impacts},
@@ -536,8 +536,8 @@ class DexSwapsPageService(BasePageService):
             "kind": "chart",
             "chart": "line",
             "x": [row["time"] for row in rows],
-            "yAxisLabel": "VWAP Spread (bps)",
-            "yRightAxisLabel": "Std. Dev.",
+            "yAxisLabel": "bps (USDC/USX)",
+            "yRightAxisLabel": "Std. Dev. (USDC/USX)",
             "series": [
                 {"name": "VWAP Spread", "type": "bar", "yAxisIndex": 0, "color": "#f8a94a", "data": [self._to_float_or_none(row.get("avg_vwap_spread_bps_w_last")) for row in rows]},
                 {"name": "Std. Dev.", "type": "line", "yAxisIndex": 1, "color": "#4bb7ff", "data": std_values},
@@ -545,6 +545,17 @@ class DexSwapsPageService(BasePageService):
         }
 
     def _swaps_ohlcv(self, params: dict[str, Any]) -> dict[str, Any]:
+        last_window = str(params.get("last_window", "24h"))
+        interval_key = str(params.get("ohlcv_interval", "1d")).strip().lower()
+        interval_map: dict[str, str] = {
+            "1m": "1 minute", "5m": "5 minutes", "15m": "15 minutes",
+            "1h": "1 hour", "4h": "4 hours", "1d": "1 day",
+        }
+        interval = interval_map.get(interval_key, "1 day")
+        interval_secs = self._interval_seconds(interval)
+        window_secs = self._window_seconds(last_window)
+        expected_candles = int(ceil(window_secs / interval_secs)) if interval_secs > 0 else 0
+
         rows = self._dex_ohlcv_rows(params)
         tick_rows = self._tick_dist_rows(params)
         anchor_price = 1.0
@@ -585,6 +596,7 @@ class DexSwapsPageService(BasePageService):
         return {
             "kind": "chart",
             "chart": "candlestick-volume",
+            "expected_candles": expected_candles,
             "x": [row["time"] for row in rows],
             "candles": [
                 [
@@ -608,14 +620,18 @@ class DexSwapsPageService(BasePageService):
     def _swaps_sell_usx_distribution(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._sell_swaps_distribution_rows(params)
         x = [self._distribution_axis_label(row) for row in rows]
+        counts = [row.get("swap_count") for row in rows]
+        total_events = sum(int(c or 0) for c in counts)
         return {
             "kind": "chart",
             "chart": "bar-line",
             "x": x,
-            "yAxisLabel": "Swap Count",
-            "yRightAxisLabel": "Price Impact (bps)",
+            "event_count": total_events,
+            "event_noun": "Sell Swaps",
+            "yAxisLabel": "Count",
+            "yRightAxisLabel": "Negative Price Impact (bps)",
             "series": [
-                {"name": "Swap Count", "type": "bar", "yAxisIndex": 0, "color": "#4bb7ff", "data": [row.get("swap_count") for row in rows]},
+                {"name": "Event Count", "type": "bar", "yAxisIndex": 0, "color": "#4bb7ff", "data": counts},
                 {
                     "name": "Price Impact",
                     "type": "line",
@@ -631,14 +647,22 @@ class DexSwapsPageService(BasePageService):
     def _swaps_1h_net_sell_pressure_distribution(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._sell_pressure_distribution_rows(params)
         x = [self._distribution_axis_label(row) for row in rows]
+        counts = [row.get("interval_count") for row in rows]
+        total_events = sum(int(c or 0) for c in counts)
+        last_window = str(params.get("last_window", "24h"))
+        total_intervals = self._window_seconds(last_window) // 3600
+        event_pct = round(total_events / total_intervals * 100) if total_intervals > 0 else None
         return {
             "kind": "chart",
             "chart": "bar-line",
             "x": x,
-            "yAxisLabel": "Interval Count",
-            "yRightAxisLabel": "Price Impact (bps)",
+            "event_count": total_events,
+            "event_pct": event_pct,
+            "event_noun": "Net Sell Pressure Intervals",
+            "yAxisLabel": "Count",
+            "yRightAxisLabel": "Negative Price Impact (bps)",
             "series": [
-                {"name": "Pressure Counted", "type": "bar", "yAxisIndex": 0, "color": "#4bb7ff", "data": [row.get("interval_count") for row in rows]},
+                {"name": "Event Count", "type": "bar", "yAxisIndex": 0, "color": "#4bb7ff", "data": counts},
                 {
                     "name": "Price Impact",
                     "type": "line",

@@ -1,128 +1,148 @@
--- v_last: Direct read from mat_klend_last_* tables
--- Same output pattern as the original (kamino/dbsql/views/v_last.sql)
--- Reads from pre-computed snapshot tables instead of scanning source tables.
--- Uses dynamic reserve pivoting (no hardcoded addresses).
+-- v_last: Schema-compatible read from mat_klend_last_* tables
+-- Outputs the SAME column names as the Solstice production v_last so the
+-- Python page service (kamino.py) works identically for both pipelines.
+-- Uses dynamic array aggregation — no hardcoded reserve addresses.
 
+DROP VIEW IF EXISTS kamino_lend.v_last CASCADE;
 CREATE OR REPLACE VIEW kamino_lend.v_last AS
 WITH borrow_reserves AS (
     SELECT
-        r.reserve_address,
-        r.symbol,
-        r.supply_total,
-        r.supply_available,
-        r.supply_borrowed,
-        r.utilization_ratio,
-        r.supply_apy,
-        r.borrow_apy,
-        r.market_price,
-        r.oracle_price,
-        r.vault_liquidity_marketvalue,
-        r.deposit_tvl,
-        r.borrow_tvl,
-        r.market_address,
-        r.last_updated,
-        ROW_NUMBER() OVER (ORDER BY r.symbol) AS rn
+        r.reserve_address, r.symbol, r.supply_total, r.supply_available,
+        r.supply_borrowed, r.utilization_ratio, r.supply_apy, r.borrow_apy,
+        r.market_price, r.oracle_price, r.vault_liquidity_marketvalue,
+        r.market_address, r.last_updated
     FROM kamino_lend.mat_klend_last_reserves r
     WHERE r.reserve_type = 'borrow'
 ),
 collateral_reserves AS (
     SELECT
-        r.reserve_address,
-        r.symbol,
-        r.collateral_total_supply,
-        r.vault_collateral_marketvalue,
-        r.market_address,
-        ROW_NUMBER() OVER (ORDER BY r.symbol) AS rn
+        r.reserve_address, r.symbol, r.collateral_total_supply,
+        r.vault_collateral_marketvalue, r.market_address
     FROM kamino_lend.mat_klend_last_reserves r
     WHERE r.reserve_type = 'collateral'
 ),
 obl AS (
     SELECT * FROM kamino_lend.mat_klend_last_obligations LIMIT 1
 ),
-act AS (
-    SELECT * FROM kamino_lend.mat_klend_last_activities
-),
-brw1 AS (SELECT * FROM borrow_reserves WHERE rn = 1),
-brw2 AS (SELECT * FROM borrow_reserves WHERE rn = 2),
-coll1 AS (SELECT * FROM collateral_reserves WHERE rn = 1),
 brw_agg AS (
     SELECT
-        SUM(supply_total) AS total_supply,
-        SUM(supply_available) AS total_available,
-        SUM(supply_borrowed) AS total_borrowed,
-        SUM(supply_total * market_price) AS total_supply_mktval,
-        SUM(supply_borrowed * market_price) AS total_borrowed_mktval,
-        SUM(vault_liquidity_marketvalue) AS total_available_mktval
+        SUM(supply_borrowed * market_price)   AS total_borrowed_mktval,
+        SUM(vault_liquidity_marketvalue)       AS total_available_mktval,
+        SUM(supply_total * market_price)       AS total_supply_mktval
     FROM borrow_reserves
 ),
+brw_arr AS (
+    SELECT
+        array_agg(ROUND(b.utilization_ratio * 100, 1) ORDER BY b.symbol)
+            AS utilization_pct_arr,
+        array_agg(b.symbol ORDER BY b.symbol)
+            AS symbols_arr,
+        array_agg(
+            ROUND(CASE WHEN agg.total_borrowed_mktval > 0
+                THEN b.supply_borrowed * b.market_price
+                     / agg.total_borrowed_mktval * 100
+                ELSE 0 END::NUMERIC, 1)
+            ORDER BY b.symbol
+        ) AS shares_pct_arr,
+        array_agg(ROUND(b.borrow_apy * 100, 2) ORDER BY b.symbol)
+            AS borrow_apy_arr,
+        array_agg(ROUND(b.supply_apy * 100, 2) ORDER BY b.symbol)
+            AS supply_apy_arr,
+        array_agg(ROUND(COALESCE(a.borrow_vol_24h, 0)::NUMERIC, 0) ORDER BY b.symbol)
+            AS borrow_vol_24h_arr,
+        array_agg(ROUND(COALESCE(a.repay_vol_24h, 0)::NUMERIC, 0) ORDER BY b.symbol)
+            AS repay_vol_24h_arr,
+        array_agg(ROUND(COALESCE(a.liquidate_vol_30d, 0)::NUMERIC, 0) ORDER BY b.symbol)
+            AS liquidated_vol_30d_arr,
+        array_agg(ROUND(COALESCE(a.withdraw_vol_24h, 0)::NUMERIC, 0) ORDER BY b.symbol)
+            AS withdraw_vol_24h_arr,
+        array_agg(ROUND(COALESCE(a.deposit_vol_24h, 0)::NUMERIC, 0) ORDER BY b.symbol)
+            AS deposit_vol_24h_arr,
+        array_agg(NULL::NUMERIC ORDER BY b.symbol)
+            AS liquidated_count_30d_arr,
+        array_agg(NULL::NUMERIC ORDER BY b.symbol)
+            AS liquidated_avg_size_arr
+    FROM borrow_reserves b
+    LEFT JOIN kamino_lend.mat_klend_last_activities a ON b.symbol = a.symbol
+    CROSS JOIN brw_agg agg
+),
 coll_agg AS (
-    SELECT SUM(collateral_total_supply) AS total_collateral
+    SELECT
+        SUM(vault_collateral_marketvalue) AS total_coll_mktval
     FROM collateral_reserves
+),
+coll_arr AS (
+    SELECT
+        array_agg(
+            ROUND(CASE WHEN agg.total_coll_mktval > 0
+                THEN c.vault_collateral_marketvalue / agg.total_coll_mktval * 100
+                ELSE 0 END::NUMERIC, 1)
+            ORDER BY c.symbol
+        ) AS shares_pct_arr,
+        array_agg(c.symbol ORDER BY c.symbol) AS symbols_arr
+    FROM collateral_reserves c
+    CROSS JOIN coll_agg agg
+),
+last_liq AS (
+    SELECT ROUND(
+        EXTRACT(EPOCH FROM NOW() - MAX(bucket))::NUMERIC / 86400.0, 0
+    ) AS days_ago
+    FROM kamino_lend.cagg_activities_5s
+    WHERE liquidate_borrowing_sum > 0
 )
 SELECT
-    -- Borrow reserve 1
-    brw1.symbol AS reserve_brw1_symbol,
-    brw1.reserve_address AS reserve_brw1_address,
-    ROUND(brw1.supply_total::NUMERIC, 0) AS reserve_brw1_supply_total,
-    ROUND(brw1.utilization_ratio * 100, 1) AS reserve_brw1_utilization_pct,
-    ROUND(brw1.supply_apy * 100, 2) AS reserve_brw1_supply_apy,
-    ROUND(brw1.borrow_apy * 100, 2) AS reserve_brw1_borrow_apy,
-    ROUND(brw1.supply_available::NUMERIC, 0) AS reserve_brw1_available,
-    ROUND(brw1.supply_borrowed::NUMERIC, 0) AS reserve_brw1_borrowed,
-    ROUND((brw1.supply_borrowed * brw1.market_price)::NUMERIC, 0) AS reserve_brw1_borrowed_mktvalue,
-    ROUND(brw1.vault_liquidity_marketvalue::NUMERIC, 0) AS reserve_brw1_available_mktvalue,
-    ROUND(brw1.oracle_price::NUMERIC, 6) AS reserve_brw1_oracle_price,
-    -- Borrow reserve 2
-    brw2.symbol AS reserve_brw2_symbol,
-    brw2.reserve_address AS reserve_brw2_address,
-    ROUND(brw2.supply_total::NUMERIC, 0) AS reserve_brw2_supply_total,
-    ROUND(brw2.utilization_ratio * 100, 1) AS reserve_brw2_utilization_pct,
-    ROUND(brw2.supply_apy * 100, 2) AS reserve_brw2_supply_apy,
-    ROUND(brw2.borrow_apy * 100, 2) AS reserve_brw2_borrow_apy,
-    ROUND(brw2.supply_available::NUMERIC, 0) AS reserve_brw2_available,
-    ROUND(brw2.supply_borrowed::NUMERIC, 0) AS reserve_brw2_borrowed,
-    ROUND((brw2.supply_borrowed * brw2.market_price)::NUMERIC, 0) AS reserve_brw2_borrowed_mktvalue,
-    ROUND(brw2.vault_liquidity_marketvalue::NUMERIC, 0) AS reserve_brw2_available_mktvalue,
-    ROUND(brw2.oracle_price::NUMERIC, 6) AS reserve_brw2_oracle_price,
-    -- Aggregate borrow
-    ROUND(ba.total_supply::NUMERIC, 0) AS reserve_brw_all_supply_total,
-    ROUND(ba.total_available_mktval::NUMERIC, 0) AS reserve_brw_all_available_mktvalue,
-    ROUND(ba.total_borrowed_mktval::NUMERIC, 0) AS reserve_brw_all_borrowed_mktvalue,
-    ROUND(ba.total_supply_mktval::NUMERIC, 0) AS reserve_brw_all_supply_total_mktvalue,
-    ROUND((ba.total_borrowed_mktval / NULLIF(ba.total_supply_mktval, 0) * 100)::NUMERIC, 1) AS reserve_brw_all_utilization_pct,
-    -- Collateral
-    coll1.symbol AS reserve_coll1_symbol,
-    coll1.reserve_address AS reserve_coll1_address,
-    ROUND(coll1.collateral_total_supply::NUMERIC, 0) AS reserve_coll1_collateral,
-    ROUND(ca.total_collateral::NUMERIC, 0) AS reserve_coll_all_collateral,
-    -- Obligations
-    ROUND(obl.total_collateral_value::NUMERIC, 0) AS obl_total_collateral_value,
-    ROUND(obl.total_borrow_value::NUMERIC, 0) AS obl_total_borrow_value,
-    obl.obligations_with_debt,
-    ROUND(obl.weighted_avg_health_factor_sig, 2) AS obl_wtd_avg_health_factor,
-    ROUND(obl.weighted_avg_loan_to_value_sig, 1) AS obl_wtd_avg_ltv,
-    ROUND(obl.total_unhealthy_debt::NUMERIC, 0) AS obl_total_unhealthy_debt,
-    ROUND(obl.total_bad_debt::NUMERIC, 0) AS obl_total_bad_debt,
-    ROUND((COALESCE(obl.total_unhealthy_debt, 0) + COALESCE(obl.total_bad_debt, 0))::NUMERIC, 0) AS obl_total_at_risk_debt,
-    ROUND(obl.unhealthy_debt_pct, 1) AS obl_unhealthy_debt_pct,
-    ROUND(obl.bad_debt_pct, 1) AS obl_bad_debt_pct,
-    ROUND(obl.total_liquidatable_value::NUMERIC, 0) AS obl_total_liquidatable_value,
-    ROUND(obl.top_10_debt_concentration_pct, 1) AS obl_top_10_debt_concentration_pct,
-    -- 24h activities
-    ROUND(COALESCE((SELECT deposit_vol_24h FROM act WHERE symbol = brw1.symbol), 0)::NUMERIC, 0) AS reserve_brw1_deposit_vol_24h,
-    ROUND(COALESCE((SELECT withdraw_vol_24h FROM act WHERE symbol = brw1.symbol), 0)::NUMERIC, 0) AS reserve_brw1_withdraw_vol_24h,
-    ROUND(COALESCE((SELECT borrow_vol_24h FROM act WHERE symbol = brw1.symbol), 0)::NUMERIC, 0) AS reserve_brw1_borrow_vol_24h,
-    ROUND(COALESCE((SELECT repay_vol_24h FROM act WHERE symbol = brw1.symbol), 0)::NUMERIC, 0) AS reserve_brw1_repay_vol_24h,
-    ROUND(COALESCE((SELECT deposit_vol_24h FROM act WHERE symbol = brw2.symbol), 0)::NUMERIC, 0) AS reserve_brw2_deposit_vol_24h,
-    ROUND(COALESCE((SELECT withdraw_vol_24h FROM act WHERE symbol = brw2.symbol), 0)::NUMERIC, 0) AS reserve_brw2_withdraw_vol_24h,
-    ROUND(COALESCE((SELECT borrow_vol_24h FROM act WHERE symbol = brw2.symbol), 0)::NUMERIC, 0) AS reserve_brw2_borrow_vol_24h,
-    ROUND(COALESCE((SELECT repay_vol_24h FROM act WHERE symbol = brw2.symbol), 0)::NUMERIC, 0) AS reserve_brw2_repay_vol_24h,
-    -- Metadata
-    brw1.market_address,
-    GREATEST(brw1.last_updated, brw2.last_updated) AS last_updated
-FROM brw1
-FULL OUTER JOIN brw2 ON TRUE
-LEFT JOIN coll1 ON TRUE
+    brw_arr.utilization_pct_arr         AS reserve_brw_all_utilization_pct_array,
+    brw_arr.symbols_arr                 AS reserve_brw_all_symbols_array,
+    ROUND(ba.total_borrowed_mktval::NUMERIC, 0)
+                                        AS reserve_brw_all_borrowed,
+    obl.obligations_with_debt           AS obl_debt_borrow_nonzero_count,
+    ROUND((obl.total_borrow_value
+           / NULLIF(obl.obligations_with_debt, 0))::NUMERIC, 0)
+                                        AS obl_loan_avg_size,
+    brw_arr.shares_pct_arr              AS reserve_brw_all_shares_pct_array,
+    ROUND(obl.weighted_avg_loan_to_value_sig, 1)
+                                        AS obl_ltv_weighted_avg_sig,
+    ROUND(obl.weighted_avg_health_factor_sig, 2)
+                                        AS obl_hf_weighted_avg_sig,
+    ROUND(ca.total_coll_mktval::NUMERIC, 0)
+                                        AS reserve_coll_all_collateral,
+    ROUND(obl.unhealthy_debt_pct, 2)    AS obl_debt_total_unhealthy_pct,
+    coll_arr.shares_pct_arr             AS reserve_coll_all_shares_pct_array,
+    coll_arr.symbols_arr                AS reserve_coll_all_symbols_array,
+    NULL::BIGINT                        AS obl_debt_borrow_zero_use_count,
+    NULL::NUMERIC                       AS obl_debt_borrow_zero_use_capacity,
+    brw_arr.borrow_apy_arr              AS reserve_brw_all_borrow_apy_array,
+    brw_arr.supply_apy_arr              AS reserve_brw_all_supply_apy_array,
+    brw_arr.borrow_vol_24h_arr          AS reserve_brw_all_borrow_vol_24h_array,
+    brw_arr.repay_vol_24h_arr           AS reserve_brw_all_repay_vol_24h_array,
+    brw_arr.liquidated_vol_30d_arr      AS reserve_brw_all_liquidated_vol_30d_array,
+    brw_arr.liquidated_count_30d_arr    AS reserve_brw_all_liquidated_count_30d_array,
+    brw_arr.withdraw_vol_24h_arr        AS reserve_brw_all_withdraw_vol_24h_array,
+    brw_arr.deposit_vol_24h_arr         AS reserve_brw_all_deposit_vol_24h_array,
+    brw_arr.liquidated_avg_size_arr     AS reserve_brw_all_liquidated_avg_size_array,
+    ll.days_ago                         AS last_liquidation_days_ago,
+    ROUND((ca.total_coll_mktval
+           - COALESCE(obl.total_liquidatable_value, 0))::NUMERIC, 0)
+                                        AS reserve_coll_all_collateral_less_liquidatable_mktval,
+    ROUND(obl.total_liquidatable_value::NUMERIC, 0)
+                                        AS obl_liquidatable_value,
+    ROUND((ba.total_borrowed_mktval
+           - COALESCE(obl.total_unhealthy_debt, 0)
+           - COALESCE(obl.total_bad_debt, 0))::NUMERIC, 0)
+                                        AS reserve_brw_all_borrowed_less_debt_at_risk_mktval,
+    ROUND(ba.total_available_mktval::NUMERIC, 0)
+                                        AS reserve_brw_all_available_mktval,
+    ROUND(obl.total_unhealthy_debt::NUMERIC, 0)
+                                        AS obl_debt_total_unhealthy,
+    ROUND(obl.total_bad_debt::NUMERIC, 0)
+                                        AS obl_debt_total_bad,
+    NULL::NUMERIC                       AS reserve_eusx_price_stddev_7d_pct,
+    NULL::NUMERIC                       AS reserve_eusx_price_2sigma_7d_pct,
+    NULL::NUMERIC                       AS reserve_usx_price_stddev_7d_pct,
+    NULL::NUMERIC                       AS reserve_usx_price_2sigma_7d_pct
+FROM brw_agg ba
+CROSS JOIN coll_agg ca
+CROSS JOIN brw_arr
+CROSS JOIN coll_arr
 LEFT JOIN obl ON TRUE
-CROSS JOIN brw_agg ba
-CROSS JOIN coll_agg ca;
+LEFT JOIN last_liq ll ON TRUE;

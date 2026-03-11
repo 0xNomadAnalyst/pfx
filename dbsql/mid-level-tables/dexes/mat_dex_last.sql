@@ -104,6 +104,13 @@ CREATE TABLE IF NOT EXISTS dexes.mat_dex_last (
     max_1h_t0_sell_pressure_pct_reserve NUMERIC,
     max_1h_t0_sell_pressure_start   TIMESTAMPTZ,
 
+    -- Extended: columns matching original Solstice compute function output
+    swap_count_24h                  BIGINT,
+    max_1h_t0_sell_pressure_in_period BIGINT,
+    max_1h_t0_buy_pressure_in_period BIGINT,
+    max_1h_t0_sell_pressure_in_period_impact_bps NUMERIC,
+    max_1h_t0_buy_pressure_in_period_impact_bps NUMERIC,
+
     -- Metadata
     refreshed_at                    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -128,11 +135,51 @@ BEGIN
         FROM dexes.pool_tokens_reference
     LOOP
         BEGIN
-            INSERT INTO dexes.mat_dex_last
+            INSERT INTO dexes.mat_dex_last (
+                pool_address, protocol, token_pair, symbols_t0_t1,
+                liq_query_id, price_t1_per_t0,
+                impact_t0_quantities, impact_from_t0_sell1_bps,
+                impact_from_t0_sell2_bps, impact_from_t0_sell3_bps,
+                t0_reserve, t1_reserve, tvl_in_t1_units,
+                reserve_t0_t1_millions, reserve_t0_t1_balance_pct,
+                swap_count_period, lp_in_count_period, lp_out_count_period,
+                swap_vol_in_t1_units, swap_vol_in_t0_units,
+                swap_vol_in_t1_units_pct_reserve, swap_vol_in_t0_units_pct_reserve,
+                swap_vol_out_t1_units, swap_vol_out_t0_units,
+                swap_vol_out_t1_units_pct_reserve, swap_vol_out_t0_units_pct_reserve,
+                swap_vol_period_t0_in, swap_vol_period_t0_out,
+                swap_vol_period_t1_in, swap_vol_period_t1_out,
+                lp_token0_in_period_sum, lp_token0_out_period_sum,
+                lp_token1_in_period_sum, lp_token1_out_period_sum,
+                lp_token0_in_period_sum_pct_reserve, lp_token0_out_period_sum_pct_reserve,
+                lp_token1_in_period_sum_pct_reserve, lp_token1_out_period_sum_pct_reserve,
+                swap_token1_in_max, swap_token1_in_max_t0_complement,
+                swap_token1_out_max, swap_token1_out_max_t0_complement,
+                swap_token0_in_max, swap_token0_out_max,
+                swap_token0_in_avg, swap_token0_out_avg,
+                swap_token1_in_avg, swap_token1_out_avg,
+                swap_token1_in_max_pct_reserve, swap_token1_out_max_pct_reserve,
+                swap_token1_in_max_impact_bps, swap_token1_out_max_impact_bps,
+                swap_token0_in_max_impact_bps, swap_token0_out_max_impact_bps,
+                swap_token0_in_avg_impact_bps, swap_token0_out_avg_impact_bps,
+                swap_token1_in_avg_impact_bps, swap_token1_out_avg_impact_bps,
+                vwap_buy_t0_avg, vwap_sell_t0_avg,
+                price_t1_per_t0_avg, spread_vwap_avg_bps,
+                price_t1_per_t0_max, price_t1_per_t0_min, price_t1_per_t0_std,
+                swap_vol_t1_total_24h, swap_vol_t1_total_24h_pct_tvl_in_t1,
+                swap_count_24h,
+                max_1h_t0_sell_pressure_in_period, max_1h_t0_buy_pressure_in_period,
+                max_1h_t0_sell_pressure_in_period_impact_bps,
+                max_1h_t0_buy_pressure_in_period_impact_bps,
+                max_1h_t0_sell_pressure_pct_reserve, max_1h_t0_sell_pressure_start,
+                refreshed_at
+            )
             SELECT
                 dl.*,
-                NOW() AS refreshed_at
-            FROM dexes.get_view_dex_last(r.protocol, r.token_pair, INTERVAL '1 hour') dl;
+                NULL::NUMERIC,
+                NULL::TIMESTAMPTZ,
+                NOW()
+            FROM dexes._fn_compute_dex_last(r.protocol, r.token_pair, INTERVAL '1 hour') dl;
         EXCEPTION WHEN OTHERS THEN
             RAISE WARNING 'refresh_mat_dex_last: failed for %/% — %', r.protocol, r.token_pair, SQLERRM;
         END;
