@@ -216,16 +216,18 @@
     return mapping[key] || `Last ${key.toUpperCase()}`;
   }
 
+  const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
   function formatCompactTimestamp(value) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
       return String(value);
     }
-    const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
+    const mon = MONTH_ABBR[date.getMonth()];
     const hours = String(date.getHours()).padStart(2, "0");
     const minutes = String(date.getMinutes()).padStart(2, "0");
-    return `${month}-${day} ${hours}:${minutes}`;
+    return `${day}-${mon} ${hours}:${minutes}`;
   }
 
   function parseIsoDate(value) {
@@ -236,7 +238,7 @@
   function applyLinkedTimeseriesFormat(option) {
     const hasRightAxis = Array.isArray(option.yAxis) && option.yAxis.length > 1;
     const hasRightLabel = hasRightAxis && !!option.yAxis[1].name;
-    option.grid = { ...(option.grid || {}), left: 82, right: hasRightAxis ? (hasRightLabel ? 76 : 64) : 24, bottom: 60, containLabel: false };
+    option.grid = { ...(option.grid || {}), left: 68, right: 90, top: 14, bottom: 60, containLabel: false };
 
     if (option.xAxis && !Array.isArray(option.xAxis)) {
       option.xAxis.axisLabel = {
@@ -245,24 +247,29 @@
       };
     }
 
+    const compactLabel = {
+      width: 46,
+      align: "right",
+      padding: [0, 14, 0, 0],
+      formatter: (v) => formatCompactMagnitude(v),
+    };
+
     if (Array.isArray(option.yAxis)) {
       option.yAxis[0] = {
         ...option.yAxis[0],
+        nameGap: option.yAxis[0].nameGap ? Math.max(option.yAxis[0].nameGap, 52) : 52,
         axisLabel: {
           ...(option.yAxis[0].axisLabel || {}),
-          width: 62,
-          align: "right",
-          padding: [0, 8, 0, 0],
+          ...compactLabel,
         },
       };
     } else if (option.yAxis) {
       option.yAxis = {
         ...option.yAxis,
+        nameGap: option.yAxis.nameGap ? Math.max(option.yAxis.nameGap, 52) : 52,
         axisLabel: {
           ...(option.yAxis.axisLabel || {}),
-          width: 62,
-          align: "right",
-          padding: [0, 8, 0, 0],
+          ...compactLabel,
         },
       };
     }
@@ -272,8 +279,8 @@
       {
         type: "slider",
         xAxisIndex: 0,
-        height: 12,
-        bottom: 28,
+        height: 10,
+        bottom: 20,
         borderColor: chartGridColor(),
         brushSelect: false,
       },
@@ -613,10 +620,10 @@
     const lastLabelHtml = `<span style="color:#2fbf71">${lastLabel}</span>`;
 
     if (widgetId === "kpi-impact-500k") {
-      primary.textContent = `${formatSigned4dp(data.primary)} / ${formatNumber(data.secondary)}`;
-      secondary.textContent = "bps";
+      primary.innerHTML = `<span style="color:var(--bad)">${formatSigned4dp(data.primary)}</span> / ${formatNumber(data.secondary)}`;
+      secondary.innerHTML = `bps / ${token0}`;
     } else if (widgetId === "kpi-largest-impact" || widgetId === "kpi-average-impact") {
-      primary.textContent = `${formatSigned4dp(data.primary)} / ${formatNumber(data.secondary)}`;
+      primary.innerHTML = `<span style="color:var(--bad)">${formatSigned4dp(data.primary)}</span> / ${formatNumber(data.secondary)}`;
       secondary.innerHTML = `bps / ${token0}, ${lastLabelHtml}`;
     } else if (widgetId === "kpi-pool-balance") {
       primary.textContent = `${formatNumber(data.primary)}%`;
@@ -700,6 +707,9 @@
     if (!Number.isFinite(numeric)) {
       return String(value);
     }
+    if (columnKey === "bps_target" && numeric > 0) {
+      return "+" + numeric;
+    }
     if (columnKey === "liquidity_in_band" || columnKey === "swap_size_equivalent") {
       return numeric.toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
@@ -707,6 +717,15 @@
       return numeric.toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
     return String(value);
+  }
+
+  function depthTableRowStyle(row) {
+    const bps = Number(row.bps_target);
+    if (!Number.isFinite(bps) || bps === 0) return "";
+    const absBps = Math.abs(bps);
+    const opacity = Math.max(0.06, 0.45 / Math.pow(absBps, 0.55));
+    const color = bps > 0 ? "248, 169, 74" : "75, 183, 255";
+    return ` style="background:rgba(${color},${opacity})"`;
   }
 
   function renderTable(widgetId, targetId, columns, rows) {
@@ -720,12 +739,18 @@
     }
 
     const isHealthTable = widgetId.startsWith("health-");
+    const isDepthTable = widgetId === "liquidity-depth-table";
     const normalizedColumns = normalizeColumns(widgetId, columns);
     const visibleColumns = normalizedColumns.filter((c) => c.key !== "is_red");
     const header = visibleColumns.map((column) => `<th>${pairAwareLabel(column.label)}</th>`).join("");
     const body = rows
       .map((row) => {
-        const rowClass = isHealthTable && row.is_red ? ' class="health-row-red"' : "";
+        let rowAttr = "";
+        if (isHealthTable && row.is_red) {
+          rowAttr = ' class="health-row-red"';
+        } else if (isDepthTable) {
+          rowAttr = depthTableRowStyle(row);
+        }
         const cells = visibleColumns
           .map((column) => {
             const raw = row[column.key];
@@ -743,7 +768,7 @@
             return `<td>${displayValue}</td>`;
           })
           .join("");
-        return `<tr${rowClass}>${cells}</tr>`;
+        return `<tr${rowAttr}>${cells}</tr>`;
       })
       .join("");
     target.innerHTML = `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
@@ -980,7 +1005,7 @@
     const option = {
       color: palette(),
       tooltip: { trigger: "axis" },
-      legend: { bottom: 2, textStyle: { color: chartTextColor() } },
+      legend: { bottom: -4, textStyle: { color: chartTextColor() } },
       grid: { left: hasYLabel ? 55 : 40, right: rightPad, top: 22, bottom: hasXLabel ? 72 : 60, containLabel: true },
       xAxis: {
         type: "category",
@@ -993,7 +1018,7 @@
         axisLabel: {
           color: chartTextColor(),
           fontSize: 11,
-          margin: 8,
+          margin: 14,
           formatter: xFmt || ((value) => formatPrice4dp(value)),
           hideOverlap: true,
         },
@@ -1589,44 +1614,56 @@
           heatmapSeries.markLine = markLine;
         }
       }
-      const hmXLabel = pairAwareLabel(chartData.xAxisLabel) || "";
+      const hmXLabel = pairAwareLabel(chartData.xAxisLabel) || pairAwareLabel("Price (USDC per USX)");
+
+      const hmSubEl = document.getElementById(`chart-subtitle-${widgetId}`);
+      if (hmSubEl) {
+        const windowLabel = currentLastWindowLabel();
+        const totalValued = chartData.total_change != null
+          ? Number(chartData.total_change)
+          : null;
+        const totalStr = totalValued != null
+          ? formatNumber(Math.round(totalValued))
+          : null;
+        hmSubEl.innerHTML = `<span style="color:#2fbf71">Change over ${windowLabel.replace(/^Last\s*/i, "last ")}</span>`
+          + (totalStr ? `<br>Total change: ${totalStr} (valued in current USDC)` : "");
+      }
+
       option = {
         color: palette(),
         tooltip: { position: "top" },
-        grid: { left: 82, right: 18, top: 16, bottom: hmXLabel ? 68 : 58, containLabel: false },
+        grid: { left: 82, right: 18, top: 16, bottom: 76, containLabel: false },
         xAxis: {
           type: "category",
           data: chartData.x || [],
           boundaryGap: false,
-          name: hmXLabel || undefined,
+          name: hmXLabel,
           nameLocation: "middle",
-          nameGap: hmXLabel ? 36 : undefined,
-          nameTextStyle: hmXLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
+          nameGap: 36,
+          nameTextStyle: { color: chartTextColor(), fontSize: 12 },
           axisLine: { lineStyle: { color: chartGridColor() } },
           axisLabel: {
             color: chartTextColor(),
             fontSize: 11,
-            margin: 8,
-            formatter: (value) => formatPrice4dp(value),
+            margin: 14,
+            formatter: (value) => "$" + formatPrice4dp(value),
             hideOverlap: true,
           },
         },
         yAxis: {
           type: "category",
-          data: ["Liquidity Delta"],
-          axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0] },
+          data: [" "],
+          name: "% Total Change",
+          nameLocation: "middle",
+          nameGap: 58,
+          nameTextStyle: { color: chartTextColor(), fontSize: 11 },
+          axisLabel: { show: false },
         },
         visualMap: {
+          show: false,
           min: minValue,
           max: maxValue,
-          orient: "horizontal",
-          left: "center",
-          bottom: 8,
-          precision: 3,
-          text: [rightLegend, leftLegend],
-          textStyle: { color: chartTextColor() },
           inRange: {
-            // Strong negatives: deep red, strong positives: deep green, near-zero: transparent.
             color: [
               "rgba(143, 0, 14, 0.95)",
               "rgba(226, 76, 76, 0.7)",
@@ -1636,6 +1673,7 @@
             ],
           },
         },
+        _heatmapLegend: { left: leftLegend, right: rightLegend },
         series: [heatmapSeries],
       };
       if (leftLinkedZoomWidgets.has(widgetId)) {
@@ -1876,12 +1914,16 @@
     } else {
       option = baseChartOption(chartData);
       if (widgetId === "liquidity-depth") {
+        const xValues = Array.isArray(chartData?.x) ? chartData.x : [];
+        const refs = chartData?.reference_lines || {};
+        const activePrice = Number(refs.current_price);
+        const activeIdx = Number.isFinite(activePrice) ? nearestCategoryIndex(xValues, activePrice) : null;
         option.series = (option.series || []).map((series) => ({
           ...series,
-          // Backstop for null/NaN depth payloads: keep both curves continuous across active tick.
-          data: (series.data || []).map((value) => {
+          data: (series.data || []).map((value, i) => {
+            if (activeIdx !== null && i === activeIdx) return null;
             const numeric = Number(value);
-            return Number.isFinite(numeric) ? numeric : 0;
+            return Number.isFinite(numeric) ? numeric : null;
           }),
           connectNulls: true,
         }));
@@ -1889,20 +1931,27 @@
       if (comparableLiquidityWidgets.has(widgetId)) {
         option.grid.left = 82;
         option.grid.right = 18;
-        option.grid.bottom = chartData.xAxisLabel ? 72 : 60;
+        option.grid.bottom = chartData.xAxisLabel ? 96 : 64;
         option.grid.containLabel = false;
-        option.yAxis.axisLabel = {
-          ...option.yAxis.axisLabel,
-          width: 62,
-          align: "right",
-          padding: [0, 8, 0, 0],
-        };
+        if (!Array.isArray(option.yAxis)) {
+          option.yAxis.nameGap = option.yAxis.name ? 58 : undefined;
+          option.yAxis.axisLabel = {
+            ...option.yAxis.axisLabel,
+            width: 62,
+            align: "right",
+            padding: [0, 8, 0, 0],
+          };
+        }
         option.xAxis.axisLabel = {
           ...option.xAxis.axisLabel,
-          formatter: (value) => formatPrice4dp(value),
-          margin: 8,
+          fontSize: 10,
+          formatter: (value) => "$" + formatPrice4dp(value),
+          margin: 10,
           hideOverlap: true,
         };
+        if (option.xAxis.name) {
+          option.xAxis.nameGap = 26;
+        }
       }
       if (option.xAxis && !Array.isArray(option.xAxis)) {
         const seriesList = Array.isArray(option.series) ? option.series : [];
@@ -1911,7 +1960,6 @@
         option.xAxis.boundaryGap = hasBarSeries && !hasNonBarSeries;
       }
       if (widgetId === "liquidity-distribution") {
-        option.grid.bottom = chartData.xAxisLabel ? 72 : 60;
         const xValues = Array.isArray(chartData?.x) ? chartData.x : [];
         const series = Array.isArray(option.series) ? option.series : [];
         if (series.length >= 2) {
@@ -2001,7 +2049,7 @@
             type: "slider",
             xAxisIndex: 0,
             height: 12,
-            bottom: 28,
+            bottom: 44,
             borderColor: chartGridColor(),
             brushSelect: false,
             start: focusedTickZoom?.start,
@@ -2023,9 +2071,14 @@
       }
       if (widgetId === "usdc-lp-flows") {
         const lpNetColor = palette()[0];
+        const { token1 } = currentPairTokens();
         option.yAxis = [
           {
             type: "value",
+            name: token1,
+            nameLocation: "middle",
+            nameGap: 42,
+            nameTextStyle: { color: chartTextColor(), fontSize: 12 },
             min: (axis) => {
               const absMax = Math.max(Math.abs(Number(axis.min) || 0), Math.abs(Number(axis.max) || 0));
               return -absMax;
@@ -2036,10 +2089,14 @@
             },
             axisLine: { lineStyle: { color: chartGridColor() } },
             splitLine: { lineStyle: { color: chartGridColor() } },
-            axisLabel: { color: chartTextColor(), width: 62, align: "right", padding: [0, 8, 0, 0] },
+            axisLabel: { color: chartTextColor(), width: 46, align: "right", padding: [0, 8, 0, 0], formatter: (v) => formatCompactMagnitude(v) },
           },
           {
             type: "value",
+            name: "Share of Reserve",
+            nameLocation: "middle",
+            nameGap: 72,
+            nameTextStyle: { color: chartTextColor(), fontSize: 12 },
             position: "right",
             min: (axis) => {
               const absMax = Math.max(Math.abs(Number(axis.min) || 0), Math.abs(Number(axis.max) || 0));
@@ -2053,6 +2110,7 @@
             splitLine: { show: false },
             axisLabel: {
               color: chartTextColor(),
+              padding: [0, 0, 0, 16],
               formatter: (value) => `${Number(value).toFixed(2)}%`,
             },
           },
@@ -2247,6 +2305,28 @@
     }
 
     instance.setOption(option, true);
+
+    if (option._heatmapLegend) {
+      const legendId = `heatmap-legend-${widgetId}`;
+      let legendEl = document.getElementById(legendId);
+      if (!legendEl) {
+        const chartEl = document.getElementById(`chart-${widgetId}`);
+        if (chartEl) {
+          legendEl = document.createElement("div");
+          legendEl.id = legendId;
+          legendEl.className = "heatmap-legend";
+          chartEl.parentNode.insertBefore(legendEl, chartEl.nextSibling);
+        }
+      }
+      if (legendEl) {
+        const { left, right } = option._heatmapLegend;
+        legendEl.innerHTML =
+          `<span class="heatmap-legend-label">${left}</span>` +
+          `<span class="heatmap-legend-bar"></span>` +
+          `<span class="heatmap-legend-label">${right}</span>`;
+      }
+    }
+
     // ECharts can consume canvas click events, so bind modal open on chart instance.
     instance.off("click");
     instance.on("click", () => {
