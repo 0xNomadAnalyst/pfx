@@ -92,11 +92,13 @@ CREATE INDEX IF NOT EXISTS idx_mat_dex_ts_1m_proto_pair
 -- Joins the 4 CAGGs at 1-minute grain and applies LOCF for state columns.
 -- Uses a 5-minute overlap window for LOCF seeding.
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE PROCEDURE dexes.refresh_mat_dex_timeseries_1m()
+CREATE OR REPLACE PROCEDURE dexes.refresh_mat_dex_timeseries_1m(
+    p_lookback INTERVAL DEFAULT INTERVAL '30 minutes'
+)
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_refresh_from TIMESTAMPTZ := NOW() - INTERVAL '30 minutes';
-    v_seed_from    TIMESTAMPTZ := NOW() - INTERVAL '35 minutes';
+    v_refresh_from TIMESTAMPTZ := NOW() - p_lookback;
+    v_seed_from    TIMESTAMPTZ := NOW() - p_lookback - INTERVAL '5 minutes';
 BEGIN
     DELETE FROM dexes.mat_dex_timeseries_1m
     WHERE bucket_time >= v_refresh_from;

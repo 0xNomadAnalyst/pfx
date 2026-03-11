@@ -113,11 +113,13 @@ CREATE INDEX IF NOT EXISTS idx_mat_klend_activity_ts_1m_symbol
 -- ---------------------------------------------------------------------------
 -- Refresh procedure: incremental for all three sub-tables
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE PROCEDURE kamino_lend.refresh_mat_klend_timeseries_1m()
+CREATE OR REPLACE PROCEDURE kamino_lend.refresh_mat_klend_timeseries_1m(
+    p_lookback INTERVAL DEFAULT INTERVAL '30 minutes'
+)
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_refresh_from TIMESTAMPTZ := NOW() - INTERVAL '30 minutes';
-    v_seed_from    TIMESTAMPTZ := NOW() - INTERVAL '35 minutes';
+    v_refresh_from TIMESTAMPTZ := NOW() - p_lookback;
+    v_seed_from    TIMESTAMPTZ := NOW() - p_lookback - INTERVAL '5 minutes';
 BEGIN
     -- 1. Reserve timeseries: LOCF from cagg_reserves_5s
     DELETE FROM kamino_lend.mat_klend_reserve_ts_1m

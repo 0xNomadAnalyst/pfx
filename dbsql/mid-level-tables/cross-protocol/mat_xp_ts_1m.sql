@@ -63,10 +63,12 @@ SELECT create_hypertable(
 -- Refresh procedure: incremental upsert of last 30 minutes
 -- Joins domain mat tables (dependency: must run AFTER domain mat refreshes)
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE PROCEDURE cross_protocol.refresh_mat_xp_ts_1m()
+CREATE OR REPLACE PROCEDURE cross_protocol.refresh_mat_xp_ts_1m(
+    p_lookback INTERVAL DEFAULT INTERVAL '30 minutes'
+)
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_refresh_from TIMESTAMPTZ := NOW() - INTERVAL '30 minutes';
+    v_refresh_from TIMESTAMPTZ := NOW() - p_lookback;
     v_onyc_mint    TEXT := '5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5';
 BEGIN
     DELETE FROM cross_protocol.mat_xp_ts_1m

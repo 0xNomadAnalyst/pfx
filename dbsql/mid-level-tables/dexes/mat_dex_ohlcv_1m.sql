@@ -31,10 +31,12 @@ CREATE INDEX IF NOT EXISTS idx_mat_dex_ohlcv_1m_pair
 -- ---------------------------------------------------------------------------
 -- Refresh procedure: incremental upsert of last 30 minutes
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE PROCEDURE dexes.refresh_mat_dex_ohlcv_1m()
+CREATE OR REPLACE PROCEDURE dexes.refresh_mat_dex_ohlcv_1m(
+    p_lookback INTERVAL DEFAULT INTERVAL '30 minutes'
+)
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_refresh_from TIMESTAMPTZ := NOW() - INTERVAL '30 minutes';
+    v_refresh_from TIMESTAMPTZ := NOW() - p_lookback;
 BEGIN
     DELETE FROM dexes.mat_dex_ohlcv_1m
     WHERE bucket_time >= v_refresh_from;

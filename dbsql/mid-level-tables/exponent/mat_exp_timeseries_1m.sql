@@ -126,11 +126,13 @@ CREATE INDEX IF NOT EXISTS idx_mat_exp_ts_1m_market
 -- Refresh procedure: incremental upsert of last 30 minutes
 -- Joins vault, market, yt_escrow, sy_meta, and tx_events CAGGs with LOCF.
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE PROCEDURE exponent.refresh_mat_exp_timeseries_1m()
+CREATE OR REPLACE PROCEDURE exponent.refresh_mat_exp_timeseries_1m(
+    p_lookback INTERVAL DEFAULT INTERVAL '30 minutes'
+)
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_refresh_from TIMESTAMPTZ := NOW() - INTERVAL '30 minutes';
-    v_seed_from    TIMESTAMPTZ := NOW() - INTERVAL '35 minutes';
+    v_refresh_from TIMESTAMPTZ := NOW() - p_lookback;
+    v_seed_from    TIMESTAMPTZ := NOW() - p_lookback - INTERVAL '5 minutes';
     v_vault        RECORD;
 BEGIN
     DELETE FROM exponent.mat_exp_timeseries_1m
