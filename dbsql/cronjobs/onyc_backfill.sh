@@ -242,29 +242,29 @@ echo "$LOG_PREFIX   This is the slowest step — multi-CAGG joins across full hi
 # Timeseries tables: call the parameterized procedures with the wide window
 echo "$LOG_PREFIX  -> dex timeseries + ohlcv..."
 psql "$DB_CONNECTION" <<EOF
-TRUNCATE ${DEX_SCHEMA}.mat_dex_timeseries_1m;
-TRUNCATE ${DEX_SCHEMA}.mat_dex_ohlcv_1m;
+DELETE FROM ${DEX_SCHEMA}.mat_dex_timeseries_1m WHERE bucket_time >= NOW() - INTERVAL '${BACKFILL_DAYS} days';
+DELETE FROM ${DEX_SCHEMA}.mat_dex_ohlcv_1m WHERE bucket_time >= NOW() - INTERVAL '${BACKFILL_DAYS} days';
 CALL ${DEX_SCHEMA}.refresh_mat_dex_timeseries_1m(INTERVAL '${BACKFILL_DAYS} days');
 CALL ${DEX_SCHEMA}.refresh_mat_dex_ohlcv_1m(INTERVAL '${BACKFILL_DAYS} days');
 EOF
 
 echo "$LOG_PREFIX  -> kamino timeseries..."
 psql "$DB_CONNECTION" <<EOF
-TRUNCATE ${KAMINO_SCHEMA}.mat_klend_reserve_ts_1m;
-TRUNCATE ${KAMINO_SCHEMA}.mat_klend_obligation_ts_1m;
-TRUNCATE ${KAMINO_SCHEMA}.mat_klend_activity_ts_1m;
+DELETE FROM ${KAMINO_SCHEMA}.mat_klend_reserve_ts_1m WHERE bucket_time >= NOW() - INTERVAL '${BACKFILL_DAYS} days';
+DELETE FROM ${KAMINO_SCHEMA}.mat_klend_obligation_ts_1m WHERE bucket_time >= NOW() - INTERVAL '${BACKFILL_DAYS} days';
+DELETE FROM ${KAMINO_SCHEMA}.mat_klend_activity_ts_1m WHERE bucket_time >= NOW() - INTERVAL '${BACKFILL_DAYS} days';
 CALL ${KAMINO_SCHEMA}.refresh_mat_klend_timeseries_1m(INTERVAL '${BACKFILL_DAYS} days');
 EOF
 
 echo "$LOG_PREFIX  -> exponent timeseries..."
 psql "$DB_CONNECTION" <<EOF
-TRUNCATE ${EXPONENT_SCHEMA}.mat_exp_timeseries_1m;
+DELETE FROM ${EXPONENT_SCHEMA}.mat_exp_timeseries_1m WHERE bucket_time >= NOW() - INTERVAL '${BACKFILL_DAYS} days';
 CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_timeseries_1m(INTERVAL '${BACKFILL_DAYS} days');
 EOF
 
 echo "$LOG_PREFIX  -> cross-protocol timeseries..."
 psql "$DB_CONNECTION" <<EOF
-TRUNCATE cross_protocol.mat_xp_ts_1m;
+DELETE FROM cross_protocol.mat_xp_ts_1m WHERE bucket_time >= NOW() - INTERVAL '${BACKFILL_DAYS} days';
 CALL cross_protocol.refresh_mat_xp_ts_1m(INTERVAL '${BACKFILL_DAYS} days');
 EOF
 
