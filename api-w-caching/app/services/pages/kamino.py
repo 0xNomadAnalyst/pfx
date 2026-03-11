@@ -135,6 +135,26 @@ class KaminoPageService(BasePageService):
 
         return self._cached("kamino::v_config", _load, ttl_seconds=self._CONFIG_TTL_SECONDS)
 
+    def _dex_token_pairs(self) -> dict[str, str]:
+        """Map token symbol -> 'SYMBOL/QUOTE' from dexes.pool_tokens_reference."""
+        def _load() -> dict[str, str]:
+            rows = self.sql.fetch_rows(
+                "SELECT token0_symbol, token1_symbol, token_pair "
+                "FROM dexes.pool_tokens_reference "
+                "WHERE token0_symbol IS NOT NULL AND token1_symbol IS NOT NULL"
+            )
+            pairs: dict[str, str] = {}
+            for r in rows:
+                tp = str(r.get("token_pair") or "")
+                t0 = str(r.get("token0_symbol") or "")
+                t1 = str(r.get("token1_symbol") or "")
+                if t0 and tp and t0 not in pairs:
+                    pairs[t0] = tp.replace("-", "/")
+                if t1 and tp and t1 not in pairs:
+                    pairs[t1] = tp.replace("-", "/")
+            return pairs
+        return self._cached("kamino::dex_token_pairs", _load, ttl_seconds=self._CONFIG_TTL_SECONDS)
+
     def _rate_curve_rows(self) -> list[dict[str, Any]]:
         return self._cached(
             "kamino::v_rate_curve_usx",
@@ -725,11 +745,11 @@ class KaminoPageService(BasePageService):
             "yAxisLabel": "USX Amount",
             "yAxisFormat": "compact",
             "series": [
-                {"name": "Deposits", "type": "bar", "data": [row.get("reserve_brw_all_deposit_sum") for row in rows]},
-                {"name": "Repays", "type": "bar", "data": [row.get("reserve_brw_all_repay_sum") for row in rows]},
-                {"name": "Liquidations", "type": "bar", "data": [row.get("reserve_brw_all_liquidate_sum") for row in rows]},
-                {"name": "Withdraws", "type": "bar", "data": [-(abs(float(row.get("reserve_brw_all_withdraw_sum") or 0))) for row in rows]},
-                {"name": "Borrows", "type": "bar", "data": [-(abs(float(row.get("reserve_brw_all_borrow_sum") or 0))) for row in rows]},
+                {"name": "Deposits", "type": "bar", "stack": "flows", "data": [row.get("reserve_brw_all_deposit_sum") for row in rows]},
+                {"name": "Repays", "type": "bar", "stack": "flows", "data": [row.get("reserve_brw_all_repay_sum") for row in rows]},
+                {"name": "Liquidations", "type": "bar", "stack": "flows", "data": [row.get("reserve_brw_all_liquidate_sum") for row in rows]},
+                {"name": "Withdraws", "type": "bar", "stack": "flows", "data": [-(abs(float(row.get("reserve_brw_all_withdraw_sum") or 0))) for row in rows]},
+                {"name": "Borrows", "type": "bar", "stack": "flows", "data": [-(abs(float(row.get("reserve_brw_all_borrow_sum") or 0))) for row in rows]},
                 {"name": "Net Flow", "type": "line", "data": [row.get("reserve_brw_all_net_flow") for row in rows]},
             ],
         }
@@ -753,16 +773,23 @@ class KaminoPageService(BasePageService):
         last = self._v_last_row()
         coll_symbols = ", ".join(str(s) for s in (last.get("reserve_coll_all_symbols_array") or []) if s)
         brw_symbols = ", ".join(str(s) for s in (last.get("reserve_brw_all_symbols_array") or []) if s)
+        coll_list = [str(s) for s in (last.get("reserve_coll_all_symbols_array") or []) if s]
+        brw_list = [str(s) for s in (last.get("reserve_brw_all_symbols_array") or []) if s]
+        dex_pairs = self._dex_token_pairs()
+        coll_sym = coll_list[0] if coll_list else "eUSX"
+        brw_sym = brw_list[0] if brw_list else "USX"
+        coll_pair = dex_pairs.get(coll_sym, coll_sym)
+        brw_pair = dex_pairs.get(brw_sym, brw_sym)
         vol_lines = []
-        for field, label in [
-            ("reserve_eusx_price_stddev_7d_pct", "-1\u03c3 eUSX"),
-            ("reserve_eusx_price_2sigma_7d_pct", "-2\u03c3 eUSX"),
-            ("reserve_usx_price_stddev_7d_pct", "+1\u03c3 USX"),
-            ("reserve_usx_price_2sigma_7d_pct", "+2\u03c3 USX"),
+        for field, symbol, pair, side in [
+            ("reserve_eusx_price_2sigma_7d_pct", coll_sym, coll_pair, "coll"),
+            ("reserve_usx_price_2sigma_7d_pct", brw_sym, brw_pair, "brw"),
         ]:
             val = last.get(field)
             if val is not None:
-                signed = -abs(float(val)) if label.startswith("-") else abs(float(val))
+                sign = "-" if side == "coll" else "+"
+                label = f"{sign}2\u03c3 {pair}"
+                signed = -abs(float(val)) if side == "coll" else abs(float(val))
                 vol_lines.append({"label": label, "value": signed, "color": "#28c987"})
         return {
             "kind": "chart",

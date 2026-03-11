@@ -676,6 +676,15 @@
       const bpsHtml = bpsColor ? `<span style="color:${bpsColor}">${bpsStr}</span>` : bpsStr;
       primary.innerHTML = `${formatNumber(data.primary)} / ${bpsHtml}`;
       secondary.innerHTML = `${token0} / bps, ${lastLabelHtml}`;
+    } else if (widgetId === "kpi-unhealthy-share") {
+      const val = Number(data.primary);
+      const formatted = formatNumber(data.primary);
+      if (Number.isFinite(val) && val > 0) {
+        primary.innerHTML = `<span style="color:var(--bad)">${formatted}%</span>`;
+      } else {
+        primary.textContent = formatted + "%";
+      }
+      secondary.textContent = data.secondary || "";
     } else {
       primary.textContent = formatNumber(data.primary);
       secondary.textContent = data.secondary ? formatNumber(data.secondary) : "";
@@ -728,6 +737,41 @@
     return ` style="background:rgba(${color},${opacity})"`;
   }
 
+  const PAGINATED_TABLES = { "kamino-obligation-watchlist": 25 };
+
+  const WATCHLIST_COLUMN_TOOLTIPS = {
+    "loan_value_total": "The market value of all debt held by this obligation across all borrow assets, and its percentage share of total market debt.",
+    "collateral_value_total": "The market value of all collateral held by this obligation across all collateral assets, and its percentage share of total market collateral.",
+    "liquidation_buffer_pct": "The portion of borrowed value that exceeds the unhealthy HF = 1 threshold, expressed as a percentage of total debt.",
+    "health_factor": "The health factor is the ratio of the unhealthy borrow limit (based on collateral composition and liquidation thresholds) divided by the borrow-factor-adjusted market value of debt. Positions become liquidatable when HF = 1.",
+    "status": "Health status of each loan. \u201cNear Liquidation\u201d is used for HF between 1.0 and 1.1. \u201cUnhealthy\u201d follows the protocol definition of HF < 1 but above the insolvency-risk threshold. \u201cBad\u201d follows the protocol definition of HF at or below the insolvency-risk threshold.",
+  };
+
+  const WATCHLIST_LABEL_TOOLTIPS = {
+    "loan value": WATCHLIST_COLUMN_TOOLTIPS["loan_value_total"],
+    "collateral value": WATCHLIST_COLUMN_TOOLTIPS["collateral_value_total"],
+    "liquidation buffer (%)": WATCHLIST_COLUMN_TOOLTIPS["liquidation_buffer_pct"],
+    "liquidation buffer": WATCHLIST_COLUMN_TOOLTIPS["liquidation_buffer_pct"],
+    "hf": WATCHLIST_COLUMN_TOOLTIPS["health_factor"],
+    "status": WATCHLIST_COLUMN_TOOLTIPS["status"],
+  };
+
+  function watchlistColumnTooltip(key, label) {
+    return WATCHLIST_COLUMN_TOOLTIPS[key]
+      || WATCHLIST_LABEL_TOOLTIPS[(label || "").toLowerCase().trim()]
+      || null;
+  }
+
+  const INFO_TIP_SVG = '<svg class="info-tip-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="display:inline-block;vertical-align:-1px;margin-left:3px;opacity:0.4"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.3"/><text x="8" y="12" text-anchor="middle" fill="currentColor" font-size="11" font-weight="600">i</text></svg>';
+
+  function statusCellStyle(value) {
+    const v = String(value || "").toLowerCase().trim();
+    if (v === "unhealthy") return ' style="color:#ef4444;font-weight:600"';
+    if (v === "near liquidation") return ' style="color:#f5a623;font-weight:600"';
+    if (v === "healthy") return ' style="color:#36c96a;font-weight:600"';
+    return "";
+  }
+
   function renderTable(widgetId, targetId, columns, rows) {
     const target = document.getElementById(targetId);
     if (!target) {
@@ -740,38 +784,121 @@
 
     const isHealthTable = widgetId.startsWith("health-");
     const isDepthTable = widgetId === "liquidity-depth-table";
+    const isWatchlist = widgetId === "kamino-obligation-watchlist";
     const normalizedColumns = normalizeColumns(widgetId, columns);
     const visibleColumns = normalizedColumns.filter((c) => c.key !== "is_red");
-    const header = visibleColumns.map((column) => `<th>${pairAwareLabel(column.label)}</th>`).join("");
-    const body = rows
-      .map((row) => {
-        let rowAttr = "";
-        if (isHealthTable && row.is_red) {
-          rowAttr = ' class="health-row-red"';
-        } else if (isDepthTable) {
-          rowAttr = depthTableRowStyle(row);
+    const header = visibleColumns.map((column) => {
+      const label = pairAwareLabel(column.label);
+      if (isWatchlist) {
+        const tip = watchlistColumnTooltip(column.key, column.label);
+        if (tip) {
+          return `<th><span class="info-tip-wrap">${label}${INFO_TIP_SVG}<span class="info-tip-card">${tip}</span></span></th>`;
         }
-        const cells = visibleColumns
-          .map((column) => {
-            const raw = row[column.key];
-            const value = widgetId === "liquidity-depth-table" ? formatDepthTableValue(column.key, raw) : (raw ?? "");
-            const displayValue = typeof value === "string" ? pairAwareLabel(value) : value;
-            if (column.key === "signature" && displayValue) {
-              const signature = String(displayValue);
-              const href = `https://solscan.io/tx/${encodeURIComponent(signature)}`;
-              return (
-                `<td>` +
-                `<a href="${href}" target="_blank" rel="noopener noreferrer">${signature}</a>` +
-                `</td>`
-              );
-            }
-            return `<td>${displayValue}</td>`;
-          })
-          .join("");
-        return `<tr${rowAttr}>${cells}</tr>`;
-      })
-      .join("");
-    target.innerHTML = `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
+      }
+      return `<th>${label}</th>`;
+    }).join("");
+
+    const pageSize = PAGINATED_TABLES[widgetId];
+
+    const WATCHLIST_SCALED_BAR_KEYS = new Set(["loan_value_total"]);
+    const WATCHLIST_SCALED_BAR_LABELS = new Set(["loan value"]);
+
+    function isScaledBarCol(col) {
+      return WATCHLIST_SCALED_BAR_KEYS.has(col.key) || WATCHLIST_SCALED_BAR_LABELS.has((col.label || "").toLowerCase().trim());
+    }
+
+    function buildBody(displayRows) {
+      let scaledBarMax = 0;
+      if (isWatchlist) {
+        const barCol = visibleColumns.find((c) => isScaledBarCol(c));
+        if (barCol) {
+          scaledBarMax = displayRows.reduce((mx, r) => {
+            const v = Number(r[barCol.key]);
+            return Number.isFinite(v) && v > mx ? v : mx;
+          }, 0);
+        }
+      }
+
+      return displayRows
+        .map((row) => {
+          let rowAttr = "";
+          if (isHealthTable && row.is_red) {
+            rowAttr = ' class="health-row-red"';
+          } else if (isDepthTable) {
+            rowAttr = depthTableRowStyle(row);
+          }
+          const cells = visibleColumns
+            .map((column) => {
+              const raw = row[column.key];
+              const value = widgetId === "liquidity-depth-table" ? formatDepthTableValue(column.key, raw) : (raw ?? "");
+              const displayValue = typeof value === "string" ? pairAwareLabel(value) : value;
+              if (column.key === "signature" && displayValue) {
+                const signature = String(displayValue);
+                const href = `https://solscan.io/tx/${encodeURIComponent(signature)}`;
+                return (
+                  `<td>` +
+                  `<a href="${href}" target="_blank" rel="noopener noreferrer">${signature}</a>` +
+                  `</td>`
+                );
+              }
+              if (isWatchlist && (column.key === "ltv_pct" || (column.label || "").toLowerCase() === "ltv (%)")) {
+                const pct = Number(raw);
+                const w = Number.isFinite(pct) ? Math.min(Math.max(pct, 0), 100) : 0;
+                return (
+                  `<td><div class="microbar-cell">` +
+                  `<div class="microbar-fill" style="width:${w}%"></div>` +
+                  `<span class="microbar-label">${displayValue}</span>` +
+                  `</div></td>`
+                );
+              }
+              if (isWatchlist && isScaledBarCol(column) && scaledBarMax > 0) {
+                const num = Number(raw);
+                const w = Number.isFinite(num) ? Math.min((num / scaledBarMax) * 100, 100) : 0;
+                return (
+                  `<td><div class="microbar-cell microbar-blue">` +
+                  `<div class="microbar-fill" style="width:${w.toFixed(1)}%"></div>` +
+                  `<span class="microbar-label">${displayValue}</span>` +
+                  `</div></td>`
+                );
+              }
+              const statusStyle = column.key === "status" ? statusCellStyle(displayValue) : "";
+              return `<td${statusStyle}>${displayValue}</td>`;
+            })
+            .join("");
+          return `<tr${rowAttr}>${cells}</tr>`;
+        })
+        .join("");
+    }
+
+    if (pageSize && rows.length > pageSize) {
+      let currentPage = 0;
+      const totalPages = Math.ceil(rows.length / pageSize);
+
+      function renderPage() {
+        const start = currentPage * pageSize;
+        const pageRows = rows.slice(start, start + pageSize);
+        const body = buildBody(pageRows);
+        const prevDisabled = currentPage === 0 ? " disabled" : "";
+        const nextDisabled = currentPage >= totalPages - 1 ? " disabled" : "";
+        target.innerHTML =
+          `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>` +
+          `<div class="table-pagination">` +
+          `<button class="pagination-btn" data-dir="prev"${prevDisabled}>Previous</button>` +
+          `<span class="pagination-info">Page ${currentPage + 1}</span>` +
+          `<button class="pagination-btn" data-dir="next"${nextDisabled}>Next</button>` +
+          `</div>`;
+        target.querySelector('.pagination-btn[data-dir="prev"]')?.addEventListener("click", () => {
+          if (currentPage > 0) { currentPage--; renderPage(); }
+        });
+        target.querySelector('.pagination-btn[data-dir="next"]')?.addEventListener("click", () => {
+          if (currentPage < totalPages - 1) { currentPage++; renderPage(); }
+        });
+      }
+      renderPage();
+    } else {
+      const body = buildBody(rows);
+      target.innerHTML = `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
+    }
   }
 
   function renderHealthInfoToggle(widgetId, info) {
@@ -1006,7 +1133,7 @@
       color: palette(),
       tooltip: { trigger: "axis" },
       legend: { bottom: -4, textStyle: { color: chartTextColor() } },
-      grid: { left: hasYLabel ? 55 : 40, right: rightPad, top: 22, bottom: hasXLabel ? 72 : 60, containLabel: true },
+      grid: { left: hasYLabel ? 60 : 40, right: rightPad, top: 22, bottom: hasXLabel ? 72 : 60, containLabel: true },
       xAxis: {
         type: "category",
         data: data.x || [],
@@ -1028,7 +1155,7 @@
           type: "value",
           name: yLabel || undefined,
           nameLocation: "middle",
-          nameGap: hasYLabel ? 42 : undefined,
+          nameGap: hasYLabel ? 52 : undefined,
           nameTextStyle: hasYLabel ? { color: chartTextColor(), fontSize: 12 } : undefined,
           axisLine: { lineStyle: { color: chartGridColor() } },
           splitLine: { lineStyle: { color: chartGridColor() } },
@@ -1038,7 +1165,7 @@
           type: "value",
           name: yRightLabel || undefined,
           nameLocation: "middle",
-          nameGap: hasYRightLabel ? 36 : undefined,
+          nameGap: hasYRightLabel ? 46 : undefined,
           nameTextStyle: hasYRightLabel ? { color: chartTextColor(), fontSize: 12 } : undefined,
           axisLine: { lineStyle: { color: chartGridColor() } },
           splitLine: { show: false },
@@ -1048,7 +1175,7 @@
         type: "value",
         name: yLabel || undefined,
         nameLocation: "middle",
-        nameGap: hasYLabel ? 42 : undefined,
+        nameGap: hasYLabel ? 52 : undefined,
         nameTextStyle: hasYLabel ? { color: chartTextColor(), fontSize: 12 } : undefined,
         axisLine: { lineStyle: { color: chartGridColor() } },
         splitLine: { lineStyle: { color: chartGridColor() } },
@@ -1579,7 +1706,7 @@
           name: pairAwareLabel(series.name),
           type: "bar",
           data: series.data || [],
-          stack: series.stack,
+          stack: "all",
         };
         if (barWidth) {
           mapped.barWidth = barWidth;
@@ -1595,11 +1722,20 @@
             name: group.title,
             type: "bar",
             data: [],
-            stack: "__legend_placeholder__",
+            stack: "all",
             silent: true,
             itemStyle: { color: "transparent" },
             tooltip: { show: false },
           });
+        });
+      }
+      const catCount = (chartData.x || []).length;
+      if (catCount <= 3) {
+        option.yAxis.axisTick = { alignWithLabel: true };
+        option.series.forEach((s) => {
+          if (s.type === "bar") {
+            s.barWidth = "50%";
+          }
         });
       }
     } else if (data.chart === "heatmap") {
@@ -1697,7 +1833,7 @@
       }
     } else if (chartData.chart === "line-area" && chartData.direction_arrows) {
       const arrows = chartData.direction_arrows;
-      const topPad = arrows ? 40 : 22;
+      const topPad = arrows ? 52 : 22;
       const areaYLabel = pairAwareLabel(chartData.yAxisLabel) || (arrows ? "Debt Value ($)" : "");
       const areaXLabel = pairAwareLabel(chartData.xAxisLabel) || "";
       const areaYFmt = axisFormatter(chartData.yAxisFormat);
@@ -1707,11 +1843,26 @@
       const defaultXFmt = arrows
         ? (v) => { const n = Number(v); return Number.isFinite(n) ? (n >= 0 ? "+" : "") + n.toFixed(1) : v; }
         : (v) => formatPrice4dp(v);
+      const stressXFmt = arrows
+        ? (value, index) => {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return value;
+            if (n === 0) return "0";
+            return (n >= 0 ? "+" : "") + n.toFixed(1);
+          }
+        : defaultXFmt;
+      const stressXInterval = arrows
+        ? (index, value) => {
+            const n = Number(value);
+            if (n === 0) return true;
+            return Number.isFinite(n) && Math.abs(n) % 2 < 0.01;
+          }
+        : undefined;
       option = {
         color: palette(),
         tooltip: { trigger: "axis" },
         legend: { bottom: 2, textStyle: { color: chartTextColor() } },
-        grid: { left: areaYLabel ? 55 : 50, right: 18, top: topPad, bottom: areaXLabel ? 72 : 60, containLabel: true },
+        grid: { left: areaYLabel ? 60 : 50, right: 18, top: topPad, bottom: areaXLabel ? 72 : 60, containLabel: true },
         xAxis: {
           type: "category",
           data: chartData.x || [],
@@ -1724,15 +1875,16 @@
           axisLabel: {
             color: chartTextColor(),
             fontSize: 11,
-            formatter: defaultXFmt,
-            hideOverlap: true,
+            formatter: stressXFmt,
+            interval: stressXInterval,
+            hideOverlap: arrows ? false : true,
           },
         },
         yAxis: {
           type: "value",
           name: areaYLabel || undefined,
           nameLocation: "middle",
-          nameGap: areaYLabel ? 45 : undefined,
+          nameGap: areaYLabel ? 55 : undefined,
           nameTextStyle: areaYLabel ? { color: chartTextColor(), fontSize: 11 } : undefined,
           axisLine: { lineStyle: { color: chartGridColor() } },
           splitLine: { lineStyle: { color: chartGridColor() } },
@@ -1763,32 +1915,90 @@
       if (arrows) {
         const xLabels = (chartData.x || []).map(Number);
         const zeroIdx = xLabels.indexOf(0);
-        const zeroFrac = zeroIdx >= 0 ? ((zeroIdx / Math.max(xLabels.length - 1, 1)) * 100) : 50;
         const tc = chartTextColor();
+        const subTc = document.documentElement.getAttribute("data-theme") === "light" ? "#8899aa" : "#6b7a8d";
         option.graphic = [
-          { type: "text", left: "8%", top: 8, style: { text: arrows.left, fill: tc, fontSize: 12 } },
-          { type: "text", left: (zeroFrac - 4) + "%", top: 8, style: { text: "\u2190\u2190", fill: tc, fontSize: 13, fontWeight: "bold" } },
-          { type: "text", left: zeroFrac + "%", top: 6, style: { text: "0", fill: tc, fontSize: 14, fontWeight: "bold", textAlign: "center" } },
-          { type: "text", left: (zeroFrac + 3) + "%", top: 8, style: { text: "\u2192\u2192", fill: tc, fontSize: 13, fontWeight: "bold" } },
-          { type: "text", right: "4%", top: 8, style: { text: arrows.right, fill: tc, fontSize: 12 } },
+          {
+            type: "text",
+            left: 8,
+            top: 4,
+            style: {
+              text: `\u2190  Decrease in Collateral Value\n{sub|${arrows.left}}`,
+              fill: tc,
+              fontSize: 11,
+              lineHeight: 16,
+              rich: { sub: { fontSize: 9, fill: subTc, lineHeight: 14 } },
+            },
+          },
+          {
+            type: "text",
+            right: 8,
+            top: 4,
+            style: {
+              text: `Increase in Debt Value  \u2192\n{sub|${arrows.right}}`,
+              fill: tc,
+              fontSize: 11,
+              lineHeight: 16,
+              textAlign: "right",
+              rich: { sub: { fontSize: 9, fill: subTc, lineHeight: 14, textAlign: "right" } },
+            },
+          },
         ];
+
       }
       if (Array.isArray(chartData.volatility_lines) && chartData.volatility_lines.length > 0) {
         const xLabels = (chartData.x || []).map(String);
+        const isDark = document.documentElement.getAttribute("data-theme") !== "light";
+        const labelBg = isDark ? "rgba(0,0,0,0.65)" : "rgba(255,255,255,0.85)";
         const volSeries = option.series.find((s) => s.data && s.data.length > 0) || option.series[0];
         if (volSeries) {
+          const resolved = chartData.volatility_lines.map((vl) => {
+            const closest = xLabels.reduce((best, lbl, idx) => {
+              const diff = Math.abs(parseFloat(lbl) - vl.value);
+              return diff < best.diff ? { idx, diff } : best;
+            }, { idx: 0, diff: Infinity });
+            return { ...vl, xIdx: closest.idx, isNeg: vl.value < 0 };
+          });
+          const usedPositions = {};
           volSeries.markLine = {
             silent: true,
             symbol: "none",
-            data: chartData.volatility_lines.map((vl) => {
-              const closest = xLabels.reduce((best, lbl, idx) => {
-                const diff = Math.abs(parseFloat(lbl) - vl.value);
-                return diff < best.diff ? { idx, diff } : best;
-              }, { idx: 0, diff: Infinity });
+            data: resolved.map((vl) => {
+              const sigmaName = vl.label || (Math.abs(vl.value).toFixed(1) + "%");
+              const absVal = Math.abs(Number(vl.value));
+              let dp = 1;
+              while (dp < 6 && Number(absVal.toFixed(dp)) === 0) dp++;
+              const pctValue = (vl.value >= 0 ? "+" : "-") + absVal.toFixed(dp) + "%";
+              const sigmaLabel = `${sigmaName}:\n{val|${pctValue}}`;
+              const side = vl.isNeg ? "neg" : "pos";
+              const posKey = `${side}_${vl.xIdx}`;
+              const slot = usedPositions[posKey] || 0;
+              usedPositions[posKey] = slot + 1;
+              const vertOffset = slot * 38;
               return {
-                xAxis: closest.idx,
-                lineStyle: { type: "dashed", color: vl.color || "#28c987", width: 2 },
-                label: { show: false },
+                xAxis: vl.xIdx,
+                lineStyle: { type: "dashed", color: vl.color || "#28c987", width: slot === 0 ? 2 : 1 },
+                label: {
+                  show: true,
+                  formatter: sigmaLabel,
+                  position: "end",
+                  rotate: 0,
+                  align: vl.isNeg ? "right" : "left",
+                  distance: vl.isNeg ? [8, vertOffset] : [-8, vertOffset],
+                  color: vl.color || "#28c987",
+                  fontSize: 10,
+                  lineHeight: 13,
+                  backgroundColor: labelBg,
+                  padding: [2, 4],
+                  borderRadius: 3,
+                  rich: {
+                    val: {
+                      fontSize: 10,
+                      color: vl.color || "#28c987",
+                      lineHeight: 13,
+                    },
+                  },
+                },
               };
             }),
           };
@@ -1961,11 +2171,22 @@
           option.xAxis.nameGap = 26;
         }
       }
+      if (widgetId === "kamino-liability-flows" || widgetId === "kamino-liquidations") {
+        const isDark = document.documentElement.getAttribute("data-theme") !== "light";
+        const netFlowColor = isDark ? "#ffffff" : "#1a1a2e";
+        (option.series || []).forEach((s) => {
+          if (/net\s*flow/i.test(s.name)) {
+            s.itemStyle = { color: netFlowColor };
+            s.lineStyle = { ...(s.lineStyle || {}), color: netFlowColor, width: 2 };
+            s.showSymbol = true;
+            s.symbolSize = 4;
+          }
+        });
+      }
       if (option.xAxis && !Array.isArray(option.xAxis)) {
         const seriesList = Array.isArray(option.series) ? option.series : [];
         const hasBarSeries = seriesList.some((series) => series?.type === "bar");
-        const hasNonBarSeries = seriesList.some((series) => (series?.type || "line") !== "bar");
-        option.xAxis.boundaryGap = hasBarSeries && !hasNonBarSeries;
+        option.xAxis.boundaryGap = hasBarSeries;
       }
       if (widgetId === "liquidity-distribution") {
         const xValues = Array.isArray(chartData?.x) ? chartData.x : [];
@@ -2313,6 +2534,8 @@
     }
 
     instance.setOption(option, true);
+
+
 
     if (option._heatmapLegend) {
       const legendId = `heatmap-legend-${widgetId}`;
@@ -3303,6 +3526,24 @@ flowchart LR
     return el.innerHTML;
   }
 
+  const INTEGER_COMMA_COLUMNS = new Set([
+    "available", "borrowed", "total_supply",
+  ]);
+  const INTEGER_COMMA_LABELS = new Set([
+    "available", "borrowed", "total supply",
+  ]);
+
+  function formatPageActionCell(key, label, value) {
+    if (value === null || value === undefined || value === "") return "";
+    if (INTEGER_COMMA_COLUMNS.has(key) || INTEGER_COMMA_LABELS.has((label || "").toLowerCase())) {
+      const n = Number(value);
+      if (Number.isFinite(n)) {
+        return Math.round(n).toLocaleString();
+      }
+    }
+    return value;
+  }
+
   function renderPageActionTable(data) {
     if (!data || !data.columns || !data.rows) return "<p>No data.</p>";
     let html = '<table class="data-table" style="width:100%"><thead><tr>';
@@ -3316,7 +3557,7 @@ flowchart LR
       html += `<tr${cls}>`;
       for (const col of data.columns) {
         const val = row[col.key];
-        const display = val === null || val === undefined ? "" : val;
+        const display = val === null || val === undefined ? "" : formatPageActionCell(col.key, col.label, val);
         if (col.key === "term" && tip) {
           html += `<td><span class="row-tip-wrap">${escapeHtml(String(display))}<svg class="info-tip-icon" width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.3"/><text x="8" y="12" text-anchor="middle" fill="currentColor" font-size="11" font-weight="600">i</text></svg><span class="info-tip-card">${escapeHtml(tip)}</span></span></td>`;
         } else {
@@ -3542,10 +3783,48 @@ flowchart LR
     poll();
   }
 
+  function initTooltipPositioning() {
+    document.addEventListener("mouseover", (e) => {
+      const wrap = e.target.closest(".info-tip-wrap");
+      if (!wrap) return;
+      const card = wrap.querySelector(".info-tip-card");
+      if (!card) return;
+      const rect = wrap.getBoundingClientRect();
+      const cardW = 280;
+      let left = rect.left;
+      if (left + cardW > window.innerWidth - 12) {
+        left = window.innerWidth - cardW - 12;
+      }
+      if (left < 12) left = 12;
+      let top = rect.bottom + 6;
+      if (top + 200 > window.innerHeight) {
+        top = rect.top - 6;
+        card.style.top = "";
+        card.style.bottom = (window.innerHeight - top) + "px";
+      } else {
+        card.style.bottom = "";
+        card.style.top = top + "px";
+      }
+      card.style.left = left + "px";
+    });
+
+    document.addEventListener("mouseout", (e) => {
+      const wrap = e.target.closest(".info-tip-wrap");
+      if (!wrap) return;
+      if (e.relatedTarget && wrap.contains(e.relatedTarget)) return;
+      const card = wrap.querySelector(".info-tip-card");
+      if (!card) return;
+      card.style.left = "-9999px";
+      card.style.top = "-9999px";
+      card.style.bottom = "";
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     initPageSelector();
     initFilters();
     initHealthIndicator();
+    initTooltipPositioning();
     if (window.mermaid) {
       mermaid.initialize({ startOnLoad: false, theme: "dark" });
     }
