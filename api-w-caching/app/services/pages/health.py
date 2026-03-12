@@ -34,17 +34,58 @@ VALID_ATTRIBUTES = {"Queue Size", "Write Rate", "Gap Size", "Failures"}
 # Formatting helpers (mirror React healthFormatters.ts)
 # ---------------------------------------------------------------------------
 
+_EMOJI_GREEN  = "\U0001f7e2"
+_EMOJI_YELLOW = "\U0001f7e1"
+_EMOJI_ORANGE = "\U0001f7e0"
+_EMOJI_RED    = "\U0001f534"
+_EMOJI_WHITE  = "\u26aa"
+
+_STATUS_EMOJI_MAP: dict[str, str] = {
+    # CAGG Refresh Health
+    "refresh ok":           _EMOJI_GREEN,
+    "refresh delayed":      _EMOJI_YELLOW,
+    "source stale":         _EMOJI_YELLOW,
+    "refresh broken":       _EMOJI_RED,
+    # Base Table Activity  ("stale" alone is red per base-table guidance)
+    "active":               _EMOJI_GREEN,
+    "quiet":                _EMOJI_GREEN,
+    "check":                _EMOJI_ORANGE,
+    "stale":                _EMOJI_RED,
+    # Queue Health
+    "normal":               _EMOJI_GREEN,
+    "elevated":             _EMOJI_YELLOW,
+    "high":                 _EMOJI_ORANGE,
+    "anomaly":              _EMOJI_RED,
+    # Trigger Function Health
+    "healthy":              _EMOJI_GREEN,
+    "lagging":              _EMOJI_YELLOW,
+    "low coverage":         _EMOJI_ORANGE,
+    "trigger not firing":   _EMOJI_RED,
+    "not firing":           _EMOJI_RED,
+    "no source data":       _EMOJI_WHITE,
+    "no source":            _EMOJI_WHITE,
+    # Shared
+    "no data":              _EMOJI_WHITE,
+}
+
+
 def _status_emoji(status: str) -> str:
-    s = (status or "").lower()
-    if any(k in s for k in ("normal", "active", "healthy", "ok", "green")):
-        return "\U0001f7e2"
-    if any(k in s for k in ("elevated", "delayed", "lagging", "stale")):
-        return "\U0001f7e1"
-    if any(k in s for k in ("high", "check", "low coverage")):
-        return "\U0001f7e0"
+    s = (status or "").lower().strip()
+    hit = _STATUS_EMOJI_MAP.get(s)
+    if hit:
+        return hit
+    # Fallback: severity-descending substring scan so that e.g. an
+    # unknown red-level keyword is never eclipsed by a green one
+    # ("broken" contains "ok", so green must be tested last).
     if any(k in s for k in ("anomaly", "broken", "not firing", "red")):
-        return "\U0001f534"
-    return "\u26aa"
+        return _EMOJI_RED
+    if any(k in s for k in ("high", "check", "low coverage")):
+        return _EMOJI_ORANGE
+    if any(k in s for k in ("elevated", "delayed", "lagging")):
+        return _EMOJI_YELLOW
+    if any(k in s for k in ("normal", "active", "healthy", "ok", "green")):
+        return _EMOJI_GREEN
+    return _EMOJI_WHITE
 
 
 def _bool_indicator(val: Any) -> str:
