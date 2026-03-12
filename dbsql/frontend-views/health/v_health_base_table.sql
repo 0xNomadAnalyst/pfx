@@ -52,7 +52,7 @@ SELECT
         ELSE 'Stale'
     END AS status,
     CASE
-        WHEN b.expected_gap_mins IS NOT NULL AND b.expected_gap_mins > 0 THEN b.gap_ratio > 5.0
+        WHEN b.expected_gap_mins IS NOT NULL AND b.expected_gap_mins > 0 THEN b.gap_ratio > 10.0
         ELSE b.minutes_since_latest > 10080
     END AS is_red
 FROM health.mat_health_base_activity b;

@@ -45,7 +45,7 @@ PAGE_CONFIG = PageConfig(
             "table",
             "panel panel-wide-table health-slot-base-table",
             expandable=False,
-            tooltip="Ingestion freshness assessed against frequency-based expected gaps. Status: \U0001f7e2 Active \u00b7 \U0001f7e0 Check \u00b7 \U0001f534 Stale / ANOMALY",
+            tooltip="Ingestion freshness assessed against frequency-based expected gaps. Status: \U0001f7e2 Active \u00b7 \U0001f7e1 Check \u00b7 \U0001f7e0 Stale \u00b7 \U0001f534 ANOMALY",
         ),
         WidgetConfig(
             "health-base-chart-events",

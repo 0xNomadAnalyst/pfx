@@ -46,11 +46,11 @@ _STATUS_EMOJI_MAP: dict[str, str] = {
     "refresh delayed":      _EMOJI_YELLOW,
     "source stale":         _EMOJI_YELLOW,
     "refresh broken":       _EMOJI_RED,
-    # Base Table Activity  ("stale" alone is red per base-table guidance)
+    # Base Table Activity
     "active":               _EMOJI_GREEN,
     "quiet":                _EMOJI_GREEN,
-    "check":                _EMOJI_ORANGE,
-    "stale":                _EMOJI_RED,
+    "check":                _EMOJI_YELLOW,
+    "stale":                _EMOJI_ORANGE,
     # Queue Health
     "normal":               _EMOJI_GREEN,
     "elevated":             _EMOJI_YELLOW,
@@ -79,9 +79,9 @@ def _status_emoji(status: str) -> str:
     # ("broken" contains "ok", so green must be tested last).
     if any(k in s for k in ("anomaly", "broken", "not firing", "red")):
         return _EMOJI_RED
-    if any(k in s for k in ("high", "check", "low coverage")):
+    if any(k in s for k in ("high", "stale", "low coverage")):
         return _EMOJI_ORANGE
-    if any(k in s for k in ("elevated", "delayed", "lagging")):
+    if any(k in s for k in ("elevated", "delayed", "lagging", "check")):
         return _EMOJI_YELLOW
     if any(k in s for k in ("normal", "active", "healthy", "ok", "green")):
         return _EMOJI_GREEN
@@ -223,8 +223,8 @@ INFO_BASE_TABLE = (
     "<p><strong>Status Indicators</strong> (ratio = current gap / expected gap):</p>"
     "<ul>"
     "<li>\U0001f7e2 <strong>Active</strong>: \u2264 2x expected gap (normal)</li>"
-    "<li>\U0001f7e0 <strong>Check</strong>: 2-5x expected gap (worth monitoring)</li>"
-    "<li>\U0001f534 <strong>Stale</strong>: 5-10x expected gap (significant deviation)</li>"
+    "<li>\U0001f7e1 <strong>Check</strong>: 2-5x expected gap (worth monitoring)</li>"
+    "<li>\U0001f7e0 <strong>Stale</strong>: 5-10x expected gap (significant deviation)</li>"
     "<li>\U0001f534 <strong>ANOMALY</strong>: &gt; 10x expected gap (extreme deviation)</li>"
     "</ul>"
 )
