@@ -35,6 +35,17 @@ write_pipeline_env() {
 write_pipeline_env "/.env.prod.core"   "SOLSTICE"
 write_pipeline_env "/app/.env.pfx.core" "ONYC"
 
+# Export the startup-active DB credentials into the process environment so
+# the API's _validate_env() / load_dotenv path sees them on first boot.
+# ONYC is the default; if DB_HOST is already set (e.g. overridden in Railway
+# Variables) those values take precedence.
+export DB_HOST="${DB_HOST:-${ONYC_DB_HOST:-}}"
+export DB_PORT="${DB_PORT:-${ONYC_DB_PORT:-5432}}"
+export DB_NAME="${DB_NAME:-${ONYC_DB_NAME:-}}"
+export DB_USER="${DB_USER:-${ONYC_DB_USER:-}}"
+export DB_PASSWORD="${DB_PASSWORD:-${ONYC_DB_PASSWORD:-}}"
+export DB_SSLMODE="${DB_SSLMODE:-${ONYC_DB_SSLMODE:-require}}"
+
 cleanup() {
   echo "Shutting down..."
   kill "${API_PID:-}" "${UI_PID:-}" 2>/dev/null || true
