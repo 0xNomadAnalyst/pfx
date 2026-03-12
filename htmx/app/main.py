@@ -25,7 +25,12 @@ GLOBAL_ECOSYSTEM_PAGE: PageConfig = _ge_mod.PAGE_CONFIG
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
+# Internal address used for server-side proxy calls (health, pipeline, etc.)
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8001")
+# Base URL embedded in page HTML for browser HTMX widget fetches.
+# Defaults to "" (relative URLs) so the browser calls the UI host, which
+# proxies to the internal API.  Override only if the API is publicly exposed.
+BROWSER_API_BASE_URL = os.getenv("BROWSER_API_BASE_URL", "")
 APP_TITLE = "Solana DeFi Ecosystem Dashboard"
 ENABLE_PIPELINE_SWITCHER = os.getenv("ENABLE_PIPELINE_SWITCHER", "0") == "1"
 HEALTH_PROXY_TIMEOUT_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_TIMEOUT_SECONDS", "3"))
@@ -93,12 +98,12 @@ def render_page(request: Request, page: PageConfig):
                 "title": widget.title,
                 "kind": widget.kind,
                 "refresh_interval_seconds": max(15, refresh_interval_seconds),
-                "endpoint": build_widget_endpoint(API_BASE_URL, page.api_page_id, widget.id),
+                "endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, page.api_page_id, widget.id),
                 "css_class": widget.css_class,
                 "expandable": widget.expandable if widget.kind == "chart" else False,
                 "load_delay_seconds": load_delay_seconds,
                 "tooltip": widget.tooltip,
-                "detail_table_endpoint": build_widget_endpoint(API_BASE_URL, page.api_page_id, widget.detail_table_id) if widget.detail_table_id else "",
+                "detail_table_endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, page.api_page_id, widget.detail_table_id) if widget.detail_table_id else "",
             }
         )
     page_options = [{"slug": cfg.slug, "label": cfg.label, "path": f"/{cfg.slug}"} for cfg in PAGES]
@@ -108,7 +113,7 @@ def render_page(request: Request, page: PageConfig):
             "label": action.label,
             "icon": action.icon,
             "modal_kind": action.modal_kind,
-            "endpoint": build_widget_endpoint(API_BASE_URL, page.api_page_id, action.endpoint) if action.endpoint else "",
+            "endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, page.api_page_id, action.endpoint) if action.endpoint else "",
         }
         for action in page.page_actions
     ]
@@ -138,7 +143,7 @@ def render_page(request: Request, page: PageConfig):
             "protocol": protocol,
             "pair": pair,
             "last_window": "7d",
-            "api_base_url": API_BASE_URL,
+            "api_base_url": BROWSER_API_BASE_URL,
             "show_pipeline_switcher": ENABLE_PIPELINE_SWITCHER,
             "pipeline_info": pipeline_info,
         },
