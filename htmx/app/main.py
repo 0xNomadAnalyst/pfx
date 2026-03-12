@@ -2,6 +2,7 @@ import json
 import os
 import threading
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -221,6 +222,37 @@ def switch_pipeline_proxy(request: Request):
             _pipeline_cache["value"] = None
             _pipeline_cache["expires_at"] = 0.0
             return JSONResponse(content=payload)
+    except urllib.error.HTTPError as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=exc.code)
+    except Exception as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=502)
+
+
+@app.api_route("/api/v1/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def api_v1_proxy(path: str, request: Request):
+    """Forward all /api/v1/* widget requests to the internal API server.
+
+    Widget endpoint URLs are rendered into the page HTML and fetched by the
+    browser, so they must resolve via the public UI host.  The internal API
+    listens only on 127.0.0.1 and is not directly reachable by browsers.
+    """
+    qs = request.url.query
+    target = f"{API_BASE_URL}/api/v1/{path}"
+    if qs:
+        target = f"{target}?{qs}"
+
+    body: bytes | None = None
+    method = request.method.upper()
+    if method in ("POST", "PUT", "PATCH"):
+        body = await request.body()
+
+    req = urllib.request.Request(target, data=body or None, method=method)
+    req.add_header("Content-Type", request.headers.get("content-type", "application/json"))
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            content = resp.read()
+            ct = resp.headers.get("content-type", "application/json")
+            return Response(content=content, media_type=ct, status_code=resp.status)
     except urllib.error.HTTPError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=exc.code)
     except Exception as exc:
