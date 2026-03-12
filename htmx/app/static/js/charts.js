@@ -3364,11 +3364,89 @@
     backdrop.hidden = false;
   }
 
-  function buildExplainerHTML() {
+  function initMermaidZoom(container) {
+    const wraps = container.querySelectorAll(".mermaid-wrap");
+    wraps.forEach((wrap) => {
+      const svg = wrap.querySelector("svg");
+      if (svg) {
+        const vb = svg.getAttribute("viewBox");
+        if (vb) {
+          const parts = vb.split(/[\s,]+/).map(Number);
+          if (parts.length === 4) {
+            const pad = 20;
+            svg.setAttribute("viewBox",
+              `${parts[0] - pad} ${parts[1] - pad} ${parts[2] + pad * 2} ${parts[3] + pad * 2}`);
+          }
+        }
+      }
+
+      const INITIAL_SCALE = 0.85;
+      let scale = INITIAL_SCALE;
+      let panX = 0;
+      let panY = 0;
+      let isPanning = false;
+      let startX = 0;
+      let startY = 0;
+      const MIN_SCALE = 0.5;
+      const MAX_SCALE = 3;
+      const ZOOM_STEP = 0.1;
+
+      function applyTransform() {
+        const inner = wrap.querySelector("svg") || wrap.querySelector("pre");
+        if (!inner) return;
+        inner.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        inner.style.transformOrigin = "center center";
+      }
+      applyTransform();
+
+      wrap.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + delta));
+        applyTransform();
+      }, { passive: false });
+
+      wrap.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        isPanning = true;
+        startX = e.clientX - panX;
+        startY = e.clientY - panY;
+        wrap.setPointerCapture(e.pointerId);
+        wrap.style.cursor = "grabbing";
+      });
+
+      wrap.addEventListener("pointermove", (e) => {
+        if (!isPanning) return;
+        panX = e.clientX - startX;
+        panY = e.clientY - startY;
+        applyTransform();
+      });
+
+      const endPan = () => { isPanning = false; wrap.style.cursor = ""; };
+      wrap.addEventListener("pointerup", endPan);
+      wrap.addEventListener("pointercancel", endPan);
+
+      wrap.addEventListener("dblclick", () => {
+        scale = INITIAL_SCALE;
+        panX = 0;
+        panY = 0;
+        applyTransform();
+      });
+    });
+  }
+
+  function explainerMermaidTheme() {
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    const themeDirective = isDark
-      ? "%%{init: {'theme':'dark', 'themeVariables': { 'lineColor':'#22c55e', 'primaryColor':'#1e40af', 'primaryBorderColor':'#3b82f6', 'secondaryColor':'#0891b2', 'tertiaryColor':'#0d9488'}}}%%"
-      : "%%{init: {'theme':'default', 'themeVariables': { 'lineColor':'#16a34a'}}}%%";
+    const linkColor = isDark ? "#f8a94a" : "#f39a2d";
+    const fc = "'flowchart': {'useMaxWidth': false, 'padding': 24, 'nodeSpacing': 40, 'rankSpacing': 70, 'wrappingWidth': 200}";
+    const directive = isDark
+      ? "%%{init: {" + fc + ", 'theme':'dark', 'themeVariables': { 'lineColor':'" + linkColor + "', 'primaryColor':'#1a2d4d', 'primaryTextColor':'#e4e9f4', 'primaryBorderColor':'#4b8fe0', 'secondaryColor':'#152340', 'secondaryTextColor':'#a0b4d4', 'secondaryBorderColor':'#2a4570', 'tertiaryColor':'#152340', 'tertiaryBorderColor':'#2a4570', 'clusterBkg':'#111d33', 'clusterBorder':'#2a4570', 'edgeLabelBackground':'#152340', 'fontFamily':'system-ui, sans-serif', 'fontSize':'13px'}}}%%"
+      : "%%{init: {" + fc + ", 'theme':'default', 'themeVariables': { 'lineColor':'" + linkColor + "', 'primaryColor':'#ffffff', 'primaryTextColor':'#11203a', 'primaryBorderColor':'#93b4e0', 'secondaryColor':'#f4f8ff', 'secondaryTextColor':'#5f7396', 'secondaryBorderColor':'#d7e0ef', 'tertiaryColor':'#f4f8ff', 'tertiaryBorderColor':'#d7e0ef', 'clusterBkg':'#f4f8ff', 'clusterBorder':'#d7e0ef', 'edgeLabelBackground':'#eef2f9', 'fontFamily':'system-ui, sans-serif', 'fontSize':'13px'}}}%%";
+    return { isDark, linkColor, directive };
+  }
+
+  function buildExplainerHTML() {
+    const { isDark, linkColor, directive: themeDirective } = explainerMermaidTheme();
 
     const mermaidDef = `${themeDirective}
 flowchart LR
@@ -3396,14 +3474,18 @@ flowchart LR
     O2 -.->|positions| RESERVES
     O3 -.->|positions| RESERVES
     OBLIGATIONS -.->|belongs to| MKT
-    linkStyle default stroke:#22c55e,stroke-width:3px
-    style LEFT fill:none,stroke:none`;
+    linkStyle default stroke:${linkColor},stroke-width:2px
+    style LEFT fill:none,stroke:none
+    style MARKET fill:${isDark ? "#152340" : "#eaf2ff"},stroke:${isDark ? "#4b8fe0" : "#0a78f0"},stroke-width:2px
+    style RESERVES fill:${isDark ? "#111d33" : "#f2f9f7"},stroke:${isDark ? "#2d7a6e" : "#5aafa0"},stroke-width:1.5px
+    style OBLIGATIONS fill:${isDark ? "#111d33" : "#f6f2fc"},stroke:${isDark ? "#7b5ea7" : "#9b80c4"},stroke-width:1.5px
+    style MKT fill:${isDark ? "#1a3a60" : "#dbeaff"},stroke:${isDark ? "#4bb7ff" : "#0a78f0"},stroke-width:2px`;
 
     return `
 <h4>Summary</h4>
 <p>The Kamino protocol facilitates a cross-margined lending market, where multiple assets can be borrowed against a common basket of accepted collateral tokens.</p>
 
-<div class="mermaid-wrap"><pre class="mermaid">${mermaidDef}</pre></div>
+<div class="mermaid-wrap mermaid-wrap--kamino"><pre class="mermaid">${mermaidDef}</pre></div>
 
 <h4>Protocol Infrastructure</h4>
 <p>Three on-chain account types form the protocol structure:</p>
@@ -3452,10 +3534,7 @@ flowchart LR
   }
 
   function buildExplainerExponentHTML() {
-    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    const themeDirective = isDark
-      ? "%%{init: {'theme':'dark', 'themeVariables': { 'lineColor':'#22c55e', 'primaryColor':'#1e40af', 'primaryBorderColor':'#3b82f6', 'secondaryColor':'#0891b2', 'tertiaryColor':'#0d9488'}}}%%"
-      : "%%{init: {'theme':'default', 'themeVariables': { 'lineColor':'#16a34a'}}}%%";
+    const { isDark, linkColor, directive: themeDirective } = explainerMermaidTheme();
 
     const mermaidDef = `${themeDirective}
 flowchart LR
@@ -3477,16 +3556,16 @@ flowchart LR
     end
     WRAP --> STRIP
     STRIP --> AMM
-    linkStyle default stroke:#22c55e,stroke-width:3px
-    style WRAP fill:none,stroke:#3b82f6
-    style STRIP fill:none,stroke:#0891b2
-    style AMM fill:none,stroke:#0d9488`;
+    linkStyle default stroke:${linkColor},stroke-width:2px
+    style WRAP fill:${isDark ? "#111d33" : "#f0f6ff"},stroke:${isDark ? "#4b8fe0" : "#0a78f0"},stroke-width:2px
+    style STRIP fill:${isDark ? "#111d33" : "#f0f8f6"},stroke:${isDark ? "#22d3ee" : "#0891b2"},stroke-width:2px
+    style AMM fill:${isDark ? "#111d33" : "#f0fdf8"},stroke:${isDark ? "#2dd4bf" : "#0d9488"},stroke-width:2px`;
 
     return `
 <h4>Summary</h4>
 <p>The Exponent protocol enables the creation of yield derivatives and supporting liquidity, forming a yield trading market that allows users to convert variable yield into fixed-yield exposure, or to speculate on the future variable yield of an underlying token.</p>
 
-<div class="mermaid-wrap"><pre class="mermaid">${mermaidDef}</pre></div>
+<div class="mermaid-wrap mermaid-wrap--exponent"><pre class="mermaid">${mermaidDef}</pre></div>
 
 <h4>Token Ecosystem</h4>
 <p>The Exponent protocol operates by minting three token derivatives that are ultimately tied to base token capital: SY, PT, and YT.</p>
@@ -3612,6 +3691,7 @@ flowchart LR
       if (window.mermaid) {
         await mermaid.run({ nodes: document.querySelectorAll(".page-action-modal-body .mermaid") });
       }
+      initMermaidZoom(document.querySelector(".page-action-modal-body"));
       return;
     }
 
@@ -3620,6 +3700,7 @@ flowchart LR
       if (window.mermaid) {
         await mermaid.run({ nodes: document.querySelectorAll(".page-action-modal-body .mermaid") });
       }
+      initMermaidZoom(document.querySelector(".page-action-modal-body"));
       return;
     }
 
