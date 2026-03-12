@@ -8,6 +8,33 @@ API_PORT="${API_PORT:-8001}"
 UI_PORT="${PORT:-8002}"
 export API_BASE_URL="${API_BASE_URL:-http://127.0.0.1:${API_PORT}}"
 
+# ---------------------------------------------------------------------------
+# Pipeline switcher — write the two credential files that pipeline_config.py
+# looks up at runtime.  In the container the resolved paths are:
+#   solstice  →  /.env.prod.core          (project_root.parent from /app/)
+#   onyc      →  /app/.env.pfx.core       (project_root from /app/)
+#
+# Set SOLSTICE_DB_* and ONYC_DB_* in Railway's Variables tab.
+# ENABLE_PIPELINE_SWITCHER must also be set to "1" to activate the UI toggle.
+# ---------------------------------------------------------------------------
+write_pipeline_env() {
+  local dest="$1" prefix="$2"
+  local host port name user pass sslmode
+  host="$(eval echo "\${${prefix}_DB_HOST:-}")"
+  [ -z "$host" ] && return 0   # skip if not configured
+  port="$(eval echo "\${${prefix}_DB_PORT:-5432}")"
+  name="$(eval echo "\${${prefix}_DB_NAME:-}")"
+  user="$(eval echo "\${${prefix}_DB_USER:-}")"
+  pass="$(eval echo "\${${prefix}_DB_PASSWORD:-}")"
+  sslmode="$(eval echo "\${${prefix}_DB_SSLMODE:-require}")"
+  printf 'DB_HOST=%s\nDB_PORT=%s\nDB_NAME=%s\nDB_USER=%s\nDB_PASSWORD=%s\nDB_SSLMODE=%s\n' \
+    "$host" "$port" "$name" "$user" "$pass" "$sslmode" > "$dest"
+  echo "Pipeline env written: $dest (host=$host)"
+}
+
+write_pipeline_env "/.env.prod.core"   "SOLSTICE"
+write_pipeline_env "/app/.env.pfx.core" "ONYC"
+
 cleanup() {
   echo "Shutting down..."
   kill "${API_PID:-}" "${UI_PID:-}" 2>/dev/null || true
