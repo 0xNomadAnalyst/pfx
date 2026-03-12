@@ -828,7 +828,7 @@ class KaminoPageService(BasePageService):
         brw_sym, brw_sigma = _most_volatile(brw_list)
 
         vol_lines: list[dict[str, Any]] = []
-        for n in (2, 1):
+        for n in (2,):
             if coll_sym and coll_sigma > 0:
                 vol_lines.append({
                     "label": f"-{n}\u03c3 {coll_sym}",
