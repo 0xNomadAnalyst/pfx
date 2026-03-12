@@ -3445,143 +3445,22 @@
     return { isDark, linkColor, directive };
   }
 
-  function buildExplainerHTML() {
-    const { isDark, linkColor, directive: themeDirective } = explainerMermaidTheme();
+  const explainerCache = {};
 
-    const mermaidDef = `${themeDirective}
-flowchart LR
-    subgraph LEFT[ ]
-        direction TB
-        subgraph MARKET[Lending Market]
-            MKT((Market<br/>Account))
-        end
-        MKT -->|owns| RB1
-        MKT -->|owns| RB2
-        MKT -->|owns| RC1
-        subgraph RESERVES[Reserve Accounts]
-            RB1[Reserve: USX<br/>borrow]
-            RB2[Reserve: USDC<br/>borrow]
-            RC1[Reserve: eUSX<br/>collateral]
-        end
-    end
-    subgraph OBLIGATIONS[Obligation Accounts]
-        direction TB
-        O1[Obligation<br/>user_1]
-        O2[Obligation<br/>user_2]
-        O3[Obligation<br/>user_n]
-    end
-    O1 -.->|positions| RESERVES
-    O2 -.->|positions| RESERVES
-    O3 -.->|positions| RESERVES
-    OBLIGATIONS -.->|belongs to| MKT
-    linkStyle default stroke:${linkColor},stroke-width:2px
-    style LEFT fill:none,stroke:none
-    style MARKET fill:${isDark ? "#152340" : "#eaf2ff"},stroke:${isDark ? "#4b8fe0" : "#0a78f0"},stroke-width:2px
-    style RESERVES fill:${isDark ? "#111d33" : "#f2f9f7"},stroke:${isDark ? "#2d7a6e" : "#5aafa0"},stroke-width:1.5px
-    style OBLIGATIONS fill:${isDark ? "#111d33" : "#f6f2fc"},stroke:${isDark ? "#7b5ea7" : "#9b80c4"},stroke-width:1.5px
-    style MKT fill:${isDark ? "#1a3a60" : "#dbeaff"},stroke:${isDark ? "#4bb7ff" : "#0a78f0"},stroke-width:2px`;
-
-    return `
-<h4>Summary</h4>
-<p>The Kamino protocol facilitates a cross-margined lending market, where multiple assets can be borrowed against a common basket of accepted collateral tokens.</p>
-
-<div class="mermaid-wrap mermaid-wrap--kamino"><pre class="mermaid">${mermaidDef}</pre></div>
-
-<h4>Protocol Infrastructure</h4>
-<p>Three on-chain account types form the protocol structure:</p>
-<ul>
-  <li><strong>Market Account</strong> &mdash; Top-level structure that owns all reserve and obligation accounts. Defines a quote currency (typically USD) to value all assets on a common basis using pricing oracles.</li>
-  <li><strong>Reserve Account</strong> &mdash; Each token has a unique reserve account serving both borrow and collateral roles. Accepts deposits from suppliers and manages liquidity for borrowers.</li>
-  <li><strong>Obligation Account</strong> &mdash; Each user has one obligation per market tracking all borrow, collateral, and supply positions. Aggregates risk and valuation in the market's quote currency.</li>
-</ul>
-
-<h4>New Loans</h4>
-<p>Borrowing capacity is determined by loan-to-value (LTV) parameters:</p>
-<ul>
-  <li>Each collateral deposit converts to market quote currency</li>
-  <li>Multiplied by its collateral LTV</li>
-  <li>Sum defines maximum borrowable value</li>
-</ul>
-<p>Each borrow asset has a risk weight (borrow factor) that rescales its market value before comparison against maximum borrowable value.</p>
-
-<h4>Health Monitoring</h4>
-<p>Unhealthy borrow value = &Sigma;(Collateral value &times; liquidation LTV)</p>
-<p>Health Factor (HF) = Unhealthy borrow value &divide; Adjusted borrow value</p>
-<ul>
-  <li>HF = 1 &rarr; liquidation eligible</li>
-  <li>HF &gt; 1 &rarr; healthy</li>
-  <li>HF &lt; 1 &rarr; actively liquidatable</li>
-</ul>
-<p>New loan LTVs are set below liquidation thresholds to buffer against price volatility.</p>
-
-<h4>Liquidations &amp; Loss Socialization</h4>
-<ul>
-  <li>Liquidators repay borrowed assets for discounted collateral</li>
-  <li>Operates on individual borrow-collateral pairs</li>
-  <li>Cap applies (~20% max per transaction during standard liquidation)</li>
-  <li>Eligibility ends once HF restored above 1</li>
-</ul>
-<p>A severe LTV threshold defines insolvency risk level where up to 100% may be liquidatable. If liquidators fail to restore solvency, the protocol may socialize losses via haircuts on depositor claims.</p>
-
-<h4>Asset Valuation</h4>
-<p>Kamino uses on-chain price oracles. Exponent principal tokens (PT-USX and PT-eUSX) use a custom pricing model:</p>
-<blockquote><code>PT price = (1 - (time_to_maturity_seconds &times; annual_discount_rate / seconds_per_year)) &times; underlying_price</code></blockquote>
-<p>Current annual discount rate: 25%. Underlying asset for both PT tokens is USX (not eUSX), so they don't transmit eUSX price risk and increase predictably toward maturity.</p>
-
-<h4>APY Pricing</h4>
-<p>Supply and borrow APYs are determined by each reserve's utilization rate. Rates increase as utilization rises. The spread between supply and borrow APY is defined by the protocol's take rate.</p>
-`;
-  }
-
-  function buildExplainerExponentHTML() {
-    const { isDark, linkColor, directive: themeDirective } = explainerMermaidTheme();
-
-    const mermaidDef = `${themeDirective}
-flowchart LR
-    subgraph WRAP[Wrapping]
-        direction TB
-        BASE[Base Token<br/>e.g. eUSX] -->|wrap| SY[SY Token]
-        SY -->|unwrap| BASE
-    end
-    subgraph STRIP[Stripping]
-        direction TB
-        SY2[SY] -->|split 1:1| PTYT["PT + YT<br/>(per maturity)"]
-        PTYT -->|merge pair| SY2
-    end
-    subgraph AMM[Yield Trading AMM]
-        direction TB
-        POOL["SY + PT<br/>Liquidity Pool"]
-        LP[LP Providers] -->|deposit| POOL
-        POOL -->|fees| LP
-    end
-    WRAP --> STRIP
-    STRIP --> AMM
-    linkStyle default stroke:${linkColor},stroke-width:2px
-    style WRAP fill:${isDark ? "#111d33" : "#f0f6ff"},stroke:${isDark ? "#4b8fe0" : "#0a78f0"},stroke-width:2px
-    style STRIP fill:${isDark ? "#111d33" : "#f0f8f6"},stroke:${isDark ? "#22d3ee" : "#0891b2"},stroke-width:2px
-    style AMM fill:${isDark ? "#111d33" : "#f0fdf8"},stroke:${isDark ? "#2dd4bf" : "#0d9488"},stroke-width:2px`;
-
-    return `
-<h4>Summary</h4>
-<p>The Exponent protocol enables the creation of yield derivatives and supporting liquidity, forming a yield trading market that allows users to convert variable yield into fixed-yield exposure, or to speculate on the future variable yield of an underlying token.</p>
-
-<div class="mermaid-wrap mermaid-wrap--exponent"><pre class="mermaid">${mermaidDef}</pre></div>
-
-<h4>Token Ecosystem</h4>
-<p>The Exponent protocol operates by minting three token derivatives that are ultimately tied to base token capital: SY, PT, and YT.</p>
-<ul>
-  <li><strong>Base Tokens &rarr; SY</strong> &mdash; Base tokens are wrapped as SY ("standard yield") tokens. SY tokens can be redeemed for base tokens at any time. SY is not just an entry point into the protocol, it also serves as the liquidity pair in the AMM used to price fixed yield.</li>
-  <li><strong>SY &rarr; PT + YT</strong> &mdash; SY tokens can be split into PT-YT token pairs. YT (Yield Token) represents the right to all variable yield that will accrue during the market's term. PT (Principal Token) represents the right to the principal at maturity, with its price determined by the fixed-yield AMM. PT-YT pairs are minted for a specific maturity and are linked to a specific SY token.</li>
-</ul>
-
-<h4>Token Claims and Convertibility</h4>
-<ul>
-  <li><strong>SY &harr; Base Token Conversion</strong> &mdash; The conversion rate between SY and the underlying base token is determined by the accumulated value of the underlying relative to its value when the SY was first minted. This rate is updated via oracle. In the case of a yield-bearing token such as eUSX, as long as the underlying continues to distribute yield and the principal remains intact, the value of 1 SY in base tokens will gradually increase over time.</li>
-  <li><strong>SY &harr; PT-YT Conversion</strong> &mdash; SY is convertible into PT-YT token pairs on a fixed 1:1 basis (1 SY = 1 PT and 1 YT). Prior to maturity, PT-YT pairs can only be converted back into SY as complete pairs. At maturity and beyond, PT becomes directly redeemable on its own, at the SY-base exchange rate fixed at maturity. This enforces a 1 PT = 1 base token unit claim at maturity.</li>
-  <li><strong>PT Pricing and Fixed Yield</strong> &mdash; PT can be bought and sold for base-token-redeemable SY on a dedicated AMM specific to each PT maturity, with SY as the liquidity pair. The AMM's pricing formula is adapted for yield trading by forcing the PT price toward 1 base token unit as maturity approaches and reducing price sensitivity to trades as maturity nears. The PT/Base price reflects the market-implied discount on principal and therefore defines the fixed yield available to PT buyers.</li>
-  <li><strong>YT and Variable Yield Claims</strong> &mdash; YT holders are entitled to withdraw the variable yield portion of SY prior to market maturity, provided they stake their YT tokens into the protocol's staking contract. These mechanics imply that the claims on the SY tokens locked during PT-YT minting evolve over time. A portion becomes withdrawable as variable yield (via YT), and the remaining portion remains claimable through PT redemption at maturity.</li>
-</ul>
-`;
+  async function buildExplainerFromJSON(jsonPath) {
+    if (!explainerCache[jsonPath]) {
+      const resp = await fetch(jsonPath);
+      if (!resp.ok) throw new Error(`Failed to load ${jsonPath}: ${resp.status}`);
+      explainerCache[jsonPath] = await resp.json();
+    }
+    const data = explainerCache[jsonPath];
+    const { isDark, linkColor, directive } = explainerMermaidTheme();
+    const theme = isDark ? "dark" : "light";
+    const styleLines = Object.entries(data.styles[theme])
+      .map(([node, style]) => `    style ${node} ${style}`)
+      .join("\n");
+    const mermaidDef = `${directive}\n${data.graph}\n    linkStyle default stroke:${linkColor},stroke-width:2px\n${styleLines}`;
+    return data.html.replace("{{MERMAID}}", mermaidDef);
   }
 
   const configTableTooltips = {
@@ -3686,21 +3565,24 @@ flowchart LR
     const endpoint = btn.dataset.endpoint || "";
     const label = btn.querySelector("span")?.textContent || "Details";
 
-    if (actionId === "kamino-explainer") {
-      openPageActionModal(label, buildExplainerHTML());
-      if (window.mermaid) {
-        await mermaid.run({ nodes: document.querySelectorAll(".page-action-modal-body .mermaid") });
+    const explainerPaths = {
+      "kamino-explainer": "/static/data/kamino-explainer.json",
+      "exponent-explainer": "/static/data/exponent-explainer.json",
+    };
+    if (explainerPaths[actionId]) {
+      openPageActionModal(label, '<p style="color:var(--muted)">Loading\u2026</p>');
+      try {
+        const html = await buildExplainerFromJSON(explainerPaths[actionId]);
+        const { body } = pageActionModalEls();
+        body.innerHTML = html;
+        if (window.mermaid) {
+          await mermaid.run({ nodes: body.querySelectorAll(".mermaid") });
+        }
+        initMermaidZoom(body);
+      } catch (err) {
+        const { body } = pageActionModalEls();
+        body.innerHTML = `<p style="color:#ef4444">Failed to load explainer: ${err.message}</p>`;
       }
-      initMermaidZoom(document.querySelector(".page-action-modal-body"));
-      return;
-    }
-
-    if (actionId === "exponent-explainer") {
-      openPageActionModal(label, buildExplainerExponentHTML());
-      if (window.mermaid) {
-        await mermaid.run({ nodes: document.querySelectorAll(".page-action-modal-body .mermaid") });
-      }
-      initMermaidZoom(document.querySelector(".page-action-modal-body"));
       return;
     }
 
