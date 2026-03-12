@@ -11,21 +11,21 @@ __pycache__/
 .venv/
 
 # Metabase - large binary + DB files (metabase.jar is 510MB)
-metabase/metabase.jar
-metabase/*.db
-metabase/*.mv.db
-metabase/*.trace.db
-metabase/plugins/
-metabase/backups/
+alt-frontends/metabase/metabase.jar
+alt-frontends/metabase/*.db
+alt-frontends/metabase/*.mv.db
+alt-frontends/metabase/*.trace.db
+alt-frontends/metabase/plugins/
+alt-frontends/metabase/backups/
 
 # Superset - cloned upstream repo (has own .git, too large)
-superset/superset-repo/
+alt-frontends/superset/superset-repo/
 
 # dbt compiled artifacts, logs & secrets
-lightdash/dbt_project/target/
-lightdash/dbt_project/logs/
-lightdash/dbt_project/.user.yml
-lightdash/dbt_project/profiles.yml
+alt-frontends/lightdash/dbt_project/target/
+alt-frontends/lightdash/dbt_project/logs/
+alt-frontends/lightdash/dbt_project/.user.yml
+alt-frontends/lightdash/dbt_project/profiles.yml
 
 # Logs
 *.log
