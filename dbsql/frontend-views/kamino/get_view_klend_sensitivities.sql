@@ -1,24 +1,26 @@
--- Kamino Lend - Complete Market Sensitivity Analysis Table Function (OPTIMIZED)
--- Combines all sensitivity functions to generate a comprehensive stress test view
+-- Kamino Lend - Complete Market Sensitivity Analysis Table Function
+-- Supports both uniform and asset-level (partial) stress testing.
 --
--- OPTIMIZATION IMPROVEMENTS:
--- 1. Added MATERIALIZED hints to CTEs accessed multiple times
--- 2. Eliminated redundant liquidatable_array_calc computation
--- 3. Consolidated array generation loops to reduce overhead
--- 4. Pre-computed step metadata to avoid repeated calculations
--- 5. Simplified array reversal/concatenation logic
--- 6. Reduced function calls by computing flags once and reusing
+-- ASSET-LEVEL STRESS:
+-- When p_coll_assets or p_lend_assets are provided, only the fraction of each
+-- obligation's value in those symbols is shocked. The rest stays constant.
+-- This uses per-asset position arrays from src_obligations_last.
 --
 -- Parameters:
---   p_query_id: Query ID to analyze (default: latest)
---   assets_delta_bps: Asset price change per step (must be <= 0, e.g., -25 for -0.25%)
+--   p_query_id: Query ID to analyze (default: latest, deprecated)
+--   assets_delta_bps: Asset price change per step (must be <= 0, e.g., -100 for -1%)
 --   assets_delta_steps: Number of asset drop steps (unsigned)
---   liabilities_delta_bps: Liability change per step (must be >= 0, e.g., 25 for +0.25%)
+--   liabilities_delta_bps: Liability change per step (must be >= 0, e.g., 100 for +1%)
 --   liabilities_delta_steps: Number of liability increase steps (unsigned)
 --   include_zero_borrows: If TRUE, includes obligations with borrow < $1 (defaults to FALSE)
+--   p_coll_assets: Collateral symbols to stress (NULL = all, ARRAY['All'] = all)
+--   p_lend_assets: Borrow/lending symbols to stress (NULL = all, ARRAY['All'] = all)
 --
 -- Returns:
 --   TABLE with unnested arrays showing step-by-step sensitivity metrics
+
+-- Drop old 6-param signature to avoid overload ambiguity
+DROP FUNCTION IF EXISTS kamino_lend.get_view_klend_sensitivities(BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN);
 
 CREATE OR REPLACE FUNCTION kamino_lend.get_view_klend_sensitivities(
     p_query_id BIGINT DEFAULT NULL,
@@ -26,7 +28,9 @@ CREATE OR REPLACE FUNCTION kamino_lend.get_view_klend_sensitivities(
     assets_delta_steps INTEGER DEFAULT 20,
     liabilities_delta_bps INTEGER DEFAULT 25,
     liabilities_delta_steps INTEGER DEFAULT 10,
-    include_zero_borrows BOOLEAN DEFAULT FALSE
+    include_zero_borrows BOOLEAN DEFAULT FALSE,
+    p_coll_assets TEXT[] DEFAULT NULL,
+    p_lend_assets TEXT[] DEFAULT NULL
 )
 RETURNS TABLE (
     step_number INTEGER,
@@ -61,6 +65,8 @@ DECLARE
     v_total_steps INTEGER;
     v_asset_steps INTEGER;
     v_liability_steps INTEGER;
+    v_coll_all BOOLEAN;
+    v_lend_all BOOLEAN;
 BEGIN
     -- Validate constraints
     IF assets_delta_bps > 0 THEN
@@ -72,8 +78,6 @@ BEGIN
     END IF;
     
     -- Get query_id (use latest if not provided)
-    -- NOTE: query_id is now only used for reference/logging
-    -- We query src_obligations_last directly which always has the latest state
     IF p_query_id IS NULL THEN
         SELECT MAX(query_id) INTO v_query_id FROM kamino_lend.src_obligations_last;
     ELSE
@@ -84,13 +88,14 @@ BEGIN
     v_asset_steps := COALESCE(assets_delta_steps, 0);
     v_liability_steps := COALESCE(liabilities_delta_steps, 0);
     v_total_steps := v_asset_steps + v_liability_steps + 1;
+
+    -- Determine whether to stress all assets (uniform) or a subset (partial)
+    v_coll_all := (p_coll_assets IS NULL OR 'All' = ANY(p_coll_assets));
+    v_lend_all := (p_lend_assets IS NULL OR 'All' = ANY(p_lend_assets));
     
     -- Generate sensitivity table
     RETURN QUERY
     WITH obligation_base AS MATERIALIZED (
-        -- Get obligations from src_obligations_last (latest state table)
-        -- OPTIMIZED: Uses src_obligations_last (~2.6K rows) instead of src_obligations (233M rows)
-        -- By default, only include obligations with outstanding borrow balance
         SELECT 
             o.obligation_address,
             o.c_user_total_deposit,
@@ -99,21 +104,38 @@ BEGIN
             o.c_unhealthy_ltv_obligation,
             o.mkt_insolvency_risk_unhealthy_ltv_pct,
             o.mkt_liquidation_max_debt_close_factor_pct,
-            o.mkt_max_liquidatable_debt_market_value_at_once
+            o.mkt_max_liquidatable_debt_market_value_at_once,
+            CASE WHEN v_coll_all THEN 1.0
+                 ELSE kamino_lend.compute_stressed_share(
+                     o.deposit_reserve_by_asset,
+                     o.deposit_market_value_sf_by_asset,
+                     o.resrv_address,
+                     o.resrv_symbol,
+                     p_coll_assets
+                 )
+            END as deposit_stressed_share,
+            CASE WHEN v_lend_all THEN 1.0
+                 ELSE kamino_lend.compute_stressed_share(
+                     o.borrow_reserve_by_asset,
+                     o.borrow_market_value_sf_by_asset,
+                     o.resrv_address,
+                     o.resrv_symbol,
+                     p_lend_assets
+                 )
+            END as borrow_stressed_share
         FROM kamino_lend.src_obligations_last o
         WHERE (include_zero_borrows OR o.c_user_total_borrow >= 1)
     ),
     asset_sensitivity AS MATERIALIZED (
-        -- Generate asset-side sensitivity (negative steps, asset drops)
+        -- Asset-side: collateral drops, borrows stay constant
         SELECT 
             o.*,
-            kamino_lend.sensitize_deposit_value(c_user_total_deposit, assets_delta_bps, v_asset_steps) as deposit_array_asset,
-            kamino_lend.sensitize_borrow_value(c_user_total_borrow, 0, v_asset_steps) as borrow_array_asset,
-            kamino_lend.sensitize_ltv(c_loan_to_value_pct, 'assets', assets_delta_bps, v_asset_steps) as ltv_array_asset
+            kamino_lend.sensitize_value_partial(o.c_user_total_deposit, o.deposit_stressed_share, assets_delta_bps, v_asset_steps) as deposit_array_asset,
+            kamino_lend.sensitize_value_partial(o.c_user_total_borrow, 1.0, 0, v_asset_steps) as borrow_array_asset
         FROM obligation_base o
     ),
     liability_sensitivity AS MATERIALIZED (
-        -- Generate liability-side sensitivity (positive steps, debt increases)
+        -- Liability-side: borrows increase, deposits stay constant
         SELECT 
             o.obligation_address,
             o.c_user_total_deposit,
@@ -125,15 +147,12 @@ BEGIN
             o.mkt_max_liquidatable_debt_market_value_at_once,
             o.deposit_array_asset,
             o.borrow_array_asset,
-            o.ltv_array_asset,
-            kamino_lend.sensitize_deposit_value(o.c_user_total_deposit, 0, v_liability_steps) as deposit_array_liability,
-            kamino_lend.sensitize_borrow_value(o.c_user_total_borrow, liabilities_delta_bps, v_liability_steps) as borrow_array_liability,
-            kamino_lend.sensitize_ltv(o.c_loan_to_value_pct, 'liabilities', liabilities_delta_bps, v_liability_steps) as ltv_array_liability
+            kamino_lend.sensitize_value_partial(o.c_user_total_deposit, 1.0, 0, v_liability_steps) as deposit_array_liability,
+            kamino_lend.sensitize_value_partial(o.c_user_total_borrow, o.borrow_stressed_share, liabilities_delta_bps, v_liability_steps) as borrow_array_liability
         FROM asset_sensitivity o
     ),
     combined_arrays AS MATERIALIZED (
-        -- Create continuous spectrum: severe asset drops → current state → severe liability increases
-        -- OPTIMIZATION: Simplified array reversal and concatenation
+        -- Continuous spectrum: severe asset drops -> current state -> severe liability increases
         SELECT 
             ls.obligation_address,
             ls.c_user_total_deposit,
@@ -142,21 +161,22 @@ BEGIN
             ls.mkt_insolvency_risk_unhealthy_ltv_pct,
             ls.mkt_liquidation_max_debt_close_factor_pct,
             ls.mkt_max_liquidatable_debt_market_value_at_once,
-            -- Reverse asset arrays + skip first element of liability arrays (to avoid duplicating current state)
             ARRAY(SELECT ls.deposit_array_asset[i] FROM generate_series(v_asset_steps + 1, 1, -1) i) ||
             CASE WHEN v_liability_steps > 0 THEN ARRAY(SELECT ls.deposit_array_liability[i] FROM generate_series(2, v_liability_steps + 1) i) ELSE ARRAY[]::NUMERIC[] END 
                 as combined_deposit_array,
             ARRAY(SELECT ls.borrow_array_asset[i] FROM generate_series(v_asset_steps + 1, 1, -1) i) ||
             CASE WHEN v_liability_steps > 0 THEN ARRAY(SELECT ls.borrow_array_liability[i] FROM generate_series(2, v_liability_steps + 1) i) ELSE ARRAY[]::NUMERIC[] END 
-                as combined_borrow_array,
-            ARRAY(SELECT ls.ltv_array_asset[i] FROM generate_series(v_asset_steps + 1, 1, -1) i) ||
-            CASE WHEN v_liability_steps > 0 THEN ARRAY(SELECT ls.ltv_array_liability[i] FROM generate_series(2, v_liability_steps + 1) i) ELSE ARRAY[]::NUMERIC[] END 
-                as combined_ltv_array
+                as combined_borrow_array
         FROM liability_sensitivity ls
     ),
+    combined_with_ltv AS MATERIALIZED (
+        -- Derive LTV from actual deposit/borrow arrays (correct for partial stress)
+        SELECT
+            ca.*,
+            kamino_lend.compute_ltv_array(ca.combined_deposit_array, ca.combined_borrow_array) as combined_ltv_array
+        FROM combined_arrays ca
+    ),
     flag_arrays AS MATERIALIZED (
-        -- Generate flag arrays from actual deposit/borrow values (not just LTV)
-        -- OPTIMIZATION: Compute once and reuse
         SELECT 
             *,
             kamino_lend.is_unhealthy_from_values(
@@ -170,11 +190,9 @@ BEGIN
                 combined_borrow_array,
                 mkt_insolvency_risk_unhealthy_ltv_pct
             ) as bad_debt_flags
-        FROM combined_arrays
+        FROM combined_with_ltv
     ),
     actual_current_state AS MATERIALIZED (
-        -- Get actual current state values for validation (at step v_asset_steps + 1)
-        -- OPTIMIZED: Uses src_obligations_last (latest state table)
         SELECT 
             o.obligation_address,
             o.c_is_unhealthy,
@@ -185,8 +203,6 @@ BEGIN
         WHERE (include_zero_borrows OR o.c_user_total_borrow >= 1)
     ),
     value_arrays AS MATERIALIZED (
-        -- Calculate liquidatable values, debt arrays, and HF arrays
-        -- OPTIMIZATION: Consolidated all array generation into single loop per obligation
         SELECT 
             fa.obligation_address,
             fa.c_user_total_deposit,
@@ -203,20 +219,16 @@ BEGIN
             acs.c_is_unhealthy as actual_is_unhealthy,
             acs.c_is_bad_debt as actual_is_bad_debt,
             acs.c_liquidatable_value as actual_liquidatable_value,
-            -- Calculate HF array
             kamino_lend.calculate_health_factor_array(
                 fa.combined_deposit_array,
                 fa.combined_borrow_array,
                 fa.c_unhealthy_ltv_obligation
             ) as health_factor_array,
-            -- Calculate liquidation distance array
             kamino_lend.sensitize_liquidation_distance(
                 fa.combined_deposit_array,
                 fa.combined_borrow_array,
                 fa.c_unhealthy_ltv_obligation
             ) as liquidation_distance_array,
-            -- OPTIMIZATION: Consolidated array generation (liquidatable, unhealthy_liquidatable, bad_liquidatable, unhealthy_debt, bad_debt)
-            -- All computed in single loop to reduce overhead
             ARRAY(
                 SELECT 
                     CASE 
@@ -273,7 +285,6 @@ BEGIN
         JOIN actual_current_state acs ON fa.obligation_address = acs.obligation_address
     ),
     market_aggregates AS MATERIALIZED (
-        -- Aggregate across all obligations
         SELECT 
             kamino_lend.sum_array_elementwise(ARRAY_AGG(combined_deposit_array)::NUMERIC[][]) as total_deposits_array,
             kamino_lend.sum_array_elementwise(ARRAY_AGG(combined_borrow_array)::NUMERIC[][]) as total_borrows_array,
@@ -284,7 +295,6 @@ BEGIN
             kamino_lend.sum_array_elementwise(ARRAY_AGG(bad_liquidatable_array)::NUMERIC[][]) as bad_liquidatable_array,
             kamino_lend.sum_array_elementwise(ARRAY_AGG(liquidation_distance_array)::NUMERIC[][]) as liquidation_distance_array,
             kamino_lend.average_array_elementwise(ARRAY_AGG(combined_ltv_array)::NUMERIC[][]) as avg_ltv_array,
-            -- Average HF for at-risk obligations
             kamino_lend.average_array_elementwise(
                 ARRAY_AGG(
                     ARRAY(
@@ -295,7 +305,6 @@ BEGIN
                     )
                 )::NUMERIC[][]
             ) as avg_at_risk_hf_array,
-            -- Average LTV for at-risk obligations
             kamino_lend.average_array_elementwise(
                 ARRAY_AGG(
                     ARRAY(
@@ -309,8 +318,6 @@ BEGIN
         FROM value_arrays
     ),
     step_generator AS (
-        -- Generate step numbers and metadata
-        -- OPTIMIZATION: Pre-compute all step metadata
         SELECT 
             i as array_index,
             CASE 
@@ -323,7 +330,6 @@ BEGIN
             END as bps_change
         FROM generate_series(1, v_total_steps) i
     )
-    -- Unnest and combine
     SELECT 
         sg.array_index - 1 as step_number,
         sg.scenario_type,
@@ -357,14 +363,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- Add function comment
-COMMENT ON FUNCTION kamino_lend.get_view_klend_sensitivities(BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN) IS 
-'OPTIMIZED (UPDATED 2025-12-28): Complete market sensitivity analysis returning unnested table.
-MIGRATION: Now queries src_obligations_last directly (~2.6K rows) instead of historical src_obligations (233M rows).
-Key optimizations: Added MATERIALIZED hints, eliminated redundant calculations, consolidated array generation loops.
-Combines asset drops and liability increases into a single analysis.
-Parameters: (query_id [deprecated], assets_delta_bps<=0, assets_steps, liabilities_delta_bps>=0, liabilities_steps, include_zero_borrows).
-Returns table with step-by-step market metrics under stress scenarios.
-By default (include_zero_borrows=FALSE), only analyzes obligations with borrow >= $1 (c_user_total_borrow >= 1).
-NOTE: query_id parameter is now deprecated - function always uses latest state from src_obligations_last.';
-
+COMMENT ON FUNCTION kamino_lend.get_view_klend_sensitivities(BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[]) IS 
+'Market sensitivity analysis with optional asset-level stress testing.
+When p_coll_assets / p_lend_assets are NULL (default), applies uniform shock to all assets (original behavior).
+When specific symbols are provided, only the fraction of each obligation''s value in those symbols is stressed.
+Parameters: (query_id [deprecated], assets_delta_bps<=0, assets_steps, liabilities_delta_bps>=0,
+liabilities_steps, include_zero_borrows, p_coll_assets, p_lend_assets).
+Helper functions: compute_stressed_share, sensitize_value_partial, compute_ltv_array.';
