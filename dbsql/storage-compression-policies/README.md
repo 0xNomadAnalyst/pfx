@@ -8,7 +8,7 @@ Automated storage optimization for the ONyc pipeline database using TimescaleDB 
 |---|---|---|
 | Columnstore (compression) | 52 | Converts cooled chunks to columnar storage |
 | Tiered Storage (S3) | 49 | Moves old compressed chunks to object storage |
-| Retention | 47 | Drops chunks beyond the retention window |
+| Retention | 22 | Drops chunks beyond the retention window (CAGGs, mat tables, queue health only) |
 | CAGG Refresh | 18 | Prerequisite for CAGG columnstore policies |
 
 ## Files
@@ -73,8 +73,8 @@ All tables use `orderby = '<time_col> DESC'` to align with the descending-time a
 
 | Layer | drop_after | Rationale |
 |---|---|---|
-| Source tables | 180 days | Double the max frontend lookback (90D); safety margin for backfill |
-| CAGGs | 180 days | Matches source retention |
+| Source tables | **none** | Deferred until a long-term warehousing solution is decided; compression + tiered storage keeps disk manageable |
+| CAGGs | 90 days | Matches the longest dashboard lookback window |
 | Queue health | 90 days | Operational monitoring; 90D sufficient |
 | Mat tables | 90 days | Matches max frontend lookback |
 
