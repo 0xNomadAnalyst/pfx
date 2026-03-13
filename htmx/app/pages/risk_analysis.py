@@ -17,24 +17,16 @@ PAGE_CONFIG = PageConfig(
             "ra-hdr-dex",
             "Downside Price Risk - Dex Events",
             "section-header",
-            "ra-hdr-1",
+            "ra-hdr-1 cv-section-header",
         ),
 
         WidgetConfig(
-            "ra-pvalue-table-ray",
-            "Raydium Extreme Sell Events",
-            "table",
-            "panel panel-wide-table ra-slot-table-left",
+            "ra-pvalue-tables",
+            "Extreme Sell Events",
+            "table-split",
+            "panel panel-wide-table ra-slot-tables",
             expandable=False,
-            tooltip="Percentile statistics for extreme sell events on Raydium USX-USDC pool.",
-        ),
-        WidgetConfig(
-            "ra-pvalue-table-orca",
-            "Orca Extreme Sell Events",
-            "table",
-            "panel panel-wide-table ra-slot-table-right",
-            expandable=False,
-            tooltip="Percentile statistics for extreme sell events on Orca USX-USDC pool.",
+            tooltip="Percentile statistics for extreme sell events on Raydium and Orca USX-USDC pools.",
         ),
 
         WidgetConfig(
@@ -97,7 +89,7 @@ PAGE_CONFIG = PageConfig(
             "ra-hdr-xp",
             "Downside Price Risk - Cross-Protocol Events",
             "section-header",
-            "ra-hdr-2",
+            "ra-hdr-2 cv-section-header",
         ),
 
         WidgetConfig(
@@ -150,7 +142,7 @@ PAGE_CONFIG = PageConfig(
             "ra-hdr-lending",
             "Lending Market Liquidations Risk",
             "section-header",
-            "ra-hdr-3",
+            "ra-hdr-3 cv-section-header",
         ),
 
         WidgetConfig(

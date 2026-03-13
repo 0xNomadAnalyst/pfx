@@ -26,8 +26,7 @@ class RiskAnalysisPageService(BasePageService):
         super().__init__(*args, **kwargs)
         self._handlers = {
             # Section 1
-            "ra-pvalue-table-ray": lambda p: self._ra_pvalue_table(p, "raydium"),
-            "ra-pvalue-table-orca": lambda p: self._ra_pvalue_table(p, "orca"),
+            "ra-pvalue-tables": self._ra_pvalue_tables,
             "ra-liq-dist-ray": lambda p: self._ra_liq_dist(p, "raydium"),
             "ra-liq-dist-orca": lambda p: self._ra_liq_dist(p, "orca"),
             "ra-liq-depth-ray": lambda p: self._ra_liq_depth(p, "raydium"),
@@ -256,11 +255,13 @@ class RiskAnalysisPageService(BasePageService):
     # Section 1: Downside Price Risk - Dex Events
     # ------------------------------------------------------------------
 
-    def _ra_pvalue_table(self, params: dict[str, Any], protocol: str) -> dict[str, Any]:
+    def _ra_pvalue_tables(self, params: dict[str, Any]) -> dict[str, Any]:
         event_type, interval = self._event_type_and_interval(params)
-        rows = self._pvalue_rows(protocol, event_type, interval)
+        ray_rows = self._pvalue_rows("raydium", event_type, interval)
+        orca_rows = self._pvalue_rows("orca", event_type, interval)
+
         refresh_date = None
-        for r in rows:
+        for r in ray_rows + orca_rows:
             d = r.get("date")
             if d is not None:
                 refresh_date = d
@@ -274,9 +275,12 @@ class RiskAnalysisPageService(BasePageService):
         ]
         subtitle = f"Refreshes Daily - Last Refresh at {refresh_date}" if refresh_date else ""
         return {
-            "kind": "table",
+            "kind": "table-split",
             "columns": columns,
-            "rows": rows,
+            "left_title": "Raydium USX-USDC",
+            "left_rows": ray_rows,
+            "right_title": "Orca USX-USDC",
+            "right_rows": orca_rows,
             "subtitle": subtitle,
         }
 

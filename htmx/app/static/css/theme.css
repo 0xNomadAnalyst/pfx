@@ -1351,8 +1351,7 @@ td:first-child {
 
 /* Section 1: Downside Price Risk - Dex Events */
 .ra-hdr-1       { grid-row: 1 / 2; }
-.ra-slot-table-left  { grid-column: 1 / 7;  grid-row: 2 / 5;  min-height: 340px; }
-.ra-slot-table-right { grid-column: 7 / 13; grid-row: 2 / 5;  min-height: 340px; }
+.ra-slot-tables { grid-column: 1 / 13; grid-row: 2 / 5; min-height: 340px; }
 
 .ra-slot-s1-left-1  { grid-column: 1 / 7;  grid-row: 5 / 8;   min-height: 320px; }
 .ra-slot-s1-right-1 { grid-column: 7 / 13; grid-row: 5 / 8;   min-height: 320px; }

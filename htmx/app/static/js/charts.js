@@ -4187,7 +4187,7 @@
   // ── Risk Analysis page filter initialisation ──
 
   const RA_SECTION1_WIDGETS = new Set([
-    "ra-pvalue-table-ray", "ra-pvalue-table-orca",
+    "ra-pvalue-tables",
     "ra-liq-dist-ray", "ra-liq-dist-orca",
     "ra-liq-depth-ray", "ra-liq-depth-orca",
     "ra-prob-ray", "ra-prob-orca",
