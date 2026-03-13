@@ -87,7 +87,7 @@ PAGE_CONFIG = PageConfig(
             "ge-availability-bar",
             "Supply Distribution by Availability",
             "chart",
-            "panel panel-large ge-slot-full-2",
+            "panel panel-large ge-slot-left-3",
             expandable=False,
             tooltip="Current ONyc supply classified by mobility: "
             "Illiquid DeFi (Kamino collateral), "
@@ -98,7 +98,7 @@ PAGE_CONFIG = PageConfig(
             "ge-availability-time",
             "Token Availability Over Time",
             "chart",
-            "panel panel-large ge-slot-full-3",
+            "panel panel-large ge-slot-right-3",
             expandable=True,
             tooltip="100% stacked area showing how ONyc supply is distributed "
             "across availability tiers over time. Uses current total supply "
@@ -117,7 +117,7 @@ PAGE_CONFIG = PageConfig(
             "ge-tvl-bar",
             "ONyc TVL by Protocol",
             "chart",
-            "panel panel-large ge-slot-left-3",
+            "panel panel-large ge-slot-left-4",
             expandable=True,
             tooltip="Total tracked ONyc across DeFi protocols: DEXes, Kamino Lending, "
             "and Exponent. Shows absolute ONyc deployed in each protocol.",
@@ -126,7 +126,7 @@ PAGE_CONFIG = PageConfig(
             "ge-activity-bar",
             "24hr Activity by Protocol",
             "chart",
-            "panel panel-large ge-slot-right-3",
+            "panel panel-large ge-slot-right-4",
             expandable=True,
             tooltip="Monitored ONyc activity volumes over the last 24 hours by protocol: "
             "DEXes, Kamino, and Exponent.",
@@ -136,7 +136,7 @@ PAGE_CONFIG = PageConfig(
             "ge-tvl-pie",
             "ONyc TVL Distribution",
             "chart",
-            "panel panel-large ge-slot-left-4",
+            "panel panel-large ge-slot-left-5",
             expandable=False,
             tooltip="Percentage distribution of tracked ONyc across protocols: "
             "DEXes, Kamino, and Exponent.",
@@ -145,7 +145,7 @@ PAGE_CONFIG = PageConfig(
             "ge-activity-pct",
             "Monitored Activity Distribution",
             "chart",
-            "panel panel-large ge-slot-right-4",
+            "panel panel-large ge-slot-right-5",
             expandable=False,
             tooltip="Share of total ONyc protocol activity by protocol: "
             "DEXes, Kamino, and Exponent.",
@@ -155,7 +155,7 @@ PAGE_CONFIG = PageConfig(
             "ge-tvl-time",
             "ONyc TVL Over Time",
             "chart",
-            "panel panel-large ge-slot-left-5",
+            "panel panel-large ge-slot-left-6",
             expandable=True,
             tooltip="Stacked area showing ONyc deployed across DeFi protocols over time.",
         ),
@@ -163,7 +163,7 @@ PAGE_CONFIG = PageConfig(
             "ge-activity-vol",
             "Activity Volume vs. Time",
             "chart",
-            "panel panel-large ge-slot-right-5",
+            "panel panel-large ge-slot-right-6",
             expandable=True,
             tooltip="Stacked bar chart showing absolute ONyc activity volumes "
             "by protocol over time.",
@@ -173,7 +173,7 @@ PAGE_CONFIG = PageConfig(
             "ge-tvl-share",
             "TVL Share by Protocol (%)",
             "chart",
-            "panel panel-large ge-slot-left-6",
+            "panel panel-large ge-slot-left-7",
             expandable=True,
             tooltip="Percentage of tracked ONyc deployed in each DeFi protocol over time.",
         ),
@@ -181,7 +181,7 @@ PAGE_CONFIG = PageConfig(
             "ge-activity-share",
             "Share of Activity Volume vs. Time",
             "chart",
-            "panel panel-large ge-slot-right-6",
+            "panel panel-large ge-slot-right-7",
             expandable=True,
             tooltip="100% stacked area showing each protocol's share of total "
             "ONyc activity over time.",

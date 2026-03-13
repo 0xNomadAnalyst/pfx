@@ -542,24 +542,16 @@ class GlobalEcosystemPageService(BasePageService):
         kamino = self._fv(r.get("onyc_in_kamino"))
         liquid = self._fv(r.get("onyc_in_dexes")) + self._fv(r.get("onyc_in_exponent"))
         free = max(total_supply - kamino - liquid, 0)
-        categories = ["Supply Distribution"]
         return {
             "kind": "chart",
-            "chart": "bar-horizontal",
-            "x": categories,
-            "xAxisLabel": "",
-            "xAxisFormat": "pct0",
-            "xAxisMax": 100,
+            "chart": "pie",
             "series": [
-                {"name": "Illiquid DeFi (Kamino)", "type": "bar", "stack": "avail",
-                 "color": _COLORS["green"],
-                 "data": [round(kamino / total_supply * 100, 1) if total_supply else 0]},
-                {"name": "Liquid DeFi (DEXes + Exponent)", "type": "bar", "stack": "avail",
-                 "color": _COLORS["blue"],
-                 "data": [round(liquid / total_supply * 100, 1) if total_supply else 0]},
-                {"name": "Free / Undeployed", "type": "bar", "stack": "avail",
-                 "color": _COLORS["grey"],
-                 "data": [round(free / total_supply * 100, 1) if total_supply else 0]},
+                {"name": "Illiquid DeFi (Kamino)", "value": round(kamino),
+                 "color": _COLORS["green"]},
+                {"name": "Liquid DeFi (DEXes + Exponent)", "value": round(liquid),
+                 "color": _COLORS["blue"]},
+                {"name": "Free / Undeployed", "value": round(free),
+                 "color": _COLORS["grey"]},
             ],
         }
 
