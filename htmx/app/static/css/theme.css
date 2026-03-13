@@ -567,16 +567,20 @@ th .info-tip-icon {
 .health-slot-queue-chart  { grid-column: 7 / 13; grid-row: 3  / 6;  min-height: 280px; }
 .health-slot-trigger      { grid-column: 1 / 7;  grid-row: 6  / 9;  }
 .health-slot-base-table   { grid-column: 1 / 7;  grid-row: 9  / 15; min-height: 320px; }
-.health-slot-base-events  { grid-column: 7 / 13; grid-row: 9  / 12; min-height: 300px; }
-.health-slot-base-accts   { grid-column: 7 / 13; grid-row: 12 / 15; min-height: 300px; }
+.health-slot-base-events  { grid-column: 7 / 13; grid-row: 9  / 12; height: 310px; min-height: 310px; }
+.health-slot-base-accts   { grid-column: 7 / 13; grid-row: 12 / 15; height: 310px; min-height: 310px; }
 .health-slot-cagg         { grid-column: 1 / 7;  grid-row: 15 / 18; min-height: 280px; }
 
 .health-slot-master .table-wrap,
-.health-slot-queue-table .table-wrap,
 .health-slot-trigger .table-wrap,
 .health-slot-base-table .table-wrap,
 .health-slot-cagg .table-wrap {
   max-height: none;
+  overflow: auto;
+}
+
+.health-slot-queue-table .table-wrap {
+  max-height: 320px;
   overflow: auto;
 }
 
