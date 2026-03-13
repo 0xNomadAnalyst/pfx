@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import math
 import os
 from typing import Any
 
 from app.services.pages.base import BasePageService
+
+logger = logging.getLogger(__name__)
 
 
 class RiskAnalysisPageService(BasePageService):
@@ -71,23 +74,31 @@ class RiskAnalysisPageService(BasePageService):
 
     def _xp_last(self) -> dict[str, Any]:
         def _load() -> dict[str, Any]:
-            rows = self.sql.fetch_rows(
-                "SELECT onyc_in_kamino, onyc_in_exponent, onyc_tracked_total, "
-                "  onyc_in_kamino_pct, onyc_in_exponent_pct, refreshed_at "
-                "FROM cross_protocol.v_xp_last LIMIT 1"
-            )
-            return rows[0] if rows else {}
+            try:
+                rows = self.sql.fetch_rows(
+                    "SELECT onyc_in_kamino, onyc_in_exponent, onyc_tracked_total, "
+                    "  onyc_in_kamino_pct, onyc_in_exponent_pct, refreshed_at "
+                    "FROM cross_protocol.v_xp_last LIMIT 1"
+                )
+                return rows[0] if rows else {}
+            except Exception as exc:
+                logger.warning("_xp_last query failed: %s", exc)
+                return {}
 
         return self._cached("ra::xp_last", _load, ttl_seconds=self._XP_LAST_TTL_SECONDS)
 
     def _kamino_v_last_row(self) -> dict[str, Any]:
         def _load() -> dict[str, Any]:
-            rows = self.sql.fetch_rows(
-                "SELECT "
-                "  reserve_coll_all_symbols_array, reserve_brw_all_symbols_array "
-                "FROM kamino_lend.v_klend_last LIMIT 1"
-            )
-            return rows[0] if rows else {}
+            try:
+                rows = self.sql.fetch_rows(
+                    "SELECT "
+                    "  reserve_coll_all_symbols_array, reserve_brw_all_symbols_array "
+                    "FROM kamino_lend.v_last LIMIT 1"
+                )
+                return rows[0] if rows else {}
+            except Exception as exc:
+                logger.warning("_kamino_v_last_row query failed: %s", exc)
+                return {}
 
         return self._cached("ra::kamino_v_last", _load, ttl_seconds=self._V_LAST_TTL_SECONDS)
 
@@ -95,16 +106,20 @@ class RiskAnalysisPageService(BasePageService):
         cache_key = f"ra::sensitivities::{coll_asset}::{debt_asset}"
 
         def _load() -> list[dict[str, Any]]:
-            return self.sql.fetch_rows(
-                "SELECT "
-                "  step_number, pct_change, "
-                "  total_borrows, total_deposits, "
-                "  unhealthy_debt, bad_debt, total_liquidatable_value, "
-                "  liquidation_distance_to_healthy, "
-                "  unhealthy_debt_less_liquidatable_part, bad_debt_less_liquidatable_part "
-                "FROM kamino_lend.get_view_klend_sensitivities(NULL, -100, 50, 100, 50, FALSE) "
-                "ORDER BY step_number"
-            )
+            try:
+                return self.sql.fetch_rows(
+                    "SELECT "
+                    "  step_number, pct_change, "
+                    "  total_borrows, total_deposits, "
+                    "  unhealthy_debt, bad_debt, total_liquidatable_value, "
+                    "  liquidation_distance_to_healthy, "
+                    "  unhealthy_debt_less_liquidatable_part, bad_debt_less_liquidatable_part "
+                    "FROM kamino_lend.get_view_klend_sensitivities(NULL, -100, 50, 100, 50, FALSE) "
+                    "ORDER BY step_number"
+                )
+            except Exception as exc:
+                logger.warning("_sensitivity_rows query failed: %s", exc)
+                return []
 
         return self._cached(cache_key, _load, ttl_seconds=self._SENSITIVITY_TTL_SECONDS)
 
@@ -338,7 +353,7 @@ class RiskAnalysisPageService(BasePageService):
             "Mean": None,
         }
 
-        points: list[tuple[float, float]] = []
+        price_to_prob: dict[float, float] = {}
         for row in pv_rows:
             stat = row.get("stat_name", "")
             prob = stat_to_prob.get(stat)
@@ -350,16 +365,21 @@ class RiskAnalysisPageService(BasePageService):
             price = self._map_sell_amount_to_price(tick_rows, sell_amount)
             if price is None:
                 continue
-            points.append((price, prob))
+            price_to_prob[price] = prob
 
-        points.sort(key=lambda p: p[0])
-        x_values = [p[0] for p in points]
-        y_values = [p[1] for p in points]
+        full_x = [r["tick_price_t1_per_t0"] for r in tick_rows]
+        tick_floats = [float(v) for v in full_x]
+
+        y_sparse: list[float | None] = [None] * len(full_x)
+        for target_price, prob in price_to_prob.items():
+            best_idx = min(range(len(tick_floats)),
+                           key=lambda i: abs(tick_floats[i] - target_price))
+            y_sparse[best_idx] = prob
 
         return {
             "kind": "chart",
             "chart": "probability-curve",
-            "x": x_values,
+            "x": full_x,
             "xAxisLabel": "Price (USDC per USX)",
             "yAxisLabel": "Probability (%)",
             "reference_lines": {
@@ -371,7 +391,7 @@ class RiskAnalysisPageService(BasePageService):
                     "name": "P(price \u2264 x)",
                     "type": "line",
                     "step": "end",
-                    "data": y_values,
+                    "data": y_sparse,
                     "color": "#ae82ff",
                 },
             ],

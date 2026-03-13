@@ -2117,7 +2117,9 @@
           formatter: (params) => {
             if (!Array.isArray(params) || params.length === 0) return "";
             const xVal = params[0].axisValueLabel || params[0].value;
-            const lines = params.map((p) => {
+            const valid = params.filter((p) => p.value != null && p.value !== "-");
+            if (valid.length === 0) return `Price: ${xVal}`;
+            const lines = valid.map((p) => {
               const v = p.value;
               const yVal = Array.isArray(v) ? v[1] : v;
               return `${p.marker} ${p.seriesName}: ${yVal != null ? Number(yVal).toFixed(4) + "%" : "--"}`;
@@ -2159,9 +2161,10 @@
           name: s.name,
           type: "line",
           step: s.step || false,
+          connectNulls: true,
           showSymbol: true,
-          symbolSize: 8,
-          data: s.data || [],
+          symbolSize: (value) => (value != null && value !== "-" ? 8 : 0),
+          data: (s.data || []).map((v) => (v == null ? "-" : v)),
           lineStyle: { color: s.color || "#ae82ff", width: 2 },
           itemStyle: { color: s.color || "#ae82ff" },
         })),
