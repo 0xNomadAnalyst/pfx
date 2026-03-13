@@ -46,12 +46,13 @@ class RiskAnalysisPageService(BasePageService):
         }
 
     # ------------------------------------------------------------------
-    # Pool token reference lookup
+    # Pool token reference lookup (per protocol)
     # ------------------------------------------------------------------
 
-    def _pool_ref(self) -> dict[str, str]:
+    def _pool_ref(self, protocol: str) -> dict[str, str]:
         """Fetch token_pair, token0_symbol, token1_symbol from the pool
-        reference table.  Result is cached for ``_POOL_REF_TTL_SECONDS``."""
+        reference table for a given protocol.  Cached per protocol."""
+        cache_key = f"ra::pool_ref::{protocol}"
 
         def _load() -> dict[str, str]:
             try:
@@ -59,7 +60,7 @@ class RiskAnalysisPageService(BasePageService):
                     "SELECT token_pair, token0_symbol, token1_symbol "
                     "FROM dexes.pool_tokens_reference "
                     "WHERE protocol = %s LIMIT 1",
-                    ("orca",),
+                    (protocol,),
                 )
                 if rows:
                     return {
@@ -68,26 +69,22 @@ class RiskAnalysisPageService(BasePageService):
                         "token1_symbol": str(rows[0].get("token1_symbol") or ""),
                     }
             except Exception as exc:
-                logger.warning("_pool_ref query failed: %s", exc)
+                logger.warning("_pool_ref query failed for %s: %s", protocol, exc)
             return {"token_pair": "", "token0_symbol": "", "token1_symbol": ""}
 
-        return self._cached("ra::pool_ref", _load, ttl_seconds=self._POOL_REF_TTL_SECONDS)
+        return self._cached(cache_key, _load, ttl_seconds=self._POOL_REF_TTL_SECONDS)
 
-    @property
-    def _PAIR(self) -> str:
-        return self._pool_ref().get("token_pair") or "ONyc-USDC"
+    def _pair(self, protocol: str) -> str:
+        return self._pool_ref(protocol).get("token_pair") or "ONyc-USDC"
 
-    @property
-    def _PAIR_LOWER(self) -> str:
-        return self._PAIR.lower()
+    def _pair_lower(self, protocol: str) -> str:
+        return self._pair(protocol).lower()
 
-    @property
-    def _TOKEN0(self) -> str:
-        return self._pool_ref().get("token0_symbol") or "ONyc"
+    def _token0(self, protocol: str) -> str:
+        return self._pool_ref(protocol).get("token0_symbol") or "ONyc"
 
-    @property
-    def _TOKEN1(self) -> str:
-        return self._pool_ref().get("token1_symbol") or "USDC"
+    def _token1(self, protocol: str) -> str:
+        return self._pool_ref(protocol).get("token1_symbol") or "USDC"
 
     # ------------------------------------------------------------------
     # Shared data loaders
@@ -101,7 +98,7 @@ class RiskAnalysisPageService(BasePageService):
                 return self.sql.fetch_rows(
                     "SELECT * FROM dexes.get_view_dex_risk_pvalues(%s, %s, %s, %s) "
                     "ORDER BY stat_order",
-                    (protocol, self._PAIR_LOWER, event_type, interval),
+                    (protocol, self._pair_lower(protocol), event_type, interval),
                 )
             except Exception as exc:
                 logger.warning("_pvalue_rows query failed (%s/%s/%s): %s", protocol, event_type, interval, exc)
@@ -117,7 +114,7 @@ class RiskAnalysisPageService(BasePageService):
                 return self.sql.fetch_rows(
                     "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval) "
                     "ORDER BY tick_price_t1_per_t0",
-                    (protocol, self._PAIR, "1 hour"),
+                    (protocol, self._pair(protocol), "1 hour"),
                 )
             except Exception as exc:
                 logger.warning("_tick_dist_rows query failed (%s): %s", protocol, exc)
@@ -314,7 +311,7 @@ class RiskAnalysisPageService(BasePageService):
 
         columns = [
             {"key": "stat_name", "label": "P Value"},
-            {"key": "value", "label": self._TOKEN0},
+            {"key": "value", "label": "Sell Amount"},
             {"key": "event_count_at_or_above", "label": "Counts at or above"},
             {"key": "last_observed_at", "label": "Last observed"},
         ]
@@ -322,9 +319,9 @@ class RiskAnalysisPageService(BasePageService):
         return {
             "kind": "table-split",
             "columns": columns,
-            "left_title": f"Raydium {self._PAIR}",
+            "left_title": f"Raydium {self._pair('raydium')}",
             "left_rows": ray_rows,
-            "right_title": f"Orca {self._PAIR}",
+            "right_title": f"Orca {self._pair('orca')}",
             "right_rows": orca_rows,
             "subtitle": subtitle,
             "window_label": "All Time",
@@ -341,14 +338,14 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "bar",
             "x": [r["tick_price_t1_per_t0"] for r in tick_rows],
-            "xAxisLabel": f"Price ({self._TOKEN1} per {self._TOKEN0})",
+            "xAxisLabel": f"Price ({self._token1(protocol)} per {self._token0(protocol)})",
             "yAxisLabel": "Liquidity Amount",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._TOKEN0} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows]},
-                {"name": f"{self._TOKEN1} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows]},
+                {"name": f"{self._token0(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows]},
+                {"name": f"{self._token1(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows]},
             ],
         }
 
@@ -380,14 +377,14 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "line-area",
             "x": x_vals,
-            "xAxisLabel": f"Price ({self._TOKEN1} per {self._TOKEN0})",
+            "xAxisLabel": f"Price ({self._token1(protocol)} per {self._token0(protocol)})",
             "yAxisLabel": "Cumulative Liquidity",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price_raw},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._TOKEN1} Cumulative", "type": "line", "area": True, "data": usdc_cumul},
-                {"name": f"{self._TOKEN0} Cumulative", "type": "line", "area": True, "data": t0_cumul},
+                {"name": f"{self._token1(protocol)} Cumulative", "type": "line", "area": True, "data": usdc_cumul},
+                {"name": f"{self._token0(protocol)} Cumulative", "type": "line", "area": True, "data": t0_cumul},
             ],
         }
 
@@ -435,7 +432,7 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "probability-curve",
             "x": full_x,
-            "xAxisLabel": f"Price ({self._TOKEN1} per {self._TOKEN0})",
+            "xAxisLabel": f"Price ({self._token1(protocol)} per {self._token0(protocol)})",
             "yAxisLabel": "Probability (%)",
             "reference_lines": {
                 "peg": 1.0,
@@ -527,14 +524,14 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "bar",
             "x": [r["tick_price_t1_per_t0"] for r in tick_rows],
-            "xAxisLabel": f"Price ({self._TOKEN1} per {self._TOKEN0})",
+            "xAxisLabel": f"Price ({self._token1(protocol)} per {self._token0(protocol)})",
             "yAxisLabel": "Liquidity Amount",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._TOKEN0} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows]},
-                {"name": f"{self._TOKEN1} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows]},
+                {"name": f"{self._token0(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows]},
+                {"name": f"{self._token1(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows]},
             ],
         }
 
@@ -565,14 +562,14 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "line-area",
             "x": x_vals,
-            "xAxisLabel": f"Price ({self._TOKEN1} per {self._TOKEN0})",
+            "xAxisLabel": f"Price ({self._token1(protocol)} per {self._token0(protocol)})",
             "yAxisLabel": "Cumulative Liquidity",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price_raw},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._TOKEN1} Cumulative", "type": "line", "area": True, "data": usdc_cumul},
-                {"name": f"{self._TOKEN0} Cumulative", "type": "line", "area": True, "data": t0_cumul},
+                {"name": f"{self._token1(protocol)} Cumulative", "type": "line", "area": True, "data": usdc_cumul},
+                {"name": f"{self._token0(protocol)} Cumulative", "type": "line", "area": True, "data": t0_cumul},
             ],
         }
 
