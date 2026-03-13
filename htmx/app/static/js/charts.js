@@ -3167,6 +3167,13 @@
     if (!widgetId) {
       return;
     }
+    // Skip aborted or failed requests – dedicated handlers
+    // (htmx:responseError, htmx:sendError, htmx:timeout) cover real errors.
+    // Without this guard, hx-sync="this:replace" aborts produce empty XHR
+    // responses that flash a spurious "no response from API" error.
+    if (!event.detail.successful) {
+      return;
+    }
     try {
       const raw = event.detail.xhr.responseText;
       if (!raw) {
