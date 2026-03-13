@@ -80,6 +80,13 @@ class GlobalEcosystemPageService(BasePageService):
             "24h": "1 hour", "7d": "4 hours", "30d": "1 day", "90d": "3 days",
         }.get(str(last_window or "7d").lower(), "4 hours")
 
+    @staticmethod
+    def _window_label(last_window: str) -> str:
+        return {
+            "1h": "1H", "4h": "4H", "6h": "6H",
+            "24h": "24H", "7d": "7D", "30d": "30D", "90d": "90D",
+        }.get(str(last_window or "7d").lower(), "7D")
+
     # ------------------------------------------------------------------
     # Shared data loaders (cached)
     # ------------------------------------------------------------------
@@ -621,7 +628,8 @@ class GlobalEcosystemPageService(BasePageService):
 
     def _activity_bar(self, params: dict[str, Any]) -> dict[str, Any]:
         r = self._interval_row(params)
-        return self._hbar(
+        wl = self._window_label(params.get("last_window", "7d"))
+        result = self._hbar(
             categories=["DEXes", "Kamino", "Exponent"],
             values=[
                 self._fv(r.get("dex_total_volume")),
@@ -631,6 +639,12 @@ class GlobalEcosystemPageService(BasePageService):
             colors=[_COLORS["blue"], _COLORS["green"], _COLORS["yellow"]],
             x_label="ONyc",
         )
+        result["dynamic_title"] = f"Activity by Protocol (Last {wl})"
+        result["title_extra"] = (
+            f"{self._fmt_onyc(r.get('all_protocol_volume'))} ONyc total "
+            f"monitored volume over last {wl}"
+        )
+        return result
 
     # ------------------------------------------------------------------
     # Widget: ONyc TVL Distribution (pie)
@@ -759,6 +773,7 @@ class GlobalEcosystemPageService(BasePageService):
 
     def _activity_pct(self, params: dict[str, Any]) -> dict[str, Any]:
         r = self._interval_row(params)
+        wl = self._window_label(params.get("last_window", "7d"))
         return {
             "kind": "chart",
             "chart": "pie",
@@ -770,7 +785,11 @@ class GlobalEcosystemPageService(BasePageService):
                 {"name": "Exponent", "value": self._fv(r.get("exp_volume_pct")),
                  "color": _COLORS["yellow"]},
             ],
-            "title_extra": f"Total Activity: {self._fmt_onyc(r.get('all_protocol_volume'))}",
+            "dynamic_title": f"Activity Distribution (Last {wl})",
+            "title_extra": (
+                f"{self._fmt_onyc(r.get('all_protocol_volume'))} ONyc total "
+                f"monitored volume over last {wl}"
+            ),
         }
 
     # ------------------------------------------------------------------
@@ -779,12 +798,14 @@ class GlobalEcosystemPageService(BasePageService):
 
     def _activity_vol(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._ts_rows(params)
+        wl = self._window_label(params.get("last_window", "7d"))
         return {
             "kind": "chart",
             "chart": "line",
             "x": [row["bucket_time"] for row in rows],
             "yAxisLabel": "ONyc",
             "yAxisFormat": "compact",
+            "dynamic_title": f"Activity Volume vs. Time (Last {wl})",
             "series": [
                 {"name": "DEXes", "type": "bar", "stack": "vol",
                  "color": _COLORS["blue"],
@@ -804,6 +825,7 @@ class GlobalEcosystemPageService(BasePageService):
 
     def _activity_share(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._ts_rows(params)
+        wl = self._window_label(params.get("last_window", "7d"))
         return {
             "kind": "chart",
             "chart": "line",
@@ -812,6 +834,7 @@ class GlobalEcosystemPageService(BasePageService):
             "yAxisFormat": "pct1",
             "yAxisMin": 0,
             "yAxisMax": 100,
+            "dynamic_title": f"Share of Activity Volume vs. Time (Last {wl})",
             "series": [
                 {"name": "DEXes", "type": "line", "area": True, "stack": "pct",
                  "color": _COLORS["blue"],

@@ -1805,6 +1805,12 @@
           }
         });
       }
+      if (chartData.title_extra) {
+        option.graphic = [{
+          type: "text", left: "center", bottom: 30,
+          style: { text: chartData.title_extra, fill: chartTextColor(), fontSize: 11, opacity: 0.7 },
+        }];
+      }
     } else if (data.chart === "heatmap") {
       const minValue = Number(chartData.min ?? -1);
       const maxValue = Number(chartData.max ?? 1);
@@ -2760,6 +2766,11 @@
       return;
     }
 
+    if (payload.data.dynamic_title) {
+      const titleEl = document.querySelector(`#widget-${widgetId} .panel-header h3`);
+      if (titleEl) titleEl.textContent = payload.data.dynamic_title;
+    }
+
     const chartSubEl = document.getElementById(`chart-subtitle-${widgetId}`);
     if (chartSubEl) {
       if (payload.data.event_count != null) {
@@ -2870,6 +2881,8 @@
       }
     });
     chartState.clear();
+    detailTableCache.clear();
+    pageActionCache.clear();
     const mkt1 = document.getElementById("mkt1-select");
     const mkt2 = document.getElementById("mkt2-select");
     if (mkt1) mkt1.innerHTML = '<option value="">switching…</option>';
@@ -2877,14 +2890,13 @@
   }
   window.__clearAllForPipelineSwitch = clearAllForPipelineSwitch;
 
-  async function refreshProtocolPairSelectors() {
+  async function refreshProtocolPairSelectors(defaults) {
     const protocolSelect = document.getElementById("protocol-select");
     const pairSelect = document.getElementById("pair-select");
     if (!protocolSelect || !pairSelect) return;
 
-    const persisted = readPersistedFilters();
-    let selectedProtocol = persisted?.protocol || protocolSelect.value || currentProtocol();
-    let selectedPair = persisted?.pair || pairSelect.value || currentPair();
+    let selectedProtocol = (defaults && defaults.protocol) || protocolSelect.value || currentProtocol();
+    let selectedPair = (defaults && defaults.pair) || pairSelect.value || currentPair();
 
     try {
       const pl = currentPipeline();
@@ -2904,14 +2916,19 @@
     applyPairAwarePanelTitles();
   }
 
-  async function refreshAfterPipelineSwitch() {
-    await Promise.all([
-      refreshProtocolPairSelectors(),
-      populateMarketSelectors(),
-    ]);
-    _pipelineSwitchInProgress = false;
-    resetDashboardLoading();
-    htmx.trigger(document.body, "dashboard-refresh");
+  async function refreshAfterPipelineSwitch(defaults) {
+    try {
+      await Promise.all([
+        refreshProtocolPairSelectors(defaults),
+        populateMarketSelectors(),
+      ]);
+    } catch (err) {
+      console.error("Pipeline refresh error:", err);
+    } finally {
+      _pipelineSwitchInProgress = false;
+      resetDashboardLoading();
+      htmx.trigger(document.body, "dashboard-refresh");
+    }
   }
   window.__refreshAfterPipelineSwitch = refreshAfterPipelineSwitch;
 

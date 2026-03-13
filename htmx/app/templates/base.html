@@ -192,7 +192,7 @@
   </footer>
 
   <script src="/static/js/theme.js?v=2"></script>
-  <script src="/static/js/charts.js?v=55"></script>
+  <script src="/static/js/charts.js?v=56"></script>
   {% if show_pipeline_switcher %}
   <script>
   (function() {
@@ -224,8 +224,8 @@
       fetch('/api/switch-pipeline?pipeline=' + encodeURIComponent(name), {method: 'POST'})
         .then(function(r) { return r.json(); })
         .then(function(data) {
+          var defaults = (data && data.defaults) || {};
           try {
-            var defaults = (data && data.defaults) || {};
             var stored = { lastWindow: '7d' };
             if (defaults.protocol) stored.protocol = defaults.protocol;
             if (defaults.pair) stored.pair = defaults.pair;
@@ -234,7 +234,7 @@
           confirmedPipeline = name;
           sel.disabled = false;
           if (typeof window.__refreshAfterPipelineSwitch === 'function') {
-            window.__refreshAfterPipelineSwitch();
+            window.__refreshAfterPipelineSwitch(defaults);
           }
         })
         .catch(function(err) {

@@ -1343,6 +1343,37 @@ td:first-child {
 .ge-slot-left-7  { grid-column: 1 / 7;  grid-row: 26 / 29; min-height: 320px; }
 .ge-slot-right-7 { grid-column: 7 / 13; grid-row: 26 / 29; min-height: 320px; }
 
+/* ══════════════════════════════════════════════════════
+   Risk Analysis page slots (ra-*)
+   ══════════════════════════════════════════════════════ */
+
+/* Section 1: Downside Price Risk - Dex Events */
+.ra-hdr-1       { grid-row: 1 / 2; }
+.ra-slot-tables { grid-column: 1 / 13; grid-row: 2 / 5;  min-height: 340px; }
+
+.ra-slot-s1-left-1  { grid-column: 1 / 7;  grid-row: 5 / 8;   min-height: 320px; }
+.ra-slot-s1-right-1 { grid-column: 7 / 13; grid-row: 5 / 8;   min-height: 320px; }
+
+.ra-slot-s1-left-2  { grid-column: 1 / 7;  grid-row: 8 / 11;  min-height: 320px; }
+.ra-slot-s1-right-2 { grid-column: 7 / 13; grid-row: 8 / 11;  min-height: 320px; }
+
+.ra-slot-s1-left-3  { grid-column: 1 / 7;  grid-row: 11 / 14; min-height: 320px; }
+.ra-slot-s1-right-3 { grid-column: 7 / 13; grid-row: 11 / 14; min-height: 320px; }
+
+/* Section 2: Downside Price Risk - Cross-Protocol Events */
+.ra-hdr-2          { grid-row: 14 / 15; }
+.ra-slot-s2-exposure { grid-column: 1 / 13; grid-row: 15 / 16; min-height: auto; }
+
+.ra-slot-s2-left-1  { grid-column: 1 / 7;  grid-row: 16 / 19; min-height: 320px; }
+.ra-slot-s2-right-1 { grid-column: 7 / 13; grid-row: 16 / 19; min-height: 320px; }
+
+.ra-slot-s2-left-2  { grid-column: 1 / 7;  grid-row: 19 / 22; min-height: 320px; }
+.ra-slot-s2-right-2 { grid-column: 7 / 13; grid-row: 19 / 22; min-height: 320px; }
+
+/* Section 3: Lending Market Liquidations Risk */
+.ra-hdr-3         { grid-row: 22 / 23; }
+.ra-slot-s3-full  { grid-column: 1 / 13; grid-row: 23 / 27; min-height: 380px; }
+
 @media (max-width: 1200px) {
   .dashboard-grid {
     grid-template-columns: 1fr;

@@ -34,6 +34,7 @@ class PageConfig:
     show_market_selectors: bool = False
     default_protocol: str = ""
     default_pair: str = ""
+    show_pipeline_switcher: bool = True
     widget_filter_env_var: str = ""
     page_actions: list[PageAction] = field(default_factory=list)
 

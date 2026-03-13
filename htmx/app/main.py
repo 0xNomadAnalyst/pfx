@@ -18,6 +18,7 @@ from app.pages.dex_swaps import PAGE_CONFIG as DEX_SWAPS_PAGE
 from app.pages.exponent import PAGE_CONFIG as EXPONENT_PAGE
 from app.pages.health import PAGE_CONFIG as HEALTH_PAGE
 from app.pages.kamino import PAGE_CONFIG as KAMINO_PAGE
+from app.pages.risk_analysis import PAGE_CONFIG as RISK_ANALYSIS_PAGE
 
 import importlib as _il
 _ge_mod = _il.import_module("app.pages.global")
@@ -42,7 +43,7 @@ _health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 # is consistent across all routes.
 COVER_PAGE = PageConfig(slug="cover", label="Cover", api_page_id="cover", widgets=[])
 
-PAGES: list[PageConfig] = [COVER_PAGE, GLOBAL_ECOSYSTEM_PAGE, DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE, KAMINO_PAGE, EXPONENT_PAGE, HEALTH_PAGE]
+PAGES: list[PageConfig] = [COVER_PAGE, RISK_ANALYSIS_PAGE, GLOBAL_ECOSYSTEM_PAGE, DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE, KAMINO_PAGE, EXPONENT_PAGE, HEALTH_PAGE]
 PAGES_BY_SLUG: dict[str, PageConfig] = {page.slug: page for page in PAGES}
 
 app = FastAPI(
@@ -134,7 +135,8 @@ def render_page(request: Request, page: PageConfig):
         }
         for action in page.page_actions
     ]
-    pipeline_info = _get_pipeline_info() if ENABLE_PIPELINE_SWITCHER else None
+    show_pipeline = ENABLE_PIPELINE_SWITCHER and page.show_pipeline_switcher
+    pipeline_info = _get_pipeline_info() if show_pipeline else None
     protocol = page.default_protocol
     pair = page.default_pair
     if pipeline_info and pipeline_info.get("defaults"):
@@ -161,7 +163,7 @@ def render_page(request: Request, page: PageConfig):
             "pair": pair,
             "last_window": "7d",
             "api_base_url": BROWSER_API_BASE_URL,
-            "show_pipeline_switcher": ENABLE_PIPELINE_SWITCHER,
+            "show_pipeline_switcher": show_pipeline,
             "pipeline_info": pipeline_info,
         },
     )
@@ -193,6 +195,11 @@ def cover(request: Request):
             "content_template": "partials/cover.html",
         },
     )
+
+
+@app.get("/risk-analysis")
+def risk_analysis(request: Request):
+    return render_page(request, PAGES_BY_SLUG["risk-analysis"])
 
 
 @app.get("/global-ecosystem")

@@ -124,12 +124,12 @@ PAGE_CONFIG = PageConfig(
         ),
         WidgetConfig(
             "ge-activity-bar",
-            "24hr Activity by Protocol",
+            "Activity by Protocol",
             "chart",
             "panel panel-large ge-slot-right-4",
             expandable=True,
-            tooltip="Monitored ONyc activity volumes over the last 24 hours by protocol: "
-            "DEXes, Kamino, and Exponent.",
+            tooltip="Monitored ONyc activity volumes by protocol: "
+            "DEXes, Kamino, and Exponent. Window adjusts with the time filter.",
         ),
 
         WidgetConfig(
@@ -143,12 +143,12 @@ PAGE_CONFIG = PageConfig(
         ),
         WidgetConfig(
             "ge-activity-pct",
-            "Monitored Activity Distribution",
+            "Activity Distribution",
             "chart",
             "panel panel-large ge-slot-right-5",
             expandable=False,
             tooltip="Share of total ONyc protocol activity by protocol: "
-            "DEXes, Kamino, and Exponent.",
+            "DEXes, Kamino, and Exponent. Window adjusts with the time filter.",
         ),
 
         WidgetConfig(
