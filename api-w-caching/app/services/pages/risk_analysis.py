@@ -15,11 +15,7 @@ class RiskAnalysisPageService(BasePageService):
     default_protocol = "orca"
     default_pair = "ONyc-USDC"
 
-    _PAIR = "ONyc-USDC"
-    _PAIR_LOWER = "onyc-usdc"
-    _TOKEN0 = "ONyc"
-    _TOKEN1 = "USDC"
-
+    _POOL_REF_TTL_SECONDS = float(os.getenv("RA_POOL_REF_TTL_SECONDS", "600"))
     _PVALUE_TTL_SECONDS = float(os.getenv("RA_PVALUE_TTL_SECONDS", "120"))
     _TICK_DIST_TTL_SECONDS = float(os.getenv("RA_TICK_DIST_TTL_SECONDS", "120"))
     _XP_LAST_TTL_SECONDS = float(os.getenv("RA_XP_LAST_TTL_SECONDS", "120"))
@@ -48,6 +44,50 @@ class RiskAnalysisPageService(BasePageService):
             "ra-stress-test": self._ra_stress_test,
             "ra-sensitivity-table": self._ra_sensitivity_table,
         }
+
+    # ------------------------------------------------------------------
+    # Pool token reference lookup
+    # ------------------------------------------------------------------
+
+    def _pool_ref(self) -> dict[str, str]:
+        """Fetch token_pair, token0_symbol, token1_symbol from the pool
+        reference table.  Result is cached for ``_POOL_REF_TTL_SECONDS``."""
+
+        def _load() -> dict[str, str]:
+            try:
+                rows = self.sql.fetch_rows(
+                    "SELECT token_pair, token0_symbol, token1_symbol "
+                    "FROM dexes.pool_tokens_reference "
+                    "WHERE protocol = %s LIMIT 1",
+                    ("orca",),
+                )
+                if rows:
+                    return {
+                        "token_pair": str(rows[0].get("token_pair") or ""),
+                        "token0_symbol": str(rows[0].get("token0_symbol") or ""),
+                        "token1_symbol": str(rows[0].get("token1_symbol") or ""),
+                    }
+            except Exception as exc:
+                logger.warning("_pool_ref query failed: %s", exc)
+            return {"token_pair": "", "token0_symbol": "", "token1_symbol": ""}
+
+        return self._cached("ra::pool_ref", _load, ttl_seconds=self._POOL_REF_TTL_SECONDS)
+
+    @property
+    def _PAIR(self) -> str:
+        return self._pool_ref().get("token_pair") or "ONyc-USDC"
+
+    @property
+    def _PAIR_LOWER(self) -> str:
+        return self._PAIR.lower()
+
+    @property
+    def _TOKEN0(self) -> str:
+        return self._pool_ref().get("token0_symbol") or "ONyc"
+
+    @property
+    def _TOKEN1(self) -> str:
+        return self._pool_ref().get("token1_symbol") or "USDC"
 
     # ------------------------------------------------------------------
     # Shared data loaders

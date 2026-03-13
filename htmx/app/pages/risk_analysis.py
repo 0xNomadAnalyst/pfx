@@ -26,7 +26,7 @@ PAGE_CONFIG = PageConfig(
             "table-split",
             "panel panel-wide-table ra-slot-tables",
             expandable=False,
-            tooltip="Percentile statistics for extreme sell events on Raydium and Orca ONyc-USDC pools.",
+            tooltip="Percentile statistics for extreme sell events on Raydium and Orca pools.",
         ),
 
         WidgetConfig(
