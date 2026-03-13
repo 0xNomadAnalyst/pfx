@@ -258,6 +258,27 @@
       }
     }
 
+    function scaleNumericKeys(items, keys, factor) {
+      if (!items) return;
+      var arr = Array.isArray(items) ? items : [items];
+      for (var i = 0; i < arr.length; i++) {
+        if (!arr[i]) continue;
+        for (var k = 0; k < keys.length; k++) {
+          if (typeof arr[i][keys[k]] === "number") {
+            arr[i][keys[k]] = Math.round(arr[i][keys[k]] * factor);
+          }
+        }
+      }
+    }
+
+    function scaleSpacing(option, factor) {
+      scaleNumericKeys(option.grid, ["left", "right", "top", "bottom"], factor);
+      scaleNumericKeys(option.legend, ["bottom", "top", "left", "right", "padding", "itemGap", "itemWidth", "itemHeight"], factor);
+      scaleNumericKeys(option.xAxis, ["nameGap"], factor);
+      scaleNumericKeys(option.yAxis, ["nameGap"], factor);
+      scaleNumericKeys(option.dataZoom, ["bottom", "top", "left", "right", "height"], factor);
+    }
+
     function applyFontScale() {
       var inst = echarts.getInstanceByDom(chartCanvas);
       if (!inst) return;
@@ -266,6 +287,7 @@
       var factor = targetScale / lastAppliedScale;
       var option = inst.getOption();
       scaleFontSizes(option, factor);
+      scaleSpacing(option, factor);
       inst.setOption(option);
       lastAppliedScale = targetScale;
     }
