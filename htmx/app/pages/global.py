@@ -41,23 +41,44 @@ PAGE_CONFIG = PageConfig(
             "(SY, PT+YT in ONyc terms) has evolved over time.",
         ),
 
-        # ── Row 3: ONyc TVL by Protocol (full-width horizontal bar) ──
+        # ── Row 3: Current Yields + Yields Over Time ──
+        WidgetConfig(
+            "ge-current-yields",
+            "Current Yields",
+            "chart",
+            "panel panel-large ge-slot-left-2",
+            expandable=False,
+            tooltip="Current annualized yields: ONyc base token trailing rates "
+            "(24h, 7d, 30d), Kamino ONyc supply APY, and Exponent depth-weighted "
+            "implied APY.",
+        ),
+        WidgetConfig(
+            "ge-yields-vs-time",
+            "Yields Over Time",
+            "chart",
+            "panel panel-large ge-slot-right-2",
+            expandable=True,
+            tooltip="Time series of ONyc base token trailing yield, Kamino supply APY, "
+            "and Exponent implied APY.",
+        ),
+
+        # ── Row 4: ONyc TVL by Protocol (full-width horizontal bar) ──
         WidgetConfig(
             "ge-tvl-bar",
             "ONyc TVL by Protocol",
             "chart",
-            "panel panel-large ge-slot-full-2",
+            "panel panel-large ge-slot-full-3",
             expandable=True,
             tooltip="Total tracked ONyc across DeFi protocols: DEXes, Kamino Lending, "
             "and Exponent. Shows absolute ONyc deployed in each protocol.",
         ),
 
-        # ── Row 4: TVL Distribution pie + TVL Over Time ──
+        # ── Row 5: TVL Distribution pie + TVL Over Time ──
         WidgetConfig(
             "ge-tvl-pie",
             "ONyc TVL Distribution",
             "chart",
-            "panel panel-large ge-slot-left-2",
+            "panel panel-large ge-slot-left-3",
             expandable=False,
             tooltip="Percentage distribution of tracked ONyc across protocols: "
             "DEXes, Kamino, and Exponent.",
@@ -66,28 +87,9 @@ PAGE_CONFIG = PageConfig(
             "ge-tvl-time",
             "ONyc TVL Over Time",
             "chart",
-            "panel panel-large ge-slot-right-2",
-            expandable=True,
-            tooltip="Stacked area showing ONyc deployed across DeFi protocols over time.",
-        ),
-
-        # ── Row 5: Current Yields + Yields Over Time ──
-        WidgetConfig(
-            "ge-current-yields",
-            "Current Yields",
-            "chart",
-            "panel panel-large ge-slot-left-3",
-            expandable=False,
-            tooltip="Current annualized yields: Kamino ONyc Supply APY and "
-            "Exponent depth-weighted implied APY.",
-        ),
-        WidgetConfig(
-            "ge-yields-vs-time",
-            "Yields Over Time",
-            "chart",
             "panel panel-large ge-slot-right-3",
             expandable=True,
-            tooltip="Time series of Kamino supply APY and Exponent implied APY for ONyc.",
+            tooltip="Stacked area showing ONyc deployed across DeFi protocols over time.",
         ),
 
         # ── Row 6: TVL Share % + Activity Distribution Pie ──
