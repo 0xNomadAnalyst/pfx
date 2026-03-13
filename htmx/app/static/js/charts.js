@@ -1969,7 +1969,7 @@
         color: palette(),
         tooltip: { trigger: "axis" },
         legend: { bottom: 2, textStyle: { color: chartTextColor() } },
-        grid: { left: areaYLabel ? 60 : 50, right: 18, top: topPad, bottom: areaXLabel ? 72 : 60, containLabel: true },
+        grid: { left: arrows ? 80 : (areaYLabel ? 60 : 50), right: arrows ? 60 : 18, top: topPad, bottom: areaXLabel ? 72 : 60, containLabel: !arrows },
         xAxis: {
           type: "category",
           data: chartData.x || [],
@@ -2132,7 +2132,7 @@
           },
         },
         legend: { bottom: 2, textStyle: { color: chartTextColor() } },
-        grid: { left: 60, right: 18, top: 30, bottom: probXLabel ? 72 : 60, containLabel: true },
+        grid: { left: 60, right: 52, top: 30, bottom: probXLabel ? 72 : 60, containLabel: true },
         xAxis: {
           type: "category",
           data: (chartData.x || []).map(String),
@@ -2244,7 +2244,8 @@
         ];
       }
     } else if (chartData.chart === "cascade-analysis") {
-      const cascadeMinH = 200 * (1 + (chartData.pools || []).length) + 50;
+      const poolCount = (chartData.pools || []).length;
+      const cascadeMinH = 190 * (1 + poolCount) + 50;
       if (el.offsetHeight < cascadeMinH) {
         el.style.minHeight = cascadeMinH + "px";
         instance.resize();
@@ -2276,22 +2277,23 @@
       const xAxes = [];
       const yAxes = [];
       const series = [];
+      const topArrowH = 18;
       const legendH = 32;
-      const xLabelH = 28;
-      const gapPx = 36;
-      const topPx = 8;
+      const xLabelH = 32;
+      const gapPx = 42;
       const usableH = 100;
       const gapPct = (gapPx / 4.8);
-      const reservedPct = ((topPx + legendH + xLabelH) / 4.8) + gapPct * (nPanels - 1);
-      const panelH = Math.max(18, Math.floor((usableH - reservedPct) / nPanels));
-      const topStartPct = (topPx / 4.8);
+      const reservedPct = ((topArrowH + legendH + xLabelH) / 4.8) + gapPct * (nPanels - 1);
+      const totalPanelPct = usableH - reservedPct;
+      const panelH = Math.max(18, Math.floor(totalPanelPct / nPanels));
+      const topStartPct = (topArrowH / 4.8);
       for (let g = 0; g < nPanels; g++) {
+        const pH = panelH;
         const panelTop = topStartPct + g * (panelH + gapPct);
         grids.push({
-          left: 60, right: 18,
+          left: 80, right: 60,
           top: `${panelTop}%`,
-          height: `${panelH}%`,
-          containLabel: true,
+          height: `${pH}%`,
         });
         const isLast = g === nPanels - 1;
         xAxes.push({
@@ -2313,7 +2315,7 @@
       }
       yAxes.push({
         type: "value", gridIndex: 0, name: "Liq. Value ($M)",
-        nameLocation: "middle", nameGap: 50,
+        nameLocation: "middle", nameGap: 60,
         nameTextStyle: { color: "#e8a838", fontSize: 10 },
         axisLine: { lineStyle: { color: "#e8a838" } },
         axisLabel: { color: "#e8a838", fontSize: 10,
@@ -2322,7 +2324,7 @@
       });
       yAxes.push({
         type: "value", gridIndex: 0, name: "Depth (%)",
-        nameLocation: "middle", nameGap: 36,
+        nameLocation: "middle", nameGap: 38,
         nameTextStyle: { color: chartTextColor(), fontSize: 9 },
         axisLine: { lineStyle: { color: chartGridColor() } },
         axisLabel: { color: chartTextColor(), fontSize: 9 },
@@ -2365,7 +2367,7 @@
         yAxes.push({
           type: "value", gridIndex: gIdx,
           name: `Impact: ${lbl}`,
-          nameLocation: "middle", nameGap: 50,
+          nameLocation: "middle", nameGap: 60,
           nameTextStyle: { color: col, fontSize: 10 },
           axisLine: { lineStyle: { color: col } },
           axisLabel: { color: col, fontSize: 10,
@@ -2398,15 +2400,31 @@
         const leftPeakVal = totalData[leftPeakIdx];
         const rightPeakVal = totalData[rightPeakIdx];
         const impactMarks = [];
-        if (Number.isFinite(rightPeakVal) && Math.abs(rightPeakVal) > 0.005) {
+        if (Number.isFinite(leftPeakVal) && Math.abs(impactData[leftPeakIdx]) > 0.005) {
+          const leftDelta = Math.abs(impactData[leftPeakIdx]);
+          const markerLeftIdx = Math.min(cx.length - 1, leftPeakIdx + 3);
           impactMarks.push({
-            coord: [rightPeakIdx, rightPeakVal],
-            symbol: "arrow", symbolSize: [16, 20], symbolRotate: 180,
+            coord: [markerLeftIdx, totalData[markerLeftIdx]],
+            symbol: "arrow", symbolSize: [14, 18], symbolRotate: 180,
             itemStyle: { color: col, opacity: 0.9 },
-            label: { show: true, formatter: `${Math.abs(rightPeakVal).toFixed(2)}%`,
+            label: { show: true,
+              formatter: `cascade: +${leftDelta.toFixed(2)}%`,
               color: col, fontSize: 9, fontWeight: "bold",
-              position: "right", distance: 6,
-              backgroundColor: "rgba(10,16,32,0.7)", padding: [2, 4], borderRadius: 2 },
+              position: "top", distance: 8,
+              backgroundColor: "rgba(10,16,32,0.75)", padding: [2, 5], borderRadius: 2 },
+          });
+        }
+        if (Number.isFinite(rightPeakVal) && Math.abs(rightPeakVal) > 0.005) {
+          const markerIdx = Math.max(0, rightPeakIdx - 3);
+          impactMarks.push({
+            coord: [markerIdx, totalData[markerIdx]],
+            symbol: "arrow", symbolSize: [14, 18], symbolRotate: 180,
+            itemStyle: { color: col, opacity: 0.9 },
+            label: { show: true,
+              formatter: `peak: ${Math.abs(rightPeakVal).toFixed(2)}%`,
+              color: col, fontSize: 9, fontWeight: "bold",
+              position: "top", distance: 8,
+              backgroundColor: "rgba(10,16,32,0.75)", padding: [2, 5], borderRadius: 2 },
           });
         }
         series.push({
@@ -2420,17 +2438,16 @@
         });
       });
       const cascTc = chartTextColor();
-      const cascSubTc = document.documentElement.getAttribute("data-theme") === "light" ? "#8899aa" : "#6b7a8d";
       const cascGraphic = [
         {
-          type: "text", left: 8, top: 2,
+          type: "text", left: 64, top: 2,
           style: {
             text: `\u2190  Collateral Price Decline`,
             fill: cascTc, fontSize: 10,
           },
         },
         {
-          type: "text", right: 8, top: 2,
+          type: "text", right: 48, top: 2,
           style: {
             text: `Debt Value Increase  \u2192`,
             fill: cascTc, fontSize: 10, textAlign: "right",

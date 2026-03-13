@@ -149,22 +149,23 @@
           </select>
         </div>
       {% elif widget.id == "ra-stress-test" %}
-        <span class="title-separator">|</span>
-        <span class="title-inline-label">Collateral:</span>
-        <select id="ra-stress-collateral" class="filter-select chart-mode-select" aria-label="Collateral assets">
-          <option value="" selected>All</option>
-        </select>
-        <span class="title-separator">|</span>
-        <span class="title-inline-label">Debt:</span>
-        <select id="ra-stress-debt" class="filter-select chart-mode-select" aria-label="Debt assets">
-          <option value="" selected>All</option>
-        </select>
+        <div class="ra-filter-row">
+          <span class="title-inline-label">Collateral:</span>
+          <select id="ra-stress-collateral" class="filter-select chart-mode-select" aria-label="Collateral assets">
+            <option value="" selected>All</option>
+          </select>
+          <span class="title-inline-label">Debt:</span>
+          <select id="ra-stress-debt" class="filter-select chart-mode-select" aria-label="Debt assets">
+            <option value="" selected>All</option>
+          </select>
+        </div>
       {% elif widget.id == "ra-cascade" %}
-        <span class="title-separator">|</span>
-        <span class="title-inline-label">Pool routing:</span>
-        <select id="ra-cascade-pool" class="filter-select chart-mode-select" aria-label="Pool routing mode">
-          <option value="weighted" selected>Weighted (all pools)</option>
-        </select>
+        <div class="ra-filter-row">
+          <span class="title-inline-label">Pool routing:</span>
+          <select id="ra-cascade-pool" class="filter-select chart-mode-select" aria-label="Pool routing mode">
+            <option value="weighted" selected>Weighted (all pools)</option>
+          </select>
+        </div>
       {% endif %}
     </div>
     <span class="panel-updated" id="updated-{{ widget.id }}">loading...</span>

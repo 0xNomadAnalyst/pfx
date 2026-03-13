@@ -260,8 +260,9 @@ body {
 
 .panel-title-group {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
+  gap: 4px 8px;
   min-width: 0;
 }
 
@@ -269,6 +270,17 @@ body {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.ra-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.ra-filter-row .chart-mode-select {
+  margin-left: 0;
 }
 
 .title-separator {
@@ -1402,9 +1414,10 @@ td:first-child {
 
 /* Section 3: Lending Market Liquidations Risk */
 .ra-hdr-3            { grid-row: 22 / 23; }
-.ra-slot-s3-full     { grid-column: 1 / 7; grid-row: 23 / 27; min-height: 380px; }
-.ra-slot-s3-cascade  { grid-column: 1 / 7; grid-row: 27 / 32; min-height: 460px; }
-.ra-slot-s3-cascade .chart-canvas { min-height: 420px; }
+.ra-slot-s3-full     { grid-column: 1 / 7; grid-row: 23 / 27; min-height: 420px; }
+.ra-slot-s3-full .chart-canvas { min-height: 380px; }
+.ra-slot-s3-cascade  { grid-column: 1 / 7; grid-row: 27 / 32; min-height: 440px; }
+.ra-slot-s3-cascade .chart-canvas { min-height: 400px; }
 
 @media (max-width: 768px) {
   .dashboard-grid {
