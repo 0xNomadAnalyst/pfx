@@ -36,9 +36,13 @@ class DataService:
         health = HealthPageService(sql_adapter, cache)
         global_eco = GlobalEcosystemPageService(sql_adapter, cache)
 
-        from pathlib import Path
-        onyc_env = Path(__file__).resolve().parents[2] / ".env.pfx.core"
-        onyc_sql = SqlAdapter.from_env_file(str(onyc_env))
+        from app.services import pipeline_config
+        onyc_creds = pipeline_config.PIPELINES.get("onyc")
+        if onyc_creds:
+            onyc_sql = SqlAdapter.from_credentials(onyc_creds)
+        else:
+            logger.warning("ONyc pipeline credentials not found; risk page will use default adapter")
+            onyc_sql = sql_adapter
         risk = RiskAnalysisPageService(onyc_sql, cache)
         self._pages = {
             "playbook-liquidity": liquidity,
