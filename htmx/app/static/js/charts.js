@@ -4257,6 +4257,7 @@
     if (!sel) return;
     fetchXpExposureNotice();
     sel.addEventListener("change", () => {
+      fetchXpExposureNotice();
       RA_SECTION2_WIDGETS.forEach((wid) => {
         const el = document.getElementById(`widget-${wid}`);
         if (el) resetWidgetView(el);

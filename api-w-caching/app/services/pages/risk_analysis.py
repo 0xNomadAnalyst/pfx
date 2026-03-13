@@ -240,10 +240,18 @@ class RiskAnalysisPageService(BasePageService):
         return min(ticks, key=lambda x: abs(x - raw)) if ticks else raw
 
     def _map_sell_amount_to_price(
-        self, tick_rows: list[dict[str, Any]], sell_amount: float
+        self, tick_rows: list[dict[str, Any]], sell_amount: float,
+        protocol: str | None = None,
     ) -> tuple[float | None, bool]:
         """Walk downside ticks consuming liquidity to find the price reached
-        after selling ``sell_amount``.
+        after selling ``sell_amount`` of the non-stablecoin token.
+
+        In CLMMs, ticks below the current price hold only token0.  The per-tick
+        absorbing capacity (expressed in the sell-token's units) is:
+
+        * ``token0_value`` when the sell token **is** token0, or
+        * ``token0_value * tick_price`` when the sell token is token1
+          (converting the stablecoin liquidity to sell-token units).
 
         Returns ``(price, exhausted)`` where *exhausted* is True when the pool
         runs out of downside liquidity before the full sell amount is absorbed.
@@ -252,12 +260,27 @@ class RiskAnalysisPageService(BasePageService):
         if current_price is None or sell_amount <= 0:
             return None, False
 
-        downside_ticks = []
+        sell_is_token1 = False
+        if protocol:
+            ref = self._pool_ref(protocol)
+            t0_sym = ref.get("token0_symbol", "")
+            t1_sym = ref.get("token1_symbol", "")
+            stables = {"USDC", "USDG", "USDT"}
+            if t0_sym.upper() in stables and t1_sym.upper() not in stables:
+                sell_is_token1 = True
+
+        downside_ticks: list[tuple[float, float]] = []
         for r in tick_rows:
             tp = self._ff(r.get("tick_price_t1_per_t0"))
-            t0 = self._ff(r.get("token1_value"))
-            if tp > 0 and tp <= current_price:
-                downside_ticks.append((tp, t0))
+            t0_val = self._ff(r.get("token0_value"))
+            t1_val = self._ff(r.get("token1_value"))
+            if tp <= 0 or tp > current_price:
+                continue
+            if sell_is_token1:
+                capacity = t0_val * tp + t1_val
+            else:
+                capacity = t0_val + t1_val / tp if tp > 0 else t0_val
+            downside_ticks.append((tp, capacity))
         downside_ticks.sort(key=lambda x: x[0], reverse=True)
 
         remaining = sell_amount
@@ -271,7 +294,8 @@ class RiskAnalysisPageService(BasePageService):
         return last_price, remaining > 0
 
     def _pvalue_mark_lines(
-        self, tick_rows: list[dict[str, Any]], pvalue_rows: list[dict[str, Any]]
+        self, tick_rows: list[dict[str, Any]], pvalue_rows: list[dict[str, Any]],
+        protocol: str | None = None,
     ) -> list[dict[str, Any]]:
         lines: list[dict[str, Any]] = []
         colors = ["#e24c4c", "#f8a94a", "#c9a032", "#ae82ff", "#4bb7ff", "#2fbf71", "#5c8a8a", "#888", "#aaa"]
@@ -280,7 +304,7 @@ class RiskAnalysisPageService(BasePageService):
             value = self._ff(row.get("value"))
             if value <= 0:
                 continue
-            price, _ = self._map_sell_amount_to_price(tick_rows, value)
+            price, _ = self._map_sell_amount_to_price(tick_rows, value, protocol)
             if price is None:
                 continue
             lines.append({
@@ -336,7 +360,7 @@ class RiskAnalysisPageService(BasePageService):
         current_price = self._snapped_price(tick_rows)
         event_type, interval = self._event_type_and_interval(params)
         pv_rows = self._pvalue_rows(protocol, event_type, interval)
-        ml = self._pvalue_mark_lines(tick_rows, pv_rows)
+        ml = self._pvalue_mark_lines(tick_rows, pv_rows, protocol)
 
         return {
             "kind": "chart",
@@ -375,7 +399,7 @@ class RiskAnalysisPageService(BasePageService):
 
         event_type, interval = self._event_type_and_interval(params)
         pv_rows = self._pvalue_rows(protocol, event_type, interval)
-        ml = self._pvalue_mark_lines(tick_rows, pv_rows)
+        ml = self._pvalue_mark_lines(tick_rows, pv_rows, protocol)
 
         return {
             "kind": "chart",
@@ -418,7 +442,7 @@ class RiskAnalysisPageService(BasePageService):
             sell_amount = self._ff(row.get("value"))
             if sell_amount <= 0:
                 continue
-            price, _ = self._map_sell_amount_to_price(tick_rows, sell_amount)
+            price, _ = self._map_sell_amount_to_price(tick_rows, sell_amount, protocol)
             if price is None:
                 continue
             price_to_prob[price] = prob
@@ -490,7 +514,8 @@ class RiskAnalysisPageService(BasePageService):
     }
 
     def _xp_liquidation_mark_lines(
-        self, tick_rows: list[dict[str, Any]], source: str
+        self, tick_rows: list[dict[str, Any]], source: str,
+        protocol: str = "orca",
     ) -> list[dict[str, Any]]:
         xp = self._xp_last()
         kamino = self._ff(xp.get("onyc_in_kamino"))
@@ -503,12 +528,29 @@ class RiskAnalysisPageService(BasePageService):
         else:
             base_amount = kamino + exponent
 
-        total_downside_liq = sum(
-            self._ff(r.get("token1_value"))
-            for r in tick_rows
-            if self._ff(r.get("tick_price_t1_per_t0")) > 0
-            and self._ff(r.get("tick_price_t1_per_t0"))
-            <= (self._snapped_price(tick_rows) or 0)
+        current_price = self._snapped_price(tick_rows) or 0
+        ref = self._pool_ref(protocol) if protocol else {}
+        t0_sym = ref.get("token0_symbol", "")
+        stables = {"USDC", "USDG", "USDT"}
+        sell_is_token1 = t0_sym.upper() in stables
+
+        total_downside_liq = 0.0
+        for r in tick_rows:
+            tp = self._ff(r.get("tick_price_t1_per_t0"))
+            if tp <= 0 or tp > current_price:
+                continue
+            t0_val = self._ff(r.get("token0_value"))
+            t1_val = self._ff(r.get("token1_value"))
+            if sell_is_token1:
+                total_downside_liq += t0_val * tp + t1_val
+            else:
+                total_downside_liq += t0_val + (t1_val / tp if tp > 0 else 0)
+
+        logger.info(
+            "xp_mark_lines: protocol=%s source=%s base_amount=%.2f "
+            "total_downside_liq=%.2f sell_is_t1=%s ticks=%d",
+            protocol, source, base_amount, total_downside_liq,
+            sell_is_token1, len(tick_rows),
         )
 
         lines: list[dict[str, Any]] = []
@@ -516,7 +558,9 @@ class RiskAnalysisPageService(BasePageService):
             sell_amount = base_amount * (pct / 100.0)
             if sell_amount <= 0:
                 continue
-            price, exhausted = self._map_sell_amount_to_price(tick_rows, sell_amount)
+            price, exhausted = self._map_sell_amount_to_price(
+                tick_rows, sell_amount, protocol,
+            )
             if price is None:
                 continue
             if exhausted:
@@ -537,13 +581,14 @@ class RiskAnalysisPageService(BasePageService):
                 "color": self._XP_LIQUIDATION_COLORS.get(pct, "#ae82ff"),
             })
 
+        logger.info("xp_mark_lines result: %d lines  %s", len(lines), lines[:3])
         return lines
 
     def _ra_xp_dist(self, params: dict[str, Any], protocol: str) -> dict[str, Any]:
         tick_rows = self._tick_dist_rows(protocol)
         current_price = self._snapped_price(tick_rows)
         source = str(params.get("risk_liq_source", "all"))
-        ml = self._xp_liquidation_mark_lines(tick_rows, source)
+        ml = self._xp_liquidation_mark_lines(tick_rows, source, protocol)
 
         return {
             "kind": "chart",
@@ -581,7 +626,7 @@ class RiskAnalysisPageService(BasePageService):
                 pass
 
         source = str(params.get("risk_liq_source", "all"))
-        ml = self._xp_liquidation_mark_lines(tick_rows, source)
+        ml = self._xp_liquidation_mark_lines(tick_rows, source, protocol)
 
         return {
             "kind": "chart",
