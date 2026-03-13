@@ -193,7 +193,7 @@
   </footer>
 
   <script src="/static/js/theme.js?v=2"></script>
-  <script src="/static/js/charts.js?v=51"></script>
+  <script src="/static/js/charts.js?v=52"></script>
   {% if show_pipeline_switcher %}
   <script>
   (function() {
@@ -230,7 +230,8 @@
           if (defaults.pair) stored.pair = defaults.pair;
           window.localStorage.setItem('dashboard.globalFilters.v1', JSON.stringify(stored));
         } catch(_) {}
-        window.location.reload();
+        var url = window.location.pathname + '?_sw=' + Date.now();
+        window.location.replace(url);
       })
       .catch(function(err) {
         console.error('Pipeline switch failed:', err);

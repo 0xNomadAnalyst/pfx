@@ -52,6 +52,16 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
 
+@app.middleware("http")
+async def add_no_cache_html(request: Request, call_next):
+    response = await call_next(request)
+    ct = response.headers.get("content-type", "")
+    if "text/html" in ct:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return Response(status_code=204)

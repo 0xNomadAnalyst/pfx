@@ -3069,7 +3069,7 @@
       }
     }
 
-    applyGlobalFilters(selectedProtocol, selectedPair, selectedLastWindow, true);
+    applyGlobalFilters(selectedProtocol, selectedPair, selectedLastWindow, false);
     applyPairAwarePanelTitles();
 
     if (protocolSelect && pairSelect) {
@@ -3107,6 +3107,8 @@
     }
 
     await initMarketSelectors();
+
+    htmx.trigger(document.body, "dashboard-refresh");
 
     initTradeImpactModeToggle();
     initSwapsFlowModeToggle();
@@ -3159,7 +3161,6 @@
       setSelectOptions(mkt1Select, markets, meta.selected_mkt1 || "", true);
       const mkt2Default = meta.selected_mkt2 || (markets.length < 2 ? "__none__" : "");
       setSelectOptions(mkt2Select, markets, mkt2Default, true);
-      htmx.trigger(document.body, "dashboard-refresh");
     } else {
       mkt1Select.innerHTML = '<option value="">Unavailable</option>';
       mkt2Select.innerHTML = '<option value="">Unavailable</option>';
