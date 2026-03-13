@@ -134,6 +134,17 @@
     return getComputedStyle(document.documentElement).getPropertyValue("--border").trim() || "#20314d";
   }
 
+  function hexToRgba(hex, alpha) {
+    if (!hex) return hex;
+    let h = hex.replace("#", "");
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
   function chartLabelBadgeStyle() {
     const theme = document.documentElement.getAttribute("data-theme");
     if (theme === "light") {
@@ -1712,7 +1723,7 @@
           mapped.barWidth = barWidth;
         }
         if (series.color) {
-          mapped.itemStyle = { color: series.color };
+          mapped.itemStyle = { color: hexToRgba(series.color, 0.2), borderColor: series.color, borderWidth: 2 };
         }
         return mapped;
       });
@@ -2042,7 +2053,7 @@
             data: slices.map((s) => ({
               name: s.name,
               value: s.value,
-              itemStyle: s.color ? { color: s.color } : undefined,
+              itemStyle: s.color ? { color: hexToRgba(s.color, 0.2), borderColor: s.color, borderWidth: 2 } : undefined,
             })),
           },
         ],
@@ -2121,10 +2132,11 @@
               const startPx = api.coord([api.value(1), catIdx]);
               const endPx = api.coord([api.value(2), catIdx]);
               const barH = api.size([0, 1])[1] * 0.55;
+              const barColor = api.visual("color");
               return {
                 type: "rect",
                 shape: { x: startPx[0], y: startPx[1] - barH / 2, width: endPx[0] - startPx[0], height: barH },
-                style: { ...api.style(), fill: api.visual("color") },
+                style: { ...api.style(), fill: hexToRgba(barColor, 0.2), stroke: barColor, lineWidth: 2 },
                 styleEmphasis: api.style(),
               };
             },
