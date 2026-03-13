@@ -14,6 +14,25 @@
     <div class="export-toolbar-left">
       <h1 class="export-toolbar-title">Chart Export</h1>
 
+      {% if show_pipeline_switcher %}
+      <div class="export-control-group pipeline-switcher">
+        <label class="filter-label" for="pipeline-select">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10M4.22 4.22l4.24 4.24m7.08 7.08l4.24 4.24M1 12h6m6 0h10M4.22 19.78l4.24-4.24m7.08-7.08l4.24-4.24"/></svg>
+          DB
+        </label>
+        <select id="pipeline-select" class="filter-select" aria-label="Database pipeline">
+          {% if pipeline_info and pipeline_info.available %}
+            {% for p in pipeline_info.available %}
+              <option value="{{ p.id }}" {% if p.current %}selected{% endif %}>{{ p.label }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="solstice">Solstice</option>
+            <option value="onyc">Onyc</option>
+          {% endif %}
+        </select>
+      </div>
+      {% endif %}
+
       <div class="export-control-group">
         <label class="filter-label" for="chart-select">Chart</label>
         <select id="chart-select" class="filter-select export-chart-select">
@@ -42,11 +61,19 @@
       <div class="export-control-group">
         <label class="filter-label" for="ratio-select">Ratio</label>
         <select id="ratio-select" class="filter-select">
-          <option value="1920x1080" selected>16:9  (1920 x 1080)</option>
-          <option value="1200x628">1.91:1  (1200 x 628)</option>
-          <option value="1500x750">2:1  (1500 x 750)</option>
-          <option value="1080x1080">1:1  (1080 x 1080)</option>
-          <option value="1080x1350">4:5  (1080 x 1350)</option>
+          <optgroup label="Landscape">
+            <option value="1920x1080" selected>16:9  (1920 x 1080)</option>
+            <option value="1200x628">1.91:1  (1200 x 628)</option>
+            <option value="1500x750">2:1  (1500 x 750)</option>
+          </optgroup>
+          <optgroup label="Square">
+            <option value="1080x1080">1:1  (1080 x 1080)</option>
+          </optgroup>
+          <optgroup label="Portrait">
+            <option value="1080x1350">4:5  (1080 x 1350)</option>
+            <option value="1080x1920">9:16  (1080 x 1920)</option>
+            <option value="1080x1536">9:12.8  (1080 x 1536)</option>
+          </optgroup>
         </select>
       </div>
 
@@ -63,7 +90,16 @@
         </select>
       </div>
 
-      <div class="export-control-group" id="pixel-ratio-group">
+      <div class="export-control-group">
+        <label class="filter-label" for="format-select">Format</label>
+        <select id="format-select" class="filter-select">
+          <option value="webp" selected>WebP</option>
+          <option value="png">PNG</option>
+          <option value="jpeg">JPEG</option>
+        </select>
+      </div>
+
+      <div class="export-control-group">
         <label class="filter-label" for="pixel-ratio-select">Quality</label>
         <select id="pixel-ratio-select" class="filter-select">
           <option value="2" selected>2x (Retina)</option>
@@ -76,7 +112,7 @@
     <div class="export-toolbar-right">
       <button id="download-btn" class="action-button export-download-btn" type="button" disabled>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download PNG
+        <span id="download-btn-label">Download WebP</span>
       </button>
       <button id="theme-toggle" class="theme-toggle icon-button" type="button" aria-label="Toggle theme">
         <span id="theme-icon" class="theme-icon" aria-hidden="true">🌙</span>
@@ -122,8 +158,11 @@
     var chartSelect = document.getElementById("chart-select");
     var ratioSelect = document.getElementById("ratio-select");
     var windowSelect = document.getElementById("last-window-select");
+    var formatSelect = document.getElementById("format-select");
     var pixelRatioSelect = document.getElementById("pixel-ratio-select");
     var downloadBtn = document.getElementById("download-btn");
+    var downloadBtnLabel = document.getElementById("download-btn-label");
+    var pipelineSelect = document.getElementById("pipeline-select");
     var frame = document.getElementById("export-frame");
     var widget = document.getElementById("widget-export-target");
     var chartCanvas = document.getElementById("chart-export-target");
@@ -148,9 +187,7 @@
 
     function destroyCurrentChart() {
       var inst = echarts.getInstanceByDom(chartCanvas);
-      if (inst) {
-        inst.dispose();
-      }
+      if (inst) inst.dispose();
     }
 
     function loadChart() {
@@ -188,11 +225,59 @@
       htmx.trigger(widget, "export-load");
     }
 
-    chartSelect.addEventListener("change", loadChart);
-    ratioSelect.addEventListener("change", function () {
-      applyRatio();
+    /* ── Pipeline switcher ── */
+
+    if (pipelineSelect) {
+      fetch("/api/pipeline-info")
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data || !data.current) return;
+          for (var i = 0; i < pipelineSelect.options.length; i++) {
+            pipelineSelect.options[i].selected = (pipelineSelect.options[i].value === data.current);
+          }
+        })
+        .catch(function () {});
+
+      pipelineSelect.addEventListener("change", function () {
+        pipelineSelect.disabled = true;
+        fetch("/api/switch-pipeline?pipeline=" + encodeURIComponent(pipelineSelect.value), { method: "POST" })
+          .then(function () {
+            pipelineSelect.disabled = false;
+            reloadIfActive();
+          })
+          .catch(function () {
+            pipelineSelect.disabled = false;
+          });
+      });
+    }
+
+    /* ── Format selector ── */
+
+    var FORMAT_LABELS = { webp: "WebP", png: "PNG", jpeg: "JPEG" };
+    var FORMAT_EXT = { webp: "webp", png: "png", jpeg: "jpg" };
+
+    formatSelect.addEventListener("change", function () {
+      downloadBtnLabel.textContent = "Download " + FORMAT_LABELS[formatSelect.value];
     });
+
+    /* ── Event bindings ── */
+
+    chartSelect.addEventListener("change", loadChart);
+    ratioSelect.addEventListener("change", applyRatio);
     windowSelect.addEventListener("change", reloadIfActive);
+
+    /* ── Download with format support ── */
+
+    function triggerDownload(dataUrl, ext) {
+      var ratioLabel = ratioSelect.value;
+      var filename = activeWidgetId + "_" + ratioLabel + "." + ext;
+      var link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
 
     downloadBtn.addEventListener("click", function () {
       var inst = echarts.getInstanceByDom(chartCanvas);
@@ -201,22 +286,32 @@
       var theme = document.documentElement.getAttribute("data-theme");
       var bgColor = theme === "light" ? "#ffffff" : "#0f1a2d";
       var pxRatio = parseInt(pixelRatioSelect.value, 10) || 2;
+      var fmt = formatSelect.value;
+      var ext = FORMAT_EXT[fmt];
 
-      var dataUrl = inst.getDataURL({
+      var pngDataUrl = inst.getDataURL({
         type: "png",
         pixelRatio: pxRatio,
         backgroundColor: bgColor,
       });
 
-      var ratioLabel = ratioSelect.value.replace("x", "x");
-      var filename = activeWidgetId + "_" + ratioLabel + ".png";
+      if (fmt === "png") {
+        triggerDownload(pngDataUrl, ext);
+        return;
+      }
 
-      var link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      var img = new Image();
+      img.onload = function () {
+        var cvs = document.createElement("canvas");
+        cvs.width = img.width;
+        cvs.height = img.height;
+        var ctx = cvs.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        var mime = fmt === "webp" ? "image/webp" : "image/jpeg";
+        var quality = fmt === "webp" ? 0.92 : 0.95;
+        triggerDownload(cvs.toDataURL(mime, quality), ext);
+      };
+      img.src = pngDataUrl;
     });
   })();
   </script>

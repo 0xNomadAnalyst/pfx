@@ -200,6 +200,7 @@ def chart_export(request: Request):
                 "widget_title": widget.title,
                 "endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, page.api_page_id, widget.id),
             })
+    pipeline_info = _get_pipeline_info() if ENABLE_PIPELINE_SWITCHER else None
     return templates.TemplateResponse(
         request=request,
         name="export.html",
@@ -207,6 +208,8 @@ def chart_export(request: Request):
             "app_title": APP_TITLE,
             "chart_catalogue": chart_catalogue,
             "api_base_url": BROWSER_API_BASE_URL,
+            "show_pipeline_switcher": ENABLE_PIPELINE_SWITCHER,
+            "pipeline_info": pipeline_info,
         },
     )
 

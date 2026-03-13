@@ -457,13 +457,29 @@ class ExponentPageService(BasePageService):
         lbl_mkt2 = symbols[1] if len(symbols) > 1 and symbols[1] else "Market 2"
         total_tvl = row.get("total_naive_tvl")
         tvl_display = self._fmt_number(total_tvl) if total_tvl is not None else "--"
+
+        pct_mkt1 = float(row.get("sy_total_locked_pct_mkt1") or 0)
+        pct_mkt2 = float(row.get("sy_total_locked_pct_mkt2") or 0)
+        pct_other = float(row.get("sy_not_in_mkt1_mkt2_pct") or 0)
+
+        if pct_mkt1 + pct_mkt2 + pct_other == 0 and total_tvl and total_tvl > 0:
+            locked = row.get("base_tokens_locked_array") or []
+            val_mkt1 = float(locked[0]) if len(locked) > 0 and locked[0] is not None else 0
+            val_mkt2 = float(locked[1]) if len(locked) > 1 and locked[1] is not None else 0
+            total_locked = val_mkt1 + val_mkt2
+            remaining = max(float(total_tvl) - total_locked, 0)
+            denom = float(total_tvl)
+            pct_mkt1 = round(val_mkt1 / denom * 100, 2)
+            pct_mkt2 = round(val_mkt2 / denom * 100, 2)
+            pct_other = round(remaining / denom * 100, 2)
+
         return {
             "kind": "chart",
             "chart": "pie",
             "slices": [
-                {"name": lbl_mkt1, "value": float(row.get("sy_total_locked_pct_mkt1") or 0), "color": "#4bb7ff"},
-                {"name": lbl_mkt2, "value": float(row.get("sy_total_locked_pct_mkt2") or 0), "color": "#f8a94a"},
-                {"name": "Other", "value": float(row.get("sy_not_in_mkt1_mkt2_pct") or 0), "color": "#28c987"},
+                {"name": lbl_mkt1, "value": pct_mkt1, "color": "#4bb7ff"},
+                {"name": lbl_mkt2, "value": pct_mkt2, "color": "#f8a94a"},
+                {"name": "Other", "value": pct_other, "color": "#28c987"},
             ],
             "title_extra": f"Total TVL represented (approximated on 1:1 basis) : {tvl_display}",
         }

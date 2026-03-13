@@ -2075,12 +2075,14 @@
         }
       }
     } else if (chartData.chart === "pie") {
-      const slices = (chartData.slices || []).map((s, i) => ({
-        ...s,
-        name: s.name || `Slice ${i + 1}`,
-        value: Number(s.value) || 0,
-      }));
-      const hasData = slices.some((s) => s.value > 0);
+      const slices = (chartData.slices || [])
+        .map((s, i) => ({
+          ...s,
+          name: s.name || `Slice ${i + 1}`,
+          value: Number(s.value) || 0,
+        }))
+        .filter((s) => s.value > 0);
+      const hasData = slices.length > 0;
       if (!hasData && chartState.get(widgetId)?.instance) {
         return;
       }
@@ -2986,6 +2988,10 @@
     }
     options += unique.map((value) => `<option value="${value}">${value}</option>`).join("");
     selectEl.innerHTML = options;
+    if (selected === "__none__" && includeNone) {
+      selectEl.value = "__none__";
+      return;
+    }
     if (unique.includes(selected)) {
       selectEl.value = selected;
       return;
@@ -3149,8 +3155,11 @@
     }
 
     if (meta) {
-      setSelectOptions(mkt1Select, meta.markets || [], meta.selected_mkt1 || "", true);
-      setSelectOptions(mkt2Select, meta.markets || [], meta.selected_mkt2 || "", true);
+      const markets = meta.markets || [];
+      setSelectOptions(mkt1Select, markets, meta.selected_mkt1 || "", true);
+      const mkt2Default = meta.selected_mkt2 || (markets.length < 2 ? "__none__" : "");
+      setSelectOptions(mkt2Select, markets, mkt2Default, true);
+      htmx.trigger(document.body, "dashboard-refresh");
     } else {
       mkt1Select.innerHTML = '<option value="">Unavailable</option>';
       mkt2Select.innerHTML = '<option value="">Unavailable</option>';
