@@ -91,6 +91,18 @@
       </div>
 
       <div class="export-control-group">
+        <label class="filter-label" for="font-scale-select">Font</label>
+        <select id="font-scale-select" class="filter-select">
+          <option value="1">1x</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5" selected>1.5x</option>
+          <option value="1.75">1.75x</option>
+          <option value="2">2x</option>
+          <option value="2.5">2.5x</option>
+        </select>
+      </div>
+
+      <div class="export-control-group">
         <label class="filter-label" for="format-select">Format</label>
         <select id="format-select" class="filter-select">
           <option value="webp" selected>WebP</option>
@@ -170,7 +182,10 @@
     var updatedEl = document.getElementById("updated-export-target");
     var subtitleEl = document.getElementById("chart-subtitle-export-target");
 
+    var fontScaleSelect = document.getElementById("font-scale-select");
+
     var activeWidgetId = "";
+    var lastAppliedScale = 1;
 
     function selectedRatio() {
       var v = ratioSelect.value.split("x");
@@ -224,6 +239,46 @@
       if (!activeWidgetId) return;
       htmx.trigger(widget, "export-load");
     }
+
+    /* ── Font scaling ── */
+
+    function scaleFontSizes(obj, factor) {
+      if (!obj || typeof obj !== "object") return;
+      if (Array.isArray(obj)) {
+        for (var i = 0; i < obj.length; i++) scaleFontSizes(obj[i], factor);
+        return;
+      }
+      for (var key in obj) {
+        if (!obj.hasOwnProperty(key)) continue;
+        if (key === "fontSize" && typeof obj[key] === "number") {
+          obj[key] = Math.round(obj[key] * factor);
+        } else if (typeof obj[key] === "object") {
+          scaleFontSizes(obj[key], factor);
+        }
+      }
+    }
+
+    function applyFontScale() {
+      var inst = echarts.getInstanceByDom(chartCanvas);
+      if (!inst) return;
+      var targetScale = parseFloat(fontScaleSelect.value) || 1;
+      if (targetScale === lastAppliedScale) return;
+      var factor = targetScale / lastAppliedScale;
+      var option = inst.getOption();
+      scaleFontSizes(option, factor);
+      inst.setOption(option);
+      lastAppliedScale = targetScale;
+    }
+
+    document.body.addEventListener("htmx:afterRequest", function (event) {
+      var el = event.detail.elt;
+      if (!el || el !== widget) return;
+      if (!event.detail.successful) return;
+      lastAppliedScale = 1;
+      setTimeout(applyFontScale, 50);
+    });
+
+    fontScaleSelect.addEventListener("change", applyFontScale);
 
     /* ── Pipeline switcher ── */
 
