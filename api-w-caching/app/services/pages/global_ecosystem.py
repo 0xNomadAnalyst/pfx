@@ -1,10 +1,20 @@
 from __future__ import annotations
 
+import json
+import logging
 import os
 import threading
+import urllib.request
 from typing import Any
 
 from app.services.pages.base import BasePageService
+
+_log = logging.getLogger(__name__)
+
+_ONYC_MINT = "5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5"
+_SOLANA_RPC_URL = os.getenv(
+    "SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com"
+)
 
 _COLORS = {
     "blue": "#4bb7ff",
@@ -26,6 +36,8 @@ class GlobalEcosystemPageService(BasePageService):
     _V_LAST_TTL = float(os.getenv("GE_V_LAST_TTL_SECONDS", "60"))
     _TS_TTL = float(os.getenv("GE_TIMESERIES_TTL_SECONDS", "300"))
     _INTERVAL_TTL = float(os.getenv("GE_INTERVAL_TTL_SECONDS", "120"))
+    _ISSUANCE_TTL = float(os.getenv("GE_ISSUANCE_TTL_SECONDS", "120"))
+    _ONYC_SUPPLY_TTL = float(os.getenv("GE_ONYC_SUPPLY_TTL_SECONDS", "300"))
     _TS_TIMEOUT_MS = int(os.getenv("GE_TIMESERIES_TIMEOUT_MS", "60000"))
 
     def __init__(self, *args: Any, **kwargs: Any):
@@ -33,6 +45,9 @@ class GlobalEcosystemPageService(BasePageService):
         self._last_ts_rows: dict[str, list[dict[str, Any]]] = {}
         self._last_ts_lock = threading.Lock()
         self._handlers = {
+            "ge-issuance-bar": self._issuance_bar,
+            "ge-issuance-pie": self._issuance_pie,
+            "ge-issuance-time": self._issuance_time,
             "ge-tvl-bar": self._tvl_bar,
             "ge-tvl-pie": self._tvl_pie,
             "ge-tvl-time": self._tvl_time,
@@ -140,6 +155,155 @@ class GlobalEcosystemPageService(BasePageService):
         return self._cached(cache_key, _load, ttl_seconds=self._INTERVAL_TTL)
 
     # ------------------------------------------------------------------
+    # Issuance data loaders (SY/PT supply from DB, ONyc supply from RPC)
+    # ------------------------------------------------------------------
+
+    def _fetch_onyc_total_supply(self) -> float:
+        """Fetch ONyc circulating supply from Solana RPC getTokenSupply."""
+        def _load() -> float:
+            try:
+                payload = json.dumps({
+                    "jsonrpc": "2.0", "id": 1,
+                    "method": "getTokenSupply",
+                    "params": [_ONYC_MINT],
+                }).encode()
+                req = urllib.request.Request(
+                    _SOLANA_RPC_URL,
+                    data=payload,
+                    headers={"Content-Type": "application/json"},
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    data = json.loads(resp.read())
+                ui_amount = data.get("result", {}).get("value", {}).get("uiAmount")
+                return float(ui_amount) if ui_amount is not None else 0.0
+            except Exception as exc:
+                _log.warning("Failed to fetch ONyc supply from RPC: %s", exc)
+                return 0.0
+
+        return self._cached("ge::onyc_total_supply", _load, ttl_seconds=self._ONYC_SUPPLY_TTL)
+
+    def _issuance_snapshot(self) -> dict[str, Any]:
+        """Latest SY supply, PT supply, exchange rate, and ONyc total supply."""
+        def _load() -> dict[str, Any]:
+            rows = self.sql.fetch_rows(
+                "WITH latest_sy AS ( "
+                "    SELECT DISTINCT ON (mint_sy) "
+                "        supply / POWER(10, decimals) AS sy_supply "
+                "    FROM exponent.cagg_sy_token_account_5s "
+                "    WHERE meta_base_mint = %s "
+                "    ORDER BY mint_sy, bucket DESC "
+                "), "
+                "latest_vaults AS ( "
+                "    SELECT "
+                "        SUM(pt_supply / POWER(10, COALESCE(env_sy_decimals, 9))) AS pt_supply "
+                "    FROM ( "
+                "        SELECT DISTINCT ON (vault_address) pt_supply, env_sy_decimals "
+                "        FROM exponent.cagg_vaults_5s "
+                "        WHERE meta_base_mint = %s "
+                "        ORDER BY vault_address, bucket DESC "
+                "    ) sub "
+                "), "
+                "latest_rate AS ( "
+                "    SELECT DISTINCT ON (mint_sy) "
+                "        1.0 / NULLIF(sy_exchange_rate, 0) AS onyc_per_sy "
+                "    FROM exponent.cagg_sy_meta_account_5s "
+                "    WHERE meta_base_mint = %s "
+                "    ORDER BY mint_sy, bucket DESC "
+                ") "
+                "SELECT "
+                "    COALESCE(s.sy_supply, 0) AS sy_supply, "
+                "    COALESCE(v.pt_supply, 0) AS pt_supply, "
+                "    COALESCE(r.onyc_per_sy, 1) AS onyc_per_sy "
+                "FROM latest_sy s "
+                "CROSS JOIN latest_vaults v "
+                "CROSS JOIN latest_rate r",
+                (_ONYC_MINT, _ONYC_MINT, _ONYC_MINT),
+            )
+            row = rows[0] if rows else {}
+            onyc_per_sy = float(row.get("onyc_per_sy", 1))
+            sy_supply = float(row.get("sy_supply", 0))
+            pt_supply = float(row.get("pt_supply", 0))
+            return {
+                "sy_supply": sy_supply,
+                "sy_supply_in_onyc": round(sy_supply * onyc_per_sy, 0),
+                "pt_supply": pt_supply,
+                "ptyt_supply_in_onyc": round(pt_supply * onyc_per_sy, 0),
+                "onyc_per_sy": onyc_per_sy,
+            }
+
+        return self._cached("ge::issuance_snapshot", _load, ttl_seconds=self._ISSUANCE_TTL)
+
+    def _issuance_ts_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+        """Timeseries of SY and PT supply from exponent CAGGs."""
+        last_window = str(params.get("last_window", "7d"))
+        lookback = self._window_interval(last_window)
+        bucket = self._bucket_interval(last_window)
+        cache_key = f"ge::issuance_ts::{last_window}"
+
+        def _load() -> list[dict[str, Any]]:
+            return self.sql.fetch_rows(
+                "WITH sy_ts AS ( "
+                "    SELECT "
+                "        time_bucket(%s::interval, bucket) AS bt, "
+                "        LAST(supply / POWER(10, decimals), bucket) AS sy_supply "
+                "    FROM exponent.cagg_sy_token_account_5s "
+                "    WHERE meta_base_mint = %s "
+                "      AND bucket >= NOW() - %s::interval "
+                "    GROUP BY bt "
+                "), "
+                "vault_per_addr AS ( "
+                "    SELECT "
+                "        time_bucket(%s::interval, bucket) AS bt, vault_address, "
+                "        LAST(pt_supply / POWER(10, COALESCE(env_sy_decimals, 9)), bucket) AS pt_supply "
+                "    FROM exponent.cagg_vaults_5s "
+                "    WHERE meta_base_mint = %s "
+                "      AND bucket >= NOW() - %s::interval "
+                "    GROUP BY bt, vault_address "
+                "), "
+                "vault_ts AS ( "
+                "    SELECT bt, SUM(pt_supply) AS pt_supply FROM vault_per_addr GROUP BY bt "
+                "), "
+                "rate_ts AS ( "
+                "    SELECT "
+                "        time_bucket(%s::interval, bucket) AS bt, "
+                "        LAST(1.0 / NULLIF(sy_exchange_rate, 0), bucket) AS onyc_per_sy "
+                "    FROM exponent.cagg_sy_meta_account_5s "
+                "    WHERE meta_base_mint = %s "
+                "      AND bucket >= NOW() - %s::interval "
+                "    GROUP BY bt "
+                "), "
+                "combined AS ( "
+                "    SELECT "
+                "        COALESCE(s.bt, v.bt) AS bucket_time, "
+                "        COALESCE(s.sy_supply, 0) AS sy_supply, "
+                "        COALESCE(v.pt_supply, 0) AS pt_supply, "
+                "        r.onyc_per_sy AS raw_rate "
+                "    FROM sy_ts s "
+                "    FULL OUTER JOIN vault_ts v ON s.bt = v.bt "
+                "    LEFT JOIN rate_ts r ON COALESCE(s.bt, v.bt) = r.bt "
+                "), "
+                "filled AS ( "
+                "    SELECT *, COALESCE(raw_rate, "
+                "        MAX(raw_rate) OVER ( "
+                "            ORDER BY bucket_time "
+                "            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING "
+                "        ) "
+                "    ) AS onyc_per_sy "
+                "    FROM combined "
+                ") "
+                "SELECT bucket_time, sy_supply, pt_supply, "
+                "    ROUND(COALESCE(sy_supply * onyc_per_sy, 0)::NUMERIC, 0) AS sy_in_onyc, "
+                "    ROUND(COALESCE(pt_supply * onyc_per_sy, 0)::NUMERIC, 0) AS ptyt_in_onyc "
+                "FROM filled ORDER BY bucket_time",
+                (bucket, _ONYC_MINT, lookback,
+                 bucket, _ONYC_MINT, lookback,
+                 bucket, _ONYC_MINT, lookback),
+                statement_timeout_ms=self._TS_TIMEOUT_MS,
+            )
+
+        return self._cached(cache_key, _load, ttl_seconds=self._TS_TTL)
+
+    # ------------------------------------------------------------------
     # Formatting helpers
     # ------------------------------------------------------------------
 
@@ -207,6 +371,72 @@ class GlobalEcosystemPageService(BasePageService):
             "yAxisFormat": y_format,
             "series": [
                 {"name": "", "type": "bar", "barCategoryGap": "20%", "data": data},
+            ],
+        }
+
+    # ------------------------------------------------------------------
+    # Widget: Token Supply Outstanding (horizontal bar)
+    # ------------------------------------------------------------------
+
+    def _issuance_bar(self, _: dict[str, Any]) -> dict[str, Any]:
+        snap = self._issuance_snapshot()
+        onyc_supply = self._fetch_onyc_total_supply()
+        return self._hbar(
+            categories=["ONyc Supply", "SY Supply (ONyc eq.)", "PT+YT Supply (ONyc eq.)"],
+            values=[
+                onyc_supply,
+                self._fv(snap.get("sy_supply_in_onyc")),
+                self._fv(snap.get("ptyt_supply_in_onyc")),
+            ],
+            colors=[_COLORS["orange"], _COLORS["purple"], _COLORS["blue"]],
+            x_label="ONyc",
+        )
+
+    # ------------------------------------------------------------------
+    # Widget: Token Issuance Distribution (pie)
+    # ------------------------------------------------------------------
+
+    def _issuance_pie(self, _: dict[str, Any]) -> dict[str, Any]:
+        snap = self._issuance_snapshot()
+        onyc_supply = self._fetch_onyc_total_supply()
+        sy_in_onyc = self._fv(snap.get("sy_supply_in_onyc"))
+        ptyt_in_onyc = self._fv(snap.get("ptyt_supply_in_onyc"))
+        unwrapped = max(onyc_supply - sy_in_onyc, 0)
+
+        total = onyc_supply if onyc_supply > 0 else 1
+        return {
+            "kind": "chart",
+            "chart": "pie",
+            "slices": [
+                {"name": "ONyc (unwrapped)", "value": round(unwrapped / total * 100, 1),
+                 "color": _COLORS["orange"]},
+                {"name": "SY (ONyc eq.)", "value": round(sy_in_onyc / total * 100, 1),
+                 "color": _COLORS["purple"]},
+                {"name": "PT+YT (ONyc eq.)", "value": round(ptyt_in_onyc / total * 100, 1),
+                 "color": _COLORS["blue"]},
+            ],
+            "title_extra": f"ONyc Supply: {self._fmt_onyc(onyc_supply)}",
+        }
+
+    # ------------------------------------------------------------------
+    # Widget: Token Issuance Over Time (stacked area)
+    # ------------------------------------------------------------------
+
+    def _issuance_time(self, params: dict[str, Any]) -> dict[str, Any]:
+        rows = self._issuance_ts_rows(params)
+        return {
+            "kind": "chart",
+            "chart": "line",
+            "x": [row["bucket_time"] for row in rows],
+            "yAxisLabel": "ONyc",
+            "yAxisFormat": "compact",
+            "series": [
+                {"name": "SY (ONyc eq.)", "type": "line", "area": True, "stack": "issuance",
+                 "color": _COLORS["purple"],
+                 "data": [row.get("sy_in_onyc") for row in rows]},
+                {"name": "PT+YT (ONyc eq.)", "type": "line", "area": True, "stack": "issuance",
+                 "color": _COLORS["blue"],
+                 "data": [row.get("ptyt_in_onyc") for row in rows]},
             ],
         }
 

@@ -55,6 +55,7 @@
       "health-base-chart-accounts",
     ])],
     ["linked-ts-global", new Set([
+      "ge-issuance-time",
       "ge-tvl-time",
       "ge-yields-vs-time",
       "ge-tvl-share",
