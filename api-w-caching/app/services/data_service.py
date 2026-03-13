@@ -13,6 +13,7 @@ from app.services.pages.exponent import ExponentPageService
 from app.services.pages.global_ecosystem import GlobalEcosystemPageService
 from app.services.pages.health import HealthPageService
 from app.services.pages.kamino import KaminoPageService
+from app.services.pages.risk_analysis import RiskAnalysisPageService
 from app.services.shared.cache_store import QueryCache
 from app.services.sql_adapter import SqlAdapter
 
@@ -34,6 +35,7 @@ class DataService:
         exponent = ExponentPageService(sql_adapter, cache)
         health = HealthPageService(sql_adapter, cache)
         global_eco = GlobalEcosystemPageService(sql_adapter, cache)
+        risk = RiskAnalysisPageService(sql_adapter, cache)
         self._pages = {
             "playbook-liquidity": liquidity,
             "dex-liquidity": liquidity,
@@ -42,6 +44,7 @@ class DataService:
             "exponent": exponent,
             "health": health,
             "global-ecosystem": global_eco,
+            "risk-analysis": risk,
         }
         self._default_page = "playbook-liquidity"
         self._log_slow_widgets = os.getenv("API_LOG_SLOW_WIDGETS", "0") == "1"

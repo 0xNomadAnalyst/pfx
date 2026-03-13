@@ -103,6 +103,11 @@ def get_widget(
     health_schema: Annotated[str, Query()] = "dexes",
     health_attribute: Annotated[str, Query()] = "Write Rate",
     health_base_schema: Annotated[str, Query()] = "dexes",
+    risk_event_type: Annotated[str, Query()] = "Single Swaps",
+    risk_interval: Annotated[str, Query()] = "5 minutes",
+    risk_liq_scenario: Annotated[str, Query()] = "25",
+    risk_stress_collateral: Annotated[str, Query()] = "",
+    risk_stress_debt: Annotated[str, Query()] = "",
     svc: DataService = Depends(get_data_service),
 ) -> WidgetResponse:
     params = {
@@ -123,6 +128,11 @@ def get_widget(
         "health_schema": health_schema,
         "health_attribute": health_attribute,
         "health_base_schema": health_base_schema,
+        "risk_event_type": risk_event_type,
+        "risk_interval": risk_interval,
+        "risk_liq_scenario": risk_liq_scenario,
+        "risk_stress_collateral": risk_stress_collateral,
+        "risk_stress_debt": risk_stress_debt,
     }
     try:
         payload = svc.get_widget_data(page=page, widget_id=widget, params=params)

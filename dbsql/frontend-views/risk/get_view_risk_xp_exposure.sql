@@ -1,0 +1,21 @@
+-- ============================================================================
+-- RISK: Cross-Protocol Liquidation Exposure
+-- ============================================================================
+-- This view is currently served directly from cross_protocol.v_xp_last
+-- in the Python API layer (RiskAnalysisPageService._xp_last and
+-- _xp_liquidation_mark_lines).
+--
+-- The API fetches:
+--   onyc_in_kamino, onyc_in_exponent, onyc_tracked_total,
+--   onyc_in_kamino_pct, onyc_in_exponent_pct
+--
+-- For each liquidation scenario (X% of deployment liquidated), the API:
+--   1. Computes sell_amount = onyc_in_kamino * X/100 (and same for exponent)
+--   2. Maps sell_amount → price impact using tick distribution data
+--   3. Returns mark_lines for the liquidity charts
+--
+-- If a dedicated SQL function is needed, it would combine:
+--   cross_protocol.v_xp_last (for deployment amounts)
+--   dexes.get_view_tick_dist_simple (for price impact mapping)
+-- and accept scenario_pct as a parameter.
+-- ============================================================================

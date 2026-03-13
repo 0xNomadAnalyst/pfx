@@ -16,6 +16,18 @@
     "liquidity-depth",
     "liquidity-change-heatmap",
   ]);
+  const raLinkedZoomRay = new Set([
+    "ra-liq-dist-ray", "ra-liq-depth-ray", "ra-prob-ray",
+  ]);
+  const raLinkedZoomOrca = new Set([
+    "ra-liq-dist-orca", "ra-liq-depth-orca", "ra-prob-orca",
+  ]);
+  const raLinkedZoomXpRay = new Set([
+    "ra-xp-dist-ray", "ra-xp-depth-ray",
+  ]);
+  const raLinkedZoomXpOrca = new Set([
+    "ra-xp-dist-orca", "ra-xp-depth-orca",
+  ]);
   const linkedTimeseriesGroups = new Map([
     ["linked-ts-right", new Set([
       "usdc-lp-flows",
@@ -75,10 +87,22 @@
     "liquidity-distribution",
     "liquidity-depth",
     "liquidity-change-heatmap",
+    "ra-liq-dist-ray", "ra-liq-dist-orca",
+    "ra-liq-depth-ray", "ra-liq-depth-orca",
+    "ra-prob-ray", "ra-prob-orca",
+    "ra-xp-dist-ray", "ra-xp-dist-orca",
+    "ra-xp-depth-ray", "ra-xp-depth-orca",
   ]);
   const linkedGroups = {
     left: "linked-zoom-left",
+    raRay: "linked-zoom-ra-ray",
+    raOrca: "linked-zoom-ra-orca",
+    raXpRay: "linked-zoom-ra-xp-ray",
+    raXpOrca: "linked-zoom-ra-xp-orca",
   };
+  function isTickLinkedWidget(wid) {
+    return leftLinkedZoomWidgets.has(wid) || raLinkedZoomRay.has(wid) || raLinkedZoomOrca.has(wid) || raLinkedZoomXpRay.has(wid) || raLinkedZoomXpOrca.has(wid);
+  }
 
   const defaultBucketIntervals = {
     "1h": "1 minute", "4h": "5 minutes", "6h": "5 minutes",
@@ -2083,6 +2107,70 @@
           };
         }
       }
+    } else if (chartData.chart === "probability-curve") {
+      const probXLabel = pairAwareLabel(chartData.xAxisLabel) || "Price";
+      const probYLabel = pairAwareLabel(chartData.yAxisLabel) || "Probability (%)";
+      option = {
+        color: palette(),
+        tooltip: {
+          trigger: "axis",
+          formatter: (params) => {
+            if (!Array.isArray(params) || params.length === 0) return "";
+            const xVal = params[0].axisValueLabel || params[0].value;
+            const lines = params.map((p) => {
+              const v = p.value;
+              const yVal = Array.isArray(v) ? v[1] : v;
+              return `${p.marker} ${p.seriesName}: ${yVal != null ? Number(yVal).toFixed(4) + "%" : "--"}`;
+            });
+            return `Price: ${xVal}<br>` + lines.join("<br>");
+          },
+        },
+        legend: { bottom: 2, textStyle: { color: chartTextColor() } },
+        grid: { left: 60, right: 18, top: 30, bottom: probXLabel ? 72 : 60, containLabel: true },
+        xAxis: {
+          type: "category",
+          data: (chartData.x || []).map(String),
+          name: probXLabel,
+          nameLocation: "center",
+          nameGap: 28,
+          nameTextStyle: { color: chartTextColor(), fontSize: 11 },
+          axisLabel: { color: chartTextColor(), fontSize: 10 },
+          axisLine: { lineStyle: { color: chartTextColor() } },
+        },
+        yAxis: {
+          type: "log",
+          name: probYLabel,
+          nameTextStyle: { color: chartTextColor(), fontSize: 11 },
+          axisLabel: {
+            color: chartTextColor(),
+            fontSize: 10,
+            formatter: (v) => {
+              if (v >= 1) return v.toFixed(0) + "%";
+              if (v >= 0.1) return v.toFixed(1) + "%";
+              if (v >= 0.01) return v.toFixed(2) + "%";
+              return v.toFixed(3) + "%";
+            },
+          },
+          axisLine: { lineStyle: { color: chartTextColor() } },
+          splitLine: { lineStyle: { color: chartTextColor(), opacity: 0.15 } },
+          min: 0.001,
+        },
+        series: (chartData.series || []).map((s) => ({
+          name: s.name,
+          type: "line",
+          step: s.step || false,
+          showSymbol: true,
+          symbolSize: 8,
+          data: s.data || [],
+          lineStyle: { color: s.color || "#ae82ff", width: 2 },
+          itemStyle: { color: s.color || "#ae82ff" },
+        })),
+        dataZoom: [
+          { type: "inside", xAxisIndex: 0, filterMode: "none" },
+          { type: "slider", xAxisIndex: 0, bottom: 24, height: 18, borderColor: "transparent",
+            fillerColor: "rgba(80,80,120,0.25)", handleSize: "60%", textStyle: { color: chartTextColor(), fontSize: 10 } },
+        ],
+      };
     } else if (chartData.chart === "pie") {
       const slices = (chartData.slices || [])
         .map((s, i) => ({
@@ -2357,7 +2445,7 @@
           }
         }
       }
-      if (leftLinkedZoomWidgets.has(widgetId)) {
+      if (isTickLinkedWidget(widgetId)) {
         option.dataZoom = [
           {
             type: "inside",
@@ -2665,6 +2753,18 @@
           end: focusedTickZoom.end,
         });
       }
+    } else if (raLinkedZoomRay.has(widgetId)) {
+      instance.group = linkedGroups.raRay;
+      echarts.connect(linkedGroups.raRay);
+    } else if (raLinkedZoomOrca.has(widgetId)) {
+      instance.group = linkedGroups.raOrca;
+      echarts.connect(linkedGroups.raOrca);
+    } else if (raLinkedZoomXpRay.has(widgetId)) {
+      instance.group = linkedGroups.raXpRay;
+      echarts.connect(linkedGroups.raXpRay);
+    } else if (raLinkedZoomXpOrca.has(widgetId)) {
+      instance.group = linkedGroups.raXpOrca;
+      echarts.connect(linkedGroups.raXpOrca);
     } else {
       const tsGroupId = getTimeseriesGroupId(widgetId);
       if (tsGroupId) {
@@ -2785,6 +2885,9 @@
     }
 
     renderChart(widgetId, payload.data);
+    if (widgetId === "ra-stress-test") {
+      hydrateStressAssetOptions(payload.data);
+    }
   }
 
   function updateTimestamp(widgetId, generatedAt) {
@@ -2905,6 +3008,16 @@
       const payload = await response.json();
       protocolPairs = payload.protocol_pairs || [];
       const protocols = payload.protocols || protocolPairs.map((item) => item.protocol);
+
+      if (defaults && defaults.protocol && !protocols.includes(defaults.protocol)) {
+        protocols.unshift(defaults.protocol);
+      }
+      if (defaults && defaults.protocol && defaults.pair) {
+        if (!protocolPairs.some((pp) => pp.protocol === defaults.protocol && pp.pair === defaults.pair)) {
+          protocolPairs.push({ protocol: defaults.protocol, pair: defaults.pair });
+        }
+      }
+
       setSelectOptions(protocolSelect, protocols, selectedProtocol);
       selectedProtocol = protocolSelect.value || selectedProtocol;
       setSelectOptions(pairSelect, pairsForProtocol(selectedProtocol), selectedPair);
@@ -2914,6 +3027,18 @@
 
     applyGlobalFilters(selectedProtocol, pairSelect.value || selectedPair, currentLastWindow(), false);
     applyPairAwarePanelTitles();
+    refreshPairDependentLabels();
+  }
+
+  function refreshPairDependentLabels() {
+    const { token0, token1 } = currentPairTokens();
+    const flowSelect = document.getElementById("swaps-flow-mode");
+    if (flowSelect) {
+      const t0 = flowSelect.querySelector('option[value="usx"]');
+      const t1 = flowSelect.querySelector('option[value="usdc"]');
+      if (t0) t0.textContent = token0;
+      if (t1) t1.textContent = token1;
+    }
   }
 
   async function refreshAfterPipelineSwitch(defaults) {
@@ -3471,6 +3596,23 @@
     if (sourceEl.dataset.widgetId === "health-base-chart-events" || sourceEl.dataset.widgetId === "health-base-chart-accounts") {
       event.detail.parameters.health_base_schema = sourceEl.dataset.healthBaseSchema || "dexes";
     }
+    const wid = sourceEl.dataset.widgetId || "";
+    if (RA_SECTION1_WIDGETS.has(wid)) {
+      const etSel = document.getElementById("ra-event-type");
+      const ivSel = document.getElementById("ra-interval-size");
+      if (etSel) event.detail.parameters.risk_event_type = etSel.value;
+      if (ivSel) event.detail.parameters.risk_interval = ivSel.value;
+    }
+    if (RA_SECTION2_WIDGETS.has(wid)) {
+      const lsSel = document.getElementById("ra-liq-scenario");
+      if (lsSel) event.detail.parameters.risk_liq_scenario = lsSel.value;
+    }
+    if (wid === "ra-stress-test" || wid === "ra-sensitivity-table") {
+      const cSel = document.getElementById("ra-stress-collateral");
+      const dSel = document.getElementById("ra-stress-debt");
+      if (cSel) event.detail.parameters.risk_stress_collateral = cSel.value;
+      if (dSel) event.detail.parameters.risk_stress_debt = dSel.value;
+    }
   });
 
   document.body.addEventListener("htmx:beforeRequest", (event) => {
@@ -4004,6 +4146,106 @@
     poll();
   }
 
+  // ── Risk Analysis page filter initialisation ──
+
+  const RA_SECTION1_WIDGETS = new Set([
+    "ra-pvalue-tables",
+    "ra-liq-dist-ray", "ra-liq-dist-orca",
+    "ra-liq-depth-ray", "ra-liq-depth-orca",
+    "ra-prob-ray", "ra-prob-orca",
+  ]);
+  const RA_SECTION2_WIDGETS = new Set([
+    "ra-xp-exposure",
+    "ra-xp-dist-ray", "ra-xp-dist-orca",
+    "ra-xp-depth-ray", "ra-xp-depth-orca",
+  ]);
+
+  function initRiskEventTypeToggle() {
+    const eventSelect = document.getElementById("ra-event-type");
+    const intervalSelect = document.getElementById("ra-interval-size");
+    if (!eventSelect) return;
+
+    function syncIntervalVisibility() {
+      const isSingle = eventSelect.value === "Single Swaps";
+      const sepEl = document.querySelector(".ra-interval-sep");
+      const lblEl = document.querySelector(".ra-interval-label");
+      const selEl = document.querySelector(".ra-interval-select");
+      if (sepEl) sepEl.style.display = isSingle ? "none" : "";
+      if (lblEl) lblEl.style.display = isSingle ? "none" : "";
+      if (selEl) selEl.style.display = isSingle ? "none" : "";
+    }
+    syncIntervalVisibility();
+
+    eventSelect.addEventListener("change", () => {
+      syncIntervalVisibility();
+      RA_SECTION1_WIDGETS.forEach((wid) => {
+        const el = document.getElementById(`widget-${wid}`);
+        if (el) resetWidgetView(el);
+      });
+      htmx.trigger(document.body, "risk-event-type-change");
+    });
+
+    if (intervalSelect) {
+      intervalSelect.addEventListener("change", () => {
+        RA_SECTION1_WIDGETS.forEach((wid) => {
+          const el = document.getElementById(`widget-${wid}`);
+          if (el) resetWidgetView(el);
+        });
+        htmx.trigger(document.body, "risk-interval-change");
+      });
+    }
+  }
+
+  function initRiskLiqScenarioToggle() {
+    const sel = document.getElementById("ra-liq-scenario");
+    if (!sel) return;
+    sel.addEventListener("change", () => {
+      RA_SECTION2_WIDGETS.forEach((wid) => {
+        const el = document.getElementById(`widget-${wid}`);
+        if (el) resetWidgetView(el);
+      });
+      htmx.trigger(document.body, "risk-liq-scenario-change");
+    });
+  }
+
+  function initRiskStressAssetToggles() {
+    const collSel = document.getElementById("ra-stress-collateral");
+    const debtSel = document.getElementById("ra-stress-debt");
+    const widget = document.getElementById("widget-ra-stress-test");
+    if (!widget) return;
+
+    function fireChange() {
+      resetWidgetView(widget);
+      htmx.trigger(document.body, "risk-stress-asset-change");
+    }
+    if (collSel) collSel.addEventListener("change", fireChange);
+    if (debtSel) debtSel.addEventListener("change", fireChange);
+  }
+
+  function hydrateStressAssetOptions(data) {
+    const opts = data?.asset_options;
+    if (!opts) return;
+    const collSel = document.getElementById("ra-stress-collateral");
+    const debtSel = document.getElementById("ra-stress-debt");
+    function populateSelect(sel, items) {
+      if (!sel || !Array.isArray(items)) return;
+      const current = sel.value;
+      const existingValues = new Set(Array.from(sel.options).map((o) => o.value));
+      items.forEach((sym) => {
+        if (!existingValues.has(sym)) {
+          const opt = document.createElement("option");
+          opt.value = sym;
+          opt.textContent = sym;
+          sel.appendChild(opt);
+          existingValues.add(sym);
+        }
+      });
+      if (current) sel.value = current;
+    }
+    populateSelect(collSel, opts.collateral);
+    populateSelect(debtSel, opts.debt);
+  }
+
   function initTooltipPositioning() {
     document.addEventListener("mouseover", (e) => {
       const wrap = e.target.closest(".info-tip-wrap");
@@ -4050,6 +4292,9 @@
     initFilters();
     initHealthIndicator();
     initTooltipPositioning();
+    initRiskEventTypeToggle();
+    initRiskLiqScenarioToggle();
+    initRiskStressAssetToggles();
     if (window.mermaid) {
       mermaid.initialize({ startOnLoad: false, theme: "dark" });
     }

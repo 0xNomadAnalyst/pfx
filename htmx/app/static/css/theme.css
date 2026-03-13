@@ -1643,7 +1643,26 @@ html[data-theme="light"] .bottombar-partner {
    Cover page — dashboard-native layout
    ══════════════════════════════════════════════════════ */
 
-/* Section headers reuse .ge-section-header styling (grid-column: 1/13). */
+:root {
+  --cv-accent: #f0a020;
+  --cv-accent-soft: #f8a94a;
+  --cv-accent-dim: #e8853d;
+}
+
+/* Section headers on the cover page use the warm accent tone. */
+.cv-section-header .ge-section-title {
+  color: var(--cv-accent-soft);
+}
+
+.cv-section-header::after {
+  background: color-mix(in srgb, var(--cv-accent) 35%, var(--border));
+}
+
+/* Welcome panel title */
+.cv-welcome-title {
+  color: var(--cv-accent);
+  font-size: 14px;
+}
 
 /* Grid slots — positioned inside the standard 12-col dashboard-grid. */
 .cv-slot-full-1  { grid-column: 1 / 13; }
@@ -1711,8 +1730,8 @@ html[data-theme="light"] .bottombar-partner {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--cv-accent) 15%, transparent);
+  color: var(--cv-accent-soft);
   margin-bottom: 6px;
 }
 
@@ -1725,11 +1744,11 @@ html[data-theme="light"] .bottombar-partner {
 }
 
 .cv-page-link:hover {
-  border-color: var(--accent);
+  border-color: var(--cv-accent);
 }
 
 .cv-page-link .panel-header h3 {
-  color: var(--accent);
+  color: var(--cv-accent-soft);
 }
 
 /* Pipeline flow (horizontal numbered steps) */
@@ -1762,8 +1781,8 @@ html[data-theme="light"] .bottombar-partner {
   border-radius: 50%;
   font-size: 12px;
   font-weight: 700;
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--cv-accent) 18%, transparent);
+  color: var(--cv-accent);
 }
 
 .cv-pipeline-step h4 {

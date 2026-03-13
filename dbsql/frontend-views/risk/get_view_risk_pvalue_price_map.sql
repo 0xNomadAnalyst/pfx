@@ -1,0 +1,27 @@
+-- ============================================================================
+-- RISK: P-Value to Price Impact Mapping
+-- ============================================================================
+-- This mapping is currently computed in the Python API layer
+-- (RiskAnalysisPageService._map_sell_amount_to_price) rather than in SQL,
+-- because it requires composing data from two different functions:
+--
+--   1. dexes.get_view_dex_risk_pvalues(protocol, pair, event_type, interval)
+--      → returns (stat_name, value) where value is a USX sell amount
+--
+--   2. dexes.get_view_tick_dist_simple(protocol, pair, delta_time)
+--      → returns tick-level liquidity distribution
+--
+-- The API walks downside ticks consuming USX liquidity (token1_value at each
+-- tick below current_price) to determine the price reached after selling
+-- the given USX amount.  The result is:
+--
+--   (stat_name, sell_amount_usx, implied_price, probability_pct)
+--
+-- where probability_pct = 100 - percentile (e.g. p99 → 1%).
+--
+-- If performance requires moving this to SQL, create a function here that:
+--   1. Fetches p-value rows for the given protocol/pair/event_type/interval
+--   2. Fetches tick distribution rows for the same protocol/pair
+--   3. For each p-value, walks ticks downward accumulating liquidity
+--   4. Returns the mapping table
+-- ============================================================================
