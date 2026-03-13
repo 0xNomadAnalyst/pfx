@@ -155,5 +155,16 @@ PAGE_CONFIG = PageConfig(
             "or collateral would need to fall, before debt becomes unhealthy. "
             "Filter by collateral and debt assets to isolate specific risk exposures.",
         ),
+
+        WidgetConfig(
+            "ra-cascade",
+            "Liquidation Cascade Amplification",
+            "chart",
+            "panel panel-large ra-slot-s3-cascade",
+            tooltip="Second-order effects of collateral liquidation on DEX pools. "
+            "Shows how sell pressure from liquidations pushes collateral prices down "
+            "further, potentially triggering additional liquidations. "
+            "Uses the collateral/debt filters from the stress test above.",
+        ),
     ],
 )

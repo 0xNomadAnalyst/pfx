@@ -108,6 +108,7 @@ def get_widget(
     risk_liq_source: Annotated[str, Query()] = "all",
     risk_stress_collateral: Annotated[str, Query()] = "",
     risk_stress_debt: Annotated[str, Query()] = "",
+    risk_cascade_pool: Annotated[str, Query()] = "weighted",
     svc: DataService = Depends(get_data_service),
 ) -> WidgetResponse:
     params = {
@@ -133,6 +134,7 @@ def get_widget(
         "risk_liq_source": risk_liq_source,
         "risk_stress_collateral": risk_stress_collateral,
         "risk_stress_debt": risk_stress_debt,
+        "risk_cascade_pool": risk_cascade_pool,
     }
     try:
         payload = svc.get_widget_data(page=page, widget_id=widget, params=params)

@@ -43,6 +43,7 @@ class RiskAnalysisPageService(BasePageService):
             # Section 3
             "ra-stress-test": self._ra_stress_test,
             "ra-sensitivity-table": self._ra_sensitivity_table,
+            "ra-cascade": self._ra_cascade,
         }
 
     # ------------------------------------------------------------------
@@ -148,7 +149,8 @@ class RiskAnalysisPageService(BasePageService):
             try:
                 rows = self.sql.fetch_rows(
                     "SELECT "
-                    "  reserve_coll_all_symbols_array, reserve_brw_all_symbols_array "
+                    "  reserve_coll_all_symbols_array, reserve_brw_all_symbols_array, "
+                    "  reserve_coll_all_shares_pct_array, reserve_brw_all_shares_pct_array "
                     "FROM kamino_lend.v_last LIMIT 1"
                 )
                 return rows[0] if rows else {}
@@ -163,6 +165,8 @@ class RiskAnalysisPageService(BasePageService):
 
         def _load() -> list[dict[str, Any]]:
             try:
+                coll_param = [coll_asset] if coll_asset else None
+                debt_param = [debt_asset] if debt_asset else None
                 return self.sql.fetch_rows(
                     "SELECT "
                     "  step_number, pct_change, "
@@ -170,8 +174,10 @@ class RiskAnalysisPageService(BasePageService):
                     "  unhealthy_debt, bad_debt, total_liquidatable_value, "
                     "  liquidation_distance_to_healthy, "
                     "  unhealthy_debt_less_liquidatable_part, bad_debt_less_liquidatable_part "
-                    "FROM kamino_lend.get_view_klend_sensitivities(NULL, -100, 50, 100, 50, FALSE) "
-                    "ORDER BY step_number"
+                    "FROM kamino_lend.get_view_klend_sensitivities("
+                    "  NULL, -100, 50, 100, 50, FALSE, %s, %s"
+                    ") ORDER BY step_number",
+                    (coll_param, debt_param),
                 )
             except Exception as exc:
                 logger.warning("_sensitivity_rows query failed: %s", exc)
@@ -752,9 +758,17 @@ class RiskAnalysisPageService(BasePageService):
                     "color": "#28c987",
                 })
 
+        coll_pcts = [self._ff(v) for v in (last.get("reserve_coll_all_shares_pct_array") or [])]
+        brw_pcts = [self._ff(v) for v in (last.get("reserve_brw_all_shares_pct_array") or [])]
         asset_options = {
-            "collateral": coll_list,
-            "debt": brw_list,
+            "collateral": [
+                {"symbol": s, "pct": coll_pcts[i] if i < len(coll_pcts) else 0}
+                for i, s in enumerate(coll_list)
+            ],
+            "debt": [
+                {"symbol": s, "pct": brw_pcts[i] if i < len(brw_pcts) else 0}
+                for i, s in enumerate(brw_list)
+            ],
         }
 
         return {
@@ -792,4 +806,173 @@ class RiskAnalysisPageService(BasePageService):
                 {"key": "liquidation_distance_to_healthy", "label": "Liquidations to HF=1"},
             ],
             "rows": rows,
+        }
+
+    # ------------------------------------------------------------------
+    # Cascade Amplification
+    # ------------------------------------------------------------------
+
+    _CASCADE_TTL_SECONDS = float(os.getenv("RA_CASCADE_TTL_SECONDS", "120"))
+
+    def _tracked_pools_for_symbol(self, symbol: str) -> list[dict[str, Any]]:
+        """Return DEX pools that track the given token symbol.
+
+        Dynamically queries dexes.pool_tokens_reference -- returns empty list
+        if no pools are monitored for this symbol.
+        """
+        cache_key = f"ra::cascade_pools::{symbol}"
+
+        def _load() -> list[dict[str, Any]]:
+            try:
+                return self.sql.fetch_rows(
+                    "SELECT pool_address, token0_symbol, token1_symbol, "
+                    "  CASE WHEN token0_symbol = %s THEN 't0' ELSE 't1' END AS token_side "
+                    "FROM dexes.pool_tokens_reference "
+                    "WHERE token0_symbol = %s OR token1_symbol = %s",
+                    (symbol, symbol, symbol),
+                )
+            except Exception as exc:
+                logger.warning("_tracked_pools_for_symbol failed for %s: %s", symbol, exc)
+                return []
+
+        return self._cached(cache_key, _load, ttl_seconds=self._POOL_REF_TTL_SECONDS)
+
+    def _cascade_rows(
+        self, coll_symbol: str, pool_mode: str,
+    ) -> list[dict[str, Any]]:
+        cache_key = f"ra::cascade::{coll_symbol}::{pool_mode}"
+
+        def _load() -> list[dict[str, Any]]:
+            try:
+                return self.sql.fetch_rows(
+                    "SELECT initial_shock_pct, equilibrium_shock_pct, "
+                    "  total_liquidated_usd, induced_coll_decline_pct, "
+                    "  debt_triggered_liq_usd, cascade_triggered_liq_usd, "
+                    "  sell_qty_tokens, pool_depth_used_pct, liq_pct_of_deposits, "
+                    "  pool_address, pool_weight, counter_pair_symbol, pool_impact_pct "
+                    "FROM kamino_lend.simulate_cascade_amplification("
+                    "  NULL, -100, 50, 100, 50, FALSE, "
+                    "  ARRAY[%s], NULL, %s, %s"
+                    ") ORDER BY initial_shock_pct, pool_address",
+                    (coll_symbol, coll_symbol, pool_mode),
+                )
+            except Exception as exc:
+                logger.warning("_cascade_rows query failed (%s/%s): %s", coll_symbol, pool_mode, exc)
+                return []
+
+        return self._cached(cache_key, _load, ttl_seconds=self._CASCADE_TTL_SECONDS)
+
+    def _ra_cascade(self, params: dict[str, Any]) -> dict[str, Any]:
+        coll_asset = str(params.get("risk_stress_collateral", ""))
+        pool_mode = str(params.get("risk_cascade_pool", "weighted"))
+
+        last = self._kamino_v_last_row()
+        coll_list = [str(s) for s in (last.get("reserve_coll_all_symbols_array") or []) if s]
+
+        if not coll_asset:
+            coll_asset = next(
+                (s for s in coll_list if self._tracked_pools_for_symbol(s)),
+                "",
+            )
+
+        tracked_pools = self._tracked_pools_for_symbol(coll_asset) if coll_asset else []
+
+        pool_options: list[dict[str, str]] = [
+            {"value": "weighted", "label": "Weighted (all pools)"},
+        ]
+        for p in tracked_pools:
+            addr = str(p.get("pool_address", ""))
+            side = str(p.get("token_side", ""))
+            counter = str(p.get("token1_symbol") if side == "t0" else p.get("token0_symbol"))
+            pool_options.append({
+                "value": addr,
+                "label": f"{coll_asset}/{counter} only",
+            })
+
+        if not coll_asset or not tracked_pools:
+            msg = "No DEX pools tracked for this collateral asset"
+            if coll_asset:
+                msg = f"No DEX pools tracked for {coll_asset}"
+            elif not coll_list:
+                msg = "No collateral assets found"
+            else:
+                msg = "Select a collateral asset with tracked DEX pools"
+            return {
+                "kind": "chart",
+                "chart": "cascade-analysis",
+                "cascade_message": msg,
+                "pool_options": pool_options,
+                "coll_symbol": coll_asset,
+            }
+
+        rows = self._cascade_rows(coll_asset, pool_mode)
+        if not rows:
+            return {
+                "kind": "chart",
+                "chart": "cascade-analysis",
+                "cascade_message": f"No cascade data returned for {coll_asset}",
+                "pool_options": pool_options,
+                "coll_symbol": coll_asset,
+            }
+
+        pools_in_data = sorted(set(str(r.get("pool_address", "")) for r in rows))
+        pool_meta: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            pa = str(r.get("pool_address", ""))
+            if pa and pa not in pool_meta:
+                pool_meta[pa] = {
+                    "counter_pair": str(r.get("counter_pair_symbol", "")),
+                    "weight": self._ff(r.get("pool_weight")),
+                }
+
+        x_vals: list[float] = []
+        seen_x: set[float] = set()
+        for r in rows:
+            x = self._ff(r.get("initial_shock_pct"))
+            if x not in seen_x:
+                x_vals.append(x)
+                seen_x.add(x)
+
+        ref_pa = pools_in_data[0] if pools_in_data else ""
+        ref_rows = [r for r in rows if str(r.get("pool_address")) == ref_pa]
+
+        liq_base: list[float] = []
+        liq_cascade: list[float] = []
+        for r in ref_rows:
+            x = self._ff(r.get("initial_shock_pct"))
+            total = self._ff(r.get("total_liquidated_usd"))
+            dliq = self._ff(r.get("debt_triggered_liq_usd"))
+            cliq = self._ff(r.get("cascade_triggered_liq_usd"))
+            if x <= 0:
+                liq_base.append(total)
+                liq_cascade.append(0)
+            else:
+                liq_base.append(dliq)
+                liq_cascade.append(cliq)
+
+        pool_series: list[dict[str, Any]] = []
+        for pa in pools_in_data:
+            meta = pool_meta.get(pa, {})
+            p_rows = [r for r in rows if str(r.get("pool_address")) == pa]
+            impact_data = [self._ff(r.get("pool_impact_pct")) for r in p_rows]
+            depth_data = [self._ff(r.get("pool_depth_used_pct")) for r in p_rows]
+            qty_data = [self._ff(r.get("sell_qty_tokens")) for r in p_rows]
+            pool_series.append({
+                "pool_address": pa,
+                "counter_pair": meta.get("counter_pair", ""),
+                "weight": meta.get("weight", 0),
+                "impact_pct": impact_data,
+                "depth_used_pct": depth_data,
+                "sell_qty_tokens": qty_data,
+            })
+
+        return {
+            "kind": "chart",
+            "chart": "cascade-analysis",
+            "coll_symbol": coll_asset,
+            "pool_options": pool_options,
+            "x": x_vals,
+            "liq_base": liq_base,
+            "liq_cascade": liq_cascade,
+            "pools": pool_series,
         }

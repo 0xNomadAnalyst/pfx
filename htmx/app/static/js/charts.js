@@ -1320,6 +1320,7 @@
       const xLabels = (data.x || []).map(String);
       const isDark = document.documentElement.getAttribute("data-theme") !== "light";
       const labelBg = isDark ? "rgba(0,0,0,0.65)" : "rgba(255,255,255,0.85)";
+      const xLen = xLabels.length;
       option.series[0].markLine = {
         silent: true,
         symbol: "none",
@@ -1328,6 +1329,8 @@
             const diff = Math.abs(parseFloat(lbl) - ml.value);
             return diff < best.diff ? { idx, diff } : best;
           }, { idx: 0, diff: Infinity });
+          const nearRight = xLen > 0 && closest.idx > xLen * 0.8;
+          const nearLeft = xLen > 0 && closest.idx < xLen * 0.2;
           return {
             xAxis: closest.idx,
             lineStyle: { type: "dashed", color: ml.color || "#aaa", width: 2 },
@@ -1335,6 +1338,7 @@
               show: true,
               formatter: ml.label,
               position: "end",
+              align: nearRight ? "right" : nearLeft ? "left" : "center",
               color: ml.color || "#aaa",
               fontSize: 12,
               fontWeight: "bold",
@@ -2239,6 +2243,235 @@
           },
         ];
       }
+    } else if (chartData.chart === "cascade-analysis") {
+      const cascadeMinH = 200 * (1 + (chartData.pools || []).length) + 50;
+      if (el.offsetHeight < cascadeMinH) {
+        el.style.minHeight = cascadeMinH + "px";
+        instance.resize();
+      }
+      if (chartData.cascade_message) {
+        instance.clear();
+        instance.setOption({
+          graphic: [{
+            type: "text",
+            left: "center",
+            top: "middle",
+            style: {
+              text: chartData.cascade_message,
+              fill: chartTextColor(),
+              fontSize: 14,
+              fontWeight: "normal",
+            },
+          }],
+        });
+        chartState.set(widgetId, { instance, data });
+        return;
+      }
+      const cx = chartData.x || [];
+      const pools = chartData.pools || [];
+      const nPools = pools.length;
+      const nPanels = 1 + nPools;
+      const cascColors = ["#ff6b6b", "#ffbb55", "#6bc4a6", "#ae82ff"];
+      const grids = [];
+      const xAxes = [];
+      const yAxes = [];
+      const series = [];
+      const legendH = 32;
+      const xLabelH = 28;
+      const gapPx = 36;
+      const topPx = 8;
+      const usableH = 100;
+      const gapPct = (gapPx / 4.8);
+      const reservedPct = ((topPx + legendH + xLabelH) / 4.8) + gapPct * (nPanels - 1);
+      const panelH = Math.max(18, Math.floor((usableH - reservedPct) / nPanels));
+      const topStartPct = (topPx / 4.8);
+      for (let g = 0; g < nPanels; g++) {
+        const panelTop = topStartPct + g * (panelH + gapPct);
+        grids.push({
+          left: 60, right: 18,
+          top: `${panelTop}%`,
+          height: `${panelH}%`,
+          containLabel: true,
+        });
+        const isLast = g === nPanels - 1;
+        xAxes.push({
+          type: "category", gridIndex: g, data: cx,
+          axisLine: { lineStyle: { color: chartGridColor() } },
+          axisLabel: isLast
+            ? { color: chartTextColor(), fontSize: 10,
+                formatter: (v) => { const n = Number(v); return Number.isFinite(n) ? (n >= 0 ? "+" : "") + (n % 1 === 0 ? n.toFixed(0) : n.toFixed(1)) : v; },
+                interval: (idx, value) => { const n = Number(value); if (n === 0) return true; return Number.isFinite(n) && Math.abs(n % 10) < 0.01; },
+              }
+            : { show: false },
+          axisTick: { show: false },
+          splitLine: { show: false },
+          name: isLast ? "Price Change (%)" : undefined,
+          nameLocation: "middle",
+          nameGap: isLast ? 20 : undefined,
+          nameTextStyle: isLast ? { color: chartTextColor(), fontSize: 11 } : undefined,
+        });
+      }
+      yAxes.push({
+        type: "value", gridIndex: 0, name: "Liq. Value ($M)",
+        nameLocation: "middle", nameGap: 50,
+        nameTextStyle: { color: "#e8a838", fontSize: 10 },
+        axisLine: { lineStyle: { color: "#e8a838" } },
+        axisLabel: { color: "#e8a838", fontSize: 10,
+          formatter: (v) => "$" + (v / 1e6).toFixed(1) + "M" },
+        splitLine: { lineStyle: { color: chartGridColor(), opacity: 0.2 } },
+      });
+      yAxes.push({
+        type: "value", gridIndex: 0, name: "Depth (%)",
+        nameLocation: "middle", nameGap: 36,
+        nameTextStyle: { color: chartTextColor(), fontSize: 9 },
+        axisLine: { lineStyle: { color: chartGridColor() } },
+        axisLabel: { color: chartTextColor(), fontSize: 9 },
+        splitLine: { show: false },
+      });
+      const baseLiq = chartData.liq_base || [];
+      const cascLiq = chartData.liq_cascade || [];
+      series.push({
+        name: "Liquidated Value", type: "line", xAxisIndex: 0, yAxisIndex: 0,
+        data: baseLiq, areaStyle: { opacity: 0.25 },
+        lineStyle: { color: "#e8a838", width: 1.5 },
+        itemStyle: { color: "#e8a838" }, symbol: "none",
+      });
+      series.push({
+        name: "Cascade Add'l", type: "line", xAxisIndex: 0, yAxisIndex: 0,
+        data: baseLiq.map((b, i) => b + (cascLiq[i] || 0)),
+        areaStyle: { opacity: 0.35 },
+        lineStyle: { color: "#5599dd", width: 1 },
+        itemStyle: { color: "#5599dd" }, symbol: "none",
+      });
+      pools.forEach((pool, pi) => {
+        const col = cascColors[pi % cascColors.length];
+        const lbl = `${chartData.coll_symbol}/${pool.counter_pair} (${(pool.weight * 100).toFixed(0)}%)`;
+        series.push({
+          name: `Depth: ${lbl}`,
+          type: "line", xAxisIndex: 0, yAxisIndex: 1,
+          data: pool.depth_used_pct, lineStyle: { color: col, width: 1.2, opacity: 0.6 },
+          itemStyle: { color: col }, symbol: "none",
+        });
+      });
+      series.push({
+        name: "100% depth ref", type: "line", xAxisIndex: 0, yAxisIndex: 1,
+        data: cx.map(() => 100), lineStyle: { color: "#ffffff", width: 1, type: "dotted", opacity: 0.35 },
+        symbol: "none", silent: true,
+      });
+      pools.forEach((pool, pi) => {
+        const gIdx = 1 + pi;
+        const col = cascColors[pi % cascColors.length];
+        const lbl = `${chartData.coll_symbol}/${pool.counter_pair} (${(pool.weight * 100).toFixed(0)}%)`;
+        yAxes.push({
+          type: "value", gridIndex: gIdx,
+          name: `Impact: ${lbl}`,
+          nameLocation: "middle", nameGap: 50,
+          nameTextStyle: { color: col, fontSize: 10 },
+          axisLine: { lineStyle: { color: col } },
+          axisLabel: { color: col, fontSize: 10,
+            formatter: (v) => `${Math.abs(v).toFixed(1)}%` },
+          splitLine: { lineStyle: { color: chartGridColor(), opacity: 0.15 } },
+          inverse: true,
+        });
+        const impactData = pool.impact_pct || [];
+        const exogData = cx.map((x) => x <= 0 ? x : 0);
+        series.push({
+          name: `Exog. shock (${pool.counter_pair})`, type: "line",
+          xAxisIndex: gIdx, yAxisIndex: 2 + pi,
+          data: exogData,
+          areaStyle: { opacity: 0.1, color: col },
+          lineStyle: { color: "#888899", width: 1, type: "dotted", opacity: 0.6 },
+          itemStyle: { color: col }, symbol: "none",
+        });
+        const totalData = cx.map((x, i) => {
+          if (x <= 0) return exogData[i] + impactData[i];
+          return impactData[i];
+        });
+        const leftPeakIdx = totalData.reduce((best, v, i) => {
+          const n = Number(cx[i]);
+          return (n <= 0 && Math.abs(v) > Math.abs(totalData[best])) ? i : best;
+        }, 0);
+        const rightPeakIdx = totalData.reduce((best, v, i) => {
+          const n = Number(cx[i]);
+          return (n > 0 && Math.abs(v) > Math.abs(totalData[best])) ? i : best;
+        }, cx.findIndex((x) => Number(x) > 0) || 0);
+        const leftPeakVal = totalData[leftPeakIdx];
+        const rightPeakVal = totalData[rightPeakIdx];
+        const impactMarks = [];
+        if (Number.isFinite(rightPeakVal) && Math.abs(rightPeakVal) > 0.005) {
+          impactMarks.push({
+            coord: [rightPeakIdx, rightPeakVal],
+            symbol: "arrow", symbolSize: [16, 20], symbolRotate: 180,
+            itemStyle: { color: col, opacity: 0.9 },
+            label: { show: true, formatter: `${Math.abs(rightPeakVal).toFixed(2)}%`,
+              color: col, fontSize: 9, fontWeight: "bold",
+              position: "right", distance: 6,
+              backgroundColor: "rgba(10,16,32,0.7)", padding: [2, 4], borderRadius: 2 },
+          });
+        }
+        series.push({
+          name: `Total impact (${pool.counter_pair})`, type: "line",
+          xAxisIndex: gIdx, yAxisIndex: 2 + pi,
+          data: totalData,
+          areaStyle: { opacity: 0.3, color: col },
+          lineStyle: { color: col, width: 2 },
+          itemStyle: { color: col }, symbol: "none",
+          markPoint: impactMarks.length > 0 ? { data: impactMarks, silent: true } : undefined,
+        });
+      });
+      const cascTc = chartTextColor();
+      const cascSubTc = document.documentElement.getAttribute("data-theme") === "light" ? "#8899aa" : "#6b7a8d";
+      const cascGraphic = [
+        {
+          type: "text", left: 8, top: 2,
+          style: {
+            text: `\u2190  Collateral Price Decline`,
+            fill: cascTc, fontSize: 10,
+          },
+        },
+        {
+          type: "text", right: 8, top: 2,
+          style: {
+            text: `Debt Value Increase  \u2192`,
+            fill: cascTc, fontSize: 10, textAlign: "right",
+          },
+        },
+      ];
+      option = {
+        color: ["#e8a838", "#5599dd", ...cascColors],
+        graphic: cascGraphic,
+        legend: {
+          bottom: 2,
+          textStyle: { color: chartTextColor(), fontSize: 10 },
+          type: "scroll",
+          padding: [4, 8],
+        },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "cross" },
+          formatter: (params) => {
+            const items = Array.isArray(params) ? params : [params];
+            if (!items.length) return "";
+            const xVal = items[0].axisValue;
+            let tip = `<b>Shock: ${xVal}%</b><br/>`;
+            items.forEach((it) => {
+              const v = Number(it.value);
+              if (it.seriesName.includes("Liq") || it.seriesName.includes("Cascade")) {
+                tip += `${it.marker} ${it.seriesName}: $${(v / 1e6).toFixed(2)}M<br/>`;
+              } else if (it.seriesName.includes("Depth") || it.seriesName.includes("depth")) {
+                tip += `${it.marker} ${it.seriesName}: ${v.toFixed(1)}%<br/>`;
+              } else if (it.seriesName.includes("impact") || it.seriesName.includes("shock")) {
+                tip += `${it.marker} ${it.seriesName}: ${v.toFixed(3)}%<br/>`;
+              }
+            });
+            return tip;
+          },
+        },
+        grid: grids,
+        xAxis: xAxes,
+        yAxis: yAxes,
+        series,
+      };
     } else if (chartData.chart === "timeline") {
       const bars = chartData.bars || [];
       const nowStr = chartData.now;
@@ -2932,6 +3165,9 @@
     renderChart(widgetId, payload.data);
     if (widgetId === "ra-stress-test") {
       hydrateStressAssetOptions(payload.data);
+    }
+    if (widgetId === "ra-cascade") {
+      hydrateCascadePoolOptions(payload.data);
     }
   }
 
@@ -3652,11 +3888,15 @@
       const lsSel = document.getElementById("ra-liq-source");
       if (lsSel) event.detail.parameters.risk_liq_source = lsSel.value;
     }
-    if (wid === "ra-stress-test" || wid === "ra-sensitivity-table") {
+    if (wid === "ra-stress-test" || wid === "ra-sensitivity-table" || wid === "ra-cascade") {
       const cSel = document.getElementById("ra-stress-collateral");
       const dSel = document.getElementById("ra-stress-debt");
       if (cSel) event.detail.parameters.risk_stress_collateral = cSel.value;
       if (dSel) event.detail.parameters.risk_stress_debt = dSel.value;
+    }
+    if (wid === "ra-cascade") {
+      const pSel = document.getElementById("ra-cascade-pool");
+      if (pSel) event.detail.parameters.risk_cascade_pool = pSel.value;
     }
   });
 
@@ -4294,6 +4534,8 @@
 
     function fireChange() {
       resetWidgetView(widget);
+      const cascadeWidget = document.getElementById("widget-ra-cascade");
+      if (cascadeWidget) resetWidgetView(cascadeWidget);
       htmx.trigger(document.body, "risk-stress-asset-change");
     }
     if (collSel) collSel.addEventListener("change", fireChange);
@@ -4309,19 +4551,47 @@
       if (!sel || !Array.isArray(items)) return;
       const current = sel.value;
       const existingValues = new Set(Array.from(sel.options).map((o) => o.value));
-      items.forEach((sym) => {
-        if (!existingValues.has(sym)) {
-          const opt = document.createElement("option");
-          opt.value = sym;
-          opt.textContent = sym;
-          sel.appendChild(opt);
-          existingValues.add(sym);
-        }
+      items.forEach((item) => {
+        const sym = typeof item === "string" ? item : item.symbol;
+        const pct = typeof item === "object" ? item.pct : null;
+        if (!sym || existingValues.has(sym)) return;
+        const opt = document.createElement("option");
+        opt.value = sym;
+        opt.textContent = pct != null && pct > 0 ? `${sym} - ${pct.toFixed(1)}%` : sym;
+        sel.appendChild(opt);
+        existingValues.add(sym);
       });
       if (current) sel.value = current;
     }
     populateSelect(collSel, opts.collateral);
     populateSelect(debtSel, opts.debt);
+  }
+
+  function hydrateCascadePoolOptions(data) {
+    const poolOpts = data?.pool_options;
+    if (!poolOpts || !Array.isArray(poolOpts)) return;
+    const sel = document.getElementById("ra-cascade-pool");
+    if (!sel) return;
+    const current = sel.value;
+    while (sel.options.length > 0) sel.remove(0);
+    poolOpts.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.value;
+      opt.textContent = p.label;
+      sel.appendChild(opt);
+    });
+    const valid = poolOpts.some((p) => p.value === current);
+    sel.value = valid ? current : "weighted";
+  }
+
+  function initCascadePoolToggle() {
+    const sel = document.getElementById("ra-cascade-pool");
+    const widget = document.getElementById("widget-ra-cascade");
+    if (!sel || !widget) return;
+    sel.addEventListener("change", () => {
+      resetWidgetView(widget);
+      htmx.trigger(document.body, "risk-stress-asset-change");
+    });
   }
 
   function initTooltipPositioning() {
@@ -4373,6 +4643,7 @@
     initRiskEventTypeToggle();
     initRiskLiqSourceToggle();
     initRiskStressAssetToggles();
+    initCascadePoolToggle();
     if (window.mermaid) {
       mermaid.initialize({ startOnLoad: false, theme: "dark" });
     }

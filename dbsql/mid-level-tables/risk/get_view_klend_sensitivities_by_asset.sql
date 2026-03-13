@@ -1,33 +1,12 @@
 -- ============================================================================
 -- RISK: Kamino Sensitivity Analysis Filtered by Asset
 -- ============================================================================
--- The current implementation reuses the existing unfiltered function:
---   kamino_lend.get_view_klend_sensitivities(NULL, -100, 50, 100, 50, FALSE)
+-- IMPLEMENTED: See pfx/dbsql/functions/kamino/get_view_klend_sensitivities_by_asset.sql
 --
--- The collateral/debt asset filter selectors are wired in the UI but the
--- backend currently ignores them and returns full-market sensitivities.
---
--- To implement per-asset filtering, create a new function variant:
---
--- CREATE OR REPLACE FUNCTION kamino_lend.get_view_klend_sensitivities_by_asset(
---     p_query_id BIGINT DEFAULT NULL,
---     assets_delta_bps INTEGER DEFAULT -25,
---     assets_delta_steps INTEGER DEFAULT 20,
---     liabilities_delta_bps INTEGER DEFAULT 25,
---     liabilities_delta_steps INTEGER DEFAULT 10,
---     include_zero_borrows BOOLEAN DEFAULT FALSE,
---     p_collateral_assets TEXT[] DEFAULT NULL,
---     p_debt_assets TEXT[] DEFAULT NULL
--- )
--- RETURNS TABLE ( ... same columns as get_view_klend_sensitivities ... )
---
--- The function would add WHERE clauses to filter obligations by:
---   - Collateral assets: only include obligations whose collateral reserves
---     match any symbol in p_collateral_assets
---   - Debt assets: only include obligations whose borrow reserves match
---     any symbol in p_debt_assets
---   - NULL arrays mean "all assets" (no filter)
---
--- This requires modifying the CTE that loads obligations from
--- kamino_lend.src_acct_obligations to add the asset filter predicates.
+-- This is now an 8-parameter overload of get_view_klend_sensitivities that adds
+-- p_coll_assets TEXT[] and p_lend_assets TEXT[]. The overload resolves symbols
+-- to reserve addresses via aux_market_reserve_tokens and filters obligation_base
+-- using the && (array overlap) operator on deposit_reserve_by_asset and
+-- borrow_reserve_by_asset. NULL arrays mean "all assets" (no filter), making
+-- it backward-compatible with existing 6-parameter calls to the base function.
 -- ============================================================================

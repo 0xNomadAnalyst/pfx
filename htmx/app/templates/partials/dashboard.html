@@ -159,6 +159,12 @@
         <select id="ra-stress-debt" class="filter-select chart-mode-select" aria-label="Debt assets">
           <option value="" selected>All</option>
         </select>
+      {% elif widget.id == "ra-cascade" %}
+        <span class="title-separator">|</span>
+        <span class="title-inline-label">Pool routing:</span>
+        <select id="ra-cascade-pool" class="filter-select chart-mode-select" aria-label="Pool routing mode">
+          <option value="weighted" selected>Weighted (all pools)</option>
+        </select>
       {% endif %}
     </div>
     <span class="panel-updated" id="updated-{{ widget.id }}">loading...</span>
