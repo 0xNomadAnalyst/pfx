@@ -48,14 +48,15 @@ class GlobalEcosystemPageService(BasePageService):
             "ge-issuance-bar": self._issuance_bar,
             "ge-issuance-pie": self._issuance_pie,
             "ge-issuance-time": self._issuance_time,
-            "ge-tvl-bar": self._tvl_bar,
-            "ge-tvl-pie": self._tvl_pie,
-            "ge-tvl-time": self._tvl_time,
             "ge-current-yields": self._current_yields,
             "ge-yields-vs-time": self._yields_vs_time,
-            "ge-tvl-share": self._tvl_share,
+            "ge-tvl-bar": self._tvl_bar,
+            "ge-activity-bar": self._activity_bar,
+            "ge-tvl-pie": self._tvl_pie,
             "ge-activity-pct": self._activity_pct,
+            "ge-tvl-time": self._tvl_time,
             "ge-activity-vol": self._activity_vol,
+            "ge-tvl-share": self._tvl_share,
             "ge-activity-share": self._activity_share,
         }
 
@@ -430,7 +431,14 @@ class GlobalEcosystemPageService(BasePageService):
         }
 
     @staticmethod
+    def _hex_rgba(hex_color: str, alpha: float = 0.35) -> str:
+        h = hex_color.lstrip("#")
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        return f"rgba({r},{g},{b},{alpha})"
+
+    @classmethod
     def _vbar(
+        cls,
         categories: list[str],
         values: list[float],
         colors: list[str],
@@ -438,7 +446,11 @@ class GlobalEcosystemPageService(BasePageService):
         y_format: str = "compact",
     ) -> dict[str, Any]:
         data = [
-            {"value": val, "itemStyle": {"color": col}}
+            {"value": val, "itemStyle": {
+                "color": cls._hex_rgba(col, 0.35),
+                "borderColor": col,
+                "borderWidth": 2,
+            }}
             for val, col in zip(values, colors)
         ]
         return {
@@ -536,6 +548,23 @@ class GlobalEcosystemPageService(BasePageService):
         )
 
     # ------------------------------------------------------------------
+    # Widget: 24hr Activity by Protocol (horizontal bar)
+    # ------------------------------------------------------------------
+
+    def _activity_bar(self, params: dict[str, Any]) -> dict[str, Any]:
+        r = self._interval_row(params)
+        return self._hbar(
+            categories=["DEXes", "Kamino", "Exponent"],
+            values=[
+                self._fv(r.get("dex_total_volume")),
+                self._fv(r.get("kam_total_volume")),
+                self._fv(r.get("exp_total_volume")),
+            ],
+            colors=[_COLORS["blue"], _COLORS["green"], _COLORS["yellow"]],
+            x_label="ONyc",
+        )
+
+    # ------------------------------------------------------------------
     # Widget: ONyc TVL Distribution (pie)
     # ------------------------------------------------------------------
 
@@ -588,7 +617,7 @@ class GlobalEcosystemPageService(BasePageService):
         r = self._v_last()
         by = self._base_yield_snapshot()
         categories = [
-            "Base 24h", "Base 7d", "Base 30d",
+            "ONyc 24h", "ONyc 7d", "ONyc 30d",
             "Kamino Supply", "Exp. Implied",
         ]
         values = [
@@ -620,7 +649,7 @@ class GlobalEcosystemPageService(BasePageService):
             "yAxisLabel": "APY %",
             "yAxisFormat": "pct2",
             "series": [
-                {"name": "Base Token Yield (7d)", "type": "line", "color": _COLORS["orange"],
+                {"name": "ONyc Yield (7d trailing)", "type": "line", "color": _COLORS["orange"],
                  "data": [base_by_time.get(t) for t in x_times]},
                 {"name": "Kamino Supply APY", "type": "line", "color": _COLORS["green"],
                  "data": [row.get("kam_onyc_supply_apy") for row in rows]},

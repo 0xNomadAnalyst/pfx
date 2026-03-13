@@ -62,48 +62,39 @@ PAGE_CONFIG = PageConfig(
             "and Exponent implied APY.",
         ),
 
-        # ── Row 4: ONyc TVL by Protocol (full-width horizontal bar) ──
+        # ── Row 4: TVL bar (left) + Activity bar (right) ──
         WidgetConfig(
             "ge-tvl-bar",
             "ONyc TVL by Protocol",
             "chart",
-            "panel panel-large ge-slot-full-3",
+            "panel panel-large ge-slot-left-3",
             expandable=True,
             tooltip="Total tracked ONyc across DeFi protocols: DEXes, Kamino Lending, "
             "and Exponent. Shows absolute ONyc deployed in each protocol.",
         ),
+        WidgetConfig(
+            "ge-activity-bar",
+            "24hr Activity by Protocol",
+            "chart",
+            "panel panel-large ge-slot-right-3",
+            expandable=True,
+            tooltip="Monitored ONyc activity volumes over the last 24 hours by protocol: "
+            "DEXes, Kamino, and Exponent.",
+        ),
 
-        # ── Row 5: TVL Distribution pie + TVL Over Time ──
+        # ── Row 5: TVL Distribution pie (left) + Activity Distribution pie (right) ──
         WidgetConfig(
             "ge-tvl-pie",
             "ONyc TVL Distribution",
             "chart",
-            "panel panel-large ge-slot-left-3",
+            "panel panel-large ge-slot-left-4",
             expandable=False,
             tooltip="Percentage distribution of tracked ONyc across protocols: "
             "DEXes, Kamino, and Exponent.",
         ),
         WidgetConfig(
-            "ge-tvl-time",
-            "ONyc TVL Over Time",
-            "chart",
-            "panel panel-large ge-slot-right-3",
-            expandable=True,
-            tooltip="Stacked area showing ONyc deployed across DeFi protocols over time.",
-        ),
-
-        # ── Row 6: TVL Share % + Activity Distribution Pie ──
-        WidgetConfig(
-            "ge-tvl-share",
-            "TVL Share by Protocol (%)",
-            "chart",
-            "panel panel-large ge-slot-left-4",
-            expandable=True,
-            tooltip="Percentage of tracked ONyc deployed in each DeFi protocol over time.",
-        ),
-        WidgetConfig(
             "ge-activity-pct",
-            "Monitored Activity Volumes (%)",
+            "Monitored Activity Distribution",
             "chart",
             "panel panel-large ge-slot-right-4",
             expandable=False,
@@ -111,21 +102,39 @@ PAGE_CONFIG = PageConfig(
             "DEXes, Kamino, and Exponent.",
         ),
 
-        # ── Row 7: Activity Volume + Activity Share over time ──
+        # ── Row 6: TVL Over Time (left, absolute) + Activity Volume Over Time (right, absolute) ──
+        WidgetConfig(
+            "ge-tvl-time",
+            "ONyc TVL Over Time",
+            "chart",
+            "panel panel-large ge-slot-left-5",
+            expandable=True,
+            tooltip="Stacked area showing ONyc deployed across DeFi protocols over time.",
+        ),
         WidgetConfig(
             "ge-activity-vol",
             "Activity Volume vs. Time",
             "chart",
-            "panel panel-large ge-slot-left-5",
+            "panel panel-large ge-slot-right-5",
             expandable=True,
             tooltip="Stacked bar chart showing absolute ONyc activity volumes "
             "by protocol over time.",
+        ),
+
+        # ── Row 7: TVL Share % (left, stacked) + Activity Share % (right, stacked) ──
+        WidgetConfig(
+            "ge-tvl-share",
+            "TVL Share by Protocol (%)",
+            "chart",
+            "panel panel-large ge-slot-left-6",
+            expandable=True,
+            tooltip="Percentage of tracked ONyc deployed in each DeFi protocol over time.",
         ),
         WidgetConfig(
             "ge-activity-share",
             "Share of Activity Volume vs. Time",
             "chart",
-            "panel panel-large ge-slot-right-5",
+            "panel panel-large ge-slot-right-6",
             expandable=True,
             tooltip="100% stacked area showing each protocol's share of total "
             "ONyc activity over time.",

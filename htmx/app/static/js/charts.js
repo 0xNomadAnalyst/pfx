@@ -56,10 +56,10 @@
     ])],
     ["linked-ts-global", new Set([
       "ge-issuance-time",
-      "ge-tvl-time",
       "ge-yields-vs-time",
-      "ge-tvl-share",
+      "ge-tvl-time",
       "ge-activity-vol",
+      "ge-tvl-share",
       "ge-activity-share",
     ])],
   ]);
