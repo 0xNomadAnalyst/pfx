@@ -1556,6 +1556,7 @@ html[data-theme="light"] .bottombar-partner {
   flex-wrap: wrap;
 }
 
-.export-context-bar[hidden] {
-  display: none;
+.export-context-bar[hidden],
+.export-control-group[hidden] {
+  display: none !important;
 }

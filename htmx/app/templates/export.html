@@ -271,6 +271,8 @@
     var activeWidgetId = "";
     var lastAppliedScale = 1;
     var marketMetaCache = null;
+    var protocolPairMeta = null;
+    var protocolPairsList = [];
 
     function selectedRatio() {
       var v = ratioSelect.value.split("x");
@@ -364,7 +366,10 @@
 
       for (var i = 0; i < ALL_CTX.length; i++) ALL_CTX[i].hidden = true;
 
-      if (showPP) ctxPP.hidden = false;
+      if (showPP) {
+        ctxPP.hidden = false;
+        ensureProtocolPairMeta();
+      }
       if (showMkt) {
         ctxMkt.hidden = false;
         ensureMarketMeta();
@@ -392,6 +397,82 @@
       widget.dataset.healthBaseSchema = hSchemaEl.value;
     }
 
+    function populateSelect(sel, items, defaultVal, includeNone) {
+      sel.innerHTML = "";
+      if (includeNone) {
+        var none = document.createElement("option");
+        none.value = "__none__";
+        none.textContent = "None";
+        sel.appendChild(none);
+      }
+      for (var i = 0; i < items.length; i++) {
+        var o = document.createElement("option");
+        o.value = items[i];
+        o.textContent = items[i];
+        if (items[i] === defaultVal) o.selected = true;
+        sel.appendChild(o);
+      }
+    }
+
+    function pairsForProtocol(protocol) {
+      return protocolPairsList
+        .filter(function (item) { return item.protocol === protocol; })
+        .map(function (item) { return item.pair; });
+    }
+
+    var protocolSelect = document.getElementById("protocol-select");
+    var pairSelect     = document.getElementById("pair-select");
+
+    function ensureProtocolPairMeta() {
+      if (protocolPairMeta) return;
+      var pl = pipelineSelect ? pipelineSelect.value : "";
+      var qs = pl ? "?_pipeline=" + encodeURIComponent(pl) : "";
+      var base = document.body.dataset.apiBaseUrl || "";
+      fetch(base + "/api/v1/meta" + qs, { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (payload) {
+          if (!payload) return;
+          protocolPairMeta = payload;
+          protocolPairsList = payload.protocol_pairs || [];
+          var protocols = payload.protocols || protocolPairsList.map(function (i) { return i.protocol; });
+          var uniqueProto = [];
+          for (var k = 0; k < protocols.length; k++) {
+            if (uniqueProto.indexOf(protocols[k]) === -1) uniqueProto.push(protocols[k]);
+          }
+          var curProto = protocolSelect.value || "raydium";
+          populateSelect(protocolSelect, uniqueProto, curProto);
+          curProto = protocolSelect.value;
+          var pairs = pairsForProtocol(curProto);
+          populateSelect(pairSelect, pairs, pairSelect.value || (pairs[0] || ""));
+          updateFlowModeLabels();
+        })
+        .catch(function () {});
+    }
+
+    function updateFlowModeLabels() {
+      var pair = pairSelect.value || "";
+      var parts = pair.split("-");
+      var t0 = (parts[0] || "T0").trim();
+      var t1 = (parts[1] || "T1").trim();
+      var flowSel = document.getElementById("export-flow-mode");
+      var opt0 = flowSel.querySelector('option[value="usx"]');
+      var opt1 = flowSel.querySelector('option[value="usdc"]');
+      if (opt0) opt0.textContent = t0;
+      if (opt1) opt1.textContent = t1;
+    }
+
+    protocolSelect.addEventListener("change", function () {
+      var pairs = pairsForProtocol(protocolSelect.value);
+      populateSelect(pairSelect, pairs, pairs[0] || "");
+      updateFlowModeLabels();
+      reloadIfActive();
+    });
+
+    pairSelect.addEventListener("change", function () {
+      updateFlowModeLabels();
+      reloadIfActive();
+    });
+
     function ensureMarketMeta() {
       if (marketMetaCache) return;
       var pl = pipelineSelect ? pipelineSelect.value : "";
@@ -404,21 +485,11 @@
           var meta = payload.data || payload;
           var markets = meta.markets || [];
           marketMetaCache = meta;
-          populateSelect(mkt1Select, markets, meta.selected_mkt1 || "");
-          populateSelect(mkt2Select, markets, meta.selected_mkt2 || "");
+          populateSelect(mkt1Select, markets, meta.selected_mkt1 || "", true);
+          var mkt2Default = meta.selected_mkt2 || (markets.length < 2 ? "__none__" : "");
+          populateSelect(mkt2Select, markets, mkt2Default, true);
         })
         .catch(function () {});
-    }
-
-    function populateSelect(sel, items, defaultVal) {
-      sel.innerHTML = "";
-      for (var i = 0; i < items.length; i++) {
-        var o = document.createElement("option");
-        o.value = items[i];
-        o.textContent = items[i];
-        if (items[i] === defaultVal) o.selected = true;
-        sel.appendChild(o);
-      }
     }
 
     [mkt1Select, mkt2Select].forEach(function (sel) {
@@ -508,9 +579,11 @@
       pipelineSelect.addEventListener("change", function () {
         pipelineSelect.disabled = true;
         marketMetaCache = null;
+        protocolPairMeta = null;
         fetch("/api/switch-pipeline?pipeline=" + encodeURIComponent(pipelineSelect.value), { method: "POST" })
           .then(function () {
             pipelineSelect.disabled = false;
+            if (!ctxPP.hidden) ensureProtocolPairMeta();
             if (!ctxMkt.hidden) ensureMarketMeta();
             reloadIfActive();
           })
