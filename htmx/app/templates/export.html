@@ -532,29 +532,52 @@
       }
     }
 
-    function scaleSpacing(option, factor, spacingFactor) {
-      scaleNumericKeys(option.grid, ["left", "right", "top", "bottom"], spacingFactor);
-      scaleNumericKeys(option.legend, ["bottom", "top", "left", "right", "padding", "itemGap", "itemWidth", "itemHeight"], spacingFactor);
-      scaleNumericKeys(option.xAxis, ["nameGap"], spacingFactor);
-      scaleNumericKeys(option.yAxis, ["nameGap"], spacingFactor);
-      scaleNumericKeys(option.dataZoom, ["bottom", "top", "left", "right", "height"], spacingFactor);
+    var baseOption = null;
 
-      var grids = option.grid ? (Array.isArray(option.grid) ? option.grid : [option.grid]) : [];
-      for (var g = 0; g < grids.length; g++) {
-        if (grids[g]) grids[g].containLabel = true;
-      }
+    function captureBaseOption(inst) {
+      var raw = inst.getOption();
+      baseOption = JSON.parse(JSON.stringify(raw));
     }
 
     function applyFontScale() {
       var inst = echarts.getInstanceByDom(chartCanvas);
       if (!inst) return;
       var targetScale = parseFloat(fontScaleSelect.value) || 1;
-      if (targetScale === lastAppliedScale) return;
-      var factor = targetScale / lastAppliedScale;
-      var spacingFactor = Math.pow(factor, 1.4);
-      var option = inst.getOption();
-      scaleFontSizes(option, factor);
-      scaleSpacing(option, factor, spacingFactor);
+      if (targetScale === 1 && lastAppliedScale === 1) return;
+
+      if (!baseOption) captureBaseOption(inst);
+
+      var option = JSON.parse(JSON.stringify(baseOption));
+
+      if (targetScale !== 1) {
+        scaleFontSizes(option, targetScale);
+
+        var sp = Math.pow(targetScale, 1.5);
+        scaleNumericKeys(option.grid, ["left", "right", "top", "bottom"], sp);
+        scaleNumericKeys(option.legend, ["bottom", "top", "left", "right", "padding", "itemGap", "itemWidth", "itemHeight"], sp);
+        scaleNumericKeys(option.xAxis, ["nameGap"], sp);
+        scaleNumericKeys(option.yAxis, ["nameGap"], sp);
+        scaleNumericKeys(option.dataZoom, ["bottom", "top", "left", "right", "height"], sp);
+
+        var minSide = Math.round(20 * targetScale);
+        var minVert = Math.round(15 * targetScale);
+        var grids = option.grid ? (Array.isArray(option.grid) ? option.grid : [option.grid]) : [];
+        for (var g = 0; g < grids.length; g++) {
+          if (!grids[g]) continue;
+          grids[g].containLabel = true;
+          var sides = ["left", "right"];
+          for (var s = 0; s < sides.length; s++) {
+            if (typeof grids[g][sides[s]] === "number" && grids[g][sides[s]] < minSide)
+              grids[g][sides[s]] = minSide;
+          }
+          var verts = ["top", "bottom"];
+          for (var v = 0; v < verts.length; v++) {
+            if (typeof grids[g][verts[v]] === "number" && grids[g][verts[v]] < minVert)
+              grids[g][verts[v]] = minVert;
+          }
+        }
+      }
+
       inst.setOption(option);
       lastAppliedScale = targetScale;
     }
@@ -564,6 +587,7 @@
       if (!el || el !== widget) return;
       if (!event.detail.successful) return;
       lastAppliedScale = 1;
+      baseOption = null;
       setTimeout(applyFontScale, 50);
     });
 
