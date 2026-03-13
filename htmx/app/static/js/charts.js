@@ -2473,11 +2473,17 @@
         applyLinkedTimeseriesFormat(option);
       }
       if (tickReferenceWidgets.has(widgetId) && Array.isArray(option.series) && option.series.length > 0) {
-        const markLine = buildTickReferenceMarkLine(chartData);
-        if (markLine) {
+        const refMarkLine = buildTickReferenceMarkLine(chartData);
+        if (refMarkLine) {
+          const existing = option.series[0].markLine;
+          const existingData = Array.isArray(existing?.data) ? existing.data : [];
+          const refData = Array.isArray(refMarkLine.data) ? refMarkLine.data : [];
           option.series[0] = {
             ...option.series[0],
-            markLine,
+            markLine: {
+              ...refMarkLine,
+              data: [...refData, ...existingData],
+            },
           };
         }
       }
@@ -4234,6 +4240,12 @@
     }
   }
 
+  function fmtCompact(n) {
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+    if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+    return n.toFixed(0);
+  }
+
   function fetchXpExposureNotice() {
     const notice = document.getElementById("ra-xp-notice");
     if (!notice) return;
@@ -4247,9 +4259,17 @@
         const parts = [];
         if (d.primary && d.primary !== "--") parts.push(d.primary);
         if (d.secondary) parts.push(d.secondary);
-        notice.textContent = parts.join("  ·  ") || "";
+        let html = `<div class="ra-xp-line">${parts.join("  ·  ") || ""}</div>`;
+        const rayLiq = Number(d.ray_downside_liq || 0);
+        const orcaLiq = Number(d.orca_downside_liq || 0);
+        const raySym = d.ray_downside_sym || "USD";
+        const orcaSym = d.orca_downside_sym || "USD";
+        if (rayLiq > 0 || orcaLiq > 0) {
+          html += `<div class="ra-xp-line">Downside liquidity — Raydium: ${fmtCompact(rayLiq)} ${raySym} · Orca: ${fmtCompact(orcaLiq)} ${orcaSym}</div>`;
+        }
+        notice.innerHTML = html;
       })
-      .catch(() => { notice.textContent = ""; });
+      .catch(() => { notice.innerHTML = ""; });
   }
 
   function initRiskLiqSourceToggle() {

@@ -1368,10 +1368,26 @@ td:first-child {
 #widget-ra-xp-exposure {
   min-height: 0 !important;
 }
-.ra-xp-inline-notice {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-secondary, #8899aa);
+#widget-ra-xp-exposure .panel-title-group {
+  flex-wrap: wrap;
+  gap: 4px 0;
+}
+.ra-xp-notice-bar {
+  width: 100%;
+  padding: 2px 0;
+}
+.ra-xp-notice-bar .ra-xp-line {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #e0e8f0);
+  line-height: 1.6;
+}
+.ra-xp-selector-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0 0;
 }
 
 /* Section 2: Downside Price Risk - Cross-Protocol Events */

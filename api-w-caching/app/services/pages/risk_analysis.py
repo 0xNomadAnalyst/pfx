@@ -86,6 +86,12 @@ class RiskAnalysisPageService(BasePageService):
     def _token1(self, protocol: str) -> str:
         return self._pool_ref(protocol).get("token1_symbol") or "USDC"
 
+    _COLOR_ONYC = "#f0a030"
+    _COLOR_COUNTER = "#5470c6"
+
+    def _token_color(self, symbol: str) -> str:
+        return self._COLOR_ONYC if symbol.upper() == "ONYC" else self._COLOR_COUNTER
+
     # ------------------------------------------------------------------
     # Shared data loaders
     # ------------------------------------------------------------------
@@ -239,53 +245,62 @@ class RiskAnalysisPageService(BasePageService):
                 continue
         return min(ticks, key=lambda x: abs(x - raw)) if ticks else raw
 
+    def _sell_is_token1(self, protocol: str | None) -> bool:
+        """True when the non-stablecoin (sell) token is token1 in the pair."""
+        if not protocol:
+            return False
+        ref = self._pool_ref(protocol)
+        t0_sym = ref.get("token0_symbol", "")
+        stables = {"USDC", "USDG", "USDT"}
+        return t0_sym.upper() in stables
+
     def _map_sell_amount_to_price(
         self, tick_rows: list[dict[str, Any]], sell_amount: float,
         protocol: str | None = None,
     ) -> tuple[float | None, bool]:
-        """Walk downside ticks consuming liquidity to find the price reached
-        after selling ``sell_amount`` of the non-stablecoin token.
+        """Walk ticks away from the current price in the direction that a sell
+        of the non-stablecoin token pushes the market.
 
-        In CLMMs, ticks below the current price hold only token0.  The per-tick
-        absorbing capacity (expressed in the sell-token's units) is:
+        * ONyc is token0 (Orca): selling pushes price DOWN  -> walk LEFT
+        * ONyc is token1 (Raydium): selling pushes price UP -> walk RIGHT
 
-        * ``token0_value`` when the sell token **is** token0, or
-        * ``token0_value * tick_price`` when the sell token is token1
-          (converting the stablecoin liquidity to sell-token units).
+        On the impact side the dominant physical token is token1 (RIGHT) or
+        token0 (LEFT); we convert to sell-token units for a fair comparison.
 
-        Returns ``(price, exhausted)`` where *exhausted* is True when the pool
-        runs out of downside liquidity before the full sell amount is absorbed.
+        Returns ``(price, exhausted)`` — *exhausted* is True when liquidity
+        runs out before the full sell amount is absorbed.
         """
         current_price = self._snapped_price(tick_rows)
         if current_price is None or sell_amount <= 0:
             return None, False
 
-        sell_is_token1 = False
-        if protocol:
-            ref = self._pool_ref(protocol)
-            t0_sym = ref.get("token0_symbol", "")
-            t1_sym = ref.get("token1_symbol", "")
-            stables = {"USDC", "USDG", "USDT"}
-            if t0_sym.upper() in stables and t1_sym.upper() not in stables:
-                sell_is_token1 = True
+        sell_t1 = self._sell_is_token1(protocol)
 
-        downside_ticks: list[tuple[float, float]] = []
+        impact_ticks: list[tuple[float, float]] = []
         for r in tick_rows:
             tp = self._ff(r.get("tick_price_t1_per_t0"))
+            if tp <= 0:
+                continue
+            if sell_t1 and tp < current_price:
+                continue
+            if not sell_t1 and tp > current_price:
+                continue
             t0_val = self._ff(r.get("token0_value"))
             t1_val = self._ff(r.get("token1_value"))
-            if tp <= 0 or tp > current_price:
-                continue
-            if sell_is_token1:
-                capacity = t0_val * tp + t1_val
+            if sell_t1:
+                capacity = t1_val + t0_val * tp
             else:
-                capacity = t0_val + t1_val / tp if tp > 0 else t0_val
-            downside_ticks.append((tp, capacity))
-        downside_ticks.sort(key=lambda x: x[0], reverse=True)
+                capacity = t0_val + (t1_val / tp if tp > 0 else 0)
+            impact_ticks.append((tp, capacity))
+
+        if sell_t1:
+            impact_ticks.sort(key=lambda x: x[0])
+        else:
+            impact_ticks.sort(key=lambda x: x[0], reverse=True)
 
         remaining = sell_amount
         last_price = current_price
-        for price, liquidity in downside_ticks:
+        for price, liquidity in impact_ticks:
             if remaining <= 0:
                 break
             remaining -= liquidity
@@ -372,8 +387,8 @@ class RiskAnalysisPageService(BasePageService):
             "reference_lines": {"peg": 1.0, "current_price": current_price},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._token0(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows]},
-                {"name": f"{self._token1(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows]},
+                {"name": f"{self._token0(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows], "color": self._token_color(self._token0(protocol))},
+                {"name": f"{self._token1(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows], "color": self._token_color(self._token1(protocol))},
             ],
         }
 
@@ -411,8 +426,8 @@ class RiskAnalysisPageService(BasePageService):
             "reference_lines": {"peg": 1.0, "current_price": current_price_raw},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._token1(protocol)} Cumulative", "type": "line", "area": True, "data": usdc_cumul},
-                {"name": f"{self._token0(protocol)} Cumulative", "type": "line", "area": True, "data": t0_cumul},
+                {"name": f"{self._token1(protocol)} Cumulative", "type": "line", "area": True, "data": usdc_cumul, "color": self._token_color(self._token1(protocol))},
+                {"name": f"{self._token0(protocol)} Cumulative", "type": "line", "area": True, "data": t0_cumul, "color": self._token_color(self._token0(protocol))},
             ],
         }
 
@@ -481,6 +496,46 @@ class RiskAnalysisPageService(BasePageService):
     # Section 2: Downside Price Risk - Cross-Protocol Events
     # ------------------------------------------------------------------
 
+    def _pool_impact_liquidity(self, protocol: str) -> dict[str, Any]:
+        """Counter-asset liquidity on the sell-impact side of the pool.
+
+        Returns the raw stablecoin balance available to absorb a sell of ONyc,
+        along with the stablecoin symbol.
+        """
+        tick_rows = self._tick_dist_rows(protocol)
+        current_price = self._snapped_price(tick_rows) or 0
+        sell_t1 = self._sell_is_token1(protocol)
+        ref = self._pool_ref(protocol) if protocol else {}
+        if sell_t1:
+            counter_sym = ref.get("token0_symbol", "USD")
+        else:
+            counter_sym = ref.get("token1_symbol", "USD")
+
+        counter_total = 0.0
+        for r in tick_rows:
+            tp = self._ff(r.get("tick_price_t1_per_t0"))
+            if tp <= 0:
+                continue
+            if sell_t1 and tp < current_price:
+                continue
+            if not sell_t1 and tp > current_price:
+                continue
+            t0_val = self._ff(r.get("token0_value"))
+            t1_val = self._ff(r.get("token1_value"))
+            if sell_t1:
+                counter_total += t0_val
+            else:
+                counter_total += t1_val
+        return {"amount": counter_total, "symbol": counter_sym}
+
+    @staticmethod
+    def _fmt_compact(value: float) -> str:
+        if value >= 1e6:
+            return f"{value / 1e6:.1f}M"
+        if value >= 1e3:
+            return f"{value / 1e3:.0f}K"
+        return f"{value:,.0f}"
+
     def _ra_xp_exposure(self, params: dict[str, Any]) -> dict[str, Any]:
         xp = self._xp_last()
         kamino = self._ff(xp.get("onyc_in_kamino"))
@@ -488,19 +543,27 @@ class RiskAnalysisPageService(BasePageService):
         total = self._ff(xp.get("onyc_tracked_total"))
         kam_pct = self._ff(xp.get("onyc_in_kamino_pct"))
         exp_pct = self._ff(xp.get("onyc_in_exponent_pct"))
+        fmt = self._fmt_compact
 
         primary_parts = []
         if kamino > 0:
-            primary_parts.append(f"Kamino: {kamino:,.0f} ONyc ({kam_pct:.1f}%)")
+            primary_parts.append(f"Kamino: {fmt(kamino)} ONyc ({kam_pct:.1f}%)")
         if exponent > 0:
-            primary_parts.append(f"Exponent: {exponent:,.0f} ONyc ({exp_pct:.1f}%)")
+            primary_parts.append(f"Exponent: {fmt(exponent)} ONyc ({exp_pct:.1f}%)")
         primary = " | ".join(primary_parts) if primary_parts else "--"
-        secondary = f"Total tracked: {total:,.0f} ONyc" if total > 0 else ""
+        secondary = f"Total tracked: {fmt(total)} ONyc" if total > 0 else ""
+
+        ray_liq = self._pool_impact_liquidity("raydium")
+        orca_liq = self._pool_impact_liquidity("orca")
 
         return {
             "kind": "kpi",
             "primary": primary,
             "secondary": secondary,
+            "ray_downside_liq": ray_liq["amount"],
+            "ray_downside_sym": ray_liq["symbol"],
+            "orca_downside_liq": orca_liq["amount"],
+            "orca_downside_sym": orca_liq["symbol"],
         }
 
     _XP_LIQUIDATION_PCTS = [1, 5, 10, 20, 50, 100]
@@ -529,28 +592,29 @@ class RiskAnalysisPageService(BasePageService):
             base_amount = kamino + exponent
 
         current_price = self._snapped_price(tick_rows) or 0
-        ref = self._pool_ref(protocol) if protocol else {}
-        t0_sym = ref.get("token0_symbol", "")
-        stables = {"USDC", "USDG", "USDT"}
-        sell_is_token1 = t0_sym.upper() in stables
+        sell_t1 = self._sell_is_token1(protocol)
 
-        total_downside_liq = 0.0
+        total_impact_liq = 0.0
         for r in tick_rows:
             tp = self._ff(r.get("tick_price_t1_per_t0"))
-            if tp <= 0 or tp > current_price:
+            if tp <= 0:
+                continue
+            if sell_t1 and tp < current_price:
+                continue
+            if not sell_t1 and tp > current_price:
                 continue
             t0_val = self._ff(r.get("token0_value"))
             t1_val = self._ff(r.get("token1_value"))
-            if sell_is_token1:
-                total_downside_liq += t0_val * tp + t1_val
+            if sell_t1:
+                total_impact_liq += t1_val + t0_val * tp
             else:
-                total_downside_liq += t0_val + (t1_val / tp if tp > 0 else 0)
+                total_impact_liq += t0_val + (t1_val / tp if tp > 0 else 0)
 
         logger.info(
             "xp_mark_lines: protocol=%s source=%s base_amount=%.2f "
-            "total_downside_liq=%.2f sell_is_t1=%s ticks=%d",
-            protocol, source, base_amount, total_downside_liq,
-            sell_is_token1, len(tick_rows),
+            "total_impact_liq=%.2f sell_is_t1=%s ticks=%d",
+            protocol, source, base_amount, total_impact_liq,
+            sell_t1, len(tick_rows),
         )
 
         lines: list[dict[str, Any]] = []
@@ -565,7 +629,7 @@ class RiskAnalysisPageService(BasePageService):
                 continue
             if exhausted:
                 absorbed_pct = (
-                    (total_downside_liq / base_amount) * 100.0
+                    (total_impact_liq / base_amount) * 100.0
                     if base_amount > 0
                     else 0.0
                 )
@@ -600,8 +664,8 @@ class RiskAnalysisPageService(BasePageService):
             "reference_lines": {"peg": 1.0, "current_price": current_price},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._token0(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows]},
-                {"name": f"{self._token1(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows]},
+                {"name": f"{self._token0(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows], "color": self._token_color(self._token0(protocol))},
+                {"name": f"{self._token1(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows], "color": self._token_color(self._token1(protocol))},
             ],
         }
 
@@ -638,8 +702,8 @@ class RiskAnalysisPageService(BasePageService):
             "reference_lines": {"peg": 1.0, "current_price": current_price_raw},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._token1(protocol)} Cumulative", "type": "line", "area": True, "data": usdc_cumul},
-                {"name": f"{self._token0(protocol)} Cumulative", "type": "line", "area": True, "data": t0_cumul},
+                {"name": f"{self._token1(protocol)} Cumulative", "type": "line", "area": True, "data": usdc_cumul, "color": self._token_color(self._token1(protocol))},
+                {"name": f"{self._token0(protocol)} Cumulative", "type": "line", "area": True, "data": t0_cumul, "color": self._token_color(self._token0(protocol))},
             ],
         }
 

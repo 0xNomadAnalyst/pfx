@@ -139,15 +139,15 @@
           <option value="24 hours">24 hours</option>
         </select>
       {% elif widget.id == "ra-xp-exposure" %}
-        <span class="title-separator">|</span>
-        <span class="title-inline-label">Liquidation source:</span>
-        <select id="ra-liq-source" class="filter-select chart-mode-select" aria-label="Liquidation source protocol">
-          <option value="all" selected>All (Kamino + Exponent)</option>
-          <option value="kamino">Kamino only</option>
-          <option value="exponent">Exponent only</option>
-        </select>
-        <span class="title-separator">|</span>
-        <span id="ra-xp-notice" class="ra-xp-inline-notice"></span>
+        <div id="ra-xp-notice" class="ra-xp-notice-bar"></div>
+        <div class="ra-xp-selector-row">
+          <span class="title-inline-label">Select liquidation source:</span>
+          <select id="ra-liq-source" class="filter-select chart-mode-select" aria-label="Liquidation source protocol">
+            <option value="all" selected>All (Kamino + Exponent)</option>
+            <option value="kamino">Kamino only</option>
+            <option value="exponent">Exponent only</option>
+          </select>
+        </div>
       {% elif widget.id == "ra-stress-test" %}
         <span class="title-separator">|</span>
         <span class="title-inline-label">Collateral:</span>
