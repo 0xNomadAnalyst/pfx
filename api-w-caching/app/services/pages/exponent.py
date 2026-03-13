@@ -490,10 +490,12 @@ class ExponentPageService(BasePageService):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _format_market_info(start_dt: Any, end_dt: Any) -> dict[str, Any]:
+    def _format_market_info(market_name: str, start_dt: Any, end_dt: Any) -> dict[str, Any]:
         if not start_dt or not end_dt:
             return {
                 "kind": "kpi",
+                "market_card": True,
+                "market_name": market_name or "N/A",
                 "primary": "N/A",
                 "secondary": "Accounts for next maturity not yet initialized",
             }
@@ -501,28 +503,53 @@ class ExponentPageService(BasePageService):
             start = datetime.fromisoformat(str(start_dt).replace("Z", "+00:00"))
             end = datetime.fromisoformat(str(end_dt).replace("Z", "+00:00"))
         except (ValueError, TypeError):
-            return {"kind": "kpi", "primary": "N/A", "secondary": "Invalid dates"}
+            return {"kind": "kpi", "market_card": True, "market_name": market_name or "N/A", "primary": "N/A", "secondary": "Invalid dates"}
         now = datetime.now(timezone.utc)
-        fmt = "%d %b %Y %H:%M"
-        primary = f"{start.strftime(fmt)} \u2192 {end.strftime(fmt)}"
+        fmt_date = "%b %d, %Y"
+        fmt_time = "%I:%M:%S %p"
+        start_str = f"{start.strftime(fmt_date)}, {start.strftime(fmt_time).lstrip('0')}"
+        end_str = f"{end.strftime(fmt_date)}, {end.strftime(fmt_time).lstrip('0')}"
+
         if now < start:
+            progress_pct = 0.0
             delta = start - now
-            secondary = f"Starts in {delta.days}d {delta.seconds // 3600}h"
+            status = f"Starts in {delta.days}d {delta.seconds // 3600}h"
         elif now > end:
+            progress_pct = 100.0
             delta = now - end
-            secondary = f"Ended {delta.days}d {delta.seconds // 3600}h ago"
+            status = f"Ended {delta.days}d {delta.seconds // 3600}h ago"
         else:
-            delta = end - now
-            secondary = f"Active \u2014 ends in {delta.days}d {delta.seconds // 3600}h"
-        return {"kind": "kpi", "primary": primary, "secondary": secondary}
+            total = (end - start).total_seconds()
+            elapsed = (now - start).total_seconds()
+            progress_pct = round((elapsed / total) * 100, 1) if total > 0 else 0.0
+            remaining = end - now
+            months = remaining.days // 30
+            days = remaining.days % 30
+            if months > 0:
+                status = f"Ends in {months} month{'s' if months != 1 else ''}" + (f" {days}d" if days > 0 else "")
+            else:
+                status = f"Ends in {remaining.days}d {remaining.seconds // 3600}h"
+        return {
+            "kind": "kpi",
+            "market_card": True,
+            "market_name": market_name,
+            "start_str": start_str,
+            "end_str": end_str,
+            "progress_pct": progress_pct,
+            "status": status,
+        }
 
     def _market_info_mkt1(self, params: dict[str, Any]) -> dict[str, Any]:
         row = self._v_last_row(params)
-        return self._format_market_info(row.get("start_datetime_mkt1"), row.get("end_datetime_mkt1"))
+        symbols = row.get("market_pt_symbol_array_full") or []
+        name = symbols[0] if len(symbols) > 0 else ""
+        return self._format_market_info(name, row.get("start_datetime_mkt1"), row.get("end_datetime_mkt1"))
 
     def _market_info_mkt2(self, params: dict[str, Any]) -> dict[str, Any]:
         row = self._v_last_row(params)
-        return self._format_market_info(row.get("start_datetime_mkt2"), row.get("end_datetime_mkt2"))
+        symbols = row.get("market_pt_symbol_array_full") or []
+        name = symbols[1] if len(symbols) > 1 else ""
+        return self._format_market_info(name, row.get("start_datetime_mkt2"), row.get("end_datetime_mkt2"))
 
     # ------------------------------------------------------------------
     # Timeseries charts — PT Swap Flows & Swap Count

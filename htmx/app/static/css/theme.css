@@ -748,6 +748,36 @@ th .info-tip-icon {
   font-size: 11px;
 }
 
+.market-card-dates {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.7;
+}
+.market-card-label {
+  font-weight: 700;
+  margin-right: 2px;
+}
+.market-card-progress {
+  text-align: left;
+  width: 100%;
+}
+.market-card-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.market-card-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.market-card-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .table-wrap {
   overflow: auto;
   max-height: 220px;

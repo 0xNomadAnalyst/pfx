@@ -626,6 +626,33 @@
     if (!primary || !secondary) {
       return;
     }
+
+    if (data.market_card) {
+      const titleEl = document.querySelector(`#widget-${widgetId} .panel-title-group h3`);
+      const side = widgetId.endsWith("-mkt1") ? "MARKET 1" : "MARKET 2";
+      const name = data.market_name || "";
+      if (titleEl) titleEl.textContent = name ? `${side} - ${name}` : side;
+
+      if (data.start_str && data.end_str) {
+        const pct = Math.max(0, Math.min(100, data.progress_pct || 0));
+        const barColor = pct >= 100 ? "#6b7a8d" : "#28c987";
+        primary.innerHTML =
+          `<div class="market-card-dates">`
+          + `<div><span class="market-card-label">Start:</span> ${data.start_str}</div>`
+          + `<div><span class="market-card-label">End:</span> ${data.end_str}</div>`
+          + `</div>`;
+        secondary.innerHTML =
+          `<div class="market-card-progress">`
+          + `<div class="market-card-bar"><div class="market-card-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>`
+          + `<div class="market-card-status" style="color:${barColor}">${data.status || ""}</div>`
+          + `</div>`;
+      } else {
+        primary.textContent = data.primary || "N/A";
+        secondary.textContent = data.secondary || "";
+      }
+      return;
+    }
+
     const { token0, token1 } = currentPairTokens();
     const lastLabel = currentLastWindowLabel();
     const lastLabelHtml = `<span style="color:#2fbf71">${lastLabel}</span>`;
@@ -2026,6 +2053,10 @@
       }
     } else if (chartData.chart === "pie") {
       const slices = chartData.slices || [];
+      const hasData = slices.some((s) => s.value > 0);
+      if (!hasData && chartState.get(widgetId)?.instance) {
+        return;
+      }
       option = {
         tooltip: {
           trigger: "item",
@@ -2048,7 +2079,6 @@
             label: {
               show: true,
               formatter: "{d}%",
-              color: "#fff",
               fontSize: 13,
               fontWeight: "bold",
               position: "inside",
@@ -2057,7 +2087,8 @@
             data: slices.map((s) => ({
               name: s.name,
               value: s.value,
-              itemStyle: s.color ? { color: hexToRgba(s.color, 0.2), borderColor: s.color, borderWidth: 2 } : undefined,
+              itemStyle: s.color ? { color: hexToRgba(s.color, 0.35), borderColor: s.color, borderWidth: 2 } : undefined,
+              label: s.color ? { color: s.color } : undefined,
             })),
           },
         ],
@@ -3030,6 +3061,7 @@
     initSwapsOhlcvIntervalToggle();
     initHealthSchemaToggle();
     initHealthAttributeToggle();
+    initHealthQueueChart2Toggle();
     initHealthBaseSchemaToggle();
   }
 
@@ -3183,6 +3215,29 @@
     });
   }
 
+  function initHealthQueueChart2Toggle() {
+    const schemaSelect = document.getElementById("health-schema-select-2");
+    const attrSelect = document.getElementById("health-attribute-select-2");
+    const widget = document.getElementById("widget-health-queue-chart-2");
+    if (!widget) return;
+    if (schemaSelect) {
+      widget.dataset.healthSchema = schemaSelect.value || "dexes";
+      schemaSelect.addEventListener("change", () => {
+        widget.dataset.healthSchema = schemaSelect.value || "dexes";
+        resetWidgetView(widget);
+        htmx.trigger(document.body, "health-schema-change-2");
+      });
+    }
+    if (attrSelect) {
+      widget.dataset.healthAttribute = attrSelect.value || "Queue Size";
+      attrSelect.addEventListener("change", () => {
+        widget.dataset.healthAttribute = attrSelect.value || "Queue Size";
+        resetWidgetView(widget);
+        htmx.trigger(document.body, "health-attribute-change-2");
+      });
+    }
+  }
+
   function initHealthBaseSchemaToggle() {
     const selects = document.querySelectorAll(".health-base-schema-select");
     if (!selects.length) return;
@@ -3279,7 +3334,7 @@
     if (sourceEl.dataset.widgetId === "swaps-ohlcv") {
       event.detail.parameters.ohlcv_interval = sourceEl.dataset.ohlcvInterval || "1d";
     }
-    if (sourceEl.dataset.widgetId === "health-queue-chart") {
+    if (sourceEl.dataset.widgetId === "health-queue-chart" || sourceEl.dataset.widgetId === "health-queue-chart-2") {
       event.detail.parameters.health_schema = sourceEl.dataset.healthSchema || "dexes";
       event.detail.parameters.health_attribute = sourceEl.dataset.healthAttribute || "Write Rate";
     }

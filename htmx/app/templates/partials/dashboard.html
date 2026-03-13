@@ -8,13 +8,13 @@
   data-impact-mode="size"
   data-flow-mode="usx"
   data-health-schema="dexes"
-  data-health-attribute="Write Rate"
+  data-health-attribute="{{ 'Queue Size' if widget.id == 'health-queue-chart-2' else 'Write Rate' }}"
   data-health-base-schema="dexes"
   data-base-endpoint="{{ widget.endpoint }}"
   {% if widget.detail_table_endpoint %}data-detail-table-endpoint="{{ widget.detail_table_endpoint }}"{% endif %}
   hx-get="{{ widget.endpoint }}"
   hx-request='{"timeout":90000}'
-  hx-trigger="load delay:{{ widget.load_delay_seconds }}s, dashboard-refresh from:body, impact-mode-change, flow-mode-change, distribution-mode-change, ohlcv-interval-change, health-schema-change from:body, health-attribute-change from:body, health-base-schema-change from:body, every {{ widget.refresh_interval_seconds }}s"
+  hx-trigger="load delay:{{ widget.load_delay_seconds }}s, dashboard-refresh from:body, impact-mode-change, flow-mode-change, distribution-mode-change, ohlcv-interval-change, {% if widget.id != 'health-queue-chart-2' %}health-schema-change from:body, health-attribute-change from:body, {% endif %}{% if widget.id == 'health-queue-chart-2' %}health-schema-change-2 from:body, health-attribute-change-2 from:body, {% endif %}health-base-schema-change from:body, every {{ widget.refresh_interval_seconds }}s"
   hx-sync="this:replace"
   hx-swap="none"
 >
@@ -59,22 +59,43 @@
           <option value="size">Order Size for Target bps</option>
           <option value="impact">Impact bps at 3 Size Levels</option>
         </select>
+      {% elif widget.id == "health-queue-chart" %}
+        <span class="title-separator">|</span>
+        <span class="title-inline-label">Select domain</span>
+        <select id="health-schema-select" class="filter-select chart-mode-select" aria-label="Domain">
+          <option value="dexes" selected>dexes</option>
+          <option value="exponent">exponent</option>
+          <option value="kamino_lend">kamino_lend</option>
+          <option value="solstice_proprietary">solstice_proprietary</option>
+        </select>
+        <span class="title-separator">|</span>
+        <span class="title-inline-label">Select metric</span>
+        <select id="health-attribute-select" class="filter-select chart-mode-select" aria-label="Metric">
+          <option value="Write Rate" selected>Write Rate (rows/min)</option>
+          <option value="Queue Size">Queue Size (% capacity)</option>
+          <option value="Gap Size">Gap Size (seconds)</option>
+          <option value="Failures">Failures (avg. per interval)</option>
+        </select>
+      {% elif widget.id == "health-queue-chart-2" %}
+        <span class="title-separator">|</span>
+        <span class="title-inline-label">Select domain</span>
+        <select id="health-schema-select-2" class="filter-select chart-mode-select" aria-label="Domain">
+          <option value="dexes" selected>dexes</option>
+          <option value="exponent">exponent</option>
+          <option value="kamino_lend">kamino_lend</option>
+          <option value="solstice_proprietary">solstice_proprietary</option>
+        </select>
+        <span class="title-separator">|</span>
+        <span class="title-inline-label">Select metric</span>
+        <select id="health-attribute-select-2" class="filter-select chart-mode-select" aria-label="Metric">
+          <option value="Write Rate">Write Rate (rows/min)</option>
+          <option value="Queue Size" selected>Queue Size (% capacity)</option>
+          <option value="Gap Size">Gap Size (seconds)</option>
+          <option value="Failures">Failures (avg. per interval)</option>
+        </select>
       {% endif %}
     </div>
-    {% if widget.id == "health-queue-chart" %}
-      <select id="health-schema-select" class="filter-select chart-mode-select" aria-label="Schema">
-        <option value="dexes" selected>dexes</option>
-        <option value="exponent">exponent</option>
-        <option value="kamino_lend">kamino_lend</option>
-        <option value="solstice_proprietary">solstice_proprietary</option>
-      </select>
-      <select id="health-attribute-select" class="filter-select chart-mode-select" aria-label="Attribute">
-        <option value="Write Rate" selected>Write Rate (rows/min)</option>
-        <option value="Queue Size">Queue Size (% capacity)</option>
-        <option value="Gap Size">Gap Size (seconds)</option>
-        <option value="Failures">Failures (avg. per interval)</option>
-      </select>
-    {% elif widget.id == "health-base-chart-events" or widget.id == "health-base-chart-accounts" %}
+    {% if widget.id == "health-base-chart-events" or widget.id == "health-base-chart-accounts" %}
       <select class="health-base-schema-select filter-select chart-mode-select" aria-label="Schema">
         <option value="dexes" selected>dexes</option>
         <option value="exponent">exponent</option>
