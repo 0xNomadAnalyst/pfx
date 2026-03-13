@@ -1259,42 +1259,88 @@ td:first-child {
 
 /* ── Global Ecosystem page ── */
 
-/* Row 1: Full-width bar chart */
-.ge-slot-full-1 { grid-column: 1 / 13; grid-row: 1 / 4; min-height: 320px; }
+/* Section header (thin full-width divider with title) */
+.ge-section-header {
+  grid-column: 1 / 13;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 2px 2px;
+  min-height: auto;
+}
+.ge-section-header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.ge-section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  white-space: nowrap;
+}
 
-/* Rows 4+: Side-by-side chart pairs, each spanning 3 rows */
-.ge-slot-left-1  { grid-column: 1 / 7;  grid-row: 4  / 7;  min-height: 320px; }
-.ge-slot-right-1 { grid-column: 7 / 13; grid-row: 4  / 7;  min-height: 320px; }
+/* Placeholder row (for upcoming sections) */
+.ge-section-placeholder {
+  grid-column: 1 / 13;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+  opacity: 0.6;
+}
 
-.ge-slot-left-2  { grid-column: 1 / 7;  grid-row: 7  / 10; min-height: 320px; }
-.ge-slot-right-2 { grid-column: 7 / 13; grid-row: 7  / 10; min-height: 320px; }
+/*
+ * Grid layout: section headers = 1 row, charts = 3 rows
+ *
+ *  Row  1:     "Issuance" header
+ *  Rows 2–4:  Issuance bar (full width)
+ *  Rows 5–7:  Issuance pie + Issuance time
+ *  Row  8:     "Yields" header
+ *  Rows 9–11: Current Yields + Yields Over Time
+ *  Row  12:    "Capital Utilization" header
+ *  Rows 13–14: Placeholder
+ *  Row  15:    "TVL & Activity" header
+ *  Rows 16–18: TVL bar + Activity bar
+ *  Rows 19–21: TVL pie + Activity pie
+ *  Rows 22–24: TVL Over Time + Activity Volume
+ *  Rows 25–27: TVL Share % + Activity Share %
+ */
 
-.ge-slot-left-3  { grid-column: 1 / 7;  grid-row: 10 / 13; min-height: 320px; }
-.ge-slot-right-3 { grid-column: 7 / 13; grid-row: 10 / 13; min-height: 320px; }
+.ge-hdr-1 { grid-row: 1 / 2; }
+.ge-slot-full-1 { grid-column: 1 / 13; grid-row: 2 / 5; min-height: 320px; }
 
-.ge-slot-left-4  { grid-column: 1 / 7;  grid-row: 13 / 16; min-height: 320px; }
-.ge-slot-right-4 { grid-column: 7 / 13; grid-row: 13 / 16; min-height: 320px; }
+.ge-slot-left-1  { grid-column: 1 / 7;  grid-row: 5 / 8;  min-height: 320px; }
+.ge-slot-right-1 { grid-column: 7 / 13; grid-row: 5 / 8;  min-height: 320px; }
 
-.ge-slot-left-5  { grid-column: 1 / 7;  grid-row: 16 / 19; min-height: 320px; }
-.ge-slot-right-5 { grid-column: 7 / 13; grid-row: 16 / 19; min-height: 320px; }
+.ge-hdr-2 { grid-row: 8 / 9; }
+.ge-slot-left-2  { grid-column: 1 / 7;  grid-row: 9 / 12;  min-height: 320px; }
+.ge-slot-right-2 { grid-column: 7 / 13; grid-row: 9 / 12;  min-height: 320px; }
 
-.ge-slot-left-6  { grid-column: 1 / 7;  grid-row: 19 / 22; min-height: 320px; }
-.ge-slot-right-6 { grid-column: 7 / 13; grid-row: 19 / 22; min-height: 320px; }
+.ge-hdr-3 { grid-row: 12 / 13; }
+.ge-placeholder-1 { grid-row: 13 / 15; }
 
-.ge-slot-left-7  { grid-column: 1 / 7;  grid-row: 22 / 25; min-height: 320px; }
-.ge-slot-right-7 { grid-column: 7 / 13; grid-row: 22 / 25; min-height: 320px; }
+.ge-hdr-4 { grid-row: 15 / 16; }
+.ge-slot-left-3  { grid-column: 1 / 7;  grid-row: 16 / 19; min-height: 320px; }
+.ge-slot-right-3 { grid-column: 7 / 13; grid-row: 16 / 19; min-height: 320px; }
 
-.ge-slot-left-8  { grid-column: 1 / 7;  grid-row: 25 / 28; min-height: 320px; }
-.ge-slot-right-8 { grid-column: 7 / 13; grid-row: 25 / 28; min-height: 320px; }
+.ge-slot-left-4  { grid-column: 1 / 7;  grid-row: 19 / 22; min-height: 320px; }
+.ge-slot-right-4 { grid-column: 7 / 13; grid-row: 19 / 22; min-height: 320px; }
 
-.ge-slot-left-9  { grid-column: 1 / 7;  grid-row: 28 / 31; min-height: 320px; }
-.ge-slot-right-9 { grid-column: 7 / 13; grid-row: 28 / 31; min-height: 320px; }
+.ge-slot-left-5  { grid-column: 1 / 7;  grid-row: 22 / 25; min-height: 320px; }
+.ge-slot-right-5 { grid-column: 7 / 13; grid-row: 22 / 25; min-height: 320px; }
 
-.ge-slot-left-10  { grid-column: 1 / 7;  grid-row: 31 / 34; min-height: 320px; }
-.ge-slot-right-10 { grid-column: 7 / 13; grid-row: 31 / 34; min-height: 320px; }
-
-.ge-slot-left-11  { grid-column: 1 / 7;  grid-row: 34 / 37; min-height: 320px; }
-.ge-slot-right-11 { grid-column: 7 / 13; grid-row: 34 / 37; min-height: 320px; }
+.ge-slot-left-6  { grid-column: 1 / 7;  grid-row: 25 / 28; min-height: 320px; }
+.ge-slot-right-6 { grid-column: 7 / 13; grid-row: 25 / 28; min-height: 320px; }
 
 @media (max-width: 1200px) {
   .dashboard-grid {

@@ -1,4 +1,19 @@
 {% for widget in widgets %}
+{% if widget.kind == "section-header" %}
+<div
+  id="widget-{{ widget.id }}"
+  class="{{ widget.css_class }} ge-section-header"
+>
+  <h2 class="ge-section-title">{{ widget.title }}</h2>
+</div>
+{% elif widget.kind == "placeholder" %}
+<div
+  id="widget-{{ widget.id }}"
+  class="{{ widget.css_class }} ge-section-placeholder"
+>
+  {{ widget.tooltip or "Coming soon" }}
+</div>
+{% else %}
 <section
   id="widget-{{ widget.id }}"
   class="{{ widget.css_class }} widget-loader"
@@ -164,4 +179,5 @@
     {% endif %}
   </div>
 </section>
+{% endif %}
 {% endfor %}

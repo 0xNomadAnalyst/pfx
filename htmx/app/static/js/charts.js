@@ -1159,6 +1159,7 @@
   function axisFormatter(fmt) {
     if (fmt === "pct0") return (v) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n) + "%" : v; };
     if (fmt === "pct1") return (v) => { const n = Number(v); return Number.isFinite(n) ? n.toFixed(1) + "%" : v; };
+    if (fmt === "pct2") return (v) => { const n = Number(v); return Number.isFinite(n) ? n.toFixed(2) + "%" : v; };
     if (fmt === "compact") return (v) => {
       const n = Number(v);
       if (!Number.isFinite(n)) return v;
@@ -1184,7 +1185,10 @@
     const rightPad = dual ? (hasYRightLabel ? 60 : 50) : (hasBars ? 30 : 18);
     const option = {
       color: palette(),
-      tooltip: { trigger: "axis" },
+      tooltip: {
+        trigger: "axis",
+        valueFormatter: yFmt || undefined,
+      },
       legend: { bottom: -4, textStyle: { color: chartTextColor() } },
       grid: { left: hasYLabel ? 60 : 40, right: rightPad, top: 22, bottom: hasXLabel ? 72 : 60, containLabel: true },
       xAxis: {

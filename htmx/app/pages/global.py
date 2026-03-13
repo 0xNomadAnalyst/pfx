@@ -9,7 +9,14 @@ PAGE_CONFIG = PageConfig(
     api_page_id="global-ecosystem",
     show_protocol_pair_filters=False,
     widgets=[
-        # ── Row 1: Token Supply Outstanding (full-width horizontal bar) ──
+        # ═══════════════════════════════════════════════════════
+        # Section: ISSUANCE
+        # ═══════════════════════════════════════════════════════
+        WidgetConfig(
+            "ge-hdr-issuance", "Issuance", "section-header",
+            "ge-hdr-1",
+        ),
+
         WidgetConfig(
             "ge-issuance-bar",
             "Token Supply Outstanding",
@@ -21,7 +28,6 @@ PAGE_CONFIG = PageConfig(
             "and PT+YT supply aggregated across all maturities, in ONyc terms.",
         ),
 
-        # ── Row 2: Issuance Distribution pie + Issuance Over Time ──
         WidgetConfig(
             "ge-issuance-pie",
             "Token Issuance Distribution",
@@ -41,7 +47,14 @@ PAGE_CONFIG = PageConfig(
             "(SY, PT+YT in ONyc terms) has evolved over time.",
         ),
 
-        # ── Row 3: Current Yields + Yields Over Time ──
+        # ═══════════════════════════════════════════════════════
+        # Section: YIELDS
+        # ═══════════════════════════════════════════════════════
+        WidgetConfig(
+            "ge-hdr-yields", "Yields", "section-header",
+            "ge-hdr-2",
+        ),
+
         WidgetConfig(
             "ge-current-yields",
             "Current Yields",
@@ -62,7 +75,27 @@ PAGE_CONFIG = PageConfig(
             "and Exponent implied APY.",
         ),
 
-        # ── Row 4: TVL bar (left) + Activity bar (right) ──
+        # ═══════════════════════════════════════════════════════
+        # Section: CAPITAL UTILIZATION (placeholder)
+        # ═══════════════════════════════════════════════════════
+        WidgetConfig(
+            "ge-hdr-capital", "Capital Utilization", "section-header",
+            "ge-hdr-3",
+        ),
+        WidgetConfig(
+            "ge-capital-placeholder", "", "placeholder",
+            "ge-placeholder-1",
+            tooltip="Locked vs. free capital across Exponent vaults and lending protocols — charts coming soon.",
+        ),
+
+        # ═══════════════════════════════════════════════════════
+        # Section: TVL & ACTIVITY
+        # ═══════════════════════════════════════════════════════
+        WidgetConfig(
+            "ge-hdr-tvl-activity", "TVL & Activity", "section-header",
+            "ge-hdr-4",
+        ),
+
         WidgetConfig(
             "ge-tvl-bar",
             "ONyc TVL by Protocol",
@@ -82,7 +115,6 @@ PAGE_CONFIG = PageConfig(
             "DEXes, Kamino, and Exponent.",
         ),
 
-        # ── Row 5: TVL Distribution pie (left) + Activity Distribution pie (right) ──
         WidgetConfig(
             "ge-tvl-pie",
             "ONyc TVL Distribution",
@@ -102,7 +134,6 @@ PAGE_CONFIG = PageConfig(
             "DEXes, Kamino, and Exponent.",
         ),
 
-        # ── Row 6: TVL Over Time (left, absolute) + Activity Volume Over Time (right, absolute) ──
         WidgetConfig(
             "ge-tvl-time",
             "ONyc TVL Over Time",
@@ -121,7 +152,6 @@ PAGE_CONFIG = PageConfig(
             "by protocol over time.",
         ),
 
-        # ── Row 7: TVL Share % (left, stacked) + Activity Share % (right, stacked) ──
         WidgetConfig(
             "ge-tvl-share",
             "TVL Share by Protocol (%)",
