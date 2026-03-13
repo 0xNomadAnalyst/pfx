@@ -193,7 +193,7 @@
   </footer>
 
   <script src="/static/js/theme.js?v=2"></script>
-  <script src="/static/js/charts.js?v=44"></script>
+  <script src="/static/js/charts.js?v=45"></script>
   {% if show_pipeline_switcher %}
   <script>
   (function() {
@@ -216,21 +216,9 @@
     var sel = document.getElementById('pipeline-select');
     if (sel) sel.disabled = true;
 
-    document.querySelectorAll('.widget-loader').forEach(function(el) {
-      var kind = el.dataset.widgetKind;
-      var wid = el.dataset.widgetId;
-      var upd = document.getElementById('updated-' + wid);
-      if (upd) upd.textContent = 'switching…';
-      if (kind === 'kpi') {
-        var p = document.getElementById('kpi-primary-' + wid);
-        if (p) p.textContent = '--';
-        var s = document.getElementById('kpi-secondary-' + wid);
-        if (s) s.textContent = '';
-      } else if (kind === 'chart') {
-        var c = document.getElementById('chart-' + wid);
-        if (c) c.innerHTML = '';
-      }
-    });
+    if (typeof window.__clearAllForPipelineSwitch === 'function') {
+      window.__clearAllForPipelineSwitch();
+    }
 
     fetch('/api/switch-pipeline?pipeline=' + encodeURIComponent(name), {method: 'POST'})
       .then(function(r) { return r.json(); })

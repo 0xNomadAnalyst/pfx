@@ -76,6 +76,15 @@
           <option value="Gap Size">Gap Size (seconds)</option>
           <option value="Failures">Failures (avg. per interval)</option>
         </select>
+      {% elif widget.id == "health-base-chart-events" %}
+        <span class="title-separator">|</span>
+        <span class="title-inline-label">Select domain</span>
+        <select class="health-base-schema-select filter-select chart-mode-select" aria-label="Domain">
+          <option value="dexes" selected>dexes</option>
+          <option value="exponent">exponent</option>
+          <option value="kamino_lend">kamino_lend</option>
+          <option value="solstice_proprietary">solstice_proprietary</option>
+        </select>
       {% elif widget.id == "health-queue-chart-2" %}
         <span class="title-separator">|</span>
         <span class="title-inline-label">Select domain</span>
@@ -95,14 +104,6 @@
         </select>
       {% endif %}
     </div>
-    {% if widget.id == "health-base-chart-events" or widget.id == "health-base-chart-accounts" %}
-      <select class="health-base-schema-select filter-select chart-mode-select" aria-label="Schema">
-        <option value="dexes" selected>dexes</option>
-        <option value="exponent">exponent</option>
-        <option value="kamino_lend">kamino_lend</option>
-        <option value="solstice_proprietary">solstice_proprietary</option>
-      </select>
-    {% endif %}
     <span class="panel-updated" id="updated-{{ widget.id }}">loading...</span>
   </div>
   {% if widget.kind == "chart" %}

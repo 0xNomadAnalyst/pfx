@@ -2822,7 +2822,23 @@
     leftDefaultZoomWindow = null;
     leftDefaultZoomSignature = "";
     widgetElements().forEach((el) => resetWidgetView(el));
+    document.querySelectorAll(".chart-subtitle").forEach((el) => { el.innerHTML = ""; });
   }
+
+  function clearAllForPipelineSwitch() {
+    resetDashboardLoading();
+    chartState.forEach(({ instance }) => {
+      if (instance) {
+        try { instance.dispose(); } catch (_) {}
+      }
+    });
+    chartState.clear();
+    const mkt1 = document.getElementById("mkt1-select");
+    const mkt2 = document.getElementById("mkt2-select");
+    if (mkt1) mkt1.innerHTML = '<option value="">switching…</option>';
+    if (mkt2) mkt2.innerHTML = '<option value="">switching…</option>';
+  }
+  window.__clearAllForPipelineSwitch = clearAllForPipelineSwitch;
 
   function getApiBaseUrl() {
     const attr = document.body.dataset.apiBaseUrl;
