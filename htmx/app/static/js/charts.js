@@ -2972,7 +2972,7 @@
 
     if (protocolSelect && pairSelect) {
       try {
-        const response = await fetch(`${getApiBaseUrl()}/api/v1/meta`);
+        const response = await fetch(`${getApiBaseUrl()}/api/v1/meta`, { cache: "no-store" });
         const payload = await response.json();
         protocolPairs = payload.protocol_pairs || [];
         const protocols = payload.protocols || protocolPairs.map((item) => item.protocol);
@@ -3044,7 +3044,7 @@
     const pageId = container.dataset.apiPageId;
     async function fetchMarketMeta() {
       const url = `${getApiBaseUrl()}/api/v1/${pageId}/exponent-market-meta`;
-      const resp = await fetch(url);
+      const resp = await fetch(url, { cache: "no-store" });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const payload = await resp.json();
       const meta = payload.data || payload;

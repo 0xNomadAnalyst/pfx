@@ -257,7 +257,10 @@ async def api_v1_proxy(path: str, request: Request):
         with urllib.request.urlopen(req, timeout=30) as resp:
             content = resp.read()
             ct = resp.headers.get("content-type", "application/json")
-            return Response(content=content, media_type=ct, status_code=resp.status)
+            return Response(
+                content=content, media_type=ct, status_code=resp.status,
+                headers={"Cache-Control": "no-store"},
+            )
     except urllib.error.HTTPError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=exc.code)
     except Exception as exc:
