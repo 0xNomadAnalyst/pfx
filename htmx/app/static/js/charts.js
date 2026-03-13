@@ -2075,7 +2075,11 @@
         }
       }
     } else if (chartData.chart === "pie") {
-      const slices = chartData.slices || [];
+      const slices = (chartData.slices || []).map((s, i) => ({
+        ...s,
+        name: s.name || `Slice ${i + 1}`,
+        value: Number(s.value) || 0,
+      }));
       const hasData = slices.some((s) => s.value > 0);
       if (!hasData && chartState.get(widgetId)?.instance) {
         return;

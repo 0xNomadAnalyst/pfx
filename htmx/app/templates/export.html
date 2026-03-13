@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ app_title }} - Chart Export</title>
+  <link rel="stylesheet" href="/static/css/theme.css?v=27" />
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body class="export-page" data-api-base-url="{{ api_base_url }}">
+
+  <header class="export-toolbar">
+    <div class="export-toolbar-left">
+      <h1 class="export-toolbar-title">Chart Export</h1>
+
+      <div class="export-control-group">
+        <label class="filter-label" for="chart-select">Chart</label>
+        <select id="chart-select" class="filter-select export-chart-select">
+          <option value="" selected disabled>Select a chart…</option>
+          {% set ns = namespace(current_page='') %}
+          {% for chart in chart_catalogue %}
+            {% if chart.page_label != ns.current_page %}
+              {% if ns.current_page %}
+                </optgroup>
+              {% endif %}
+              {% set ns.current_page = chart.page_label %}
+              <optgroup label="{{ chart.page_label }}">
+            {% endif %}
+            <option
+              value="{{ chart.widget_id }}"
+              data-endpoint="{{ chart.endpoint }}"
+              data-page-id="{{ chart.page_id }}"
+            >{{ chart.widget_title }}</option>
+          {% endfor %}
+          {% if ns.current_page %}
+            </optgroup>
+          {% endif %}
+        </select>
+      </div>
+
+      <div class="export-control-group">
+        <label class="filter-label" for="ratio-select">Ratio</label>
+        <select id="ratio-select" class="filter-select">
+          <option value="1920x1080" selected>16:9  (1920 x 1080)</option>
+          <option value="1200x628">1.91:1  (1200 x 628)</option>
+          <option value="1500x750">2:1  (1500 x 750)</option>
+          <option value="1080x1080">1:1  (1080 x 1080)</option>
+          <option value="1080x1350">4:5  (1080 x 1350)</option>
+        </select>
+      </div>
+
+      <div class="export-control-group">
+        <label class="filter-label" for="last-window-select">Window</label>
+        <select id="last-window-select" class="filter-select">
+          <option value="1h">1h</option>
+          <option value="4h">4h</option>
+          <option value="6h">6h</option>
+          <option value="24h">24h</option>
+          <option value="7d" selected>7d</option>
+          <option value="30d">30d</option>
+          <option value="90d">90d</option>
+        </select>
+      </div>
+
+      <div class="export-control-group" id="pixel-ratio-group">
+        <label class="filter-label" for="pixel-ratio-select">Quality</label>
+        <select id="pixel-ratio-select" class="filter-select">
+          <option value="2" selected>2x (Retina)</option>
+          <option value="3">3x (High-DPI)</option>
+          <option value="1">1x (Standard)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="export-toolbar-right">
+      <button id="download-btn" class="action-button export-download-btn" type="button" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download PNG
+      </button>
+      <button id="theme-toggle" class="theme-toggle icon-button" type="button" aria-label="Toggle theme">
+        <span id="theme-icon" class="theme-icon" aria-hidden="true">🌙</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="export-canvas-area">
+    <div id="export-frame" class="export-frame" style="width:1920px;height:1080px;">
+      <section
+        id="widget-export-target"
+        class="panel widget-loader export-widget"
+        data-widget-id="export-target"
+        data-widget-kind="chart"
+        data-expandable="false"
+        data-impact-mode="size"
+        data-flow-mode="usx"
+        data-health-schema="dexes"
+        data-health-attribute="Write Rate"
+        data-health-base-schema="dexes"
+        hx-swap="none"
+        hx-trigger="export-load"
+        hx-request='{"timeout":90000}'
+      >
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <h3 id="export-chart-title">Select a chart to preview</h3>
+          </div>
+          <span class="panel-updated" id="updated-export-target"></span>
+        </div>
+        <div class="chart-subtitle" id="chart-subtitle-export-target"></div>
+        <div class="panel-body">
+          <div id="chart-export-target" class="chart-canvas" style="width:100%;height:100%;"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/js/theme.js?v=2"></script>
+  <script src="/static/js/charts.js?v=48"></script>
+  <script>
+  (function () {
+    var chartSelect = document.getElementById("chart-select");
+    var ratioSelect = document.getElementById("ratio-select");
+    var windowSelect = document.getElementById("last-window-select");
+    var pixelRatioSelect = document.getElementById("pixel-ratio-select");
+    var downloadBtn = document.getElementById("download-btn");
+    var frame = document.getElementById("export-frame");
+    var widget = document.getElementById("widget-export-target");
+    var chartCanvas = document.getElementById("chart-export-target");
+    var titleEl = document.getElementById("export-chart-title");
+    var updatedEl = document.getElementById("updated-export-target");
+    var subtitleEl = document.getElementById("chart-subtitle-export-target");
+
+    var activeWidgetId = "";
+
+    function selectedRatio() {
+      var v = ratioSelect.value.split("x");
+      return { w: parseInt(v[0], 10), h: parseInt(v[1], 10) };
+    }
+
+    function applyRatio() {
+      var r = selectedRatio();
+      frame.style.width = r.w + "px";
+      frame.style.height = r.h + "px";
+      var inst = echarts.getInstanceByDom(chartCanvas);
+      if (inst) inst.resize();
+    }
+
+    function destroyCurrentChart() {
+      var inst = echarts.getInstanceByDom(chartCanvas);
+      if (inst) {
+        inst.dispose();
+      }
+    }
+
+    function loadChart() {
+      var opt = chartSelect.options[chartSelect.selectedIndex];
+      if (!opt || !opt.value) return;
+
+      var widgetId = opt.value;
+      var endpoint = opt.dataset.endpoint;
+      var chartTitle = opt.textContent.trim();
+
+      destroyCurrentChart();
+
+      activeWidgetId = widgetId;
+      widget.dataset.widgetId = widgetId;
+      widget.id = "widget-" + widgetId;
+      chartCanvas.id = "chart-" + widgetId;
+      updatedEl.id = "updated-" + widgetId;
+      subtitleEl.id = "chart-subtitle-" + widgetId;
+      subtitleEl.textContent = "";
+      titleEl.textContent = chartTitle;
+
+      widget.setAttribute("hx-get", endpoint);
+      widget.dataset.baseEndpoint = endpoint;
+
+      applyRatio();
+
+      htmx.process(widget);
+      htmx.trigger(widget, "export-load");
+
+      downloadBtn.disabled = false;
+    }
+
+    function reloadIfActive() {
+      if (!activeWidgetId) return;
+      htmx.trigger(widget, "export-load");
+    }
+
+    chartSelect.addEventListener("change", loadChart);
+    ratioSelect.addEventListener("change", function () {
+      applyRatio();
+    });
+    windowSelect.addEventListener("change", reloadIfActive);
+
+    downloadBtn.addEventListener("click", function () {
+      var inst = echarts.getInstanceByDom(chartCanvas);
+      if (!inst) return;
+
+      var theme = document.documentElement.getAttribute("data-theme");
+      var bgColor = theme === "light" ? "#ffffff" : "#0f1a2d";
+      var pxRatio = parseInt(pixelRatioSelect.value, 10) || 2;
+
+      var dataUrl = inst.getDataURL({
+        type: "png",
+        pixelRatio: pxRatio,
+        backgroundColor: bgColor,
+      });
+
+      var ratioLabel = ratioSelect.value.replace("x", "x");
+      var filename = activeWidgetId + "_" + ratioLabel + ".png";
+
+      var link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  })();
+  </script>
+</body>
+</html>

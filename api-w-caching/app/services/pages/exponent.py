@@ -453,8 +453,8 @@ class ExponentPageService(BasePageService):
     def _exponent_pie_tvl(self, params: dict[str, Any]) -> dict[str, Any]:
         row = self._v_last_row(params)
         symbols = row.get("market_pt_symbol_array_full") or []
-        lbl_mkt1 = symbols[0] if len(symbols) > 0 else "Market 1"
-        lbl_mkt2 = symbols[1] if len(symbols) > 1 else "Market 2"
+        lbl_mkt1 = symbols[0] if len(symbols) > 0 and symbols[0] else "Market 1"
+        lbl_mkt2 = symbols[1] if len(symbols) > 1 and symbols[1] else "Market 2"
         total_tvl = row.get("total_naive_tvl")
         tvl_display = self._fmt_number(total_tvl) if total_tvl is not None else "--"
         return {
@@ -474,14 +474,14 @@ class ExponentPageService(BasePageService):
         bars: list[dict[str, Any]] = []
         if row.get("start_datetime_mkt1") and row.get("end_datetime_mkt1"):
             bars.append({
-                "label": symbols[0] if len(symbols) > 0 else "Market 1",
+                "label": symbols[0] if len(symbols) > 0 and symbols[0] else "Market 1",
                 "start": str(row["start_datetime_mkt1"]),
                 "end": str(row["end_datetime_mkt1"]),
                 "color": "#4bb7ff",
             })
         if row.get("start_datetime_mkt2") and row.get("end_datetime_mkt2"):
             bars.append({
-                "label": symbols[1] if len(symbols) > 1 else "Market 2",
+                "label": symbols[1] if len(symbols) > 1 and symbols[1] else "Market 2",
                 "start": str(row["start_datetime_mkt2"]),
                 "end": str(row["end_datetime_mkt2"]),
                 "color": "#f8a94a",

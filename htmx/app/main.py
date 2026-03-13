@@ -75,15 +75,20 @@ def render_page(request: Request, page: PageConfig):
     widgets = [widget for widget in page.widgets if not widget_ids_filter or widget.id in widget_ids_filter]
     kpi_index = 0
     non_kpi_index = 0
+    last_chart_delay = 0.0
     widget_bindings = []
     for widget in widgets:
         if widget.kind == "kpi":
             load_delay_seconds = kpi_index * 0.15
             kpi_index += 1
         else:
-            # Stagger heavier widgets to reduce request bursts on initial load.
-            load_delay_seconds = 1.5 + non_kpi_index * 0.6
-            non_kpi_index += 1
+            is_right = "chart-right" in (widget.css_class or "") or "-mkt2" in (widget.css_class or "")
+            if is_right:
+                load_delay_seconds = last_chart_delay
+            else:
+                load_delay_seconds = 1.5 + non_kpi_index * 0.6
+                non_kpi_index += 1
+            last_chart_delay = load_delay_seconds
 
         if widget.kind == "kpi":
             refresh_interval_seconds = int(os.getenv("HTMX_REFRESH_KPI_SECONDS", str(widget.refresh_interval_seconds)))

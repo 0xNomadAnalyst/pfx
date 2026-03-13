@@ -1422,3 +1422,122 @@ html[data-theme="light"] .bottombar-partner {
 .bottombar-social-link:hover {
   color: var(--accent);
 }
+
+/* ── Chart Export page ── */
+
+.export-page {
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.export-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-2);
+  flex-shrink: 0;
+}
+
+.export-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.export-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-toolbar-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.export-control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  padding-left: 14px;
+}
+
+.export-control-group::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+}
+
+.export-chart-select {
+  min-width: 280px;
+}
+
+.export-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  border-radius: 6px;
+  transition: opacity 0.15s;
+}
+
+.export-download-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.export-download-btn:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+.export-canvas-area {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.export-frame {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+
+.export-widget {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  border-radius: 0;
+}
+
+.export-widget .panel-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
