@@ -191,7 +191,6 @@ def cover(request: Request):
             "show_pipeline_switcher": False,
             "pipeline_info": None,
             "content_template": "partials/cover.html",
-            "main_css_class": "cover-page",
         },
     )
 

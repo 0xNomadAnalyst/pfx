@@ -2877,8 +2877,38 @@
   }
   window.__clearAllForPipelineSwitch = clearAllForPipelineSwitch;
 
+  async function refreshProtocolPairSelectors() {
+    const protocolSelect = document.getElementById("protocol-select");
+    const pairSelect = document.getElementById("pair-select");
+    if (!protocolSelect || !pairSelect) return;
+
+    const persisted = readPersistedFilters();
+    let selectedProtocol = persisted?.protocol || protocolSelect.value || currentProtocol();
+    let selectedPair = persisted?.pair || pairSelect.value || currentPair();
+
+    try {
+      const pl = currentPipeline();
+      const qs = pl ? `?_pipeline=${encodeURIComponent(pl)}` : "";
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/meta${qs}`, { cache: "no-store" });
+      const payload = await response.json();
+      protocolPairs = payload.protocol_pairs || [];
+      const protocols = payload.protocols || protocolPairs.map((item) => item.protocol);
+      setSelectOptions(protocolSelect, protocols, selectedProtocol);
+      selectedProtocol = protocolSelect.value || selectedProtocol;
+      setSelectOptions(pairSelect, pairsForProtocol(selectedProtocol), selectedPair);
+    } catch (_) {
+      protocolPairs = [{ protocol: selectedProtocol, pair: selectedPair }];
+    }
+
+    applyGlobalFilters(selectedProtocol, pairSelect.value || selectedPair, currentLastWindow(), false);
+    applyPairAwarePanelTitles();
+  }
+
   async function refreshAfterPipelineSwitch() {
-    await populateMarketSelectors();
+    await Promise.all([
+      refreshProtocolPairSelectors(),
+      populateMarketSelectors(),
+    ]);
     _pipelineSwitchInProgress = false;
     resetDashboardLoading();
     htmx.trigger(document.body, "dashboard-refresh");

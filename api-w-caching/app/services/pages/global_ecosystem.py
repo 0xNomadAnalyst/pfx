@@ -542,17 +542,22 @@ class GlobalEcosystemPageService(BasePageService):
         kamino = self._fv(r.get("onyc_in_kamino"))
         liquid = self._fv(r.get("onyc_in_dexes")) + self._fv(r.get("onyc_in_exponent"))
         free = max(total_supply - kamino - liquid, 0)
+        total = total_supply if total_supply > 0 else 1
         return {
             "kind": "chart",
             "chart": "pie",
-            "series": [
-                {"name": "Illiquid DeFi (Kamino)", "value": round(kamino),
+            "slices": [
+                {"name": "Illiquid DeFi (Kamino)",
+                 "value": round(kamino / total * 100, 1),
                  "color": _COLORS["green"]},
-                {"name": "Liquid DeFi (DEXes + Exponent)", "value": round(liquid),
+                {"name": "Liquid DeFi (DEXes + Exponent)",
+                 "value": round(liquid / total * 100, 1),
                  "color": _COLORS["blue"]},
-                {"name": "Free / Undeployed", "value": round(free),
+                {"name": "Free / Undeployed",
+                 "value": round(free / total * 100, 1),
                  "color": _COLORS["grey"]},
             ],
+            "title_extra": f"ONyc Supply: {self._fmt_onyc(total_supply)}",
         }
 
     # ------------------------------------------------------------------

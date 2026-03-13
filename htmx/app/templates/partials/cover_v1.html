@@ -1,0 +1,267 @@
+<div class="cover-hero">
+  <div class="cover-hero-inner">
+    <h1 class="cover-hero-title">Solana DeFi Ecosystem Dashboard</h1>
+    <p class="cover-hero-subtitle">
+      Real-time monitoring of token issuance, liquidity, yields, and protocol
+      activity across the ONyc DeFi ecosystem on Solana.
+    </p>
+    <a href="/global-ecosystem" class="cover-cta">Open Ecosystem View</a>
+  </div>
+</div>
+
+<!-- ── Getting Started ── -->
+<section class="cover-section">
+  <h2 class="cover-section-title">Getting Started</h2>
+  <div class="cover-cards cover-cards--3">
+    <div class="cover-card">
+      <div class="cover-card-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+      </div>
+      <h3>Navigate Pages</h3>
+      <p>
+        Use the <strong>View</strong> selector in the header bar to switch
+        between dashboard pages. Each page focuses on a different protocol or
+        cross-protocol perspective.
+      </p>
+    </div>
+    <div class="cover-card">
+      <div class="cover-card-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <h3>Time Windows</h3>
+      <p>
+        The <strong>Last</strong> dropdown controls the lookback period for
+        every chart on the current page &mdash; from 1 hour to 90 days.
+        Data refreshes automatically every 15&ndash;90 seconds.
+      </p>
+    </div>
+    <div class="cover-card">
+      <div class="cover-card-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+      </div>
+      <h3>Expand &amp; Explore</h3>
+      <p>
+        Most charts have an expand button
+        (<span class="cover-inline-icon">&#x2922;</span>) in the lower-right
+        corner. Click it to open a full-screen view for closer analysis.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ── ONyc Token Ecosystem ── -->
+<section class="cover-section">
+  <h2 class="cover-section-title">ONyc Token Ecosystem</h2>
+  <div class="cover-prose">
+    <p>
+      <strong>ONyc</strong> is a Solana SPL token whose DeFi footprint spans
+      decentralised exchanges, lending markets, and yield tokenisation protocols.
+      This dashboard tracks every on-chain interaction across those venues in
+      real time, providing a single-pane view of supply distribution,
+      capital utilisation, and protocol activity.
+    </p>
+  </div>
+  <div class="cover-cards cover-cards--2">
+    <div class="cover-card cover-card--accent">
+      <h3>What Is Monitored</h3>
+      <ul class="cover-list">
+        <li>Token supply and derivative issuance (SY, PT, YT)</li>
+        <li>Liquidity depth and LP positions across DEX pools</li>
+        <li>Lending supply, borrow rates, and collateral utilisation</li>
+        <li>Yield curves: base token yield, implied APY, lending APY</li>
+        <li>Protocol-level TVL and 24h activity volumes</li>
+      </ul>
+    </div>
+    <div class="cover-card cover-card--accent">
+      <h3>Key Interactions Tracked</h3>
+      <ul class="cover-list">
+        <li>Swap events &mdash; buy / sell volumes on Orca &amp; Raydium</li>
+        <li>Liquidity events &mdash; deposits, withdrawals, position changes</li>
+        <li>Lending events &mdash; supply, borrow, repay, liquidation</li>
+        <li>Yield events &mdash; PT/YT mints, redeems, and trades</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ── Protocols Monitored ── -->
+<section class="cover-section">
+  <h2 class="cover-section-title">Protocols Monitored</h2>
+  <div class="cover-cards cover-cards--4">
+    <div class="cover-card cover-card--compact">
+      <h3>Orca Whirlpool</h3>
+      <span class="cover-card-tag">DEX</span>
+      <p>Concentrated-liquidity AMM. ONyc&ndash;USDC pool with tick-level depth monitoring.</p>
+    </div>
+    <div class="cover-card cover-card--compact">
+      <h3>Raydium CLMM</h3>
+      <span class="cover-card-tag">DEX</span>
+      <p>Concentrated-liquidity AMM. USDG&ndash;ONyc pool with LP position and swap tracking.</p>
+    </div>
+    <div class="cover-card cover-card--compact">
+      <h3>Kamino Lending</h3>
+      <span class="cover-card-tag">Lending</span>
+      <p>Lending market metrics: supply &amp; borrow APY, utilisation, obligations, and liquidation risk.</p>
+    </div>
+    <div class="cover-card cover-card--compact">
+      <h3>Exponent Finance</h3>
+      <span class="cover-card-tag">Yield</span>
+      <p>PT/YT yield tokenisation. Implied APY, SY supply, escrow balances, and trade flow.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Dashboard Pages ── -->
+<section class="cover-section">
+  <h2 class="cover-section-title">Dashboard Pages</h2>
+  <div class="cover-cards cover-cards--3">
+    <a href="/global-ecosystem" class="cover-card cover-card--link">
+      <h3>Ecosystem</h3>
+      <p>
+        Cross-protocol view of ONyc: issuance breakdown, yield comparisons,
+        supply distribution by availability tier, and TVL / activity across all
+        monitored venues.
+      </p>
+    </a>
+    <a href="/dex-liquidity" class="cover-card cover-card--link">
+      <h3>DEX Liquidity</h3>
+      <p>
+        Pool-level liquidity depth, LP position heatmaps, tick-array
+        concentration, and fee metrics for Orca and Raydium pools.
+      </p>
+    </a>
+    <a href="/dex-swaps" class="cover-card cover-card--link">
+      <h3>DEX Swaps</h3>
+      <p>
+        Trade flow analysis: swap volumes, OHLCV, sell-side pressure,
+        net flows, and trade-impact sensitivity charts.
+      </p>
+    </a>
+    <a href="/kamino" class="cover-card cover-card--link">
+      <h3>Kamino</h3>
+      <p>
+        Lending market KPIs, reserve utilisation time series,
+        obligation watchlist, and position-level risk indicators.
+      </p>
+    </a>
+    <a href="/exponent-yield" class="cover-card cover-card--link">
+      <h3>Exponent Yield</h3>
+      <p>
+        PT/YT market comparison: implied APY, trade volume, SY supply,
+        and escrow evolution across maturity pairs.
+      </p>
+    </a>
+    <a href="/system-health" class="cover-card cover-card--link">
+      <h3>System Health</h3>
+      <p>
+        Pipeline observability: write-queue throughput, CAGG freshness,
+        trigger health, and data-gap detection per schema.
+      </p>
+    </a>
+  </div>
+</section>
+
+<!-- ── Guides ── -->
+<section class="cover-section">
+  <h2 class="cover-section-title">Guides &amp; Resources</h2>
+  <div class="cover-cards cover-cards--2">
+    <div class="cover-card">
+      <div class="cover-card-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <h3>Protocol Guides</h3>
+      <p>
+        Each protocol page includes an in-page guide (look for the
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        button in the header). These guides explain the data model, key
+        metrics, and how to read each chart within that page&rsquo;s context.
+      </p>
+    </div>
+    <div class="cover-card">
+      <div class="cover-card-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3.01 3.01 0 0 0-2.12-2.13C19.54 3.6 12 3.6 12 3.6s-7.54 0-9.38.47A3.01 3.01 0 0 0 .5 6.2 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.8 3.01 3.01 0 0 0 2.12 2.13C4.46 20.4 12 20.4 12 20.4s7.54 0 9.38-.47a3.01 3.01 0 0 0 2.12-2.13A31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.8zM9.75 15.52V8.48L15.86 12l-6.11 3.52z"/></svg>
+      </div>
+      <h3>Video Walkthroughs</h3>
+      <p>
+        Short video walkthroughs are linked from the header
+        (<strong>Watch &rarr; Video Guide</strong>). These cover dashboard
+        navigation, reading the charts, and interpreting key signals.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pipeline Overview ── -->
+<section class="cover-section">
+  <h2 class="cover-section-title">How It Works</h2>
+  <div class="cover-pipeline">
+    <div class="cover-pipeline-step">
+      <div class="cover-pipeline-num">1</div>
+      <div>
+        <h3>Ingest</h3>
+        <p>
+          Real-time gRPC streams (Yellowstone) plus periodic RPC snapshots
+          capture every relevant on-chain event and account state change.
+        </p>
+      </div>
+    </div>
+    <div class="cover-pipeline-arrow" aria-hidden="true"></div>
+    <div class="cover-pipeline-step">
+      <div class="cover-pipeline-num">2</div>
+      <div>
+        <h3>Decode &amp; Enrich</h3>
+        <p>
+          Raw transactions are Borsh-decoded, matched against protocol
+          discriminators, and enriched with pool/market metadata before
+          persisting.
+        </p>
+      </div>
+    </div>
+    <div class="cover-pipeline-arrow" aria-hidden="true"></div>
+    <div class="cover-pipeline-step">
+      <div class="cover-pipeline-num">3</div>
+      <div>
+        <h3>Store &amp; Roll Up</h3>
+        <p>
+          Events land in TimescaleDB hypertables partitioned by time.
+          Continuous aggregates refresh every 5 seconds for sub-minute
+          dashboard freshness.
+        </p>
+      </div>
+    </div>
+    <div class="cover-pipeline-arrow" aria-hidden="true"></div>
+    <div class="cover-pipeline-step">
+      <div class="cover-pipeline-num">4</div>
+      <div>
+        <h3>Serve</h3>
+        <p>
+          Parameterised view functions feed a lightweight API layer. The
+          dashboard fetches each widget independently via HTMX with
+          staggered loads and automatic refresh.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Built By ── -->
+<section class="cover-section cover-section--closing">
+  <div class="cover-prose cover-prose--center">
+    <p class="cover-built-by">
+      Designed, decoded &amp; built by
+      <strong>Roderick McKinley, CFA, FRM</strong>
+    </p>
+    <p class="cover-built-sub">
+      End-to-end Solana data engineering &mdash; from raw gRPC streams to
+      production dashboards.
+    </p>
+    <div class="cover-social-links">
+      <a href="https://www.linkedin.com/in/roderickmckinley/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452H16.89v-5.569c0-1.328-.024-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a1.98 1.98 0 0 1-1.98-1.98c0-1.093.887-1.98 1.98-1.98s1.98.887 1.98 1.98a1.98 1.98 0 0 1-1.98 1.98zm1.957 13.019H3.38V9h3.914v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+      </a>
+      <a href="https://x.com/NomadAnalyst" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
