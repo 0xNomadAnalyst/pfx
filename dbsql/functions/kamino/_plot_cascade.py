@@ -1,4 +1,4 @@
-"""Cascade chart v8 – blue cascade, red price decline, equal panels."""
+"""Cascade chart v10 – per-pool price impact panels."""
 import psycopg2
 import matplotlib
 matplotlib.use('Agg')
@@ -15,29 +15,44 @@ cur.execute("""
     SELECT initial_shock_pct, equilibrium_shock_pct,
            total_liquidated_usd, induced_coll_decline_pct,
            debt_triggered_liq_usd, cascade_triggered_liq_usd,
-           sell_qty_tokens, pool_depth_used_pct, liq_pct_of_deposits
+           sell_qty_tokens, pool_depth_used_pct, liq_pct_of_deposits,
+           pool_address, pool_weight, counter_pair_symbol,
+           pool_impact_pct
     FROM kamino_lend.simulate_cascade_amplification(
         NULL, -100, 50, 100, 50, FALSE,
-        ARRAY['ONyc'], NULL, 'ONyc'
+        ARRAY['ONyc'], NULL, 'ONyc', 'weighted'
     )
-    ORDER BY initial_shock_pct
+    ORDER BY initial_shock_pct, pool_address
 """)
 rows = cur.fetchall()
 cur.close()
 conn.close()
 
-D = {
-    'init': [float(r[0]) for r in rows],
-    'eq':   [float(r[1]) for r in rows],
-    'liq':  [float(r[2]) for r in rows],
-    'cd':   [float(r[3]) for r in rows],
-    'dliq': [float(r[4]) for r in rows],
-    'cliq': [float(r[5]) for r in rows],
-    'qty':  [float(r[6]) for r in rows],
-    'pool': [float(r[7] or 0) for r in rows],
-    'dep':  [float(r[8] or 0) for r in rows],
-}
+pools = sorted(set(r[9] for r in rows))
+pool_labels = {}
+pool_weights_map = {}
+for r in rows:
+    pool_labels[r[9]] = f"ONyc / {r[11]}"
+    pool_weights_map[r[9]] = float(r[10])
 
+P = {}
+for pa in pools:
+    pr = [r for r in rows if r[9] == pa]
+    P[pa] = {
+        'init':   [float(r[0]) for r in pr],
+        'eq':     [float(r[1]) for r in pr],
+        'liq':    [float(r[2]) for r in pr],
+        'cd':     [float(r[3]) for r in pr],
+        'dliq':   [float(r[4]) for r in pr],
+        'cliq':   [float(r[5]) for r in pr],
+        'qty':    [float(r[6]) for r in pr],
+        'pool':   [float(r[7] or 0) for r in pr],
+        'dep':    [float(r[8] or 0) for r in pr],
+        'pimpact': [float(r[12] or 0) for r in pr],
+    }
+
+ref_pool = pools[0]
+D = P[ref_pool]
 all_x = D['init']
 li = [i for i, x in enumerate(all_x) if x <= 0]
 ri = [i for i, x in enumerate(all_x) if x > 0]
@@ -52,9 +67,12 @@ TXT = '#cccccc'
 CASCADE_COL = '#5599dd'
 EXOG_COL = '#6677aa'
 DECLINE_COL = '#e05555'
+POOL_COLORS = ['#ff6b6b', '#ffbb55']
 
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(13, 8.5),
-    gridspec_kw={'height_ratios': [1, 1]}, sharex=True)
+n_pools = len(pools)
+n_panels = 1 + n_pools
+fig, axes = plt.subplots(n_panels, 1, figsize=(13, 3.5 * n_panels),
+    gridspec_kw={'height_ratios': [1] * n_panels}, sharex=True)
 fig.patch.set_facecolor(BG)
 
 def style_ax(ax, ylabel, ycolor=TXT):
@@ -69,8 +87,9 @@ def style_ax(ax, ylabel, ycolor=TXT):
     ax.axvline(x=0, color='#555577', linewidth=1, linestyle='--', alpha=0.5)
 
 # ═══════════════════════════════════════════════════════════
-#  PANEL 1: Liquidated Value + pool depth
+#  PANEL 1: Liquidated Value + per-pool depth
 # ═══════════════════════════════════════════════════════════
+ax1 = axes[0]
 style_ax(ax1, 'Liquidated Value ($M)', '#e8a838')
 ax1.spines['left'].set_color('#e8a838')
 ax1.tick_params(axis='y', colors='#e8a838')
@@ -98,15 +117,18 @@ ax1.fill_between(all_x, base, casc_top, alpha=0.45, color=CASCADE_COL,
 ax1.plot(all_x, casc_top, '-', color='#e8a838', linewidth=1.5, alpha=0.8)
 
 ax1r = ax1.twinx()
-ax1r.plot(all_x, D['pool'], '-', color='#ff6b6b', linewidth=1.2, alpha=0.6,
-          label='Pool depth used (%)')
-ax1r.axhline(y=100, color='#ff6b6b', linewidth=1.2, linestyle=':', alpha=0.5)
-ax1r.set_ylabel('Pool Depth Used (%)', color='#ff6b6b', fontsize=8)
-ax1r.tick_params(axis='y', colors='#ff6b6b', labelsize=7)
-ax1r.spines['right'].set_color('#ff6b6b')
+for pidx, pa in enumerate(pools):
+    col = POOL_COLORS[pidx % len(POOL_COLORS)]
+    ax1r.plot(all_x, P[pa]['pool'], '-', color=col, linewidth=1.2, alpha=0.6,
+              label=f'Depth: {pool_labels[pa]} ({pool_weights_map[pa]*100:.0f}%)')
+ax1r.axhline(y=100, color='white', linewidth=1.2, linestyle=':', alpha=0.35)
+
+ax1r.set_ylabel('Pool Depth Used (%)', color=TXT, fontsize=8)
+ax1r.tick_params(axis='y', colors='#999999', labelsize=7)
+ax1r.spines['right'].set_color(SPINE)
 ax1r.spines['top'].set_visible(False)
 
-ax1.set_title('Liquidation Cascade Analysis  —  ONyc',
+ax1.set_title('Liquidation Cascade Analysis  —  ONyc  (weighted multi-pool)',
               color='white', fontsize=11, fontweight='bold', pad=10)
 ax1.text(-25, max(all_liq) * 0.88, r'$\leftarrow$ Collateral Decrease',
          color=EXOG_COL, fontsize=7.5, ha='center', alpha=0.7)
@@ -119,70 +141,94 @@ ax1.legend(h1 + h1r, l1 + l1r, loc='upper left', fontsize=6.5,
            facecolor=BG, edgecolor=SPINE, labelcolor=TXT, ncol=2)
 
 # ═══════════════════════════════════════════════════════════
-#  PANEL 2: Collateral Price Decline (%) – red tones
+#  PANELS 2..N: Per-pool Collateral Price Impact
 # ═══════════════════════════════════════════════════════════
-style_ax(ax2, 'Collateral Price Decline (%)')
+max_impact_all = 0
+for pa in pools:
+    pdata = P[pa]
+    left_eq = [-pdata['eq'][i] for i in li]
+    left_pi = [-pdata['pimpact'][i] for i in li]
+    right_pi = [-pdata['pimpact'][i] for i in ri]
+    cands = left_eq + left_pi + right_pi
+    if cands:
+        max_impact_all = max(max_impact_all, max(cands))
 
-neg_init = [-all_x[i] for i in li]
+ylim = max_impact_all + 5
 
-ax2.plot(lx, neg_init, ':', color='#888899', linewidth=1.2, alpha=0.6,
-         label='No-cascade reference')
+for pidx, pa in enumerate(pools):
+    ax = axes[1 + pidx]
+    col = POOL_COLORS[pidx % len(POOL_COLORS)]
+    pdata = P[pa]
+    lbl = pool_labels[pa]
+    wt = pool_weights_map[pa]
 
-neg_casc = [-D['cd'][i] for i in li]
-ax2.fill_between(lx, 0, neg_init, alpha=0.15, color=DECLINE_COL,
-                 label='Exogenous shock')
-ax2.fill_between(lx, neg_init,
-                 [ni + nc for ni, nc in zip(neg_init, neg_casc)],
-                 alpha=0.45, color=DECLINE_COL, label='Cascade addition')
-ax2.plot(lx, [-D['eq'][i] for i in li], '-', color=DECLINE_COL, linewidth=2,
-         label='Total coll. decline (left)')
+    style_ax(ax, f'Price Impact: {lbl} ({wt*100:.0f}%)', col)
+    ax.spines['left'].set_color(col)
+    ax.tick_params(axis='y', colors=col)
 
-right_cd = [-D['cd'][i] for i in ri]
-ax2.fill_between(rx, 0, right_cd, alpha=0.3, color=DECLINE_COL)
-ax2.plot(rx, right_cd, '-', color=DECLINE_COL, linewidth=2,
-         label='Induced coll. decline (right)')
+    # Left side: per-pool impact
+    left_pi = [-pdata['pimpact'][i] for i in li]
+    neg_init = [-all_x[i] for i in li]
 
-for s in [-50, -30, -15]:
-    idx = next((i for i, v in enumerate(all_x) if abs(v - s) < 0.6), None)
-    if idx and abs(D['eq'][idx]) > 0.5:
-        ax2.annotate(f'{D["eq"][idx]:.1f}%',
-            xy=(all_x[idx], -D['eq'][idx]),
-            xytext=(all_x[idx] + 4, -D['eq'][idx] + 2),
-            fontsize=7, color=DECLINE_COL, fontweight='bold',
-            arrowprops=dict(arrowstyle='->', color=DECLINE_COL, lw=0.7))
+    ax.plot(lx, neg_init, ':', color='#888899', linewidth=1.2, alpha=0.6,
+            label='No-cascade ref.')
+    ax.fill_between(lx, 0, neg_init, alpha=0.10, color=col)
+    ax.fill_between(lx, neg_init, [ni + pi for ni, pi in zip(neg_init, left_pi)],
+                    alpha=0.40, color=col, label='Cascade addition')
+    left_total = [ni + pi for ni, pi in zip(neg_init, left_pi)]
+    ax.plot(lx, left_total, '-', color=col, linewidth=2,
+            label='Total impact (left)')
 
-for s in [20, 40]:
-    idx = next((i for i, v in enumerate(all_x) if abs(v - s) < 0.6), None)
-    if idx and abs(D['cd'][idx]) > 0.01:
-        ax2.annotate(f'{D["cd"][idx]:.2f}%',
-            xy=(all_x[idx], -D['cd'][idx]),
-            xytext=(all_x[idx] - 4, -D['cd'][idx] + 1.5),
-            fontsize=7, color=DECLINE_COL, fontweight='bold',
-            arrowprops=dict(arrowstyle='->', color=DECLINE_COL, lw=0.7))
+    # Right side: per-pool induced impact
+    right_pi = [-pdata['pimpact'][i] for i in ri]
+    ax.fill_between(rx, 0, right_pi, alpha=0.25, color=col)
+    ax.plot(rx, right_pi, '-', color=col, linewidth=2,
+            label='Induced impact (right)')
 
-ylim = max(-min(D['eq']), max(-v for v in D['cd'])) + 5
-ax2.set_ylim(0, ylim)
-ax2.set_xlabel('Price Change (%)', color=TXT, fontsize=9)
+    # Annotations at key points
+    for s in [-50, -30]:
+        idx = next((i for i, v in enumerate(all_x) if abs(v - s) < 0.6), None)
+        if idx is not None and abs(pdata['pimpact'][idx]) > 0.01:
+            total_val = -pdata['eq'][idx] if all_x[idx] <= 0 else -pdata['pimpact'][idx]
+            pi_val = pdata['pimpact'][idx]
+            if all_x[idx] <= 0:
+                total_val = neg_init[li.index(idx)] + (-pi_val)
+            ax.annotate(f'{pi_val:.2f}%',
+                xy=(all_x[idx], -pi_val + neg_init[li.index(idx)] if idx in li else -pi_val),
+                xytext=(all_x[idx] + 4, (-pi_val + neg_init[li.index(idx)] if idx in li else -pi_val) + 2),
+                fontsize=7, color=col, fontweight='bold',
+                arrowprops=dict(arrowstyle='->', color=col, lw=0.7))
 
-ax2.legend(loc='upper left', fontsize=6.5,
-           facecolor=BG, edgecolor=SPINE, labelcolor=TXT, ncol=3)
+    for s in [30, 50]:
+        idx = next((i for i, v in enumerate(all_x) if abs(v - s) < 0.6), None)
+        if idx is not None and abs(pdata['pimpact'][idx]) > 0.01:
+            pi_val = pdata['pimpact'][idx]
+            ax.annotate(f'{pi_val:.2f}%',
+                xy=(all_x[idx], -pi_val),
+                xytext=(all_x[idx] - 5, -pi_val + 1.5),
+                fontsize=7, color=col, fontweight='bold',
+                arrowprops=dict(arrowstyle='->', color=col, lw=0.7))
 
-# ═══════════════════════════════════════════════════════════
-#  Pool exhaustion vertical reference lines (both panels)
-# ═══════════════════════════════════════════════════════════
-exhaust_xs = []
-for i in range(len(all_x) - 1):
-    crosses_up = D['pool'][i] < 100 and D['pool'][i+1] >= 100
-    crosses_dn = D['pool'][i] >= 100 and D['pool'][i+1] < 100
-    if crosses_up or crosses_dn:
-        frac = (100 - D['pool'][i]) / (D['pool'][i+1] - D['pool'][i])
-        exhaust_xs.append(all_x[i] + frac * (all_x[i+1] - all_x[i]))
+    ax.set_ylim(0, ylim)
+    ax.legend(loc='upper left', fontsize=6.5,
+              facecolor=BG, edgecolor=SPINE, labelcolor=TXT, ncol=4)
 
-for ex in exhaust_xs:
-    for ax in [ax1, ax2]:
-        ax.axvline(x=ex, color='#ff6b6b', linewidth=1.2, linestyle='--', alpha=0.55)
-    ax1.text(ex, max(all_liq) * 0.02, f'{ex:.0f}%', color='#ff6b6b',
-             fontsize=7, ha='center', va='bottom', fontweight='bold', alpha=0.8)
+    # Pool exhaustion vertical lines on this panel
+    pool_d = pdata['pool']
+    for i in range(len(all_x) - 1):
+        crosses_up = pool_d[i] < 100 and pool_d[i+1] >= 100
+        crosses_dn = pool_d[i] >= 100 and pool_d[i+1] < 100
+        if crosses_up or crosses_dn:
+            denom = pool_d[i+1] - pool_d[i]
+            if abs(denom) > 1e-6:
+                frac = (100 - pool_d[i]) / denom
+                ex = all_x[i] + frac * (all_x[i+1] - all_x[i])
+                ax.axvline(x=ex, color=col, linewidth=1.2, linestyle='--', alpha=0.55)
+                ax1.axvline(x=ex, color=col, linewidth=1.2, linestyle='--', alpha=0.55)
+                ax.text(ex, ylim * 0.95, f'{ex:.0f}%', color=col,
+                        fontsize=6.5, ha='center', va='top', fontweight='bold', alpha=0.8)
+
+axes[-1].set_xlabel('Price Change (%)', color=TXT, fontsize=9)
 
 fig.tight_layout(pad=1.5)
 out = r'd:\dev\mano\risk_dash\pfx\dbsql\functions\kamino\cascade_amplification_chart.png'

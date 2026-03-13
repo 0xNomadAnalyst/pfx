@@ -1,12 +1,10 @@
--- Kamino Lend - Resolve DEX Pool for Reserve Symbol
--- Given a Kamino lending reserve symbol (e.g. 'ONyc', 'AUSD'), finds the
--- corresponding DEX pool and determines which token position the symbol
--- occupies (t0 or t1).
+-- Kamino Lend - Resolve DEX Pool(s) for Reserve Symbol
+-- Given a Kamino lending reserve symbol (e.g. 'ONyc', 'AUSD'), finds ALL
+-- corresponding DEX pools and determines which token position the symbol
+-- occupies (t0 or t1) in each.
 --
--- ASSUMPTION: Each token symbol is uniquely associated with a single DEX pool
--- in dexes.pool_tokens_reference. If a symbol appears in multiple pools, only
--- the first match is returned (non-deterministic). Callers should ensure the
--- reference table is curated to enforce this uniqueness for monitored assets.
+-- A symbol may appear in multiple pools (e.g. ONyc in ONyc-USDC and USDG-ONyc).
+-- Returns one row per matching pool.
 --
 -- Lookup path:
 --   dexes.pool_tokens_reference.token0_symbol / token1_symbol -> pool_address
@@ -14,7 +12,7 @@
 -- Parameters:
 --   p_symbol: Token symbol as it appears in pool_tokens_reference (e.g. 'ONyc')
 --
--- Returns: Single row with pool_address, token_side ('t0'/'t1'), and both symbols
+-- Returns: One row per matching pool with pool_address, token_side, and both symbols
 
 CREATE OR REPLACE FUNCTION kamino_lend.resolve_dex_pool(p_symbol TEXT)
 RETURNS TABLE (
@@ -35,13 +33,12 @@ BEGIN
         ptr.token1_symbol
     FROM dexes.pool_tokens_reference ptr
     WHERE ptr.token0_symbol = p_symbol
-       OR ptr.token1_symbol = p_symbol
-    LIMIT 1;
+       OR ptr.token1_symbol = p_symbol;
 END;
 $$ LANGUAGE plpgsql STABLE
 SET search_path TO kamino_lend, dexes, public;
 
 COMMENT ON FUNCTION kamino_lend.resolve_dex_pool(TEXT) IS
-'Resolves a Kamino reserve token symbol to its DEX pool address and token position (t0/t1).
-Assumes each symbol maps to exactly one pool in dexes.pool_tokens_reference.
-Used by simulate_cascade_amplification to determine which pool receives liquidation sell pressure.';
+'Resolves a Kamino reserve token symbol to ALL its DEX pools and token positions (t0/t1).
+Returns one row per matching pool in dexes.pool_tokens_reference.
+Used by simulate_cascade_amplification to determine which pools receive liquidation sell pressure.';
