@@ -1224,6 +1224,8 @@
         }
         if (series.connectNulls !== undefined) {
           mapped.connectNulls = Boolean(series.connectNulls);
+        } else if (mapped.type === "line") {
+          mapped.connectNulls = true;
         }
         if (series.color) {
           mapped.itemStyle = { color: series.color };
@@ -1642,6 +1644,7 @@
             showSymbol: s.showSymbol ?? false,
             smooth: s.smooth ?? false,
           };
+          if (s.type === "line") mapped.connectNulls = true;
           if (s.color) {
             mapped.itemStyle = { color: s.color };
             if (s.type === "line") mapped.lineStyle = { color: s.color, width: 2 };
@@ -1919,6 +1922,7 @@
             showSymbol: false,
             smooth: s.smooth ?? false,
           };
+          if (mapped.type === "line") mapped.connectNulls = true;
           if (s.stack) mapped.stack = s.stack;
           if (s.area) mapped.areaStyle = { opacity: 0.85 };
           if (s.color) {
@@ -2091,8 +2095,8 @@
         if (nowMs >= minT - pad && nowMs <= maxT + pad) {
           markLineData.push({
             xAxis: nowMs,
-            lineStyle: { type: "dashed", color: "#ef4444", width: 2 },
-            label: { show: true, formatter: "Now", color: "#ef4444", fontSize: 12, fontWeight: "bold", position: "start" },
+            lineStyle: { type: "dashed", color: "#28c987", width: 2 },
+            label: { show: true, formatter: "Now", color: "#28c987", fontSize: 12, fontWeight: "bold", position: "start" },
           });
         }
       }
@@ -2814,12 +2818,23 @@
 
   function currentMkt1() {
     const select = document.getElementById("mkt1-select");
-    return select ? select.value : "";
+    const val = select ? select.value : "";
+    return val === "__none__" ? "" : val;
   }
 
   function currentMkt2() {
     const select = document.getElementById("mkt2-select");
-    return select ? select.value : "";
+    const val = select ? select.value : "";
+    return val === "__none__" ? "" : val;
+  }
+
+  function isMarketDisabled(widgetId) {
+    const mkt1Select = document.getElementById("mkt1-select");
+    const mkt2Select = document.getElementById("mkt2-select");
+    if (!mkt1Select && !mkt2Select) return false;
+    if (widgetId.endsWith("-mkt1") && mkt1Select && mkt1Select.value === "__none__") return true;
+    if (widgetId.endsWith("-mkt2") && mkt2Select && mkt2Select.value === "__none__") return true;
+    return false;
   }
 
   function readPersistedFilters() {
@@ -2883,12 +2898,16 @@
     }
   }
 
-  function setSelectOptions(selectEl, values, selected) {
+  function setSelectOptions(selectEl, values, selected, includeNone) {
     if (!selectEl) {
       return;
     }
     const unique = Array.from(new Set(values.filter(Boolean)));
-    const options = unique.map((value) => `<option value="${value}">${value}</option>`).join("");
+    let options = "";
+    if (includeNone) {
+      options += '<option value="__none__">None</option>';
+    }
+    options += unique.map((value) => `<option value="${value}">${value}</option>`).join("");
     selectEl.innerHTML = options;
     if (unique.includes(selected)) {
       selectEl.value = selected;
@@ -3031,8 +3050,8 @@
       const defaultMkt1 = meta.selected_mkt1 || "";
       const defaultMkt2 = meta.selected_mkt2 || "";
 
-      setSelectOptions(mkt1Select, markets, defaultMkt1);
-      setSelectOptions(mkt2Select, markets, defaultMkt2);
+      setSelectOptions(mkt1Select, markets, defaultMkt1, true);
+      setSelectOptions(mkt2Select, markets, defaultMkt2, true);
     } catch (_) {
       mkt1Select.innerHTML = '<option value="">Unavailable</option>';
       mkt2Select.innerHTML = '<option value="">Unavailable</option>';
@@ -3201,6 +3220,19 @@
       updateTimestamp(widgetId, payload?.metadata?.generated_at);
     } catch (error) {
       setWidgetError(widgetId, String(error));
+    }
+  });
+
+  document.body.addEventListener("htmx:beforeRequest", (event) => {
+    const sourceEl = event.detail.elt;
+    if (!sourceEl || !sourceEl.classList.contains("widget-loader")) return;
+    const widgetId = sourceEl.dataset.widgetId;
+    if (widgetId && isMarketDisabled(widgetId)) {
+      event.preventDefault();
+      resetWidgetView(sourceEl);
+      const updatedEl = document.getElementById(`updated-${widgetId}`);
+      if (updatedEl) updatedEl.textContent = "market not selected";
+      return;
     }
   });
 
