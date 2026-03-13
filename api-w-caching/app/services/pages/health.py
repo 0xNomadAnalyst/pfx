@@ -26,7 +26,7 @@ WINDOW_MAP: dict[str, tuple[str, str]] = {
     "90d": ("90 days",  "1 day"),
 }
 
-VALID_SCHEMAS = {"dexes", "exponent", "kamino_lend", "solstice_proprietary"}
+VALID_SCHEMAS = {"dexes", "exponent", "kamino_lend", "solstice_proprietary", "cross_protocol"}
 VALID_ATTRIBUTES = {"Queue Size", "Write Rate", "Gap Size", "Failures"}
 
 
