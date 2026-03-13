@@ -258,6 +258,7 @@ class HealthPageService(BasePageService):
             "health-master": self._health_master,
             "health-queue-table": self._health_queue_table,
             "health-queue-chart": self._health_queue_chart,
+            "health-queue-chart-2": self._health_queue_chart,
             "health-trigger-table": self._health_trigger_table,
             "health-base-table": self._health_base_table,
             "health-base-chart-events": self._health_base_chart_events,

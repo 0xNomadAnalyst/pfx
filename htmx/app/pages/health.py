@@ -32,6 +32,13 @@ PAGE_CONFIG = PageConfig(
             expandable=True,
         ),
         WidgetConfig(
+            "health-queue-chart-2",
+            "Queue Health",
+            "chart",
+            "panel panel-medium health-slot-queue-chart-2",
+            expandable=True,
+        ),
+        WidgetConfig(
             "health-trigger-table",
             "Trigger Function Health",
             "table",
