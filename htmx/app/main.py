@@ -180,6 +180,32 @@ def system_health(request: Request):
     return render_page(request, PAGES_BY_SLUG["system-health"])
 
 
+@app.get("/chart-export", include_in_schema=False)
+def chart_export(request: Request):
+    """Private utility page for exporting charts as image assets."""
+    chart_catalogue: list[dict] = []
+    for page in PAGES:
+        for widget in page.widgets:
+            if widget.kind != "chart":
+                continue
+            chart_catalogue.append({
+                "page_label": page.label,
+                "page_id": page.api_page_id,
+                "widget_id": widget.id,
+                "widget_title": widget.title,
+                "endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, page.api_page_id, widget.id),
+            })
+    return templates.TemplateResponse(
+        request=request,
+        name="export.html",
+        context={
+            "app_title": APP_TITLE,
+            "chart_catalogue": chart_catalogue,
+            "api_base_url": BROWSER_API_BASE_URL,
+        },
+    )
+
+
 _pipeline_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 
 def _get_pipeline_info() -> dict | None:

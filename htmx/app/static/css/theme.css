@@ -746,6 +746,16 @@ th .info-tip-icon {
   font-size: 11px;
 }
 
+@keyframes kpi-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kpi-fresh .kpi-primary,
+.kpi-fresh .kpi-secondary {
+  animation: kpi-fade-in 0.4s ease both;
+}
+.kpi-fresh .kpi-secondary { animation-delay: 0.06s; }
+
 .market-card-dates {
   font-size: 14px;
   font-weight: 400;

@@ -731,6 +731,15 @@
     }
 
     autoSizeKpi(primary);
+    fadeInKpi(primary);
+  }
+
+  function fadeInKpi(primaryEl) {
+    const panel = primaryEl.closest(".panel-kpi");
+    if (!panel) return;
+    panel.classList.remove("kpi-fresh");
+    void panel.offsetWidth;
+    panel.classList.add("kpi-fresh");
   }
 
   function maskNoneMarketSide(text) {
