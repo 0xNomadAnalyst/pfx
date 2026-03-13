@@ -12,8 +12,13 @@ logger = logging.getLogger(__name__)
 
 class RiskAnalysisPageService(BasePageService):
     page_id = "risk-analysis"
-    default_protocol = "raydium"
-    default_pair = "USX-USDC"
+    default_protocol = "orca"
+    default_pair = "ONyc-USDC"
+
+    _PAIR = "ONyc-USDC"
+    _PAIR_LOWER = "onyc-usdc"
+    _TOKEN0 = "ONyc"
+    _TOKEN1 = "USDC"
 
     _PVALUE_TTL_SECONDS = float(os.getenv("RA_PVALUE_TTL_SECONDS", "120"))
     _TICK_DIST_TTL_SECONDS = float(os.getenv("RA_TICK_DIST_TTL_SECONDS", "120"))
@@ -56,7 +61,7 @@ class RiskAnalysisPageService(BasePageService):
                 return self.sql.fetch_rows(
                     "SELECT * FROM dexes.get_view_dex_risk_pvalues(%s, %s, %s, %s) "
                     "ORDER BY stat_order",
-                    (protocol, "usx-usdc", event_type, interval),
+                    (protocol, self._PAIR_LOWER, event_type, interval),
                 )
             except Exception as exc:
                 logger.warning("_pvalue_rows query failed (%s/%s/%s): %s", protocol, event_type, interval, exc)
@@ -72,7 +77,7 @@ class RiskAnalysisPageService(BasePageService):
                 return self.sql.fetch_rows(
                     "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval) "
                     "ORDER BY tick_price_t1_per_t0",
-                    (protocol, "USX-USDC", "1 hour"),
+                    (protocol, self._PAIR, "1 hour"),
                 )
             except Exception as exc:
                 logger.warning("_tick_dist_rows query failed (%s): %s", protocol, exc)
@@ -200,8 +205,8 @@ class RiskAnalysisPageService(BasePageService):
     def _map_sell_amount_to_price(
         self, tick_rows: list[dict[str, Any]], sell_amount: float
     ) -> float | None:
-        """Walk downside ticks consuming USX liquidity to find the price
-        reached after selling ``sell_amount`` USX."""
+        """Walk downside ticks consuming token0 liquidity to find the price
+        reached after selling ``sell_amount`` of token0."""
         current_price = self._snapped_price(tick_rows)
         if current_price is None or sell_amount <= 0:
             return None
@@ -269,7 +274,7 @@ class RiskAnalysisPageService(BasePageService):
 
         columns = [
             {"key": "stat_name", "label": "P Value"},
-            {"key": "value", "label": "USX"},
+            {"key": "value", "label": self._TOKEN0},
             {"key": "event_count_at_or_above", "label": "Counts at or above"},
             {"key": "last_observed_at", "label": "Last observed"},
         ]
@@ -277,9 +282,9 @@ class RiskAnalysisPageService(BasePageService):
         return {
             "kind": "table-split",
             "columns": columns,
-            "left_title": "Raydium USX-USDC",
+            "left_title": f"Raydium {self._PAIR}",
             "left_rows": ray_rows,
-            "right_title": "Orca USX-USDC",
+            "right_title": f"Orca {self._PAIR}",
             "right_rows": orca_rows,
             "subtitle": subtitle,
             "window_label": "All Time",
@@ -296,14 +301,14 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "bar",
             "x": [r["tick_price_t1_per_t0"] for r in tick_rows],
-            "xAxisLabel": "Price (USDC per USX)",
+            "xAxisLabel": f"Price ({self._TOKEN1} per {self._TOKEN0})",
             "yAxisLabel": "Liquidity Amount",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price},
             "mark_lines": ml,
             "series": [
-                {"name": "USX Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows]},
-                {"name": "USDC Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows]},
+                {"name": f"{self._TOKEN0} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows]},
+                {"name": f"{self._TOKEN1} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows]},
             ],
         }
 
@@ -314,7 +319,7 @@ class RiskAnalysisPageService(BasePageService):
         )
         x_vals = [r["tick_price_t1_per_t0"] for r in tick_rows]
         usdc_cumul = [self._ff(r.get("token1_cumul")) for r in tick_rows]
-        usx_cumul = [self._ff(r.get("token0_cumul")) for r in tick_rows]
+        t0_cumul = [self._ff(r.get("token0_cumul")) for r in tick_rows]
 
         if current_price_raw is not None:
             try:
@@ -322,7 +327,7 @@ class RiskAnalysisPageService(BasePageService):
                 for idx, v in enumerate(x_vals):
                     if abs(float(v) - cpf) <= 1e-12:
                         usdc_cumul[idx] = 0
-                        usx_cumul[idx] = 0
+                        t0_cumul[idx] = 0
                         break
             except (TypeError, ValueError):
                 pass
@@ -335,14 +340,14 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "line-area",
             "x": x_vals,
-            "xAxisLabel": "Price (USDC per USX)",
+            "xAxisLabel": f"Price ({self._TOKEN1} per {self._TOKEN0})",
             "yAxisLabel": "Cumulative Liquidity",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price_raw},
             "mark_lines": ml,
             "series": [
-                {"name": "USDC Cumulative", "type": "line", "area": True, "data": usdc_cumul},
-                {"name": "USX Cumulative", "type": "line", "area": True, "data": usx_cumul},
+                {"name": f"{self._TOKEN1} Cumulative", "type": "line", "area": True, "data": usdc_cumul},
+                {"name": f"{self._TOKEN0} Cumulative", "type": "line", "area": True, "data": t0_cumul},
             ],
         }
 
@@ -390,7 +395,7 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "probability-curve",
             "x": full_x,
-            "xAxisLabel": "Price (USDC per USX)",
+            "xAxisLabel": f"Price ({self._TOKEN1} per {self._TOKEN0})",
             "yAxisLabel": "Probability (%)",
             "reference_lines": {
                 "peg": 1.0,
@@ -482,14 +487,14 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "bar",
             "x": [r["tick_price_t1_per_t0"] for r in tick_rows],
-            "xAxisLabel": "Price (USDC per USX)",
+            "xAxisLabel": f"Price ({self._TOKEN1} per {self._TOKEN0})",
             "yAxisLabel": "Liquidity Amount",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price},
             "mark_lines": ml,
             "series": [
-                {"name": "USX Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows]},
-                {"name": "USDC Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows]},
+                {"name": f"{self._TOKEN0} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows]},
+                {"name": f"{self._TOKEN1} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows]},
             ],
         }
 
@@ -500,7 +505,7 @@ class RiskAnalysisPageService(BasePageService):
         )
         x_vals = [r["tick_price_t1_per_t0"] for r in tick_rows]
         usdc_cumul = [self._ff(r.get("token1_cumul")) for r in tick_rows]
-        usx_cumul = [self._ff(r.get("token0_cumul")) for r in tick_rows]
+        t0_cumul = [self._ff(r.get("token0_cumul")) for r in tick_rows]
 
         if current_price_raw is not None:
             try:
@@ -508,7 +513,7 @@ class RiskAnalysisPageService(BasePageService):
                 for idx, v in enumerate(x_vals):
                     if abs(float(v) - cpf) <= 1e-12:
                         usdc_cumul[idx] = 0
-                        usx_cumul[idx] = 0
+                        t0_cumul[idx] = 0
                         break
             except (TypeError, ValueError):
                 pass
@@ -520,14 +525,14 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "line-area",
             "x": x_vals,
-            "xAxisLabel": "Price (USDC per USX)",
+            "xAxisLabel": f"Price ({self._TOKEN1} per {self._TOKEN0})",
             "yAxisLabel": "Cumulative Liquidity",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price_raw},
             "mark_lines": ml,
             "series": [
-                {"name": "USDC Cumulative", "type": "line", "area": True, "data": usdc_cumul},
-                {"name": "USX Cumulative", "type": "line", "area": True, "data": usx_cumul},
+                {"name": f"{self._TOKEN1} Cumulative", "type": "line", "area": True, "data": usdc_cumul},
+                {"name": f"{self._TOKEN0} Cumulative", "type": "line", "area": True, "data": t0_cumul},
             ],
         }
 
