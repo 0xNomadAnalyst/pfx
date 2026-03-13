@@ -724,11 +724,25 @@
       }
       secondary.textContent = data.secondary || "";
     } else {
-      primary.textContent = formatNumber(data.primary);
+      let pText = formatNumber(data.primary);
+      pText = maskNoneMarketSide(pText);
+      primary.textContent = pText;
       secondary.textContent = data.secondary ? formatNumber(data.secondary) : "";
     }
 
     autoSizeKpi(primary);
+  }
+
+  function maskNoneMarketSide(text) {
+    if (typeof text !== "string" || !text.includes(" / ")) return text;
+    const mkt1Select = document.getElementById("mkt1-select");
+    const mkt2Select = document.getElementById("mkt2-select");
+    if (!mkt1Select && !mkt2Select) return text;
+    const parts = text.split(" / ");
+    if (parts.length !== 2) return text;
+    if (mkt1Select && mkt1Select.value === "__none__") parts[0] = "--";
+    if (mkt2Select && mkt2Select.value === "__none__") parts[1] = "--";
+    return parts.join(" / ");
   }
 
   function normalizeColumns(widgetId, columns) {
@@ -2082,13 +2096,15 @@
               fontSize: 13,
               fontWeight: "bold",
               position: "inside",
+              color: "#fff",
+              textBorderColor: "rgba(0,0,0,0.6)",
+              textBorderWidth: 3,
             },
             emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: "rgba(0,0,0,0.5)" } },
             data: slices.map((s) => ({
               name: s.name,
               value: s.value,
               itemStyle: s.color ? { color: hexToRgba(s.color, 0.35), borderColor: s.color, borderWidth: 2 } : undefined,
-              label: s.color ? { color: s.color } : undefined,
             })),
           },
         ],
