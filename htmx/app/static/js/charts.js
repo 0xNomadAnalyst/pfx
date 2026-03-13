@@ -2874,6 +2874,14 @@
   }
   window.__clearAllForPipelineSwitch = clearAllForPipelineSwitch;
 
+  async function refreshAfterPipelineSwitch() {
+    await populateMarketSelectors();
+    _pipelineSwitchInProgress = false;
+    resetDashboardLoading();
+    htmx.trigger(document.body, "dashboard-refresh");
+  }
+  window.__refreshAfterPipelineSwitch = refreshAfterPipelineSwitch;
+
   function getApiBaseUrl() {
     const attr = document.body.dataset.apiBaseUrl;
     return attr != null ? attr : "";
@@ -3123,32 +3131,28 @@
     initHealthBaseSchemaToggle();
   }
 
-  async function initMarketSelectors() {
+  async function populateMarketSelectors() {
     const container = document.getElementById("market-selectors");
     if (!container) return;
-
     const mkt1Select = document.getElementById("mkt1-select");
     const mkt2Select = document.getElementById("mkt2-select");
     if (!mkt1Select || !mkt2Select) return;
 
-    const pageId = container.dataset.apiPageId;
-    async function fetchMarketMeta() {
-      const pl = currentPipeline();
-      const qs = pl ? `?_pipeline=${encodeURIComponent(pl)}` : "";
-      const url = `${getApiBaseUrl()}/api/v1/${pageId}/exponent-market-meta${qs}`;
-      const resp = await fetch(url, { cache: "no-store" });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const payload = await resp.json();
-      const meta = payload.data || payload;
-      const markets = meta.markets || [];
-      if (markets.length === 0) throw new Error("empty markets list");
-      return meta;
-    }
+    mkt1Select.innerHTML = '<option value="">Loading…</option>';
+    mkt2Select.innerHTML = '<option value="">Loading…</option>';
 
+    const pageId = container.dataset.apiPageId;
     let meta = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        meta = await fetchMarketMeta();
+        const pl = currentPipeline();
+        const qs = pl ? `?_pipeline=${encodeURIComponent(pl)}` : "";
+        const url = `${getApiBaseUrl()}/api/v1/${pageId}/exponent-market-meta${qs}`;
+        const resp = await fetch(url, { cache: "no-store" });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const payload = await resp.json();
+        meta = payload.data || payload;
+        if ((meta.markets || []).length === 0) throw new Error("empty markets list");
         break;
       } catch (err) {
         if (attempt < 2) {
@@ -3168,7 +3172,14 @@
       mkt1Select.innerHTML = '<option value="">Unavailable</option>';
       mkt2Select.innerHTML = '<option value="">Unavailable</option>';
     }
+  }
 
+  async function initMarketSelectors() {
+    await populateMarketSelectors();
+
+    const mkt1Select = document.getElementById("mkt1-select");
+    const mkt2Select = document.getElementById("mkt2-select");
+    if (!mkt1Select || !mkt2Select) return;
     const lastWindowSelect = document.getElementById("last-window-select");
 
     mkt1Select.addEventListener("change", () => {

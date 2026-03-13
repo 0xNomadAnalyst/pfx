@@ -532,12 +532,17 @@
       }
     }
 
-    function scaleSpacing(option, factor) {
-      scaleNumericKeys(option.grid, ["left", "right", "top", "bottom"], factor);
-      scaleNumericKeys(option.legend, ["bottom", "top", "left", "right", "padding", "itemGap", "itemWidth", "itemHeight"], factor);
-      scaleNumericKeys(option.xAxis, ["nameGap"], factor);
-      scaleNumericKeys(option.yAxis, ["nameGap"], factor);
-      scaleNumericKeys(option.dataZoom, ["bottom", "top", "left", "right", "height"], factor);
+    function scaleSpacing(option, factor, spacingFactor) {
+      scaleNumericKeys(option.grid, ["left", "right", "top", "bottom"], spacingFactor);
+      scaleNumericKeys(option.legend, ["bottom", "top", "left", "right", "padding", "itemGap", "itemWidth", "itemHeight"], spacingFactor);
+      scaleNumericKeys(option.xAxis, ["nameGap"], spacingFactor);
+      scaleNumericKeys(option.yAxis, ["nameGap"], spacingFactor);
+      scaleNumericKeys(option.dataZoom, ["bottom", "top", "left", "right", "height"], spacingFactor);
+
+      var grids = option.grid ? (Array.isArray(option.grid) ? option.grid : [option.grid]) : [];
+      for (var g = 0; g < grids.length; g++) {
+        if (grids[g]) grids[g].containLabel = true;
+      }
     }
 
     function applyFontScale() {
@@ -546,9 +551,10 @@
       var targetScale = parseFloat(fontScaleSelect.value) || 1;
       if (targetScale === lastAppliedScale) return;
       var factor = targetScale / lastAppliedScale;
+      var spacingFactor = Math.pow(factor, 1.4);
       var option = inst.getOption();
       scaleFontSizes(option, factor);
-      scaleSpacing(option, factor);
+      scaleSpacing(option, factor, spacingFactor);
       inst.setOption(option);
       lastAppliedScale = targetScale;
     }
