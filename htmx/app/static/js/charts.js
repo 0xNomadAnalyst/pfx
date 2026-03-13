@@ -2794,7 +2794,8 @@
   }
 
   function getApiBaseUrl() {
-    return document.body.dataset.apiBaseUrl || "http://localhost:8001";
+    const attr = document.body.dataset.apiBaseUrl;
+    return attr != null ? attr : "";
   }
 
   function widgetElements() {
@@ -3041,18 +3042,35 @@
     if (!mkt1Select || !mkt2Select) return;
 
     const pageId = container.dataset.apiPageId;
-    try {
+    async function fetchMarketMeta() {
       const url = `${getApiBaseUrl()}/api/v1/${pageId}/exponent-market-meta`;
       const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const payload = await resp.json();
       const meta = payload.data || payload;
       const markets = meta.markets || [];
-      const defaultMkt1 = meta.selected_mkt1 || "";
-      const defaultMkt2 = meta.selected_mkt2 || "";
+      if (markets.length === 0) throw new Error("empty markets list");
+      return meta;
+    }
 
-      setSelectOptions(mkt1Select, markets, defaultMkt1, true);
-      setSelectOptions(mkt2Select, markets, defaultMkt2, true);
-    } catch (_) {
+    let meta = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        meta = await fetchMarketMeta();
+        break;
+      } catch (err) {
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+        } else {
+          console.warn("Market meta fetch failed after retries:", err);
+        }
+      }
+    }
+
+    if (meta) {
+      setSelectOptions(mkt1Select, meta.markets || [], meta.selected_mkt1 || "", true);
+      setSelectOptions(mkt2Select, meta.markets || [], meta.selected_mkt2 || "", true);
+    } else {
       mkt1Select.innerHTML = '<option value="">Unavailable</option>';
       mkt2Select.innerHTML = '<option value="">Unavailable</option>';
     }
