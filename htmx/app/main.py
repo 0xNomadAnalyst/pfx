@@ -224,8 +224,10 @@ def switch_pipeline_proxy(request: Request):
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             payload = json.loads(resp.read())
-            _pipeline_cache["value"] = None
-            _pipeline_cache["expires_at"] = 0.0
+            _pipeline_cache["value"] = payload
+            _pipeline_cache["expires_at"] = time.time() + 5.0
+            _health_proxy_cache["value"] = None
+            _health_proxy_cache["expires_at"] = 0.0
             return JSONResponse(content=payload)
     except urllib.error.HTTPError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=exc.code)

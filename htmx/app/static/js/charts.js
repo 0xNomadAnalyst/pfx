@@ -3035,7 +3035,9 @@
 
     if (protocolSelect && pairSelect) {
       try {
-        const response = await fetch(`${getApiBaseUrl()}/api/v1/meta`, { cache: "no-store" });
+        const plMeta = currentPipeline();
+        const metaQs = plMeta ? `?_pipeline=${encodeURIComponent(plMeta)}` : "";
+        const response = await fetch(`${getApiBaseUrl()}/api/v1/meta${metaQs}`, { cache: "no-store" });
         const payload = await response.json();
         protocolPairs = payload.protocol_pairs || [];
         const protocols = payload.protocols || protocolPairs.map((item) => item.protocol);
@@ -3107,7 +3109,9 @@
 
     const pageId = container.dataset.apiPageId;
     async function fetchMarketMeta() {
-      const url = `${getApiBaseUrl()}/api/v1/${pageId}/exponent-market-meta`;
+      const pl = currentPipeline();
+      const qs = pl ? `?_pipeline=${encodeURIComponent(pl)}` : "";
+      const url = `${getApiBaseUrl()}/api/v1/${pageId}/exponent-market-meta${qs}`;
       const resp = await fetch(url, { cache: "no-store" });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const payload = await resp.json();
@@ -3341,6 +3345,11 @@
     }
   });
 
+  function currentPipeline() {
+    const sel = document.getElementById("pipeline-select");
+    return sel ? sel.value : "";
+  }
+
   document.body.addEventListener("htmx:configRequest", (event) => {
     const sourceEl = event.detail.elt;
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
@@ -3350,6 +3359,8 @@
     event.detail.parameters.protocol = currentProtocol();
     event.detail.parameters.pair = currentPair();
     event.detail.parameters.last_window = currentLastWindow();
+    const pl = currentPipeline();
+    if (pl) event.detail.parameters._pipeline = pl;
     const m1 = currentMkt1();
     const m2 = currentMkt2();
     if (m1) event.detail.parameters.mkt1 = m1;

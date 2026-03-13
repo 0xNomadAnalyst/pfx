@@ -254,6 +254,10 @@ class HealthPageService(BasePageService):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self._last_master_status: bool | None = None
+
+    @staticmethod
+    def _pl(params: dict[str, Any] | None) -> str:
+        return str((params or {}).get("_pipeline") or "")
         self._handlers = {
             "health-master": self._health_master,
             "health-queue-table": self._health_queue_table,
@@ -292,7 +296,7 @@ class HealthPageService(BasePageService):
             return not any(_as_bool(r.get("is_red")) for r in rows)
 
         try:
-            status = self._cached("health::master_status", _load_status, ttl_seconds=_TABLE_TTL)
+            status = self._cached(f"health:{self._pl(None)}:master_status", _load_status, ttl_seconds=_TABLE_TTL)
             if status is not None:
                 self._last_master_status = status
             return status
@@ -314,9 +318,9 @@ class HealthPageService(BasePageService):
             # Preserve last known state during transient DB slowness/errors.
             return self._last_master_status
 
-    def _fetch_master(self) -> list[dict[str, Any]]:
+    def _fetch_master(self, pl: str = "") -> list[dict[str, Any]]:
         return self._cached(
-            "health::master",
+            f"health:{pl}:master",
             lambda: self.sql.fetch_rows(
                 "SELECT "
                 "  domain, domain_label, is_red, "
@@ -326,9 +330,9 @@ class HealthPageService(BasePageService):
             ttl_seconds=_TABLE_TTL,
         )
 
-    def _fetch_queues(self) -> list[dict[str, Any]]:
+    def _fetch_queues(self, pl: str = "") -> list[dict[str, Any]]:
         return self._cached(
-            "health::queues",
+            f"health:{pl}:queues",
             lambda: self.sql.fetch_rows(
                 "SELECT "
                 "  summary_status, domain, queue_name, "
@@ -340,9 +344,9 @@ class HealthPageService(BasePageService):
             ttl_seconds=_TABLE_TTL,
         )
 
-    def _fetch_triggers(self) -> list[dict[str, Any]]:
+    def _fetch_triggers(self, pl: str = "") -> list[dict[str, Any]]:
         return self._cached(
-            "health::triggers",
+            f"health:{pl}:triggers",
             lambda: self.sql.fetch_rows(
                 "SELECT "
                 "  status, trigger_name, description, "
@@ -353,9 +357,9 @@ class HealthPageService(BasePageService):
             ttl_seconds=_TABLE_TTL,
         )
 
-    def _fetch_base_tables(self) -> list[dict[str, Any]]:
+    def _fetch_base_tables(self, pl: str = "") -> list[dict[str, Any]]:
         return self._cached(
-            "health::base_tables",
+            f"health:{pl}:base_tables",
             lambda: self.sql.fetch_rows(
                 "SELECT "
                 "  status, schema_name, table_name, latest_time, "
@@ -366,9 +370,9 @@ class HealthPageService(BasePageService):
             ttl_seconds=_TABLE_TTL,
         )
 
-    def _fetch_caggs(self) -> list[dict[str, Any]]:
+    def _fetch_caggs(self, pl: str = "") -> list[dict[str, Any]]:
         return self._cached(
-            "health::caggs",
+            f"health:{pl}:caggs",
             lambda: self.sql.fetch_rows(
                 "SELECT "
                 "  status, view_schema, view_name, source_table, "
@@ -383,7 +387,7 @@ class HealthPageService(BasePageService):
     # ------------------------------------------------------------------
 
     def _health_master(self, params: dict[str, Any]) -> dict[str, Any]:
-        rows = self._fetch_master()
+        rows = self._fetch_master(self._pl(params))
         master_row = next((r for r in rows if str(r.get("domain", "")).upper() == "MASTER"), None)
         domain_rows = [r for r in rows if str(r.get("domain", "")).upper() != "MASTER"]
 
@@ -424,7 +428,7 @@ class HealthPageService(BasePageService):
     # ------------------------------------------------------------------
 
     def _health_queue_table(self, params: dict[str, Any]) -> dict[str, Any]:
-        rows = self._fetch_queues()
+        rows = self._fetch_queues(self._pl(params))
         formatted = []
         for r in rows:
             summary = r.get("summary_status", "")
@@ -480,7 +484,8 @@ class HealthPageService(BasePageService):
             attribute = "Write Rate"
 
         lookback, interval = WINDOW_MAP.get(last_window, ("7 days", "3 hours"))
-        cache_key = f"health::queue_chart::{schema}::{attribute}::{last_window}"
+        pl = self._pl(params)
+        cache_key = f"health:{pl}:queue_chart::{schema}::{attribute}::{last_window}"
 
         def _load() -> list[dict[str, Any]]:
             return self.sql.fetch_rows(
@@ -533,7 +538,7 @@ class HealthPageService(BasePageService):
     # ------------------------------------------------------------------
 
     def _health_trigger_table(self, params: dict[str, Any]) -> dict[str, Any]:
-        rows = self._fetch_triggers()
+        rows = self._fetch_triggers(self._pl(params))
         formatted = []
         for r in rows:
             status = r.get("status", "")
@@ -570,7 +575,7 @@ class HealthPageService(BasePageService):
     # ------------------------------------------------------------------
 
     def _health_base_table(self, params: dict[str, Any]) -> dict[str, Any]:
-        rows = self._fetch_base_tables()
+        rows = self._fetch_base_tables(self._pl(params))
         formatted = []
         for r in rows:
             status = r.get("status", "")
@@ -612,7 +617,8 @@ class HealthPageService(BasePageService):
         if schema not in VALID_SCHEMAS:
             schema = "dexes"
         lookback, interval = WINDOW_MAP.get(last_window, ("7 days", "3 hours"))
-        cache_key = f"health::base_chart::{schema}::{last_window}"
+        pl = self._pl(params)
+        cache_key = f"health:{pl}:base_chart::{schema}::{last_window}"
 
         def _load() -> list[dict[str, Any]]:
             return self.sql.fetch_rows(
@@ -690,7 +696,7 @@ class HealthPageService(BasePageService):
     # ------------------------------------------------------------------
 
     def _health_cagg_table(self, params: dict[str, Any]) -> dict[str, Any]:
-        rows = self._fetch_caggs()
+        rows = self._fetch_caggs(self._pl(params))
         formatted = []
         for r in rows:
             status = r.get("status", "")

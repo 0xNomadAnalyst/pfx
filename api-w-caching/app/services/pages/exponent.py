@@ -102,9 +102,15 @@ class ExponentPageService(BasePageService):
         """Extract explicit market selections from request params."""
         return str(params.get("mkt1") or ""), str(params.get("mkt2") or "")
 
+    @staticmethod
+    def _pl(params: dict[str, Any] | None) -> str:
+        """Pipeline tag for cache-key namespacing."""
+        return str((params or {}).get("_pipeline") or "")
+
     def _v_last_row(self, params: dict[str, Any] | None = None) -> dict[str, Any]:
         mkt1, mkt2 = self._mkt_params(params or {})
-        cache_key = f"exponent::v_last::{mkt1}::{mkt2}"
+        pl = self._pl(params)
+        cache_key = f"exponent:{pl}:v_last::{mkt1}::{mkt2}"
 
         def _load() -> dict[str, Any]:
             if mkt1 and mkt2:
@@ -179,7 +185,8 @@ class ExponentPageService(BasePageService):
     def _timeseries_rows(self, params: dict[str, Any], market: str) -> list[dict[str, Any]]:
         resolved = self._resolve_market(params, market)
         last_window = str(params.get("last_window", "7d"))
-        cache_key = f"exponent::ts::{resolved}::{last_window}"
+        pl = self._pl(params)
+        cache_key = f"exponent:{pl}:ts::{resolved}::{last_window}"
 
         def _load() -> list[dict[str, Any]]:
             return self._run_timeseries_query(resolved, last_window)
@@ -213,9 +220,10 @@ class ExponentPageService(BasePageService):
             statement_timeout_ms=self._TIMESERIES_TIMEOUT_MS,
         )
 
-    def _aux_key_relations_rows(self) -> list[dict[str, Any]]:
+    def _aux_key_relations_rows(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        pl = self._pl(params)
         return self._cached(
-            "exponent::aux_key_relations",
+            f"exponent:{pl}:aux_key_relations",
             lambda: self.sql.fetch_rows(
                 "SELECT "
                 "  meta_pt_name, meta_sy_name, env_sy_symbol, "
@@ -784,8 +792,8 @@ class ExponentPageService(BasePageService):
     # Table — Market Assets (modal action)
     # ------------------------------------------------------------------
 
-    def _exponent_market_assets(self, _: dict[str, Any]) -> dict[str, Any]:
-        rows_raw = self._aux_key_relations_rows()
+    def _exponent_market_assets(self, params: dict[str, Any]) -> dict[str, Any]:
+        rows_raw = self._aux_key_relations_rows(params)
         rows = []
         for r in rows_raw:
             rows.append({
