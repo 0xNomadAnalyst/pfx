@@ -515,49 +515,49 @@ th .info-tip-icon {
 
 /* ── Exponent Yield page ── */
 
-/* Row 1-3: Pie chart (left) + 4 KPIs (right, 2x2) */
+/* Rows 1-3: Pie chart (left) + 3 KPI rows (right, 2×3) */
 .exp-slot-pie { grid-column: 1 / 7; grid-row: 1 / 4; min-height: 300px; }
 .exp-slot-kpi-b1 { grid-column: 7 / 10; grid-row: 1 / 2; }
 .exp-slot-kpi-a1 { grid-column: 10 / 13; grid-row: 1 / 2; }
 .exp-slot-kpi-b2 { grid-column: 7 / 10; grid-row: 2 / 3; }
 .exp-slot-kpi-a2 { grid-column: 10 / 13; grid-row: 2 / 3; }
+.exp-slot-kpi-b3 { grid-column: 7 / 10; grid-row: 3 / 4; }
+.exp-slot-kpi-a3 { grid-column: 10 / 13; grid-row: 3 / 4; }
 
-/* Row 4-7: Timeline chart (left) + 6 KPIs (right, 2x3) */
+/* Rows 4-6: Timeline chart (left) + 3 KPI rows (right, 2×3) */
 .exp-slot-timeline { grid-column: 1 / 7; grid-row: 4 / 7; min-height: 260px; }
-.exp-slot-kpi-b3 { grid-column: 7 / 10; grid-row: 4 / 5; }
-.exp-slot-kpi-a3 { grid-column: 10 / 13; grid-row: 4 / 5; }
-.exp-slot-kpi-b4 { grid-column: 7 / 10; grid-row: 5 / 6; }
-.exp-slot-kpi-a4 { grid-column: 10 / 13; grid-row: 5 / 6; }
-.exp-slot-kpi-c4 { grid-column: 7 / 10; grid-row: 6 / 7; }
-.exp-slot-kpi-c3 { grid-column: 10 / 13; grid-row: 6 / 7; }
-.exp-slot-kpi-c2 { grid-column: 7 / 10; grid-row: 7 / 8; }
-.exp-slot-kpi-c1 { grid-column: 10 / 13; grid-row: 7 / 8; }
+.exp-slot-kpi-b4 { grid-column: 7 / 10; grid-row: 4 / 5; }
+.exp-slot-kpi-a4 { grid-column: 10 / 13; grid-row: 4 / 5; }
+.exp-slot-kpi-c4 { grid-column: 7 / 10; grid-row: 5 / 6; }
+.exp-slot-kpi-c3 { grid-column: 10 / 13; grid-row: 5 / 6; }
+.exp-slot-kpi-c2 { grid-column: 7 / 10; grid-row: 6 / 7; }
+.exp-slot-kpi-c1 { grid-column: 10 / 13; grid-row: 6 / 7; }
 
-/* Row 8: Market info blocks */
-.exp-slot-info-mkt1 { grid-column: 1 / 7; grid-row: 8 / 9; }
-.exp-slot-info-mkt2 { grid-column: 7 / 13; grid-row: 8 / 9; }
+/* Row 7: Market info blocks */
+.exp-slot-info-mkt1 { grid-column: 1 / 7; grid-row: 7 / 8; }
+.exp-slot-info-mkt2 { grid-column: 7 / 13; grid-row: 7 / 8; }
 
-/* Rows 9-29: 7 chart pairs (left mkt1, right mkt2), each 3 rows */
-.exp-slot-chart-left-1 { grid-column: 1 / 7; grid-row: 9 / 12; min-height: 320px; }
-.exp-slot-chart-right-1 { grid-column: 7 / 13; grid-row: 9 / 12; min-height: 320px; }
+/* Rows 8-28: 7 chart pairs (left mkt1, right mkt2), each 3 rows */
+.exp-slot-chart-left-1 { grid-column: 1 / 7; grid-row: 8 / 11; min-height: 320px; }
+.exp-slot-chart-right-1 { grid-column: 7 / 13; grid-row: 8 / 11; min-height: 320px; }
 
-.exp-slot-chart-left-2 { grid-column: 1 / 7; grid-row: 12 / 15; min-height: 320px; }
-.exp-slot-chart-right-2 { grid-column: 7 / 13; grid-row: 12 / 15; min-height: 320px; }
+.exp-slot-chart-left-2 { grid-column: 1 / 7; grid-row: 11 / 14; min-height: 320px; }
+.exp-slot-chart-right-2 { grid-column: 7 / 13; grid-row: 11 / 14; min-height: 320px; }
 
-.exp-slot-chart-left-3 { grid-column: 1 / 7; grid-row: 15 / 18; min-height: 320px; }
-.exp-slot-chart-right-3 { grid-column: 7 / 13; grid-row: 15 / 18; min-height: 320px; }
+.exp-slot-chart-left-3 { grid-column: 1 / 7; grid-row: 14 / 17; min-height: 320px; }
+.exp-slot-chart-right-3 { grid-column: 7 / 13; grid-row: 14 / 17; min-height: 320px; }
 
-.exp-slot-chart-left-4 { grid-column: 1 / 7; grid-row: 18 / 21; min-height: 320px; }
-.exp-slot-chart-right-4 { grid-column: 7 / 13; grid-row: 18 / 21; min-height: 320px; }
+.exp-slot-chart-left-4 { grid-column: 1 / 7; grid-row: 17 / 20; min-height: 320px; }
+.exp-slot-chart-right-4 { grid-column: 7 / 13; grid-row: 17 / 20; min-height: 320px; }
 
-.exp-slot-chart-left-5 { grid-column: 1 / 7; grid-row: 21 / 24; min-height: 320px; }
-.exp-slot-chart-right-5 { grid-column: 7 / 13; grid-row: 21 / 24; min-height: 320px; }
+.exp-slot-chart-left-5 { grid-column: 1 / 7; grid-row: 20 / 23; min-height: 320px; }
+.exp-slot-chart-right-5 { grid-column: 7 / 13; grid-row: 20 / 23; min-height: 320px; }
 
-.exp-slot-chart-left-6 { grid-column: 1 / 7; grid-row: 24 / 27; min-height: 320px; }
-.exp-slot-chart-right-6 { grid-column: 7 / 13; grid-row: 24 / 27; min-height: 320px; }
+.exp-slot-chart-left-6 { grid-column: 1 / 7; grid-row: 23 / 26; min-height: 320px; }
+.exp-slot-chart-right-6 { grid-column: 7 / 13; grid-row: 23 / 26; min-height: 320px; }
 
-.exp-slot-chart-left-7 { grid-column: 1 / 7; grid-row: 27 / 30; min-height: 320px; }
-.exp-slot-chart-right-7 { grid-column: 7 / 13; grid-row: 27 / 30; min-height: 320px; }
+.exp-slot-chart-left-7 { grid-column: 1 / 7; grid-row: 26 / 29; min-height: 320px; }
+.exp-slot-chart-right-7 { grid-column: 7 / 13; grid-row: 26 / 29; min-height: 320px; }
 
 /* ── System Health page ── */
 .health-slot-master         { grid-column: 1 / 7;  grid-row: 1  / 3;  }
