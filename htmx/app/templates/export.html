@@ -424,11 +424,11 @@
     var pairSelect     = document.getElementById("pair-select");
 
     function ensureProtocolPairMeta() {
-      if (protocolPairMeta) return;
+      if (protocolPairMeta) return Promise.resolve();
       var pl = pipelineSelect ? pipelineSelect.value : "";
       var qs = pl ? "?_pipeline=" + encodeURIComponent(pl) : "";
       var base = document.body.dataset.apiBaseUrl || "";
-      fetch(base + "/api/v1/meta" + qs, { cache: "no-store" })
+      return fetch(base + "/api/v1/meta" + qs, { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (payload) {
           if (!payload) return;
@@ -474,11 +474,11 @@
     });
 
     function ensureMarketMeta() {
-      if (marketMetaCache) return;
+      if (marketMetaCache) return Promise.resolve();
       var pl = pipelineSelect ? pipelineSelect.value : "";
       var qs = pl ? "?_pipeline=" + encodeURIComponent(pl) : "";
       var base = document.body.dataset.apiBaseUrl || "";
-      fetch(base + "/api/v1/exponent/exponent-market-meta" + qs, { cache: "no-store" })
+      return fetch(base + "/api/v1/exponent/exponent-market-meta" + qs, { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (payload) {
           if (!payload) return;
@@ -612,9 +612,13 @@
         protocolPairMeta = null;
         fetch("/api/switch-pipeline?pipeline=" + encodeURIComponent(pipelineSelect.value), { method: "POST" })
           .then(function () {
+            var pending = [];
+            if (!ctxPP.hidden) pending.push(ensureProtocolPairMeta());
+            if (!ctxMkt.hidden) pending.push(ensureMarketMeta());
+            return Promise.all(pending);
+          })
+          .then(function () {
             pipelineSelect.disabled = false;
-            if (!ctxPP.hidden) ensureProtocolPairMeta();
-            if (!ctxMkt.hidden) ensureMarketMeta();
             reloadIfActive();
           })
           .catch(function () {
