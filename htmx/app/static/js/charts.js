@@ -4194,7 +4194,6 @@
     "ra-prob-ray", "ra-prob-orca",
   ]);
   const RA_SECTION2_WIDGETS = new Set([
-    "ra-xp-exposure",
     "ra-xp-dist-ray", "ra-xp-dist-orca",
     "ra-xp-depth-ray", "ra-xp-depth-orca",
   ]);
@@ -4235,9 +4234,28 @@
     }
   }
 
+  function fetchXpExposureNotice() {
+    const notice = document.getElementById("ra-xp-notice");
+    if (!notice) return;
+    const apiBase = document.querySelector("[data-base-endpoint]");
+    if (!apiBase) return;
+    const base = apiBase.dataset.baseEndpoint.replace(/\/api\/v1\/.*$/, "");
+    fetch(`${base}/api/v1/risk-analysis/ra-xp-exposure`)
+      .then((r) => r.json())
+      .then((resp) => {
+        const d = resp.data || resp;
+        const parts = [];
+        if (d.primary && d.primary !== "--") parts.push(d.primary);
+        if (d.secondary) parts.push(d.secondary);
+        notice.textContent = parts.join("  ·  ") || "";
+      })
+      .catch(() => { notice.textContent = ""; });
+  }
+
   function initRiskLiqSourceToggle() {
     const sel = document.getElementById("ra-liq-source");
     if (!sel) return;
+    fetchXpExposureNotice();
     sel.addEventListener("change", () => {
       RA_SECTION2_WIDGETS.forEach((wid) => {
         const el = document.getElementById(`widget-${wid}`);

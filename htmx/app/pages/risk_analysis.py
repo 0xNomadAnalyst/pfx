@@ -93,15 +93,6 @@ PAGE_CONFIG = PageConfig(
         ),
 
         WidgetConfig(
-            "ra-xp-exposure",
-            "Cross-Protocol Exposure",
-            "kpi",
-            "panel panel-kpi ra-slot-s2-exposure",
-            tooltip="Summary of ONyc deployed in Kamino and Exponent that could "
-            "generate sell pressure on DEX pools if liquidated.",
-        ),
-
-        WidgetConfig(
             "ra-xp-dist-ray",
             "Liquidity Distribution - Raydium (Cross-Protocol)",
             "chart",

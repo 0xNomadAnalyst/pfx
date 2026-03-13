@@ -5,6 +5,19 @@
   class="{{ widget.css_class }} ge-section-header"
 >
   <h2 class="ge-section-title">{{ widget.title }}</h2>
+  {% if widget.id == "ra-hdr-xp" %}
+  <span class="ra-xp-hdr-controls">
+    <span class="title-separator">|</span>
+    <span class="title-inline-label">Liquidation source:</span>
+    <select id="ra-liq-source" class="filter-select chart-mode-select" aria-label="Liquidation source protocol">
+      <option value="all" selected>All (Kamino + Exponent)</option>
+      <option value="kamino">Kamino only</option>
+      <option value="exponent">Exponent only</option>
+    </select>
+    <span class="title-separator">|</span>
+    <span id="ra-xp-notice" class="ra-xp-inline-notice"></span>
+  </span>
+  {% endif %}
 </div>
 {% elif widget.kind == "placeholder" %}
 <div
@@ -137,14 +150,6 @@
           <option value="1 hour">1 hour</option>
           <option value="6 hours">6 hours</option>
           <option value="24 hours">24 hours</option>
-        </select>
-      {% elif widget.id == "ra-xp-exposure" %}
-        <span class="title-separator">|</span>
-        <span class="title-inline-label">Liquidation source:</span>
-        <select id="ra-liq-source" class="filter-select chart-mode-select" aria-label="Liquidation source protocol">
-          <option value="all" selected>All (Kamino + Exponent)</option>
-          <option value="kamino">Kamino only</option>
-          <option value="exponent">Exponent only</option>
         </select>
       {% elif widget.id == "ra-stress-test" %}
         <span class="title-separator">|</span>

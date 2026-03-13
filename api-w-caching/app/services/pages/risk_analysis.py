@@ -241,12 +241,16 @@ class RiskAnalysisPageService(BasePageService):
 
     def _map_sell_amount_to_price(
         self, tick_rows: list[dict[str, Any]], sell_amount: float
-    ) -> float | None:
-        """Walk downside ticks consuming token0 liquidity to find the price
-        reached after selling ``sell_amount`` of token0."""
+    ) -> tuple[float | None, bool]:
+        """Walk downside ticks consuming liquidity to find the price reached
+        after selling ``sell_amount``.
+
+        Returns ``(price, exhausted)`` where *exhausted* is True when the pool
+        runs out of downside liquidity before the full sell amount is absorbed.
+        """
         current_price = self._snapped_price(tick_rows)
         if current_price is None or sell_amount <= 0:
-            return None
+            return None, False
 
         downside_ticks = []
         for r in tick_rows:
@@ -264,7 +268,7 @@ class RiskAnalysisPageService(BasePageService):
             remaining -= liquidity
             last_price = price
 
-        return last_price
+        return last_price, remaining > 0
 
     def _pvalue_mark_lines(
         self, tick_rows: list[dict[str, Any]], pvalue_rows: list[dict[str, Any]]
@@ -276,7 +280,7 @@ class RiskAnalysisPageService(BasePageService):
             value = self._ff(row.get("value"))
             if value <= 0:
                 continue
-            price = self._map_sell_amount_to_price(tick_rows, value)
+            price, _ = self._map_sell_amount_to_price(tick_rows, value)
             if price is None:
                 continue
             lines.append({
@@ -414,7 +418,7 @@ class RiskAnalysisPageService(BasePageService):
             sell_amount = self._ff(row.get("value"))
             if sell_amount <= 0:
                 continue
-            price = self._map_sell_amount_to_price(tick_rows, sell_amount)
+            price, _ = self._map_sell_amount_to_price(tick_rows, sell_amount)
             if price is None:
                 continue
             price_to_prob[price] = prob
@@ -499,18 +503,39 @@ class RiskAnalysisPageService(BasePageService):
         else:
             base_amount = kamino + exponent
 
+        total_downside_liq = sum(
+            self._ff(r.get("token1_value"))
+            for r in tick_rows
+            if self._ff(r.get("tick_price_t1_per_t0")) > 0
+            and self._ff(r.get("tick_price_t1_per_t0"))
+            <= (self._snapped_price(tick_rows) or 0)
+        )
+
         lines: list[dict[str, Any]] = []
         for pct in self._XP_LIQUIDATION_PCTS:
             sell_amount = base_amount * (pct / 100.0)
             if sell_amount <= 0:
                 continue
-            price = self._map_sell_amount_to_price(tick_rows, sell_amount)
-            if price is not None:
+            price, exhausted = self._map_sell_amount_to_price(tick_rows, sell_amount)
+            if price is None:
+                continue
+            if exhausted:
+                absorbed_pct = (
+                    (total_downside_liq / base_amount) * 100.0
+                    if base_amount > 0
+                    else 0.0
+                )
                 lines.append({
                     "value": price,
-                    "label": f"{pct}%",
-                    "color": self._XP_LIQUIDATION_COLORS.get(pct, "#ae82ff"),
+                    "label": f"~{absorbed_pct:.1f}% (liq. exhausted)",
+                    "color": "#e24c4c",
                 })
+                break
+            lines.append({
+                "value": price,
+                "label": f"{pct}%",
+                "color": self._XP_LIQUIDATION_COLORS.get(pct, "#ae82ff"),
+            })
 
         return lines
 
