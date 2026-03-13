@@ -40,7 +40,9 @@ _health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 
 # Keep page registration centralized so the shared header view selector
 # is consistent across all routes.
-PAGES: list[PageConfig] = [GLOBAL_ECOSYSTEM_PAGE, DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE, KAMINO_PAGE, EXPONENT_PAGE, HEALTH_PAGE]
+COVER_PAGE = PageConfig(slug="cover", label="Cover", api_page_id="cover", widgets=[])
+
+PAGES: list[PageConfig] = [COVER_PAGE, GLOBAL_ECOSYSTEM_PAGE, DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE, KAMINO_PAGE, EXPONENT_PAGE, HEALTH_PAGE]
 PAGES_BY_SLUG: dict[str, PageConfig] = {page.slug: page for page in PAGES}
 
 app = FastAPI(
@@ -69,7 +71,7 @@ def favicon():
 
 @app.get("/", include_in_schema=False)
 def home() -> RedirectResponse:
-    return RedirectResponse(url=f"/{DEX_LIQUIDITY_PAGE.slug}")
+    return RedirectResponse(url=f"/{COVER_PAGE.slug}")
 
 
 @app.get("/playbook-liquidity", include_in_schema=False)
@@ -161,6 +163,35 @@ def render_page(request: Request, page: PageConfig):
             "api_base_url": BROWSER_API_BASE_URL,
             "show_pipeline_switcher": ENABLE_PIPELINE_SWITCHER,
             "pipeline_info": pipeline_info,
+        },
+    )
+
+
+@app.get("/cover")
+def cover(request: Request):
+    page = PAGES_BY_SLUG["cover"]
+    page_options = [{"slug": cfg.slug, "label": cfg.label, "path": f"/{cfg.slug}"} for cfg in PAGES]
+    return templates.TemplateResponse(
+        request=request,
+        name="base.html",
+        context={
+            "app_title": APP_TITLE,
+            "page_title": page.label,
+            "page_options": page_options,
+            "current_page_slug": page.slug,
+            "widgets": [],
+            "page_actions": [],
+            "show_protocol_pair_filters": False,
+            "show_market_selectors": False,
+            "api_page_id": page.api_page_id,
+            "protocol": "",
+            "pair": "",
+            "last_window": "7d",
+            "api_base_url": BROWSER_API_BASE_URL,
+            "show_pipeline_switcher": False,
+            "pipeline_info": None,
+            "content_template": "partials/cover.html",
+            "main_css_class": "cover-page",
         },
     )
 

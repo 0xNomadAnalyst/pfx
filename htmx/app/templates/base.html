@@ -126,8 +126,8 @@
     </div>
   </header>
 
-  <main class="dashboard-grid">
-    {% include "partials/dashboard.html" %}
+  <main class="{{ main_css_class|default('dashboard-grid') }}">
+    {% include content_template|default("partials/dashboard.html") %}
   </main>
 
   <div id="chart-modal-backdrop" class="chart-modal-backdrop" hidden>
