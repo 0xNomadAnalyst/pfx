@@ -254,10 +254,6 @@ class HealthPageService(BasePageService):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self._last_master_status: bool | None = None
-
-    @staticmethod
-    def _pl(params: dict[str, Any] | None) -> str:
-        return str((params or {}).get("_pipeline") or "")
         self._handlers = {
             "health-master": self._health_master,
             "health-queue-table": self._health_queue_table,
@@ -269,6 +265,10 @@ class HealthPageService(BasePageService):
             "health-base-chart-accounts": self._health_base_chart_accounts,
             "health-cagg-table": self._health_cagg_table,
         }
+
+    @staticmethod
+    def _pl(params: dict[str, Any] | None) -> str:
+        return str((params or {}).get("_pipeline") or "")
 
     # ------------------------------------------------------------------
     # Shared data loaders
