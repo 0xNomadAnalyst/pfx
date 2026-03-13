@@ -105,7 +105,7 @@ def get_widget(
     health_base_schema: Annotated[str, Query()] = "dexes",
     risk_event_type: Annotated[str, Query()] = "Single Swaps",
     risk_interval: Annotated[str, Query()] = "5 minutes",
-    risk_liq_scenario: Annotated[str, Query()] = "25",
+    risk_liq_source: Annotated[str, Query()] = "all",
     risk_stress_collateral: Annotated[str, Query()] = "",
     risk_stress_debt: Annotated[str, Query()] = "",
     svc: DataService = Depends(get_data_service),
@@ -130,7 +130,7 @@ def get_widget(
         "health_base_schema": health_base_schema,
         "risk_event_type": risk_event_type,
         "risk_interval": risk_interval,
-        "risk_liq_scenario": risk_liq_scenario,
+        "risk_liq_source": risk_liq_source,
         "risk_stress_collateral": risk_stress_collateral,
         "risk_stress_debt": risk_stress_debt,
     }

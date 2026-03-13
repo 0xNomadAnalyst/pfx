@@ -1272,7 +1272,6 @@ td:first-child {
   content: "";
   flex: 1;
   height: 1px;
-  background: var(--border);
 }
 .ge-section-title {
   margin: 0;
@@ -1280,8 +1279,11 @@ td:first-child {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: var(--cv-accent-soft);
   white-space: nowrap;
+}
+.ge-section-header::after {
+  background: color-mix(in srgb, var(--cv-accent) 35%, var(--border));
 }
 
 /* Placeholder row (for upcoming sections) */
@@ -1349,7 +1351,8 @@ td:first-child {
 
 /* Section 1: Downside Price Risk - Dex Events */
 .ra-hdr-1       { grid-row: 1 / 2; }
-.ra-slot-tables { grid-column: 1 / 13; grid-row: 2 / 5;  min-height: 340px; }
+.ra-slot-table-left  { grid-column: 1 / 7;  grid-row: 2 / 5;  min-height: 340px; }
+.ra-slot-table-right { grid-column: 7 / 13; grid-row: 2 / 5;  min-height: 340px; }
 
 .ra-slot-s1-left-1  { grid-column: 1 / 7;  grid-row: 5 / 8;   min-height: 320px; }
 .ra-slot-s1-right-1 { grid-column: 7 / 13; grid-row: 5 / 8;   min-height: 320px; }
@@ -1374,7 +1377,7 @@ td:first-child {
 .ra-hdr-3         { grid-row: 22 / 23; }
 .ra-slot-s3-full  { grid-column: 1 / 13; grid-row: 23 / 27; min-height: 380px; }
 
-@media (max-width: 1200px) {
+@media (max-width: 768px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }

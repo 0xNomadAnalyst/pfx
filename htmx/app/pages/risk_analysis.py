@@ -21,13 +21,20 @@ PAGE_CONFIG = PageConfig(
         ),
 
         WidgetConfig(
-            "ra-pvalue-tables",
-            "Extreme Sell Events",
-            "table-split",
-            "panel panel-wide-table ra-slot-tables",
+            "ra-pvalue-table-ray",
+            "Raydium Extreme Sell Events",
+            "table",
+            "panel panel-wide-table ra-slot-table-left",
             expandable=False,
-            tooltip="Percentile statistics for extreme sell events on each DEX pool. "
-            "Select an event type and interval to compare Raydium and Orca side-by-side.",
+            tooltip="Percentile statistics for extreme sell events on Raydium USX-USDC pool.",
+        ),
+        WidgetConfig(
+            "ra-pvalue-table-orca",
+            "Orca Extreme Sell Events",
+            "table",
+            "panel panel-wide-table ra-slot-table-right",
+            expandable=False,
+            tooltip="Percentile statistics for extreme sell events on Orca USX-USDC pool.",
         ),
 
         WidgetConfig(

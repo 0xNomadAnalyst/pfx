@@ -2716,6 +2716,41 @@
       }
     }
 
+    if (isTickLinkedWidget(widgetId) && chartData.reference_lines && option.dataZoom && option.xAxis) {
+      const xData = Array.isArray(option.xAxis) ? option.xAxis[0].data : option.xAxis.data;
+      if (xData && xData.length > 0) {
+        const cp = chartData.reference_lines.current_price;
+        const peg = chartData.reference_lines.peg;
+        if (cp != null) {
+          const cpStr = String(cp);
+          const pegStr = peg != null ? String(peg) : cpStr;
+          const findClosest = (target) => {
+            const tf = parseFloat(target);
+            let best = 0, bestDiff = Infinity;
+            for (let i = 0; i < xData.length; i++) {
+              const d = Math.abs(parseFloat(xData[i]) - tf);
+              if (d < bestDiff) { bestDiff = d; best = i; }
+            }
+            return best;
+          };
+          const cpIdx = findClosest(cpStr);
+          const pegIdx = findClosest(pegStr);
+          const lo = Math.min(cpIdx, pegIdx);
+          const hi = Math.max(cpIdx, pegIdx);
+          const span = hi - lo;
+          const pad = Math.max(span * 2, 30);
+          const startIdx = Math.max(0, lo - pad);
+          const endIdx = Math.min(xData.length - 1, hi + pad);
+          const startPct = (startIdx / (xData.length - 1)) * 100;
+          const endPct = (endIdx / (xData.length - 1)) * 100;
+          for (const dz of option.dataZoom) {
+            dz.start = startPct;
+            dz.end = endPct;
+          }
+        }
+      }
+    }
+
     instance.setOption(option, true);
 
 
@@ -3607,8 +3642,8 @@
       if (ivSel) event.detail.parameters.risk_interval = ivSel.value;
     }
     if (RA_SECTION2_WIDGETS.has(wid)) {
-      const lsSel = document.getElementById("ra-liq-scenario");
-      if (lsSel) event.detail.parameters.risk_liq_scenario = lsSel.value;
+      const lsSel = document.getElementById("ra-liq-source");
+      if (lsSel) event.detail.parameters.risk_liq_source = lsSel.value;
     }
     if (wid === "ra-stress-test" || wid === "ra-sensitivity-table") {
       const cSel = document.getElementById("ra-stress-collateral");
@@ -4152,7 +4187,7 @@
   // ── Risk Analysis page filter initialisation ──
 
   const RA_SECTION1_WIDGETS = new Set([
-    "ra-pvalue-tables",
+    "ra-pvalue-table-ray", "ra-pvalue-table-orca",
     "ra-liq-dist-ray", "ra-liq-dist-orca",
     "ra-liq-depth-ray", "ra-liq-depth-orca",
     "ra-prob-ray", "ra-prob-orca",
@@ -4199,15 +4234,15 @@
     }
   }
 
-  function initRiskLiqScenarioToggle() {
-    const sel = document.getElementById("ra-liq-scenario");
+  function initRiskLiqSourceToggle() {
+    const sel = document.getElementById("ra-liq-source");
     if (!sel) return;
     sel.addEventListener("change", () => {
       RA_SECTION2_WIDGETS.forEach((wid) => {
         const el = document.getElementById(`widget-${wid}`);
         if (el) resetWidgetView(el);
       });
-      htmx.trigger(document.body, "risk-liq-scenario-change");
+      htmx.trigger(document.body, "risk-liq-source-change");
     });
   }
 
@@ -4296,7 +4331,7 @@
     initHealthIndicator();
     initTooltipPositioning();
     initRiskEventTypeToggle();
-    initRiskLiqScenarioToggle();
+    initRiskLiqSourceToggle();
     initRiskStressAssetToggles();
     if (window.mermaid) {
       mermaid.initialize({ startOnLoad: false, theme: "dark" });

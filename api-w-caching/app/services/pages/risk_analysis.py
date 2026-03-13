@@ -26,7 +26,8 @@ class RiskAnalysisPageService(BasePageService):
         super().__init__(*args, **kwargs)
         self._handlers = {
             # Section 1
-            "ra-pvalue-tables": self._ra_pvalue_tables,
+            "ra-pvalue-table-ray": lambda p: self._ra_pvalue_table(p, "raydium"),
+            "ra-pvalue-table-orca": lambda p: self._ra_pvalue_table(p, "orca"),
             "ra-liq-dist-ray": lambda p: self._ra_liq_dist(p, "raydium"),
             "ra-liq-dist-orca": lambda p: self._ra_liq_dist(p, "orca"),
             "ra-liq-depth-ray": lambda p: self._ra_liq_depth(p, "raydium"),
@@ -255,12 +256,11 @@ class RiskAnalysisPageService(BasePageService):
     # Section 1: Downside Price Risk - Dex Events
     # ------------------------------------------------------------------
 
-    def _ra_pvalue_tables(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _ra_pvalue_table(self, params: dict[str, Any], protocol: str) -> dict[str, Any]:
         event_type, interval = self._event_type_and_interval(params)
-        ray_rows = self._pvalue_rows("raydium", event_type, interval)
-        orca_rows = self._pvalue_rows("orca", event_type, interval)
+        rows = self._pvalue_rows(protocol, event_type, interval)
         refresh_date = None
-        for r in ray_rows + orca_rows:
+        for r in rows:
             d = r.get("date")
             if d is not None:
                 refresh_date = d
@@ -274,12 +274,9 @@ class RiskAnalysisPageService(BasePageService):
         ]
         subtitle = f"Refreshes Daily - Last Refresh at {refresh_date}" if refresh_date else ""
         return {
-            "kind": "table-split",
+            "kind": "table",
             "columns": columns,
-            "left_title": f"Raydium Extreme Sell Events",
-            "right_title": f"Orca Extreme Sell Events",
-            "left_rows": ray_rows,
-            "right_rows": orca_rows,
+            "rows": rows,
             "subtitle": subtitle,
         }
 
@@ -431,43 +428,41 @@ class RiskAnalysisPageService(BasePageService):
             "secondary": secondary,
         }
 
+    _XP_LIQUIDATION_PCTS = [1, 5, 10, 20, 50, 100]
+    _XP_LIQUIDATION_COLORS = {
+        1: "#5e8aae",
+        5: "#6bc4a6",
+        10: "#28c987",
+        20: "#f0c431",
+        50: "#e8853d",
+        100: "#e24c4c",
+    }
+
     def _xp_liquidation_mark_lines(
-        self, tick_rows: list[dict[str, Any]], scenario_pct: float
+        self, tick_rows: list[dict[str, Any]], source: str
     ) -> list[dict[str, Any]]:
         xp = self._xp_last()
         kamino = self._ff(xp.get("onyc_in_kamino"))
         exponent = self._ff(xp.get("onyc_in_exponent"))
-        frac = scenario_pct / 100.0
+
+        if source == "kamino":
+            base_amount = kamino
+        elif source == "exponent":
+            base_amount = exponent
+        else:
+            base_amount = kamino + exponent
+
         lines: list[dict[str, Any]] = []
-
-        kam_sell = kamino * frac
-        if kam_sell > 0:
-            price = self._map_sell_amount_to_price(tick_rows, kam_sell)
+        for pct in self._XP_LIQUIDATION_PCTS:
+            sell_amount = base_amount * (pct / 100.0)
+            if sell_amount <= 0:
+                continue
+            price = self._map_sell_amount_to_price(tick_rows, sell_amount)
             if price is not None:
                 lines.append({
                     "value": price,
-                    "label": f"Kamino {scenario_pct:.0f}%",
-                    "color": "#28c987",
-                })
-
-        exp_sell = exponent * frac
-        if exp_sell > 0:
-            price = self._map_sell_amount_to_price(tick_rows, exp_sell)
-            if price is not None:
-                lines.append({
-                    "value": price,
-                    "label": f"Exponent {scenario_pct:.0f}%",
-                    "color": "#f0c431",
-                })
-
-        combined = (kamino + exponent) * frac
-        if combined > 0:
-            price = self._map_sell_amount_to_price(tick_rows, combined)
-            if price is not None:
-                lines.append({
-                    "value": price,
-                    "label": f"Combined {scenario_pct:.0f}%",
-                    "color": "#e24c4c",
+                    "label": f"{pct}%",
+                    "color": self._XP_LIQUIDATION_COLORS.get(pct, "#ae82ff"),
                 })
 
         return lines
@@ -475,8 +470,8 @@ class RiskAnalysisPageService(BasePageService):
     def _ra_xp_dist(self, params: dict[str, Any], protocol: str) -> dict[str, Any]:
         tick_rows = self._tick_dist_rows(protocol)
         current_price = self._snapped_price(tick_rows)
-        scenario_pct = self._ff(params.get("risk_liq_scenario", 25))
-        ml = self._xp_liquidation_mark_lines(tick_rows, scenario_pct)
+        source = str(params.get("risk_liq_source", "all"))
+        ml = self._xp_liquidation_mark_lines(tick_rows, source)
 
         return {
             "kind": "chart",
@@ -513,8 +508,8 @@ class RiskAnalysisPageService(BasePageService):
             except (TypeError, ValueError):
                 pass
 
-        scenario_pct = self._ff(params.get("risk_liq_scenario", 25))
-        ml = self._xp_liquidation_mark_lines(tick_rows, scenario_pct)
+        source = str(params.get("risk_liq_source", "all"))
+        ml = self._xp_liquidation_mark_lines(tick_rows, source)
 
         return {
             "kind": "chart",
