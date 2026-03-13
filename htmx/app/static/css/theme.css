@@ -1544,3 +1544,18 @@ html[data-theme="light"] .bottombar-partner {
   min-height: 0;
   position: relative;
 }
+
+.export-context-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.export-context-bar[hidden] {
+  display: none;
+}

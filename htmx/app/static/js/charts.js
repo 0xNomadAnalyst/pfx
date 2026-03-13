@@ -2856,7 +2856,10 @@
     document.querySelectorAll(".chart-subtitle").forEach((el) => { el.innerHTML = ""; });
   }
 
+  var _pipelineSwitchInProgress = false;
+
   function clearAllForPipelineSwitch() {
+    _pipelineSwitchInProgress = true;
     resetDashboardLoading();
     chartState.forEach(({ instance }) => {
       if (instance) {
@@ -2870,6 +2873,13 @@
     if (mkt2) mkt2.innerHTML = '<option value="">switching…</option>';
   }
   window.__clearAllForPipelineSwitch = clearAllForPipelineSwitch;
+
+  function cancelPipelineSwitch() {
+    _pipelineSwitchInProgress = false;
+    resetDashboardLoading();
+    htmx.trigger(document.body, "dashboard-refresh");
+  }
+  window.__cancelPipelineSwitch = cancelPipelineSwitch;
 
   function getApiBaseUrl() {
     const attr = document.body.dataset.apiBaseUrl;
@@ -3414,8 +3424,7 @@
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
-    // Avoid background polling/request churn when the tab is hidden.
-    if (document.hidden) {
+    if (_pipelineSwitchInProgress || document.hidden) {
       event.preventDefault();
     }
   });

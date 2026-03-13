@@ -50,6 +50,8 @@
               value="{{ chart.widget_id }}"
               data-endpoint="{{ chart.endpoint }}"
               data-page-id="{{ chart.page_id }}"
+              data-show-pp="{{ 'true' if chart.show_protocol_pair else 'false' }}"
+              data-show-mkt="{{ 'true' if chart.show_markets else 'false' }}"
             >{{ chart.widget_title }}</option>
           {% endfor %}
           {% if ns.current_page %}
@@ -132,6 +134,89 @@
     </div>
   </header>
 
+  <!-- Contextual data filters: shown when the selected chart has page-level or widget-level filters -->
+  <div id="export-context-filters" class="export-context-bar" hidden>
+
+    <div id="ctx-protocol-pair" class="export-control-group" hidden>
+      <label class="filter-label" for="protocol-select">Protocol</label>
+      <select id="protocol-select" class="filter-select" aria-label="Protocol">
+        <option value="raydium">raydium</option>
+      </select>
+      <label class="filter-label" for="pair-select">Pair</label>
+      <select id="pair-select" class="filter-select" aria-label="Pair">
+        <option value="USX-USDC">USX-USDC</option>
+      </select>
+    </div>
+
+    <div id="ctx-markets" class="export-control-group" hidden>
+      <label class="filter-label" for="mkt1-select">Market 1</label>
+      <select id="mkt1-select" class="filter-select" aria-label="Market 1">
+        <option value="">Loading…</option>
+      </select>
+      <label class="filter-label" for="mkt2-select">Market 2</label>
+      <select id="mkt2-select" class="filter-select" aria-label="Market 2">
+        <option value="">Loading…</option>
+      </select>
+    </div>
+
+    <div id="ctx-flow-mode" class="export-control-group" hidden>
+      <label class="filter-label">Token</label>
+      <select id="export-flow-mode" class="filter-select" aria-label="Flow token">
+        <option value="usx" selected>USX</option>
+        <option value="usdc">USDC</option>
+      </select>
+    </div>
+
+    <div id="ctx-distribution-mode" class="export-control-group" hidden>
+      <label class="filter-label">Event</label>
+      <select id="export-distribution-mode" class="filter-select" aria-label="Distribution mode">
+        <option value="sell-order" selected>Sell Swaps</option>
+        <option value="net-sell-pressure">1hr Net Sell Pressure</option>
+      </select>
+    </div>
+
+    <div id="ctx-ohlcv-interval" class="export-control-group" hidden>
+      <label class="filter-label">Candle</label>
+      <select id="export-ohlcv-interval" class="filter-select" aria-label="OHLCV interval">
+        <option value="1m">1m</option>
+        <option value="5m">5m</option>
+        <option value="15m">15m</option>
+        <option value="1h" selected>1h</option>
+        <option value="4h">4h</option>
+        <option value="1d">1d</option>
+      </select>
+    </div>
+
+    <div id="ctx-impact-mode" class="export-control-group" hidden>
+      <label class="filter-label">Mode</label>
+      <select id="export-impact-mode" class="filter-select" aria-label="Impact mode">
+        <option value="size" selected>Order Size for Target bps</option>
+        <option value="impact">Impact bps at 3 Size Levels</option>
+      </select>
+    </div>
+
+    <div id="ctx-health-schema" class="export-control-group" hidden>
+      <label class="filter-label">Domain</label>
+      <select id="export-health-schema" class="filter-select" aria-label="Health domain">
+        <option value="dexes" selected>dexes</option>
+        <option value="exponent">exponent</option>
+        <option value="kamino_lend">kamino_lend</option>
+        <option value="solstice_proprietary">solstice_proprietary</option>
+      </select>
+    </div>
+
+    <div id="ctx-health-attribute" class="export-control-group" hidden>
+      <label class="filter-label">Metric</label>
+      <select id="export-health-attribute" class="filter-select" aria-label="Health metric">
+        <option value="Write Rate" selected>Write Rate (rows/min)</option>
+        <option value="Queue Size">Queue Size (% capacity)</option>
+        <option value="Gap Size">Gap Size (seconds)</option>
+        <option value="Failures">Failures (avg. per interval)</option>
+      </select>
+    </div>
+
+  </div>
+
   <main class="export-canvas-area">
     <div id="export-frame" class="export-frame" style="width:1920px;height:1080px;">
       <section
@@ -181,11 +266,11 @@
     var titleEl = document.getElementById("export-chart-title");
     var updatedEl = document.getElementById("updated-export-target");
     var subtitleEl = document.getElementById("chart-subtitle-export-target");
-
     var fontScaleSelect = document.getElementById("font-scale-select");
 
     var activeWidgetId = "";
     var lastAppliedScale = 1;
+    var marketMetaCache = null;
 
     function selectedRatio() {
       var v = ratioSelect.value.split("x");
@@ -224,6 +309,9 @@
       subtitleEl.textContent = "";
       titleEl.textContent = chartTitle;
 
+      syncWidgetDataAttrs(widgetId);
+      updateContextFilters(opt);
+
       widget.setAttribute("hx-get", endpoint);
       widget.dataset.baseEndpoint = endpoint;
 
@@ -237,8 +325,110 @@
 
     function reloadIfActive() {
       if (!activeWidgetId) return;
+      syncWidgetDataAttrs(activeWidgetId);
       htmx.trigger(widget, "export-load");
     }
+
+    /* ── Contextual data filters ── */
+
+    var ctxBar       = document.getElementById("export-context-filters");
+    var ctxPP        = document.getElementById("ctx-protocol-pair");
+    var ctxMkt       = document.getElementById("ctx-markets");
+    var ctxFlow      = document.getElementById("ctx-flow-mode");
+    var ctxDist      = document.getElementById("ctx-distribution-mode");
+    var ctxOhlcv     = document.getElementById("ctx-ohlcv-interval");
+    var ctxImpact    = document.getElementById("ctx-impact-mode");
+    var ctxHSchema   = document.getElementById("ctx-health-schema");
+    var ctxHAttr     = document.getElementById("ctx-health-attribute");
+    var mkt1Select   = document.getElementById("mkt1-select");
+    var mkt2Select   = document.getElementById("mkt2-select");
+
+    var ALL_CTX = [ctxPP, ctxMkt, ctxFlow, ctxDist, ctxOhlcv, ctxImpact, ctxHSchema, ctxHAttr];
+
+    var WIDGET_FILTER_MAP = {
+      "swaps-flows-toggle":        [ctxFlow],
+      "swaps-distribution-toggle": [ctxDist],
+      "swaps-ohlcv":               [ctxOhlcv],
+      "trade-impact-toggle":       [ctxImpact],
+      "health-queue-chart":        [ctxHSchema, ctxHAttr],
+      "health-queue-chart-2":      [ctxHSchema, ctxHAttr],
+      "health-base-chart-events":  [ctxHSchema],
+      "health-base-chart-accounts":[ctxHSchema],
+    };
+
+    function updateContextFilters(opt) {
+      var wid = opt.value;
+      var showPP  = opt.dataset.showPp === "true";
+      var showMkt = opt.dataset.showMkt === "true";
+      var perWidget = WIDGET_FILTER_MAP[wid] || [];
+
+      for (var i = 0; i < ALL_CTX.length; i++) ALL_CTX[i].hidden = true;
+
+      if (showPP) ctxPP.hidden = false;
+      if (showMkt) {
+        ctxMkt.hidden = false;
+        ensureMarketMeta();
+      }
+      for (var j = 0; j < perWidget.length; j++) perWidget[j].hidden = false;
+
+      var anyVisible = showPP || showMkt || perWidget.length > 0;
+      ctxBar.hidden = !anyVisible;
+    }
+
+    function syncWidgetDataAttrs(wid) {
+      var flowEl = document.getElementById("export-flow-mode");
+      var distEl = document.getElementById("export-distribution-mode");
+      var ohlcvEl = document.getElementById("export-ohlcv-interval");
+      var impactEl = document.getElementById("export-impact-mode");
+      var hSchemaEl = document.getElementById("export-health-schema");
+      var hAttrEl = document.getElementById("export-health-attribute");
+
+      widget.dataset.flowMode = flowEl.value;
+      widget.dataset.distributionMode = distEl.value;
+      widget.dataset.ohlcvInterval = ohlcvEl.value;
+      widget.dataset.impactMode = impactEl.value;
+      widget.dataset.healthSchema = hSchemaEl.value;
+      widget.dataset.healthAttribute = hAttrEl.value;
+      widget.dataset.healthBaseSchema = hSchemaEl.value;
+    }
+
+    function ensureMarketMeta() {
+      if (marketMetaCache) return;
+      var pl = pipelineSelect ? pipelineSelect.value : "";
+      var qs = pl ? "?_pipeline=" + encodeURIComponent(pl) : "";
+      var base = document.body.dataset.apiBaseUrl || "";
+      fetch(base + "/api/v1/exponent/exponent-market-meta" + qs, { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (payload) {
+          if (!payload) return;
+          var meta = payload.data || payload;
+          var markets = meta.markets || [];
+          marketMetaCache = meta;
+          populateSelect(mkt1Select, markets, meta.selected_mkt1 || "");
+          populateSelect(mkt2Select, markets, meta.selected_mkt2 || "");
+        })
+        .catch(function () {});
+    }
+
+    function populateSelect(sel, items, defaultVal) {
+      sel.innerHTML = "";
+      for (var i = 0; i < items.length; i++) {
+        var o = document.createElement("option");
+        o.value = items[i];
+        o.textContent = items[i];
+        if (items[i] === defaultVal) o.selected = true;
+        sel.appendChild(o);
+      }
+    }
+
+    [mkt1Select, mkt2Select].forEach(function (sel) {
+      sel.addEventListener("change", reloadIfActive);
+    });
+    ["export-flow-mode", "export-distribution-mode", "export-ohlcv-interval",
+     "export-impact-mode", "export-health-schema", "export-health-attribute"
+    ].forEach(function (id) {
+      document.getElementById(id).addEventListener("change", reloadIfActive);
+    });
 
     /* ── Font scaling ── */
 
@@ -317,9 +507,11 @@
 
       pipelineSelect.addEventListener("change", function () {
         pipelineSelect.disabled = true;
+        marketMetaCache = null;
         fetch("/api/switch-pipeline?pipeline=" + encodeURIComponent(pipelineSelect.value), { method: "POST" })
           .then(function () {
             pipelineSelect.disabled = false;
+            if (!ctxMkt.hidden) ensureMarketMeta();
             reloadIfActive();
           })
           .catch(function () {
