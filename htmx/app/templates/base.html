@@ -214,18 +214,18 @@
 
   function switchPipeline(name) {
     var sel = document.getElementById('pipeline-select');
-    var prevValue = sel ? sel.value : name;
     if (sel) sel.disabled = true;
 
     if (typeof window.__clearAllForPipelineSwitch === 'function') {
       window.__clearAllForPipelineSwitch();
     }
 
+    function reloadPage() {
+      window.location.replace(window.location.pathname + '?_sw=' + Date.now());
+    }
+
     fetch('/api/switch-pipeline?pipeline=' + encodeURIComponent(name), {method: 'POST'})
-      .then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
+      .then(function(r) { return r.json(); })
       .then(function(data) {
         try {
           var defaults = (data && data.defaults) || {};
@@ -234,18 +234,11 @@
           if (defaults.pair) stored.pair = defaults.pair;
           window.localStorage.setItem('dashboard.globalFilters.v1', JSON.stringify(stored));
         } catch(_) {}
-        var url = window.location.pathname + '?_sw=' + Date.now();
-        window.location.replace(url);
+        reloadPage();
       })
       .catch(function(err) {
         console.error('Pipeline switch failed:', err);
-        if (sel) {
-          sel.value = prevValue;
-          sel.disabled = false;
-        }
-        if (typeof window.__cancelPipelineSwitch === 'function') {
-          window.__cancelPipelineSwitch();
-        }
+        reloadPage();
       });
   }
   </script>

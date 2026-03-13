@@ -2874,13 +2874,6 @@
   }
   window.__clearAllForPipelineSwitch = clearAllForPipelineSwitch;
 
-  function cancelPipelineSwitch() {
-    _pipelineSwitchInProgress = false;
-    resetDashboardLoading();
-    htmx.trigger(document.body, "dashboard-refresh");
-  }
-  window.__cancelPipelineSwitch = cancelPipelineSwitch;
-
   function getApiBaseUrl() {
     const attr = document.body.dataset.apiBaseUrl;
     return attr != null ? attr : "";
