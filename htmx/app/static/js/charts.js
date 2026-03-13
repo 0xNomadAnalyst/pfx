@@ -57,6 +57,7 @@
     ["linked-ts-global", new Set([
       "ge-issuance-time",
       "ge-yields-vs-time",
+      "ge-availability-time",
       "ge-tvl-time",
       "ge-activity-vol",
       "ge-tvl-share",
@@ -1737,6 +1738,16 @@
       const barWidth = chartData.barWidth || undefined;
       option = baseChartOption(chartData);
       option.grid = { left: 10, right: 24, top: 18, bottom: bottomPad, containLabel: true };
+      const xFmtH = axisFormatter(chartData.xAxisFormat);
+      if (xFmtH) {
+        option.tooltip = Object.assign(option.tooltip || {}, { valueFormatter: xFmtH });
+      }
+      const defaultXFmt = (v) => {
+        if (Math.abs(v) >= 1e9) return "$" + (v / 1e9).toFixed(1) + "B";
+        if (Math.abs(v) >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
+        if (Math.abs(v) >= 1e3) return "$" + (v / 1e3).toFixed(0) + "k";
+        return "$" + v;
+      };
       option.xAxis = {
         type: "value",
         axisLine: { lineStyle: { color: chartGridColor() } },
@@ -1744,14 +1755,10 @@
         axisLabel: {
           color: chartTextColor(),
           fontSize: 11,
-          formatter: (v) => {
-            if (Math.abs(v) >= 1e9) return "$" + (v / 1e9).toFixed(1) + "B";
-            if (Math.abs(v) >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
-            if (Math.abs(v) >= 1e3) return "$" + (v / 1e3).toFixed(0) + "k";
-            return "$" + v;
-          },
+          formatter: xFmtH || defaultXFmt,
         },
       };
+      if (chartData.xAxisMax != null) option.xAxis.max = chartData.xAxisMax;
       option.yAxis = {
         type: "category",
         data: chartData.x || [],

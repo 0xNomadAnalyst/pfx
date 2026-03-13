@@ -50,6 +50,8 @@ class GlobalEcosystemPageService(BasePageService):
             "ge-issuance-time": self._issuance_time,
             "ge-current-yields": self._current_yields,
             "ge-yields-vs-time": self._yields_vs_time,
+            "ge-availability-bar": self._availability_bar,
+            "ge-availability-time": self._availability_time,
             "ge-tvl-bar": self._tvl_bar,
             "ge-activity-bar": self._activity_bar,
             "ge-tvl-pie": self._tvl_pie,
@@ -527,6 +529,75 @@ class GlobalEcosystemPageService(BasePageService):
                 {"name": "PT+YT (ONyc eq.)", "type": "line", "area": True, "stack": "issuance",
                  "color": _COLORS["blue"],
                  "data": [row.get("ptyt_in_onyc") for row in rows]},
+            ],
+        }
+
+    # ------------------------------------------------------------------
+    # Widget: Supply Distribution by Availability (stacked horizontal bar)
+    # ------------------------------------------------------------------
+
+    def _availability_bar(self, _: dict[str, Any]) -> dict[str, Any]:
+        r = self._v_last()
+        total_supply = self._fetch_onyc_total_supply()
+        kamino = self._fv(r.get("onyc_in_kamino"))
+        liquid = self._fv(r.get("onyc_in_dexes")) + self._fv(r.get("onyc_in_exponent"))
+        free = max(total_supply - kamino - liquid, 0)
+        categories = ["Supply Distribution"]
+        return {
+            "kind": "chart",
+            "chart": "bar-horizontal",
+            "x": categories,
+            "xAxisLabel": "",
+            "xAxisFormat": "pct0",
+            "xAxisMax": 100,
+            "series": [
+                {"name": "Illiquid DeFi (Kamino)", "type": "bar", "stack": "avail",
+                 "color": _COLORS["green"],
+                 "data": [round(kamino / total_supply * 100, 1) if total_supply else 0]},
+                {"name": "Liquid DeFi (DEXes + Exponent)", "type": "bar", "stack": "avail",
+                 "color": _COLORS["blue"],
+                 "data": [round(liquid / total_supply * 100, 1) if total_supply else 0]},
+                {"name": "Free / Undeployed", "type": "bar", "stack": "avail",
+                 "color": _COLORS["grey"],
+                 "data": [round(free / total_supply * 100, 1) if total_supply else 0]},
+            ],
+        }
+
+    # ------------------------------------------------------------------
+    # Widget: Token Availability Over Time (100% stacked area)
+    # ------------------------------------------------------------------
+
+    def _availability_time(self, params: dict[str, Any]) -> dict[str, Any]:
+        rows = self._ts_rows(params)
+        total_supply = self._fetch_onyc_total_supply()
+        if not total_supply:
+            total_supply = 1
+
+        def pct(val: Any) -> float | None:
+            v = self._fv(val)
+            return round(v / total_supply * 100, 1) if v else 0
+
+        return {
+            "kind": "chart",
+            "chart": "line",
+            "x": [row["bucket_time"] for row in rows],
+            "yAxisLabel": "% of Supply",
+            "yAxisFormat": "pct0",
+            "yAxisMin": 0,
+            "yAxisMax": 100,
+            "series": [
+                {"name": "Illiquid DeFi (Kamino)", "type": "line", "area": True, "stack": "avail",
+                 "color": _COLORS["green"],
+                 "data": [pct(row.get("onyc_in_kamino")) for row in rows]},
+                {"name": "Liquid DeFi (DEXes + Exp.)", "type": "line", "area": True, "stack": "avail",
+                 "color": _COLORS["blue"],
+                 "data": [pct(self._fv(row.get("onyc_in_dexes")) + self._fv(row.get("onyc_in_exponent")))
+                          for row in rows]},
+                {"name": "Free / Undeployed", "type": "line", "area": True, "stack": "avail",
+                 "color": _COLORS["grey"],
+                 "data": [round(max(100 - pct(row.get("onyc_in_kamino"))
+                                    - pct(self._fv(row.get("onyc_in_dexes")) + self._fv(row.get("onyc_in_exponent"))), 0), 1)
+                          for row in rows]},
             ],
         }
 

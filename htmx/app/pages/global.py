@@ -76,16 +76,33 @@ PAGE_CONFIG = PageConfig(
         ),
 
         # ═══════════════════════════════════════════════════════
-        # Section: CAPITAL UTILIZATION (placeholder)
+        # Section: TOKEN AVAILABILITY
         # ═══════════════════════════════════════════════════════
         WidgetConfig(
-            "ge-hdr-capital", "Capital Utilization", "section-header",
+            "ge-hdr-availability", "Token Availability", "section-header",
             "ge-hdr-3",
         ),
+
         WidgetConfig(
-            "ge-capital-placeholder", "", "placeholder",
-            "ge-placeholder-1",
-            tooltip="Locked vs. free capital across Exponent vaults and lending protocols — charts coming soon.",
+            "ge-availability-bar",
+            "Supply Distribution by Availability",
+            "chart",
+            "panel panel-large ge-slot-full-2",
+            expandable=False,
+            tooltip="Current ONyc supply classified by mobility: "
+            "Illiquid DeFi (Kamino collateral), "
+            "Liquid DeFi (DEX LP + Exponent), "
+            "and Free / Undeployed tokens.",
+        ),
+        WidgetConfig(
+            "ge-availability-time",
+            "Token Availability Over Time",
+            "chart",
+            "panel panel-large ge-slot-full-3",
+            expandable=True,
+            tooltip="100% stacked area showing how ONyc supply is distributed "
+            "across availability tiers over time. Uses current total supply "
+            "as denominator.",
         ),
 
         # ═══════════════════════════════════════════════════════
