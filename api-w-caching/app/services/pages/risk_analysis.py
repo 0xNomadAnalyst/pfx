@@ -52,11 +52,15 @@ class RiskAnalysisPageService(BasePageService):
         cache_key = f"ra::pvalues::{protocol}::{event_type}::{interval}"
 
         def _load() -> list[dict[str, Any]]:
-            return self.sql.fetch_rows(
-                "SELECT * FROM dexes.get_view_dex_risk_pvalues(%s, %s, %s, %s) "
-                "ORDER BY stat_order",
-                (protocol, "usx-usdc", event_type, interval),
-            )
+            try:
+                return self.sql.fetch_rows(
+                    "SELECT * FROM dexes.get_view_dex_risk_pvalues(%s, %s, %s, %s) "
+                    "ORDER BY stat_order",
+                    (protocol, "usx-usdc", event_type, interval),
+                )
+            except Exception as exc:
+                logger.warning("_pvalue_rows query failed (%s/%s/%s): %s", protocol, event_type, interval, exc)
+                return []
 
         return self._cached(cache_key, _load, ttl_seconds=self._PVALUE_TTL_SECONDS)
 
@@ -64,11 +68,15 @@ class RiskAnalysisPageService(BasePageService):
         cache_key = f"ra::tick_dist::{protocol}"
 
         def _load() -> list[dict[str, Any]]:
-            return self.sql.fetch_rows(
-                "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval) "
-                "ORDER BY tick_price_t1_per_t0",
-                (protocol, "USX-USDC", "1 hour"),
-            )
+            try:
+                return self.sql.fetch_rows(
+                    "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval) "
+                    "ORDER BY tick_price_t1_per_t0",
+                    (protocol, "USX-USDC", "1 hour"),
+                )
+            except Exception as exc:
+                logger.warning("_tick_dist_rows query failed (%s): %s", protocol, exc)
+                return []
 
         return self._cached(cache_key, _load, ttl_seconds=self._TICK_DIST_TTL_SECONDS)
 
