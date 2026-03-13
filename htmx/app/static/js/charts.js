@@ -3971,9 +3971,13 @@
       if (e.relatedTarget && wrap.contains(e.relatedTarget)) return;
       const card = wrap.querySelector(".info-tip-card");
       if (!card) return;
-      card.style.left = "-9999px";
-      card.style.top = "-9999px";
-      card.style.bottom = "";
+      setTimeout(() => {
+        if (!wrap.matches(":hover")) {
+          card.style.left = "-9999px";
+          card.style.top = "-9999px";
+          card.style.bottom = "";
+        }
+      }, 200);
     });
   }
 

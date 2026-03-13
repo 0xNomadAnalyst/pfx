@@ -327,7 +327,6 @@ th .info-tip-icon {
 }
 
 .info-tip-card {
-  display: none;
   position: fixed;
   left: -9999px;
   top: -9999px;
@@ -344,6 +343,9 @@ th .info-tip-icon {
   color: var(--tooltip-fg);
   border: 1px solid var(--tooltip-border);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, visibility 0.18s ease;
 }
 
 [data-theme="dark"] {
@@ -359,7 +361,8 @@ th .info-tip-icon {
 }
 
 .info-tip-wrap:hover .info-tip-card {
-  display: block;
+  opacity: 1;
+  visibility: visible;
 }
 
 .row-tip-wrap {
