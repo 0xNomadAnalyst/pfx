@@ -2899,7 +2899,8 @@
       const splitTitleEl = document.querySelector(`#widget-${widgetId} .panel-header h3`);
       if (splitTitleEl) {
         const baseTitle = splitTitleEl.dataset.baseTitle || splitTitleEl.textContent || "";
-        splitTitleEl.innerHTML = `${pairAwareLabel(baseTitle)} <span style="color:var(--text-secondary,#6b7a8d);font-weight:400">|</span> <span style="color:#2fbf71">${currentLastWindowLabel()}</span>`;
+        const windowLabel = payload.data.window_label || currentLastWindowLabel();
+        splitTitleEl.innerHTML = `${pairAwareLabel(baseTitle)} <span style="color:var(--text-secondary,#6b7a8d);font-weight:400">|</span> <span style="color:#2fbf71">${windowLabel}</span>`;
       }
       return;
     }

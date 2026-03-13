@@ -20,6 +20,8 @@ class SqlAdapter:
         self._pool_lock = threading.Lock()
 
     def _dsn(self) -> str:
+        if hasattr(self, "_fixed_dsn"):
+            return self._fixed_dsn
         sslmode = os.getenv("DB_SSLMODE", "require")
         allowed_sslmodes = {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
         if sslmode not in allowed_sslmodes:
@@ -36,6 +38,41 @@ class SqlAdapter:
             f"connect_timeout={connect_timeout} "
             f"options='-c statement_timeout={statement_timeout_ms}'"
         )
+
+    @classmethod
+    def from_env_file(cls, env_path: str) -> "SqlAdapter":
+        """Create an adapter with a fixed DSN derived from an env file,
+        immune to pipeline-switcher changes in os.environ."""
+        from pathlib import Path
+        inst = cls.__new__(cls)
+        inst._pool = None
+        inst._pool_lock = threading.Lock()
+        env = {}
+        p = Path(env_path)
+        if p.exists():
+            for line in p.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                env[k.strip()] = v.strip()
+        sslmode = env.get("PGSSLMODE", env.get("DB_SSLMODE", "require"))
+        allowed = {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
+        if sslmode not in allowed:
+            sslmode = "require"
+        ct = int(os.getenv("DB_CONNECT_TIMEOUT_SECONDS", "5"))
+        st = int(os.getenv("DB_STATEMENT_TIMEOUT_MS", "15000"))
+        inst._fixed_dsn = (
+            f"host={env['DB_HOST']} "
+            f"port={env['DB_PORT']} "
+            f"dbname={env['DB_NAME']} "
+            f"user={env['DB_USER']} "
+            f"password={env['DB_PASSWORD']} "
+            f"sslmode={sslmode} "
+            f"connect_timeout={ct} "
+            f"options='-c statement_timeout={st}'"
+        )
+        return inst
 
     def _get_pool(self) -> ThreadedConnectionPool:
         if self._pool is None:

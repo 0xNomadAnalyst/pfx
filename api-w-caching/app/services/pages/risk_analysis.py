@@ -282,6 +282,7 @@ class RiskAnalysisPageService(BasePageService):
             "right_title": "Orca USX-USDC",
             "right_rows": orca_rows,
             "subtitle": subtitle,
+            "window_label": "All Time",
         }
 
     def _ra_liq_dist(self, params: dict[str, Any], protocol: str) -> dict[str, Any]:

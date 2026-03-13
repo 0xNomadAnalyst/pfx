@@ -35,7 +35,11 @@ class DataService:
         exponent = ExponentPageService(sql_adapter, cache)
         health = HealthPageService(sql_adapter, cache)
         global_eco = GlobalEcosystemPageService(sql_adapter, cache)
-        risk = RiskAnalysisPageService(sql_adapter, cache)
+
+        from pathlib import Path
+        onyc_env = Path(__file__).resolve().parents[2] / ".env.pfx.core"
+        onyc_sql = SqlAdapter.from_env_file(str(onyc_env))
+        risk = RiskAnalysisPageService(onyc_sql, cache)
         self._pages = {
             "playbook-liquidity": liquidity,
             "dex-liquidity": liquidity,
