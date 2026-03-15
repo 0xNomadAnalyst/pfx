@@ -1,4 +1,4 @@
--- Kamino Lend - Liquidation Cascade Amplification Simulation (Multi-Pool)
+-- Kamino Lend - Liquidation Cascade Amplification Simulation (Multi-Pool, Bonus-Aware)
 --
 -- Models second-order effects of collateral liquidation on DEX pools:
 --   1. An exogenous price shock makes some loans unhealthy
@@ -7,8 +7,80 @@
 --   4. The additional price drop makes more loans unhealthy
 --   5. Repeat until equilibrium (fixed-point convergence)
 --
+-- LIQUIDATION BONUS GROSS-UP:
+--   When a liquidator repays debt, they seize collateral worth debt * (1 + bonus).
+--   The bonus depends on obligation state:
+--     - Unhealthy (not bad debt): max_liquidation_bonus_bps from reserve config
+--     - Bad debt: bad_debt_liquidation_bonus_bps from reserve config
+--   p_bonus_mode controls the effective bonus:
+--     - 'blended' (default): value-weighted blend of unhealthy and bad-debt bonuses
+--       based on per-step composition from the sensitivity curve.
+--     - 'max_conservative': flat max_liquidation_bonus_bps for all liquidations,
+--       giving an upper-bound estimate of sell pressure (conservative stress mode).
+--     - 'none': no bonus applied (legacy behavior).
+--
+-- BONUS FORMULA (Phase 1a heuristic — market-level aggregate):
+--
+--   At each shock step, sensitivity outputs provide:
+--     total_liquidatable_value = TLV   (all unhealthy + bad-debt obligations)
+--     bad_liquidatable_value   = BLV   (bad-debt obligations only)
+--
+--   bad_share = CLAMP(BLV / TLV, 0, 1)
+--   effective_bonus_bps = bad_share * bad_debt_liquidation_bonus_bps
+--                       + (1 - bad_share) * max_liquidation_bonus_bps
+--
+--   collateral_seized_usd = TLV * (1 + effective_bonus_bps / 10000)
+--   sell_qty_tokens = collateral_seized_usd * (deposited_tokens / total_deposits_usd)
+--     (heuristic mode conversion)
+--
+--   This heuristic uses max_bonus for all unhealthy obligations, which overstates
+--   the bonus for mildly-unhealthy obligations (whose true bonus would be between
+--   min_bonus and max_bonus). This conservative bias compounds in the fixed-point
+--   loop: more sell pressure -> more impact -> more liquidations -> more sell pressure.
+--   Outputs using this heuristic should be understood as upper-bound estimates when
+--   the unhealthy share dominates.
+--
+-- BONUS FORMULA (Phase 3 protocol mode — per-obligation, precomputed curve):
+--
+--   For each obligation, given reserve params (min_bonus, max_bonus, bad_debt_bonus)
+--   and market params (liquidation_ltv, insolvency_risk_ltv):
+--
+--   IF obligation is bad debt (user_ltv > insolvency_risk_ltv):
+--       bonus_bps = bad_debt_liquidation_bonus_bps
+--   ELSE (unhealthy, user_ltv between liquidation_ltv and insolvency_risk_ltv):
+--       zone_pct = (user_ltv - liquidation_ltv) / (insolvency_risk_ltv - liquidation_ltv)
+--       zone_pct = CLAMP(zone_pct, 0, 1)
+--       bonus_bps = min_liquidation_bonus_bps
+--                 + zone_pct * (max_liquidation_bonus_bps - min_liquidation_bonus_bps)
+--
+--   This per-obligation formula is implemented in protocol mode via
+--   kamino_lend.simulate_protocol_liquidation and consumed by this cascade function.
+--   In protocol mode, USD->token conversion uses the live reserve oracle price
+--   (tokens_per_usd = 1 / oracle_price) instead of the market-level share proxy.
+--
+-- PHASE 2 PRE-CHECK (obligation-size distribution):
+--   Analysis on 2026-03-11 found that the min_full_liquidation_value_threshold ($2)
+--   is currently immaterial for the ONyc market:
+--   - Only 19 obligations have borrow < $2 (total borrow: $12)
+--   - Under -20% stress, only 1 such obligation becomes unhealthy ($0.01 borrow)
+--   - The full-liquidation uplift vs close-factor treatment is < $0.01
+--   This threshold can be safely deferred to Phase 3 implementation without
+--   impacting current model accuracy.
+--
+-- RESERVE-SELECTION ASSUMPTIONS:
+--   - The bonus parameters are sourced from the p_coll_symbol reserve (matched via
+--     env_symbol on kamino_lend.src_reserves). This is correct because the collateral
+--     reserve determines the bonus on the collateral leg that gets seized and sold.
+--   - For multi-collateral obligations, the protocol selects which collateral to seize
+--     based on internal priority logic (lowest-liquidation-LTV-first). This function
+--     currently assumes all liquidated collateral is p_coll_symbol, which is valid
+--     when p_coll_assets is filtered to a single asset via the sensitivity pass-through.
+--   - ONyc reserves currently share identical bonus schedules across all reserves:
+--     min=500 BPS, max=1000 BPS, bad_debt=99 BPS. Reserve-selection ambiguity is
+--     therefore presently low-impact. This should be re-evaluated if reserve configs
+--     diverge in future market updates.
+--
 -- MULTI-POOL SUPPORT:
---   A collateral token may trade on multiple DEX pools (e.g. ONyc-USDC and USDG-ONyc).
 --   p_pool_mode controls how sell pressure is routed:
 --     - A specific pool address: 100% of sell pressure on that pool
 --     - 'weighted' (default): sell qty split pro-rata by counter-pair stablecoin
@@ -16,36 +88,63 @@
 --
 --   ASSUMPTION: Counter-pair stablecoins (e.g. USDC, USDG) are treated at nominal
 --   face value ($1) and therefore at par with each other for liquidity weighting.
---   This simplifies cross-pool weighting to a direct comparison of counter-pair
---   token quantities without requiring additional price feeds.
---
---   In weighted mode, the effective price impact is the liquidity-weighted average
---   of per-pool BPS impacts. This approximates the market-wide price effect under
---   the assumption that arbitrageurs keep prices aligned across pools.
 --
 -- Covers BOTH sides of the sensitivity curve:
 --
 --   LEFT SIDE (collateral decrease):
---     Single-axis cascade. Exogenous collateral decline -> liquidations -> more
---     collateral sold -> collateral drops further. equilibrium_shock_pct reflects
---     the total collateral decline.
+--     Single-axis cascade. equilibrium_shock_pct reflects the total collateral decline.
 --
 --   RIGHT SIDE (debt value increase):
---     Cross-axis cascade. Exogenous debt increase -> liquidations -> collateral
---     sold on DEX -> collateral price DROPS (different axis).
---     induced_coll_decline_pct captures this cross-axis effect.
+--     Cross-axis cascade. induced_coll_decline_pct captures the effect.
 --     Combined sell pressure: L_total = L_debt + L_coll (conservative upper bound).
+
+-- PHASE 3 IMPLEMENTATION SUMMARY (protocol-faithful liquidation engine):
 --
--- Parameters:
---   (Sensitivity pass-through)
---   p_query_id, assets_delta_bps, assets_delta_steps, liabilities_delta_bps,
---   liabilities_delta_steps, include_zero_borrows, p_coll_assets, p_lend_assets
+--   Target: new function kamino_lend.simulate_protocol_liquidation(...)
+--   that replaces the aggregate heuristic with per-obligation mechanics.
 --
---   (Cascade-specific)
---   p_coll_symbol: Which collateral token to model cascade for
---   p_pool_mode: Pool routing - 'weighted' (default) or a specific pool address
---   p_max_rounds: Maximum iteration rounds (default 10)
---   p_convergence_threshold_pct: Stop when shock changes < this % (default 0.1)
+--   Algorithm per scenario step:
+--     1. For each obligation, recompute deposits/borrows under stress
+--     2. Classify: healthy / unhealthy / bad-debt (using per-obligation LTV thresholds)
+--     3. For unhealthy obligations:
+--        a. Determine close factor: if borrow < min_full_liquidation_value_threshold
+--           then 100%, else liquidation_max_debt_close_factor_pct
+--        b. Select collateral leg: lowest-liquidation-LTV reserve first (protocol priority)
+--        c. Select debt leg: highest-borrow-value reserve first
+--        d. Compute debt_repaid = MIN(borrow * close_factor, max_liq_at_once)
+--        e. Compute bonus_bps via interpolation formula (see Phase 3 formula above)
+--        f. Compute collateral_seized = debt_repaid * (1 + bonus_bps / 10000)
+--     4. For bad-debt obligations:
+--        a. Full liquidation: debt_repaid = MIN(borrow, max_liq_at_once)
+--        b. bonus_bps = bad_debt_liquidation_bonus_bps
+--        c. collateral_seized = MIN(debt_repaid * (1 + bonus_bps / 10000), deposit)
+--     5. Aggregate per-reserve collateral_seized -> sell_qty_tokens per pool
+--     6. Feed into DEX impact and fixed-point iteration (same as current cascade)
+--
+--   Mode flag: p_model_mode = 'heuristic' (current) | 'protocol' (Phase 3)
+--   Keep both modes available for diff testing and rollout safety.
+--
+--   Implementation notes:
+--     - Use materialized CTEs staging per-obligation arrays
+--     - Prune healthy obligations early to avoid O(n*steps) blowup
+--     - Target: 2-3 weeks initial implementation, 1-2 weeks hardening
+--
+-- PHASE 4 VALIDATION SUMMARY (validation and calibration):
+--
+--   1. Side-by-side comparison: heuristic vs protocol mode for:
+--      total_liquidatable_value, total_liq_value_coll_side, sell_qty_tokens,
+--      pool_depth_used_pct, induced price impact
+--   2. Backtest against known liquidation windows (on-chain swap events)
+--   3. Acceptance thresholds:
+--      - Median absolute error for collateral sold < 10% of observed
+--      - Monotonicity: increasing stress -> non-decreasing liquidation values
+--      - No negative flows: sell_qty_tokens >= 0 at all steps
+--      - Fixed-point convergence: all steps converge within p_max_rounds
+--   4. Runtime guardrails:
+--      - Convergence failure warning if v_round >= p_max_rounds
+--      - Negative flow detection and logging
+--      - Mode-switch gate: protocol mode becomes default only after passing
+--        all acceptance thresholds on live data for 2 consecutive weeks
 
 DROP FUNCTION IF EXISTS kamino_lend.simulate_cascade_amplification(
     BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[],
@@ -54,6 +153,14 @@ DROP FUNCTION IF EXISTS kamino_lend.simulate_cascade_amplification(
 DROP FUNCTION IF EXISTS kamino_lend.simulate_cascade_amplification(
     BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[],
     TEXT, TEXT, INTEGER, NUMERIC
+);
+DROP FUNCTION IF EXISTS kamino_lend.simulate_cascade_amplification(
+    BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[],
+    TEXT, TEXT, TEXT, INTEGER, NUMERIC
+);
+DROP FUNCTION IF EXISTS kamino_lend.simulate_cascade_amplification(
+    BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[],
+    TEXT, TEXT, TEXT, TEXT, INTEGER, NUMERIC
 );
 
 CREATE OR REPLACE FUNCTION kamino_lend.simulate_cascade_amplification(
@@ -69,6 +176,8 @@ CREATE OR REPLACE FUNCTION kamino_lend.simulate_cascade_amplification(
     -- Cascade-specific parameters
     p_coll_symbol               TEXT     DEFAULT NULL,
     p_pool_mode                 TEXT     DEFAULT 'weighted',
+    p_bonus_mode                TEXT     DEFAULT 'blended',
+    p_model_mode                TEXT     DEFAULT 'heuristic',
     p_max_rounds                INTEGER  DEFAULT 10,
     p_convergence_threshold_pct NUMERIC  DEFAULT 0.1
 )
@@ -89,7 +198,10 @@ RETURNS TABLE (
     pool_address              TEXT,
     pool_weight               NUMERIC,
     counter_pair_symbol       TEXT,
-    pool_impact_pct           NUMERIC
+    pool_impact_pct           NUMERIC,
+    effective_bonus_bps       NUMERIC,
+    liq_value_pre_bonus_usd   NUMERIC,
+    liq_value_post_bonus_usd  NUMERIC
 ) AS $$
 DECLARE
     v_token_price      NUMERIC;
@@ -101,7 +213,7 @@ DECLARE
     v_pool_counter_sym TEXT[];
     v_n_pools          INTEGER;
     v_p                INTEGER;
-    -- Per-pool BPS after convergence (sign-corrected to collateral-decline direction)
+    -- Per-pool BPS after convergence
     v_pool_bps_arr     DOUBLE PRECISION[];
     -- Temporaries for pool setup
     v_cp_values        NUMERIC[];
@@ -114,14 +226,32 @@ DECLARE
     v_coll_tokens_deposited NUMERIC;
     v_token_decimals   INTEGER;
     v_reserve_address  TEXT;
+    -- Liquidation bonus params (from reserve config)
+    v_max_bonus_bps    INTEGER;
+    v_bad_debt_bonus_bps INTEGER;
+    -- Per-step bonus calculation
+    v_bad_share        NUMERIC;
+    v_eff_bonus_bps    NUMERIC;
+    v_bonus_mult       NUMERIC;
+    v_liq_pre_bonus    NUMERIC;
+    v_liq_post_bonus   NUMERIC;
+    v_model_mode       TEXT;
     -- Left-side curve arrays
     v_left_pct         NUMERIC[];
     v_left_liq         NUMERIC[];
+    v_left_bad_liq     NUMERIC[];
+    v_left_liq_coll    NUMERIC[];
     v_left_n           INTEGER;
     -- Right-side curve arrays
     v_right_pct        NUMERIC[];
     v_right_liq        NUMERIC[];
+    v_right_bad_liq    NUMERIC[];
+    v_right_liq_coll   NUMERIC[];
     v_right_n          INTEGER;
+    -- Interpolated bad-liq value
+    v_bad_liq_value    NUMERIC;
+    v_liq_coll_value   NUMERIC;
+    v_tokens_per_usd   NUMERIC;
     -- Outer loop
     v_idx              INTEGER;
     -- Fixed-point iteration
@@ -139,35 +269,48 @@ DECLARE
     v_l_coll           NUMERIC;
     v_coll_decline     NUMERIC;
     v_prev_coll_decline NUMERIC;
+    v_l_debt_bad       NUMERIC;
+    v_l_coll_bad       NUMERIC;
+    v_l_debt_coll      NUMERIC;
+    v_l_coll_coll      NUMERIC;
     -- Linear interpolation
     v_lo               INTEGER;
     v_hi               INTEGER;
     v_frac             NUMERIC;
     j                  INTEGER;
 BEGIN
+    v_model_mode := LOWER(COALESCE(p_model_mode, 'heuristic'));
+    IF v_model_mode NOT IN ('heuristic', 'protocol') THEN
+        RAISE EXCEPTION 'Unsupported p_model_mode: %. Expected heuristic|protocol', p_model_mode;
+    END IF;
+
     -- ---------------------------------------------------------------
     -- 1. Resolve DEX pool(s) for the collateral symbol
     -- ---------------------------------------------------------------
     IF p_coll_symbol IS NULL THEN
-        -- No cascade: return raw sensitivity curve
         RETURN QUERY
         SELECT
             s.pct_change, s.pct_change, 1.0::NUMERIC, 0, 0.0::NUMERIC,
             s.total_liquidatable_value::NUMERIC, 0.0::NUMERIC,
             s.total_liquidatable_value::NUMERIC, 0.0::NUMERIC,
             0.0::NUMERIC, 0.0::NUMERIC, 0.0::NUMERIC, NULL::NUMERIC,
-            NULL::TEXT, NULL::NUMERIC, NULL::TEXT, NULL::NUMERIC
-        FROM kamino_lend.get_view_klend_sensitivities(
-            p_query_id, p_assets_delta_bps, p_assets_delta_steps,
-            p_liabilities_delta_bps, p_liabilities_delta_steps,
-            p_include_zero_borrows, p_coll_assets, p_lend_assets
+            NULL::TEXT, NULL::NUMERIC, NULL::TEXT, NULL::NUMERIC,
+            NULL::NUMERIC, NULL::NUMERIC, NULL::NUMERIC
+        FROM (
+            SELECT
+                x.pct_change,
+                x.total_liquidatable_value
+            FROM kamino_lend.get_view_klend_sensitivities(
+                p_query_id, p_assets_delta_bps, p_assets_delta_steps,
+                p_liabilities_delta_bps, p_liabilities_delta_steps,
+                p_include_zero_borrows, p_coll_assets, p_lend_assets
+            ) x
         ) s
         ORDER BY s.pct_change;
         RETURN;
     END IF;
 
     IF p_pool_mode IS NOT NULL AND p_pool_mode != 'weighted' THEN
-        -- Single specific pool
         SELECT ARRAY[rdp.pool_address], ARRAY[rdp.token_side],
                ARRAY[CASE WHEN rdp.token_side = 't0' THEN rdp.token1_symbol
                           ELSE rdp.token0_symbol END]
@@ -183,7 +326,6 @@ BEGIN
         v_pool_weights := ARRAY[1.0];
         v_n_pools := 1;
     ELSE
-        -- Weighted mode: resolve ALL pools for this symbol
         SELECT
             array_agg(rdp.pool_address),
             array_agg(rdp.token_side),
@@ -195,37 +337,38 @@ BEGIN
         v_n_pools := COALESCE(array_length(v_pool_addresses, 1), 0);
 
         IF v_n_pools = 0 THEN
-            -- No pools found: return raw sensitivity curve
             RETURN QUERY
             SELECT
                 s.pct_change, s.pct_change, 1.0::NUMERIC, 0, 0.0::NUMERIC,
                 s.total_liquidatable_value::NUMERIC, 0.0::NUMERIC,
                 s.total_liquidatable_value::NUMERIC, 0.0::NUMERIC,
                 0.0::NUMERIC, 0.0::NUMERIC, 0.0::NUMERIC, NULL::NUMERIC,
-                NULL::TEXT, NULL::NUMERIC, NULL::TEXT, NULL::NUMERIC
-            FROM kamino_lend.get_view_klend_sensitivities(
-                p_query_id, p_assets_delta_bps, p_assets_delta_steps,
-                p_liabilities_delta_bps, p_liabilities_delta_steps,
-                p_include_zero_borrows, p_coll_assets, p_lend_assets
+                NULL::TEXT, NULL::NUMERIC, NULL::TEXT, NULL::NUMERIC,
+                NULL::NUMERIC, NULL::NUMERIC, NULL::NUMERIC
+            FROM (
+                SELECT
+                    x.pct_change,
+                    x.total_liquidatable_value
+                FROM kamino_lend.get_view_klend_sensitivities(
+                    p_query_id, p_assets_delta_bps, p_assets_delta_steps,
+                    p_liabilities_delta_bps, p_liabilities_delta_steps,
+                    p_include_zero_borrows, p_coll_assets, p_lend_assets
+                ) x
             ) s
             ORDER BY s.pct_change;
             RETURN;
         END IF;
 
-        -- Compute counter-pair liquidity weights.
-        -- ASSUMPTION: USDC, USDG, and other stablecoins are at par ($1 face value).
-        -- Weight = pool's counter-pair token value / total across all pools.
+        -- ASSUMPTION: USDC, USDG, and other stablecoins at par ($1 face value).
         v_cp_values := ARRAY[]::NUMERIC[];
         v_cp_total  := 0;
 
         FOR v_p IN 1..v_n_pools LOOP
             IF v_pool_sides[v_p] = 't0' THEN
-                -- Collateral is t0 -> counter-pair is t1
                 SELECT COALESCE(SUM(td.token1_value), 0) INTO v_cp_val
                 FROM dexes.src_acct_tickarray_tokendist_latest td
                 WHERE td.pool_address = v_pool_addresses[v_p];
             ELSE
-                -- Collateral is t1 -> counter-pair is t0
                 SELECT COALESCE(SUM(td.token0_value), 0) INTO v_cp_val
                 FROM dexes.src_acct_tickarray_tokendist_latest td
                 WHERE td.pool_address = v_pool_addresses[v_p];
@@ -234,14 +377,12 @@ BEGIN
             v_cp_total  := v_cp_total + v_cp_val;
         END LOOP;
 
-        -- Normalize to weights (0..1)
         IF v_cp_total > 0 THEN
             v_pool_weights := ARRAY[]::NUMERIC[];
             FOR v_p IN 1..v_n_pools LOOP
                 v_pool_weights := v_pool_weights || (v_cp_values[v_p] / v_cp_total);
             END LOOP;
         ELSE
-            -- Equal weights if no liquidity data
             v_pool_weights := ARRAY[]::NUMERIC[];
             FOR v_p IN 1..v_n_pools LOOP
                 v_pool_weights := v_pool_weights || (1.0 / v_n_pools);
@@ -280,19 +421,6 @@ BEGIN
     END IF;
 
     -- ---------------------------------------------------------------
-    -- 2c. Get total deposits at baseline (pct_change = 0)
-    -- ---------------------------------------------------------------
-    SELECT s.total_deposits INTO v_total_deposits
-    FROM kamino_lend.get_view_klend_sensitivities(
-        p_query_id, p_assets_delta_bps, p_assets_delta_steps,
-        p_liabilities_delta_bps, p_liabilities_delta_steps,
-        p_include_zero_borrows, p_coll_assets, p_lend_assets
-    ) s
-    WHERE s.pct_change = 0.0
-    LIMIT 1;
-    v_total_deposits := COALESCE(v_total_deposits, 0);
-
-    -- ---------------------------------------------------------------
     -- 2d. Collateral token quantities from obligation deposit data
     -- ---------------------------------------------------------------
     SELECT mrt.reserve_address, mrt.token_decimals
@@ -316,33 +444,84 @@ BEGIN
     END IF;
 
     -- ---------------------------------------------------------------
-    -- 3. Materialize BOTH sides of the sensitivity curve
+    -- 2e. Liquidation bonus parameters from reserve config
+    --     Market-scoped via aux_market_reserve_tokens to avoid symbol
+    --     collisions if the same symbol exists in multiple markets.
     -- ---------------------------------------------------------------
-    SELECT
-        array_agg(s.pct_change ORDER BY s.pct_change),
-        array_agg(s.total_liquidatable_value::NUMERIC ORDER BY s.pct_change)
-    INTO v_left_pct, v_left_liq
-    FROM kamino_lend.get_view_klend_sensitivities(
-        p_query_id, p_assets_delta_bps, p_assets_delta_steps,
-        p_liabilities_delta_bps, p_liabilities_delta_steps,
-        p_include_zero_borrows, p_coll_assets, p_lend_assets
-    ) s
-    WHERE s.pct_change <= 0;
+    SELECT r.max_liquidation_bonus_bps, r.bad_debt_liquidation_bonus_bps
+    INTO v_max_bonus_bps, v_bad_debt_bonus_bps
+    FROM kamino_lend.src_reserves r
+    JOIN kamino_lend.aux_market_reserve_tokens mrt
+      ON mrt.token_symbol = r.env_symbol
+     AND mrt.env_market_address_matches = TRUE
+    WHERE r.env_symbol = p_coll_symbol
+      AND r.env_market_address = mrt.market_address
+      AND r.max_liquidation_bonus_bps > 0
+    ORDER BY r.time DESC
+    LIMIT 1;
 
+    v_max_bonus_bps      := COALESCE(v_max_bonus_bps, 0);
+    v_bad_debt_bonus_bps := COALESCE(v_bad_debt_bonus_bps, 0);
+
+    IF p_bonus_mode = 'none' THEN
+        v_max_bonus_bps      := 0;
+        v_bad_debt_bonus_bps := 0;
+    END IF;
+
+    -- ---------------------------------------------------------------
+    -- 3. Materialize curve once per mode (baseline + left + right)
+    -- ---------------------------------------------------------------
+    IF v_model_mode = 'protocol' THEN
+        SELECT
+            MAX(s.total_deposits) FILTER (WHERE s.pct_change = 0.0),
+            array_agg(s.pct_change ORDER BY s.pct_change) FILTER (WHERE s.pct_change <= 0),
+            array_agg(s.total_liquidatable_value::NUMERIC ORDER BY s.pct_change) FILTER (WHERE s.pct_change <= 0),
+            array_agg(s.bad_liquidatable_value::NUMERIC ORDER BY s.pct_change) FILTER (WHERE s.pct_change <= 0),
+            array_agg(s.total_liq_value_coll_side::NUMERIC ORDER BY s.pct_change) FILTER (WHERE s.pct_change <= 0),
+            array_agg(s.pct_change ORDER BY s.pct_change) FILTER (WHERE s.pct_change > 0),
+            array_agg(s.total_liquidatable_value::NUMERIC ORDER BY s.pct_change) FILTER (WHERE s.pct_change > 0),
+            array_agg(s.bad_liquidatable_value::NUMERIC ORDER BY s.pct_change) FILTER (WHERE s.pct_change > 0),
+            array_agg(s.total_liq_value_coll_side::NUMERIC ORDER BY s.pct_change) FILTER (WHERE s.pct_change > 0)
+        INTO
+            v_total_deposits,
+            v_left_pct, v_left_liq, v_left_bad_liq, v_left_liq_coll,
+            v_right_pct, v_right_liq, v_right_bad_liq, v_right_liq_coll
+        FROM kamino_lend.simulate_protocol_liquidation(
+            p_query_id, p_assets_delta_bps, p_assets_delta_steps,
+            p_liabilities_delta_bps, p_liabilities_delta_steps,
+            p_include_zero_borrows, p_coll_assets, p_lend_assets, p_coll_symbol
+        ) s;
+    ELSE
+        SELECT
+            MAX(s.total_deposits) FILTER (WHERE s.pct_change = 0.0),
+            array_agg(s.pct_change ORDER BY s.pct_change) FILTER (WHERE s.pct_change <= 0),
+            array_agg(s.total_liquidatable_value::NUMERIC ORDER BY s.pct_change) FILTER (WHERE s.pct_change <= 0),
+            array_agg(s.bad_liquidatable_value::NUMERIC ORDER BY s.pct_change) FILTER (WHERE s.pct_change <= 0),
+            array_agg(s.pct_change ORDER BY s.pct_change) FILTER (WHERE s.pct_change > 0),
+            array_agg(s.total_liquidatable_value::NUMERIC ORDER BY s.pct_change) FILTER (WHERE s.pct_change > 0),
+            array_agg(s.bad_liquidatable_value::NUMERIC ORDER BY s.pct_change) FILTER (WHERE s.pct_change > 0)
+        INTO
+            v_total_deposits,
+            v_left_pct, v_left_liq, v_left_bad_liq,
+            v_right_pct, v_right_liq, v_right_bad_liq
+        FROM kamino_lend.get_view_klend_sensitivities(
+            p_query_id, p_assets_delta_bps, p_assets_delta_steps,
+            p_liabilities_delta_bps, p_liabilities_delta_steps,
+            p_include_zero_borrows, p_coll_assets, p_lend_assets
+        ) s;
+
+        v_left_liq_coll := NULL;
+        v_right_liq_coll := NULL;
+    END IF;
+
+    v_total_deposits := COALESCE(v_total_deposits, 0);
     v_left_n := COALESCE(array_length(v_left_pct, 1), 0);
-
-    SELECT
-        array_agg(s.pct_change ORDER BY s.pct_change),
-        array_agg(s.total_liquidatable_value::NUMERIC ORDER BY s.pct_change)
-    INTO v_right_pct, v_right_liq
-    FROM kamino_lend.get_view_klend_sensitivities(
-        p_query_id, p_assets_delta_bps, p_assets_delta_steps,
-        p_liabilities_delta_bps, p_liabilities_delta_steps,
-        p_include_zero_borrows, p_coll_assets, p_lend_assets
-    ) s
-    WHERE s.pct_change > 0;
-
     v_right_n := COALESCE(array_length(v_right_pct, 1), 0);
+    v_tokens_per_usd := CASE
+        WHEN v_model_mode = 'protocol' AND v_token_price > 0 THEN 1.0 / v_token_price
+        WHEN v_total_deposits > 0 THEN v_coll_tokens_deposited / v_total_deposits
+        ELSE 0
+    END;
 
     -- ---------------------------------------------------------------
     -- 4. LEFT SIDE: single-axis cascade (collateral decrease)
@@ -351,12 +530,44 @@ BEGIN
         initial_shock_pct := v_left_pct[v_idx];
 
         IF initial_shock_pct = 0 THEN
+            v_liq_value     := v_left_liq[v_idx];
+            v_bad_liq_value := v_left_bad_liq[v_idx];
+            v_liq_coll_value := CASE
+                WHEN v_left_liq_coll IS NOT NULL AND array_length(v_left_liq_coll, 1) >= v_idx
+                THEN v_left_liq_coll[v_idx]
+                ELSE v_liq_value
+            END;
+
+            IF v_model_mode = 'protocol' AND p_bonus_mode <> 'none' THEN
+                v_liq_pre_bonus := v_liq_value;
+                v_liq_post_bonus := COALESCE(v_liq_coll_value, v_liq_value);
+                v_eff_bonus_bps := CASE
+                    WHEN v_liq_pre_bonus > 0
+                    THEN (v_liq_post_bonus / v_liq_pre_bonus - 1.0) * 10000.0
+                    ELSE 0
+                END;
+            ELSIF p_bonus_mode = 'max_conservative' OR v_liq_value <= 0 THEN
+                v_eff_bonus_bps := CASE WHEN v_liq_value > 0 THEN v_max_bonus_bps ELSE 0 END;
+                v_liq_pre_bonus := v_liq_value;
+                v_liq_post_bonus := v_liq_value * (1.0 + v_eff_bonus_bps / 10000.0);
+            ELSE
+                v_bad_share     := LEAST(GREATEST(v_bad_liq_value / v_liq_value, 0), 1);
+                v_eff_bonus_bps := v_bad_share * v_bad_debt_bonus_bps
+                                 + (1 - v_bad_share) * v_max_bonus_bps;
+                v_liq_pre_bonus := v_liq_value;
+                v_liq_post_bonus := v_liq_value * (1.0 + v_eff_bonus_bps / 10000.0);
+            END IF;
+            v_bonus_mult := CASE
+                WHEN v_liq_pre_bonus > 0 THEN v_liq_post_bonus / v_liq_pre_bonus
+                ELSE 1.0
+            END;
+
             FOR v_p IN 1..v_n_pools LOOP
                 equilibrium_shock_pct     := 0;
                 amplification_factor      := 1.0;
                 cascade_rounds            := 0;
                 cascade_impact_pct        := 0;
-                total_liquidated_usd      := v_left_liq[v_idx];
+                total_liquidated_usd      := ROUND(v_liq_value, 0);
                 induced_coll_decline_pct  := 0;
                 debt_triggered_liq_usd    := 0;
                 cascade_triggered_liq_usd := 0;
@@ -368,6 +579,9 @@ BEGIN
                 pool_weight               := ROUND(v_pool_weights[v_p], 4);
                 counter_pair_symbol       := v_pool_counter_sym[v_p];
                 pool_impact_pct           := 0;
+                effective_bonus_bps       := ROUND(v_eff_bonus_bps, 0);
+                liq_value_pre_bonus_usd   := ROUND(v_liq_pre_bonus, 0);
+                liq_value_post_bonus_usd  := ROUND(v_liq_post_bonus, 0);
                 RETURN NEXT;
             END LOOP;
             CONTINUE;
@@ -379,11 +593,23 @@ BEGIN
         LOOP
             v_round := v_round + 1;
 
-            -- Interpolate liquidatable value from left-side curve
+            -- Interpolate total liquidatable value from left-side curve
             IF v_shock <= v_left_pct[1] THEN
-                v_liq_value := v_left_liq[1];
+                v_liq_value     := v_left_liq[1];
+                v_bad_liq_value := v_left_bad_liq[1];
+                v_liq_coll_value := CASE
+                    WHEN v_left_liq_coll IS NOT NULL AND array_length(v_left_liq_coll, 1) >= 1
+                    THEN v_left_liq_coll[1]
+                    ELSE v_liq_value
+                END;
             ELSIF v_shock >= v_left_pct[v_left_n] THEN
-                v_liq_value := v_left_liq[v_left_n];
+                v_liq_value     := v_left_liq[v_left_n];
+                v_bad_liq_value := v_left_bad_liq[v_left_n];
+                v_liq_coll_value := CASE
+                    WHEN v_left_liq_coll IS NOT NULL AND array_length(v_left_liq_coll, 1) >= v_left_n
+                    THEN v_left_liq_coll[v_left_n]
+                    ELSE v_liq_value
+                END;
             ELSE
                 v_lo := 1;
                 FOR j IN 1..v_left_n - 1 LOOP
@@ -399,15 +625,47 @@ BEGIN
                     v_frac := (v_shock - v_left_pct[v_lo])
                             / (v_left_pct[v_hi] - v_left_pct[v_lo]);
                 END IF;
-                v_liq_value := v_left_liq[v_lo]
-                             + v_frac * (v_left_liq[v_hi] - v_left_liq[v_lo]);
+                v_liq_value     := v_left_liq[v_lo]
+                                 + v_frac * (v_left_liq[v_hi] - v_left_liq[v_lo]);
+                v_bad_liq_value := v_left_bad_liq[v_lo]
+                                 + v_frac * (v_left_bad_liq[v_hi] - v_left_bad_liq[v_lo]);
+                v_liq_coll_value := CASE
+                    WHEN v_left_liq_coll IS NOT NULL AND array_length(v_left_liq_coll, 1) >= v_hi
+                    THEN v_left_liq_coll[v_lo] + v_frac * (v_left_liq_coll[v_hi] - v_left_liq_coll[v_lo])
+                    ELSE v_liq_value
+                END;
             END IF;
 
-            v_qty := (v_liq_value * v_coll_tokens_deposited / NULLIF(v_total_deposits, 0))::DOUBLE PRECISION;
+            -- Compute bonus multiplier: debt-side -> collateral-side conversion.
+            -- Liquidators seize collateral worth debt_repaid * (1 + bonus).
+            IF v_model_mode = 'protocol' AND p_bonus_mode <> 'none' THEN
+                v_liq_pre_bonus := v_liq_value;
+                v_liq_post_bonus := COALESCE(v_liq_coll_value, v_liq_value);
+                v_eff_bonus_bps := CASE
+                    WHEN v_liq_pre_bonus > 0
+                    THEN (v_liq_post_bonus / v_liq_pre_bonus - 1.0) * 10000.0
+                    ELSE 0
+                END;
+            ELSIF p_bonus_mode = 'max_conservative' OR v_liq_value <= 0 THEN
+                v_eff_bonus_bps := v_max_bonus_bps;
+                v_liq_pre_bonus := v_liq_value;
+                v_liq_post_bonus := v_liq_value * (1.0 + v_eff_bonus_bps / 10000.0);
+            ELSE
+                v_bad_share     := LEAST(GREATEST(v_bad_liq_value / v_liq_value, 0), 1);
+                v_eff_bonus_bps := v_bad_share * v_bad_debt_bonus_bps
+                                 + (1 - v_bad_share) * v_max_bonus_bps;
+                v_liq_pre_bonus := v_liq_value;
+                v_liq_post_bonus := v_liq_value * (1.0 + v_eff_bonus_bps / 10000.0);
+            END IF;
+            v_bonus_mult := CASE
+                WHEN v_liq_pre_bonus > 0 THEN v_liq_post_bonus / v_liq_pre_bonus
+                ELSE 1.0
+            END;
+
+            v_qty := (v_liq_post_bonus * v_tokens_per_usd)::DOUBLE PRECISION;
             IF v_qty <= 0 THEN EXIT; END IF;
 
-            -- Weighted-average BPS across pools. Also store per-pool BPS
-            -- (sign-corrected to collateral-decline direction) for output.
+            -- Weighted-average BPS across pools
             v_agg_bps := 0;
             v_pool_bps_arr := ARRAY[]::DOUBLE PRECISION[];
             FOR v_p IN 1..v_n_pools LOOP
@@ -417,9 +675,6 @@ BEGIN
                         v_pool_addresses[v_p], v_pool_sides[v_p], v_pool_qty
                     );
                     IF v_pool_bps IS NOT NULL THEN
-                        -- impact_bps returns signed BPS on pool's native t1/t0 basis:
-                        --   t0 sell -> negative BPS, t1 sell -> positive BPS
-                        -- Normalize to collateral-decline direction (negative = decline).
                         v_pool_bps := v_pool_bps * CASE WHEN v_pool_sides[v_p] = 't0' THEN 1.0 ELSE -1.0 END;
                         v_agg_bps := v_agg_bps + v_pool_bps * v_pool_weights[v_p]::DOUBLE PRECISION;
                         v_pool_bps_arr := v_pool_bps_arr || v_pool_bps;
@@ -439,6 +694,19 @@ BEGIN
             IF v_round >= p_max_rounds THEN EXIT; END IF;
         END LOOP;
 
+        -- Compute final bonus diagnostics from converged state
+        v_liq_pre_bonus := v_liq_value;
+        IF v_model_mode = 'protocol' AND p_bonus_mode <> 'none' THEN
+            v_liq_post_bonus := COALESCE(v_liq_coll_value, v_liq_value);
+            v_eff_bonus_bps := CASE
+                WHEN v_liq_pre_bonus > 0
+                THEN (v_liq_post_bonus / v_liq_pre_bonus - 1.0) * 10000.0
+                ELSE 0
+            END;
+        ELSE
+            v_liq_post_bonus := v_liq_value * v_bonus_mult;
+        END IF;
+
         FOR v_p IN 1..v_n_pools LOOP
             equilibrium_shock_pct     := ROUND(v_shock, 3);
             cascade_impact_pct        := ROUND(v_shock - initial_shock_pct, 3);
@@ -453,14 +721,9 @@ BEGIN
             debt_triggered_liq_usd    := 0;
             cascade_triggered_liq_usd := ROUND(v_liq_value, 0);
 
-            -- Per-pool: this pool's share of the total sell
-            sell_qty_tokens := ROUND(
-                v_liq_value * v_coll_tokens_deposited / NULLIF(v_total_deposits, 0)
-                * v_pool_weights[v_p], 0
-            );
+            sell_qty_tokens := ROUND(v_liq_post_bonus * v_tokens_per_usd * v_pool_weights[v_p], 0);
             pool_depth_used_pct := CASE WHEN v_pool_depths[v_p] > 0 THEN ROUND(
-                (v_liq_value * v_coll_tokens_deposited / NULLIF(v_total_deposits, 0)
-                 * v_pool_weights[v_p]) / v_pool_depths[v_p] * 100, 1
+                (v_liq_post_bonus * v_tokens_per_usd * v_pool_weights[v_p]) / v_pool_depths[v_p] * 100, 1
             ) ELSE NULL END;
             liq_pct_of_deposits := CASE WHEN v_total_deposits > 0
                 THEN ROUND(v_liq_value / v_total_deposits * 100, 2)
@@ -474,6 +737,10 @@ BEGIN
                 THEN ROUND((v_pool_bps_arr[v_p]::NUMERIC / 100.0), 3)
                 ELSE 0 END;
 
+            effective_bonus_bps      := ROUND(v_eff_bonus_bps, 0);
+            liq_value_pre_bonus_usd  := ROUND(v_liq_pre_bonus, 0);
+            liq_value_post_bonus_usd := ROUND(v_liq_post_bonus, 0);
+
             RETURN NEXT;
         END LOOP;
     END LOOP;
@@ -484,6 +751,12 @@ BEGIN
     FOR v_idx IN 1..v_right_n LOOP
         initial_shock_pct := v_right_pct[v_idx];
         v_l_debt          := v_right_liq[v_idx];
+        v_l_debt_bad      := v_right_bad_liq[v_idx];
+        v_l_debt_coll     := CASE
+            WHEN v_right_liq_coll IS NOT NULL AND array_length(v_right_liq_coll, 1) >= v_idx
+            THEN v_right_liq_coll[v_idx]
+            ELSE v_l_debt
+        END;
         v_coll_decline    := 0;
         v_round           := 0;
         v_liq_value       := v_l_debt;
@@ -506,6 +779,9 @@ BEGIN
                 pool_weight               := ROUND(v_pool_weights[v_p], 4);
                 counter_pair_symbol       := v_pool_counter_sym[v_p];
                 pool_impact_pct           := 0;
+                effective_bonus_bps       := 0;
+                liq_value_pre_bonus_usd   := 0;
+                liq_value_post_bonus_usd  := 0;
                 RETURN NEXT;
             END LOOP;
             CONTINUE;
@@ -514,13 +790,27 @@ BEGIN
         LOOP
             v_round := v_round + 1;
 
-            -- Interpolate L_coll from LEFT-side curve at v_coll_decline
-            v_l_coll := 0;
+            -- Interpolate L_coll and L_coll_bad from LEFT-side curve at v_coll_decline
+            v_l_coll     := 0;
+            v_l_coll_bad := 0;
+            v_l_coll_coll := 0;
             IF v_left_n > 0 AND v_coll_decline < 0 THEN
                 IF v_coll_decline <= v_left_pct[1] THEN
-                    v_l_coll := v_left_liq[1];
+                    v_l_coll     := v_left_liq[1];
+                    v_l_coll_bad := v_left_bad_liq[1];
+                    v_l_coll_coll := CASE
+                        WHEN v_left_liq_coll IS NOT NULL AND array_length(v_left_liq_coll, 1) >= 1
+                        THEN v_left_liq_coll[1]
+                        ELSE v_l_coll
+                    END;
                 ELSIF v_coll_decline >= v_left_pct[v_left_n] THEN
-                    v_l_coll := v_left_liq[v_left_n];
+                    v_l_coll     := v_left_liq[v_left_n];
+                    v_l_coll_bad := v_left_bad_liq[v_left_n];
+                    v_l_coll_coll := CASE
+                        WHEN v_left_liq_coll IS NOT NULL AND array_length(v_left_liq_coll, 1) >= v_left_n
+                        THEN v_left_liq_coll[v_left_n]
+                        ELSE v_l_coll
+                    END;
                 ELSE
                     v_lo := 1;
                     FOR j IN 1..v_left_n - 1 LOOP
@@ -536,15 +826,47 @@ BEGIN
                         v_frac := (v_coll_decline - v_left_pct[v_lo])
                                 / (v_left_pct[v_hi] - v_left_pct[v_lo]);
                     END IF;
-                    v_l_coll := v_left_liq[v_lo]
-                              + v_frac * (v_left_liq[v_hi] - v_left_liq[v_lo]);
+                    v_l_coll     := v_left_liq[v_lo]
+                                  + v_frac * (v_left_liq[v_hi] - v_left_liq[v_lo]);
+                    v_l_coll_bad := v_left_bad_liq[v_lo]
+                                  + v_frac * (v_left_bad_liq[v_hi] - v_left_bad_liq[v_lo]);
+                    v_l_coll_coll := CASE
+                        WHEN v_left_liq_coll IS NOT NULL AND array_length(v_left_liq_coll, 1) >= v_hi
+                        THEN v_left_liq_coll[v_lo] + v_frac * (v_left_liq_coll[v_hi] - v_left_liq_coll[v_lo])
+                        ELSE v_l_coll
+                    END;
                 END IF;
             END IF;
 
-            -- Conservative combined sell pressure
-            v_liq_value := v_l_debt + v_l_coll;
+            v_liq_value     := v_l_debt + v_l_coll;
+            v_bad_liq_value := v_l_debt_bad + v_l_coll_bad;
 
-            v_qty := (v_liq_value * v_coll_tokens_deposited / NULLIF(v_total_deposits, 0))::DOUBLE PRECISION;
+            -- Compute bonus multiplier
+            IF v_model_mode = 'protocol' AND p_bonus_mode <> 'none' THEN
+                v_liq_pre_bonus := v_liq_value;
+                v_liq_post_bonus := COALESCE(v_l_debt_coll, v_l_debt) + COALESCE(v_l_coll_coll, v_l_coll);
+                v_eff_bonus_bps := CASE
+                    WHEN v_liq_pre_bonus > 0
+                    THEN (v_liq_post_bonus / v_liq_pre_bonus - 1.0) * 10000.0
+                    ELSE 0
+                END;
+            ELSIF p_bonus_mode = 'max_conservative' OR v_liq_value <= 0 THEN
+                v_eff_bonus_bps := v_max_bonus_bps;
+                v_liq_pre_bonus := v_liq_value;
+                v_liq_post_bonus := v_liq_value * (1.0 + v_eff_bonus_bps / 10000.0);
+            ELSE
+                v_bad_share     := LEAST(GREATEST(v_bad_liq_value / v_liq_value, 0), 1);
+                v_eff_bonus_bps := v_bad_share * v_bad_debt_bonus_bps
+                                 + (1 - v_bad_share) * v_max_bonus_bps;
+                v_liq_pre_bonus := v_liq_value;
+                v_liq_post_bonus := v_liq_value * (1.0 + v_eff_bonus_bps / 10000.0);
+            END IF;
+            v_bonus_mult := CASE
+                WHEN v_liq_pre_bonus > 0 THEN v_liq_post_bonus / v_liq_pre_bonus
+                ELSE 1.0
+            END;
+
+            v_qty := (v_liq_post_bonus * v_tokens_per_usd)::DOUBLE PRECISION;
             IF v_qty <= 0 THEN EXIT; END IF;
 
             v_agg_bps := 0;
@@ -574,7 +896,18 @@ BEGIN
             IF v_round >= p_max_rounds THEN EXIT; END IF;
         END LOOP;
 
-        -- Emit one row per pool
+        v_liq_pre_bonus := v_liq_value;
+        IF v_model_mode = 'protocol' AND p_bonus_mode <> 'none' THEN
+            v_liq_post_bonus := COALESCE(v_l_debt_coll, v_l_debt) + COALESCE(v_l_coll_coll, v_l_coll);
+            v_eff_bonus_bps := CASE
+                WHEN v_liq_pre_bonus > 0
+                THEN (v_liq_post_bonus / v_liq_pre_bonus - 1.0) * 10000.0
+                ELSE 0
+            END;
+        ELSE
+            v_liq_post_bonus := v_liq_value * v_bonus_mult;
+        END IF;
+
         FOR v_p IN 1..v_n_pools LOOP
             equilibrium_shock_pct     := initial_shock_pct;
             amplification_factor      := 1.0;
@@ -585,13 +918,9 @@ BEGIN
             debt_triggered_liq_usd    := ROUND(v_l_debt, 0);
             cascade_triggered_liq_usd := ROUND(GREATEST(v_l_coll, 0), 0);
 
-            sell_qty_tokens := ROUND(
-                v_liq_value * v_coll_tokens_deposited / NULLIF(v_total_deposits, 0)
-                * v_pool_weights[v_p], 0
-            );
+            sell_qty_tokens := ROUND(v_liq_post_bonus * v_tokens_per_usd * v_pool_weights[v_p], 0);
             pool_depth_used_pct := CASE WHEN v_pool_depths[v_p] > 0 THEN ROUND(
-                (v_liq_value * v_coll_tokens_deposited / NULLIF(v_total_deposits, 0)
-                 * v_pool_weights[v_p]) / v_pool_depths[v_p] * 100, 1
+                (v_liq_post_bonus * v_tokens_per_usd * v_pool_weights[v_p]) / v_pool_depths[v_p] * 100, 1
             ) ELSE NULL END;
             liq_pct_of_deposits := CASE WHEN v_total_deposits > 0
                 THEN ROUND(v_liq_value / v_total_deposits * 100, 2)
@@ -605,6 +934,10 @@ BEGIN
                 THEN ROUND((v_pool_bps_arr[v_p]::NUMERIC / 100.0), 3)
                 ELSE 0 END;
 
+            effective_bonus_bps      := ROUND(v_eff_bonus_bps, 0);
+            liq_value_pre_bonus_usd  := ROUND(v_liq_pre_bonus, 0);
+            liq_value_post_bonus_usd := ROUND(v_liq_post_bonus, 0);
+
             RETURN NEXT;
         END LOOP;
     END LOOP;
@@ -614,24 +947,35 @@ SET search_path TO kamino_lend, dexes, public;
 
 COMMENT ON FUNCTION kamino_lend.simulate_cascade_amplification(
     BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[],
-    TEXT, TEXT, INTEGER, NUMERIC
+    TEXT, TEXT, TEXT, TEXT, INTEGER, NUMERIC
 ) IS
-'Simulates liquidation cascade amplification for a collateral token across both sides
-of the sensitivity curve, with multi-pool support.
+'Simulates liquidation cascade amplification with multi-pool, bonus-aware, and model-mode support.
 
-POOL MODES:
-  p_pool_mode = ''weighted'' (default): sell pressure split pro-rata by counter-pair
-  stablecoin liquidity across all DEX pools. Returns one row per pool per shock level.
-  p_pool_mode = <pool_address>: 100% sell pressure on a specific pool.
+MODEL MODES (p_model_mode):
+  ''heuristic'' (default): uses get_view_klend_sensitivities curve and blended bonus heuristic.
+  ''protocol'': uses precomputed per-obligation protocol curve from simulate_protocol_liquidation
+  and reuses the same cascade interpolation/fixed-point loop.
+
+BONUS MODES (p_bonus_mode):
+  ''blended'' (default): value-weighted blend of max_liquidation_bonus_bps (unhealthy)
+  and bad_debt_liquidation_bonus_bps (bad debt) based on per-step composition.
+  ''max_conservative'': flat max_liquidation_bonus_bps for all — upper-bound stress mode.
+  ''none'': no bonus applied (legacy behavior, understates sell pressure).
+
+POOL MODES (p_pool_mode):
+  ''weighted'' (default): sell pressure split pro-rata by counter-pair liquidity.
+  <pool_address>: 100% sell pressure on a specific pool.
+
+BONUS DIAGNOSTICS:
+  effective_bonus_bps: applied or implied bonus at each step.
+  liq_value_pre_bonus_usd: debt-side liquidatable value (from sensitivity curve).
+  liq_value_post_bonus_usd: collateral-side value after bonus gross-up.
+  sell_qty_tokens and pool_depth_used_pct use the post-bonus (collateral-side) value.
+  In protocol mode, USD->token conversion uses oracle price (1 / market_price);
+  heuristic mode retains market-level deposited_tokens / total_deposits proxy.
 
 ASSUMPTIONS:
-  - Counter-pair stablecoins (USDC, USDG, etc.) treated at $1 face value and at par
-    with each other for liquidity weighting purposes.
-  - Weighted-average BPS approximates market-wide price impact, assuming arbitrageurs
-    keep prices aligned across pools.
-  - Rational liquidators split sales across pools to minimize slippage.
-
-LEFT SIDE: Single-axis cascade on collateral decline axis.
-RIGHT SIDE: Cross-axis cascade from debt increase to induced collateral decline.
-Per-pool rows share cascade-level metrics but have pool-specific sell_qty_tokens
-and pool_depth_used_pct.';
+  - Reserve bonus params sourced from p_coll_symbol reserve (env_symbol match).
+  - ONyc reserves currently share uniform bonus schedules; reserve-selection
+    ambiguity is low-impact but documented for future divergence.
+  - Counter-pair stablecoins at $1 face value for pool weighting.';

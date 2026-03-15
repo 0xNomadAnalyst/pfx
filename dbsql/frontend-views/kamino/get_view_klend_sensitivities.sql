@@ -7,7 +7,8 @@
 -- This uses per-asset position arrays from src_obligations_last.
 --
 -- Parameters:
---   p_query_id: Query ID to analyze (default: latest, deprecated)
+--   p_query_id: DEPRECATED, unused. Retained for signature compatibility.
+--              src_obligations_last contains only the latest snapshot by pipeline design.
 --   assets_delta_bps: Asset price change per step (must be <= 0, e.g., -100 for -1%)
 --   assets_delta_steps: Number of asset drop steps (unsigned)
 --   liabilities_delta_bps: Liability change per step (must be >= 0, e.g., 100 for +1%)
@@ -19,8 +20,9 @@
 -- Returns:
 --   TABLE with unnested arrays showing step-by-step sensitivity metrics
 
--- Drop old 6-param signature to avoid overload ambiguity
+-- Drop old signatures to avoid overload ambiguity / return-type conflicts
 DROP FUNCTION IF EXISTS kamino_lend.get_view_klend_sensitivities(BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN);
+DROP FUNCTION IF EXISTS kamino_lend.get_view_klend_sensitivities(BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[]);
 
 CREATE OR REPLACE FUNCTION kamino_lend.get_view_klend_sensitivities(
     p_query_id BIGINT DEFAULT NULL,
@@ -58,30 +60,30 @@ RETURNS TABLE (
     unhealthy_debt_less_liquidatable_part_pct NUMERIC(10,1),
     bad_debt_less_liquidatable_part BIGINT,
     bad_debt_less_liquidatable_part_pct NUMERIC(10,1),
-    liquidation_distance_to_healthy BIGINT
+    liquidation_distance_to_healthy BIGINT,
+    -- Collateral-side liquidation metrics (Phase 1b).
+    -- Debt-side value grossed up by liquidation bonus to estimate collateral seized.
+    -- CAVEAT: multi-collateral obligations use the p_coll_assets reserve bonus or
+    -- market-max if unspecified. Per-obligation reserve selection requires Phase 3.
+    unhealthy_liq_value_coll_side BIGINT,
+    bad_liq_value_coll_side BIGINT,
+    total_liq_value_coll_side BIGINT
 ) AS $$
 DECLARE
-    v_query_id BIGINT;
     v_total_steps INTEGER;
     v_asset_steps INTEGER;
     v_liability_steps INTEGER;
     v_coll_all BOOLEAN;
     v_lend_all BOOLEAN;
+    v_max_bonus_bps NUMERIC;
+    v_bad_debt_bonus_bps NUMERIC;
 BEGIN
-    -- Validate constraints
     IF assets_delta_bps > 0 THEN
         RAISE EXCEPTION 'assets_delta_bps must be <= 0 (asset drops are negative)';
     END IF;
     
     IF liabilities_delta_bps < 0 THEN
         RAISE EXCEPTION 'liabilities_delta_bps must be >= 0 (liability increases are positive)';
-    END IF;
-    
-    -- Get query_id (use latest if not provided)
-    IF p_query_id IS NULL THEN
-        SELECT MAX(query_id) INTO v_query_id FROM kamino_lend.src_obligations_last;
-    ELSE
-        v_query_id := p_query_id;
     END IF;
     
     -- Calculate total steps (assets + liabilities + 1 for current state)
@@ -92,7 +94,38 @@ BEGIN
     -- Determine whether to stress all assets (uniform) or a subset (partial)
     v_coll_all := (p_coll_assets IS NULL OR 'All' = ANY(p_coll_assets));
     v_lend_all := (p_lend_assets IS NULL OR 'All' = ANY(p_lend_assets));
-    
+
+    -- Liquidation bonus lookup for collateral-side metrics.
+    -- If single collateral specified, use that reserve's bonus (most accurate).
+    -- Otherwise, use market-wide MAX for conservative upper-bound.
+    -- Market-scoped via aux_market_reserve_tokens.env_market_address_matches to avoid
+    -- symbol collisions if the same symbol exists in multiple Kamino markets.
+    IF p_coll_assets IS NOT NULL AND array_length(p_coll_assets, 1) = 1
+       AND p_coll_assets[1] != 'All' THEN
+        SELECT r.max_liquidation_bonus_bps, r.bad_debt_liquidation_bonus_bps
+        INTO v_max_bonus_bps, v_bad_debt_bonus_bps
+        FROM kamino_lend.src_reserves r
+        JOIN kamino_lend.aux_market_reserve_tokens mrt
+          ON mrt.token_symbol = r.env_symbol
+         AND mrt.env_market_address_matches = TRUE
+        WHERE r.env_symbol = p_coll_assets[1]
+          AND r.env_market_address = mrt.market_address
+          AND r.max_liquidation_bonus_bps > 0
+        ORDER BY r.time DESC
+        LIMIT 1;
+    ELSE
+        SELECT MAX(r.max_liquidation_bonus_bps), MAX(r.bad_debt_liquidation_bonus_bps)
+        INTO v_max_bonus_bps, v_bad_debt_bonus_bps
+        FROM kamino_lend.src_reserves r
+        JOIN kamino_lend.aux_market_reserve_tokens mrt
+          ON mrt.token_symbol = r.env_symbol
+         AND mrt.env_market_address_matches = TRUE
+        WHERE r.env_market_address = mrt.market_address
+          AND r.max_liquidation_bonus_bps > 0;
+    END IF;
+    v_max_bonus_bps      := COALESCE(v_max_bonus_bps, 0);
+    v_bad_debt_bonus_bps := COALESCE(v_bad_debt_bonus_bps, 0);
+
     -- Generate sensitivity table
     RETURN QUERY
     WITH obligation_base AS MATERIALIZED (
@@ -356,7 +389,12 @@ BEGIN
         ROUND(((ma.total_unhealthy_debt_array[sg.array_index] - ma.unhealthy_liquidatable_array[sg.array_index]) / NULLIF(ma.total_borrows_array[sg.array_index], 0)) * 100, 1) as unhealthy_debt_less_liquidatable_part_pct,
         ROUND(ma.total_bad_debt_array[sg.array_index] - ma.bad_liquidatable_array[sg.array_index])::BIGINT as bad_debt_less_liquidatable_part,
         ROUND(((ma.total_bad_debt_array[sg.array_index] - ma.bad_liquidatable_array[sg.array_index]) / NULLIF(ma.total_borrows_array[sg.array_index], 0)) * 100, 1) as bad_debt_less_liquidatable_part_pct,
-        ABS(ROUND(ma.liquidation_distance_array[sg.array_index]))::BIGINT as liquidation_distance_to_healthy
+        ABS(ROUND(ma.liquidation_distance_array[sg.array_index]))::BIGINT as liquidation_distance_to_healthy,
+        -- Collateral-side: debt grossed up by liquidation bonus
+        ROUND(ma.unhealthy_liquidatable_array[sg.array_index] * (1.0 + v_max_bonus_bps / 10000.0))::BIGINT as unhealthy_liq_value_coll_side,
+        ROUND(ma.bad_liquidatable_array[sg.array_index] * (1.0 + v_bad_debt_bonus_bps / 10000.0))::BIGINT as bad_liq_value_coll_side,
+        (ROUND(ma.unhealthy_liquidatable_array[sg.array_index] * (1.0 + v_max_bonus_bps / 10000.0))
+         + ROUND(ma.bad_liquidatable_array[sg.array_index] * (1.0 + v_bad_debt_bonus_bps / 10000.0)))::BIGINT as total_liq_value_coll_side
     FROM market_aggregates ma
     CROSS JOIN step_generator sg
     ORDER BY sg.array_index;
@@ -367,6 +405,14 @@ COMMENT ON FUNCTION kamino_lend.get_view_klend_sensitivities(BIGINT, INTEGER, IN
 'Market sensitivity analysis with optional asset-level stress testing.
 When p_coll_assets / p_lend_assets are NULL (default), applies uniform shock to all assets (original behavior).
 When specific symbols are provided, only the fraction of each obligation''s value in those symbols is stressed.
+
+Collateral-side columns (Phase 1b): unhealthy_liq_value_coll_side, bad_liq_value_coll_side,
+total_liq_value_coll_side estimate collateral seized using per-reserve bonus (max_bonus for
+unhealthy, bad_debt_bonus for bad debt). Uses p_coll_assets reserve bonus if single symbol
+specified, otherwise market-wide MAX for conservative upper-bound.
+CAVEAT: multi-collateral obligations require reserve-selection assumptions; per-obligation
+collateral-leg selection requires Phase 3 protocol mode.
+
 Parameters: (query_id [deprecated], assets_delta_bps<=0, assets_steps, liabilities_delta_bps>=0,
 liabilities_steps, include_zero_borrows, p_coll_assets, p_lend_assets).
 Helper functions: compute_stressed_share, sensitize_value_partial, compute_ltv_array.';

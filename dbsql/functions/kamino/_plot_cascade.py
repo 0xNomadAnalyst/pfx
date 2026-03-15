@@ -1,4 +1,4 @@
-"""Cascade chart v10 – per-pool price impact panels."""
+"""Cascade chart v11 – bonus-aware per-pool price impact panels."""
 import psycopg2
 import matplotlib
 matplotlib.use('Agg')
@@ -17,10 +17,13 @@ cur.execute("""
            debt_triggered_liq_usd, cascade_triggered_liq_usd,
            sell_qty_tokens, pool_depth_used_pct, liq_pct_of_deposits,
            pool_address, pool_weight, counter_pair_symbol,
-           pool_impact_pct
+           pool_impact_pct,
+           effective_bonus_bps,
+           liq_value_pre_bonus_usd,
+           liq_value_post_bonus_usd
     FROM kamino_lend.simulate_cascade_amplification(
         NULL, -100, 50, 100, 50, FALSE,
-        ARRAY['ONyc'], NULL, 'ONyc', 'weighted'
+        ARRAY['ONyc'], NULL, 'ONyc', 'weighted', 'blended'
     )
     ORDER BY initial_shock_pct, pool_address
 """)
@@ -49,6 +52,9 @@ for pa in pools:
         'pool':   [float(r[7] or 0) for r in pr],
         'dep':    [float(r[8] or 0) for r in pr],
         'pimpact': [float(r[12] or 0) for r in pr],
+        'bonus':  [float(r[13] or 0) for r in pr],
+        'pre_b':  [float(r[14] or 0) for r in pr],
+        'post_b': [float(r[15] or 0) for r in pr],
     }
 
 ref_pool = pools[0]
@@ -110,11 +116,16 @@ for i in range(len(all_x)):
     else:
         casc_top.append(base[i] + D['cliq'][i] / 1e6)
 
+post_bonus_top = [D['post_b'][i] / 1e6 for i in range(len(all_x))]
+
 ax1.fill_between(all_x, 0, base, alpha=0.25, color='#e8a838',
-                 label='Liquidated value ($M)')
+                 label='Liquidated value (debt-side, $M)')
 ax1.fill_between(all_x, base, casc_top, alpha=0.45, color=CASCADE_COL,
                  label='Cascade add\'l ($M)')
+ax1.fill_between(all_x, casc_top, post_bonus_top, alpha=0.20, color='#44cc88',
+                 label='Bonus gross-up ($M)')
 ax1.plot(all_x, casc_top, '-', color='#e8a838', linewidth=1.5, alpha=0.8)
+ax1.plot(all_x, post_bonus_top, '-', color='#44cc88', linewidth=1.0, alpha=0.6)
 
 ax1r = ax1.twinx()
 for pidx, pa in enumerate(pools):
@@ -128,7 +139,7 @@ ax1r.tick_params(axis='y', colors='#999999', labelsize=7)
 ax1r.spines['right'].set_color(SPINE)
 ax1r.spines['top'].set_visible(False)
 
-ax1.set_title('Liquidation Cascade Analysis  —  ONyc  (weighted multi-pool)',
+ax1.set_title('Liquidation Cascade Analysis  —  ONyc  (weighted multi-pool, bonus: blended)',
               color='white', fontsize=11, fontweight='bold', pad=10)
 ax1.text(-25, max(all_liq) * 0.88, r'$\leftarrow$ Collateral Decrease',
          color=EXOG_COL, fontsize=7.5, ha='center', alpha=0.7)
