@@ -2332,6 +2332,11 @@
       });
       const baseLiq = chartData.liq_base || [];
       const cascLiq = chartData.liq_cascade || [];
+      const bonusBps = chartData.effective_bonus_bps || [];
+      const ampFactor = chartData.amplification_factor || [];
+      const cascRounds = chartData.cascade_rounds || [];
+      const liqPreBonus = chartData.liq_pre_bonus || [];
+      const liqPostBonus = chartData.liq_post_bonus || [];
       series.push({
         name: "Liquidated Value", type: "line", xAxisIndex: 0, yAxisIndex: 0,
         data: baseLiq, areaStyle: { opacity: 0.25 },
@@ -2438,12 +2443,20 @@
         });
       });
       const cascTc = chartTextColor();
+      const modeLabel = (chartData.model_mode || "heuristic") === "protocol" ? "Protocol" : "Heuristic";
       const cascGraphic = [
         {
           type: "text", left: 64, top: 2,
           style: {
             text: `\u2190  Collateral Price Decline`,
             fill: cascTc, fontSize: 10,
+          },
+        },
+        {
+          type: "text", left: "50%", top: 2,
+          style: {
+            text: `[${modeLabel}]`,
+            fill: "#888", fontSize: 9, textAlign: "center",
           },
         },
         {
@@ -2470,6 +2483,7 @@
             const items = Array.isArray(params) ? params : [params];
             if (!items.length) return "";
             const xVal = items[0].axisValue;
+            const idx = items[0].dataIndex;
             let tip = `<b>Shock: ${xVal}%</b><br/>`;
             items.forEach((it) => {
               const v = Number(it.value);
@@ -2481,6 +2495,21 @@
                 tip += `${it.marker} ${it.seriesName}: ${v.toFixed(3)}%<br/>`;
               }
             });
+            if (idx != null && idx < bonusBps.length) {
+              const bps = bonusBps[idx];
+              const amp = ampFactor[idx];
+              const rnds = cascRounds[idx];
+              const preB = liqPreBonus[idx];
+              const postB = liqPostBonus[idx];
+              if (bps > 0 || amp > 1 || rnds > 0) {
+                tip += `<br/><span style="color:#999">`;
+                if (bps > 0) tip += `Bonus: ${bps.toFixed(0)} bps`;
+                if (preB > 0 && postB > 0) tip += ` ($${(preB / 1e6).toFixed(2)}M \u2192 $${(postB / 1e6).toFixed(2)}M)`;
+                if (amp > 1) tip += `<br/>Amplification: ${amp.toFixed(3)}x`;
+                if (rnds > 0) tip += ` (${rnds} rounds)`;
+                tip += `</span>`;
+              }
+            }
             return tip;
           },
         },
@@ -3914,6 +3943,10 @@
     if (wid === "ra-cascade") {
       const pSel = document.getElementById("ra-cascade-pool");
       if (pSel) event.detail.parameters.risk_cascade_pool = pSel.value;
+      const mSel = document.getElementById("ra-cascade-model-mode");
+      if (mSel) event.detail.parameters.risk_cascade_model_mode = mSel.value;
+      const bSel = document.getElementById("ra-cascade-bonus-mode");
+      if (bSel) event.detail.parameters.risk_cascade_bonus_mode = bSel.value;
     }
   });
 
@@ -4599,15 +4632,38 @@
     });
     const valid = poolOpts.some((p) => p.value === current);
     sel.value = valid ? current : "weighted";
+
+    _hydrateCascadeSelect("ra-cascade-model-mode", data?.model_mode_options, data?.model_mode || "protocol");
+    _hydrateCascadeSelect("ra-cascade-bonus-mode", data?.bonus_mode_options, data?.bonus_mode || "blended");
+  }
+
+  function _hydrateCascadeSelect(elId, options, selectedValue) {
+    if (!options || !Array.isArray(options)) return;
+    const sel = document.getElementById(elId);
+    if (!sel) return;
+    const current = sel.value;
+    while (sel.options.length > 0) sel.remove(0);
+    options.forEach((o) => {
+      const opt = document.createElement("option");
+      opt.value = o.value;
+      opt.textContent = o.label;
+      sel.appendChild(opt);
+    });
+    const valid = options.some((o) => o.value === current);
+    sel.value = valid ? current : selectedValue;
   }
 
   function initCascadePoolToggle() {
-    const sel = document.getElementById("ra-cascade-pool");
     const widget = document.getElementById("widget-ra-cascade");
-    if (!sel || !widget) return;
-    sel.addEventListener("change", () => {
-      resetWidgetView(widget);
-      htmx.trigger(document.body, "risk-stress-asset-change");
+    if (!widget) return;
+    ["ra-cascade-pool", "ra-cascade-model-mode", "ra-cascade-bonus-mode"].forEach((id) => {
+      const sel = document.getElementById(id);
+      if (sel) {
+        sel.addEventListener("change", () => {
+          resetWidgetView(widget);
+          htmx.trigger(document.body, "risk-stress-asset-change");
+        });
+      }
     });
   }
 

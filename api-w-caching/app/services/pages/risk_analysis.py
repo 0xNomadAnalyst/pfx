@@ -839,32 +839,51 @@ class RiskAnalysisPageService(BasePageService):
 
     def _cascade_rows(
         self, coll_symbol: str, pool_mode: str,
+        model_mode: str = "protocol", bonus_mode: str = "blended",
     ) -> list[dict[str, Any]]:
-        cache_key = f"ra::cascade::{coll_symbol}::{pool_mode}"
+        cache_key = f"ra::cascade::{coll_symbol}::{pool_mode}::{model_mode}::{bonus_mode}"
 
         def _load() -> list[dict[str, Any]]:
             try:
                 return self.sql.fetch_rows(
                     "SELECT initial_shock_pct, equilibrium_shock_pct, "
+                    "  amplification_factor, cascade_rounds, cascade_impact_pct, "
                     "  total_liquidated_usd, induced_coll_decline_pct, "
                     "  debt_triggered_liq_usd, cascade_triggered_liq_usd, "
                     "  sell_qty_tokens, pool_depth_used_pct, liq_pct_of_deposits, "
-                    "  pool_address, pool_weight, counter_pair_symbol, pool_impact_pct "
+                    "  coll_tokens_deposited, "
+                    "  pool_address, pool_weight, counter_pair_symbol, pool_impact_pct, "
+                    "  effective_bonus_bps, liq_value_pre_bonus_usd, liq_value_post_bonus_usd "
                     "FROM kamino_lend.simulate_cascade_amplification("
                     "  NULL, -100, 50, 100, 50, FALSE, "
-                    "  ARRAY[%s], NULL, %s, %s"
+                    "  ARRAY[%s], NULL, %s, %s, %s, %s"
                     ") ORDER BY initial_shock_pct, pool_address",
-                    (coll_symbol, coll_symbol, pool_mode),
+                    (coll_symbol, coll_symbol, pool_mode, bonus_mode, model_mode),
                 )
             except Exception as exc:
-                logger.warning("_cascade_rows query failed (%s/%s): %s", coll_symbol, pool_mode, exc)
+                logger.warning(
+                    "_cascade_rows query failed (%s/%s/%s/%s): %s",
+                    coll_symbol, pool_mode, model_mode, bonus_mode, exc,
+                )
                 return []
 
         return self._cached(cache_key, _load, ttl_seconds=self._CASCADE_TTL_SECONDS)
 
+    _MODEL_MODE_OPTIONS = [
+        {"value": "protocol", "label": "Protocol-faithful"},
+        {"value": "heuristic", "label": "Heuristic"},
+    ]
+    _BONUS_MODE_OPTIONS = [
+        {"value": "blended", "label": "State-aware blend"},
+        {"value": "max_conservative", "label": "Max (conservative)"},
+        {"value": "none", "label": "No bonus"},
+    ]
+
     def _ra_cascade(self, params: dict[str, Any]) -> dict[str, Any]:
         coll_asset = str(params.get("risk_stress_collateral", ""))
         pool_mode = str(params.get("risk_cascade_pool", "weighted"))
+        model_mode = str(params.get("risk_cascade_model_mode", "protocol"))
+        bonus_mode = str(params.get("risk_cascade_bonus_mode", "blended"))
 
         last = self._kamino_v_last_row()
         coll_list = [str(s) for s in (last.get("reserve_coll_all_symbols_array") or []) if s]
@@ -889,6 +908,17 @@ class RiskAnalysisPageService(BasePageService):
                 "label": f"{coll_asset}/{counter} only",
             })
 
+        common_meta = {
+            "kind": "chart",
+            "chart": "cascade-analysis",
+            "pool_options": pool_options,
+            "model_mode_options": self._MODEL_MODE_OPTIONS,
+            "bonus_mode_options": self._BONUS_MODE_OPTIONS,
+            "model_mode": model_mode,
+            "bonus_mode": bonus_mode,
+            "coll_symbol": coll_asset,
+        }
+
         if not coll_asset or not tracked_pools:
             msg = "No DEX pools tracked for this collateral asset"
             if coll_asset:
@@ -897,22 +927,13 @@ class RiskAnalysisPageService(BasePageService):
                 msg = "No collateral assets found"
             else:
                 msg = "Select a collateral asset with tracked DEX pools"
-            return {
-                "kind": "chart",
-                "chart": "cascade-analysis",
-                "cascade_message": msg,
-                "pool_options": pool_options,
-                "coll_symbol": coll_asset,
-            }
+            return {**common_meta, "cascade_message": msg}
 
-        rows = self._cascade_rows(coll_asset, pool_mode)
+        rows = self._cascade_rows(coll_asset, pool_mode, model_mode, bonus_mode)
         if not rows:
             return {
-                "kind": "chart",
-                "chart": "cascade-analysis",
+                **common_meta,
                 "cascade_message": f"No cascade data returned for {coll_asset}",
-                "pool_options": pool_options,
-                "coll_symbol": coll_asset,
             }
 
         pools_in_data = sorted(set(str(r.get("pool_address", "")) for r in rows))
@@ -938,6 +959,11 @@ class RiskAnalysisPageService(BasePageService):
 
         liq_base: list[float] = []
         liq_cascade: list[float] = []
+        liq_pre_bonus: list[float] = []
+        liq_post_bonus: list[float] = []
+        bonus_bps: list[float] = []
+        amplification: list[float] = []
+        cascade_rounds_data: list[int] = []
         for r in ref_rows:
             x = self._ff(r.get("initial_shock_pct"))
             total = self._ff(r.get("total_liquidated_usd"))
@@ -949,6 +975,11 @@ class RiskAnalysisPageService(BasePageService):
             else:
                 liq_base.append(dliq)
                 liq_cascade.append(cliq)
+            liq_pre_bonus.append(self._ff(r.get("liq_value_pre_bonus_usd")))
+            liq_post_bonus.append(self._ff(r.get("liq_value_post_bonus_usd")))
+            bonus_bps.append(self._ff(r.get("effective_bonus_bps")))
+            amplification.append(self._ff(r.get("amplification_factor")))
+            cascade_rounds_data.append(int(self._ff(r.get("cascade_rounds"))))
 
         pool_series: list[dict[str, Any]] = []
         for pa in pools_in_data:
@@ -967,12 +998,14 @@ class RiskAnalysisPageService(BasePageService):
             })
 
         return {
-            "kind": "chart",
-            "chart": "cascade-analysis",
-            "coll_symbol": coll_asset,
-            "pool_options": pool_options,
+            **common_meta,
             "x": x_vals,
             "liq_base": liq_base,
             "liq_cascade": liq_cascade,
+            "liq_pre_bonus": liq_pre_bonus,
+            "liq_post_bonus": liq_post_bonus,
+            "effective_bonus_bps": bonus_bps,
+            "amplification_factor": amplification,
+            "cascade_rounds": cascade_rounds_data,
             "pools": pool_series,
         }

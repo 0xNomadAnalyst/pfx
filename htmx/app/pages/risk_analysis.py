@@ -164,6 +164,8 @@ PAGE_CONFIG = PageConfig(
             tooltip="Second-order effects of collateral liquidation on DEX pools. "
             "Shows how sell pressure from liquidations pushes collateral prices down "
             "further, potentially triggering additional liquidations. "
+            "Protocol mode uses per-obligation liquidation mechanics with bonus "
+            "gross-up; heuristic mode uses aggregate sensitivity curves. "
             "Uses the collateral/debt filters from the stress test above.",
         ),
     ],
