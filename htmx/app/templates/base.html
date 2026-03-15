@@ -94,6 +94,14 @@
           </select>
       </div>
       {% endif %}
+      {% if show_asset_filter %}
+      <div class="topbar-meta topbar-filters">
+          <label class="filter-label" for="asset-select">Asset</label>
+          <select id="asset-select" class="filter-select" aria-label="Asset">
+            <option value="{{ asset }}">{{ asset }}</option>
+          </select>
+      </div>
+      {% endif %}
       {% if show_market_selectors %}
       <div class="topbar-meta topbar-filters" id="market-selectors" data-api-page-id="{{ api_page_id }}">
           <label class="filter-label" for="mkt1-select">Market 1</label>

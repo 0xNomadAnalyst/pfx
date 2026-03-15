@@ -13,7 +13,7 @@ PAGE_CONFIG = PageConfig(
     widgets=[
         WidgetConfig("kpi-tvl", "TVL in USDC units", "kpi", "panel panel-kpi slot-kpi-a1"),
         WidgetConfig("kpi-impact-500k", "500,000 USX Sell Impact", "kpi", "panel panel-kpi slot-kpi-b1"),
-        WidgetConfig("kpi-reserves", "Reserve Balances (millions)", "kpi", "panel panel-kpi slot-kpi-a2"),
+        WidgetConfig("kpi-reserves", "Reserve Balances", "kpi", "panel panel-kpi slot-kpi-a2"),
         WidgetConfig("kpi-largest-impact", "Current Impact of Max. USX Sell", "kpi", "panel panel-kpi slot-kpi-b2"),
         WidgetConfig("kpi-pool-balance", "Pool Balance", "kpi", "panel panel-kpi slot-kpi-a3"),
         WidgetConfig("kpi-average-impact", "Current Impact of Avg. USX Sell", "kpi", "panel panel-kpi slot-kpi-b3"),

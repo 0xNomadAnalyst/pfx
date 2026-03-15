@@ -637,12 +637,13 @@
     else el.style.fontSize = "16px";
   }
 
-  function renderKpi(widgetId, data) {
+  function renderKpi(widgetId, data, sourceWidgetId) {
     const primary = document.getElementById(`kpi-primary-${widgetId}`);
     const secondary = document.getElementById(`kpi-secondary-${widgetId}`);
     if (!primary || !secondary) {
       return;
     }
+    const kwid = sourceWidgetId || widgetId;
 
     if (data.market_card) {
       const titleEl = document.querySelector(`#widget-${widgetId} .panel-title-group h3`);
@@ -674,56 +675,58 @@
     const lastLabel = currentLastWindowLabel();
     const lastLabelHtml = `<span style="color:#2fbf71">${lastLabel}</span>`;
 
-    if (widgetId === "kpi-impact-500k") {
+    if (kwid === "kpi-impact-500k") {
       primary.innerHTML = `<span style="color:var(--bad)">${formatSigned4dp(data.primary)}</span> / ${formatNumber(data.secondary)}`;
       secondary.innerHTML = `bps / ${token0}`;
-    } else if (widgetId === "kpi-largest-impact" || widgetId === "kpi-average-impact") {
-      primary.innerHTML = `<span style="color:var(--bad)">${formatSigned4dp(data.primary)}</span> / ${formatNumber(data.secondary)}`;
+    } else if (kwid === "kpi-largest-impact" || kwid === "kpi-average-impact") {
+      const bpsVal = Number(data.primary);
+      const bpsFmt = Number.isFinite(bpsVal) ? ((bpsVal > 0 ? "+" : "") + bpsVal.toFixed(2)) : "--";
+      primary.innerHTML = `<span style="color:var(--bad)">${bpsFmt}</span> / ${formatNumber(data.secondary)}`;
       secondary.innerHTML = `bps / ${token0}, ${lastLabelHtml}`;
-    } else if (widgetId === "kpi-pool-balance") {
+    } else if (kwid === "kpi-pool-balance") {
       primary.textContent = `${formatNumber(data.primary)}%`;
       secondary.textContent = `${formatNumber(data.secondary)}%`;
       if (secondary.textContent && secondary.textContent !== "--%") {
         primary.textContent = `${primary.textContent} / ${secondary.textContent}`;
       }
       secondary.textContent = `${token1} / ${token0}`;
-    } else if (widgetId === "kpi-reserves") {
+    } else if (kwid === "kpi-reserves") {
       const left = `${formatNumber(data.primary)}m`;
       const right = `${formatNumber(data.secondary)}m`;
       primary.textContent = `${left} / ${right}`;
       secondary.textContent = `${token1} / ${token0}`;
-    } else if (widgetId === "kpi-swap-volume-24h") {
+    } else if (kwid === "kpi-swap-volume-24h") {
       const vol = formatNumber(data.primary);
       const pctTvl = data.secondary === null || data.secondary === undefined ? "--" : `${formatNumber(data.secondary)}%`;
       primary.textContent = `${vol} / ${pctTvl}`;
       secondary.textContent = `${token1} / % TVL`;
-    } else if (widgetId === "kpi-price-min-max") {
+    } else if (kwid === "kpi-price-min-max") {
       const maxValue = Number(data.primary);
       const minValue = Number(data.secondary);
       const maxStr = Number.isFinite(maxValue) ? maxValue.toFixed(4) : "--";
       const minStr = Number.isFinite(minValue) ? minValue.toFixed(4) : "--";
       primary.innerHTML = `<span style="color:#2fbf71">${maxStr}</span> / <span style="color:#e24c4c">${minStr}</span>`;
       secondary.innerHTML = `${token1} / ${token0}, ${lastLabelHtml}`;
-    } else if (widgetId === "kpi-vwap-buy-sell") {
+    } else if (kwid === "kpi-vwap-buy-sell") {
       const buy = Number(data.primary);
       const sell = Number(data.secondary);
       const buyStr = Number.isFinite(buy) ? buy.toFixed(4) : "--";
       const sellStr = Number.isFinite(sell) ? sell.toFixed(4) : "--";
       primary.innerHTML = `<span style="color:#2fbf71">${buyStr}</span> / <span style="color:#e24c4c">${sellStr}</span>`;
       secondary.innerHTML = `${token1} / ${token0}, ${lastLabelHtml}`;
-    } else if (widgetId === "kpi-price-std-dev") {
+    } else if (kwid === "kpi-price-std-dev") {
       const stdDev = Number(data.primary);
       primary.textContent = Number.isFinite(stdDev) ? stdDev.toFixed(4) : "--";
       secondary.innerHTML = `${token1} / ${token0}, ${lastLabelHtml}`;
-    } else if (widgetId === "kpi-vwap-spread") {
+    } else if (kwid === "kpi-vwap-spread") {
       const spread = Number(data.primary);
       primary.textContent = Number.isFinite(spread) ? spread.toFixed(4) : "--";
       secondary.innerHTML = `bps, ${lastLabelHtml}`;
     } else if (
-      widgetId === "kpi-largest-usx-sell" ||
-      widgetId === "kpi-largest-usx-buy" ||
-      widgetId === "kpi-max-1h-sell-pressure" ||
-      widgetId === "kpi-max-1h-buy-pressure"
+      kwid === "kpi-largest-usx-sell" ||
+      kwid === "kpi-largest-usx-buy" ||
+      kwid === "kpi-max-1h-sell-pressure" ||
+      kwid === "kpi-max-1h-buy-pressure"
     ) {
       const bpsValue = data.secondary === null || data.secondary === undefined ? null : Number(data.secondary);
       const bpsStr = formatSigned4dp(data.secondary);
@@ -731,7 +734,7 @@
       const bpsHtml = bpsColor ? `<span style="color:${bpsColor}">${bpsStr}</span>` : bpsStr;
       primary.innerHTML = `${formatNumber(data.primary)} / ${bpsHtml}`;
       secondary.innerHTML = `${token0} / bps, ${lastLabelHtml}`;
-    } else if (widgetId === "kpi-unhealthy-share") {
+    } else if (kwid === "kpi-unhealthy-share") {
       const val = Number(data.primary);
       const formatted = formatNumber(data.primary);
       if (Number.isFinite(val) && val > 0) {
@@ -850,7 +853,7 @@
     return "";
   }
 
-  function renderTable(widgetId, targetId, columns, rows) {
+  function renderTable(widgetId, targetId, columns, rows, sourceWidgetId) {
     const target = document.getElementById(targetId);
     if (!target) {
       return;
@@ -860,8 +863,9 @@
       return;
     }
 
+    const tswid = sourceWidgetId || widgetId;
     const isHealthTable = widgetId.startsWith("health-");
-    const isDepthTable = widgetId === "liquidity-depth-table";
+    const isDepthTable = tswid === "liquidity-depth-table";
     const isWatchlist = widgetId === "kamino-obligation-watchlist";
     const normalizedColumns = normalizeColumns(widgetId, columns);
     const visibleColumns = normalizedColumns.filter((c) => c.key !== "is_red");
@@ -908,16 +912,31 @@
           const cells = visibleColumns
             .map((column) => {
               const raw = row[column.key];
-              const value = widgetId === "liquidity-depth-table" ? formatDepthTableValue(column.key, raw) : (raw ?? "");
+              const value = isDepthTable ? formatDepthTableValue(column.key, raw) : (raw ?? "");
               const displayValue = typeof value === "string" ? pairAwareLabel(value) : value;
               if (column.key === "signature" && displayValue) {
                 const signature = String(displayValue);
                 const href = `https://solscan.io/tx/${encodeURIComponent(signature)}`;
+                const short = signature.length > 12
+                  ? signature.slice(0, 6) + " ...... " + signature.slice(-4)
+                  : signature;
                 return (
                   `<td>` +
-                  `<a href="${href}" target="_blank" rel="noopener noreferrer">${signature}</a>` +
+                  `<a href="${href}" target="_blank" rel="noopener noreferrer" title="${signature}">${short}</a>` +
                   `</td>`
                 );
+              }
+              if (column.key === "amount" || column.key === "Amount") {
+                const num = Number(raw);
+                if (Number.isFinite(num)) {
+                  return `<td>${num.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>`;
+                }
+              }
+              if (column.key === "pct_reserve" || column.key === "% Reserve Now" || (column.label || "").toLowerCase().includes("% reserve")) {
+                const num = Number(raw);
+                if (Number.isFinite(num)) {
+                  return `<td>${num.toFixed(2)}</td>`;
+                }
               }
               if (isWatchlist && (column.key === "ltv_pct" || (column.label || "").toLowerCase() === "ltv (%)")) {
                 const pct = Number(raw);
@@ -1353,11 +1372,12 @@
     return option;
   }
 
-  function renderChart(widgetId, data) {
+  function renderChart(widgetId, data, sourceWidgetId) {
     const el = document.getElementById(`chart-${widgetId}`);
     if (!el) {
       return;
     }
+    const swid = sourceWidgetId || widgetId;
 
     let instance = chartState.get(widgetId)?.instance;
     if (!instance) {
@@ -1379,22 +1399,22 @@
       el.dataset.modalClickBound = "1";
     }
 
-    const isLeftLinked = leftLinkedZoomWidgets.has(widgetId);
+    const isLeftLinked = leftLinkedZoomWidgets.has(swid);
     if (isLeftLinked) {
       const signature = xAxisSignature(data);
       if (signature && signature !== leftDefaultZoomSignature) {
-        leftDefaultZoomWindow = computeFocusedZoomWindow(widgetId, data);
+        leftDefaultZoomWindow = computeFocusedZoomWindow(swid, data);
         leftDefaultZoomSignature = signature;
       } else if (!leftDefaultZoomWindow) {
-        leftDefaultZoomWindow = computeFocusedZoomWindow(widgetId, data);
+        leftDefaultZoomWindow = computeFocusedZoomWindow(swid, data);
       }
     }
 
     let chartData = data;
-    if (widgetId === "swaps-flows-toggle") {
+    if (swid === "swaps-flows-toggle") {
       chartData = trimIncompleteTailForTimeSeries(chartData);
     }
-    if (widgetId === "swaps-ohlcv") {
+    if (swid === "swaps-ohlcv") {
       const lastWindow = currentLastWindow();
       chartData = trimOhlcvToLastWindow(chartData, lastWindow);
       const xs = chartData.x;
@@ -1489,8 +1509,8 @@
           },
         },
         grid: [
-          { left: 82, right: 88, top: 14, height: "48%", containLabel: false },
-          { left: 82, right: 88, top: "64%", height: "16%", containLabel: false },
+          { left: 82, right: 88, top: 14, height: "46%", containLabel: false },
+          { left: 82, right: 88, top: "62%", height: "14%", containLabel: false },
         ],
         xAxis: [
           {
@@ -1845,7 +1865,7 @@
       const leftLegend = `${minValue.toFixed(2)}%`;
       const rightLegend = `${maxValue >= 0 ? "+" : ""}${maxValue.toFixed(2)}%`;
       const heatmapSeries = { type: "heatmap", data: chartData.points || [] };
-      if (tickReferenceWidgets.has(widgetId)) {
+      if (tickReferenceWidgets.has(swid)) {
         const markLine = buildTickReferenceMarkLine(chartData);
         if (markLine) {
           heatmapSeries.markLine = markLine;
@@ -1921,7 +1941,7 @@
         _heatmapLegend: { left: leftLegend, right: rightLegend },
         series: [heatmapSeries],
       };
-      if (leftLinkedZoomWidgets.has(widgetId)) {
+      if (leftLinkedZoomWidgets.has(swid)) {
         option.dataZoom = [
           {
             type: "inside",
@@ -2610,7 +2630,7 @@
       };
     } else {
       option = baseChartOption(chartData);
-      if (widgetId === "liquidity-depth") {
+      if (swid === "liquidity-depth") {
         const xValues = Array.isArray(chartData?.x) ? chartData.x : [];
         const refs = chartData?.reference_lines || {};
         const activePrice = Number(refs.current_price);
@@ -2625,13 +2645,16 @@
           connectNulls: true,
         }));
       }
-      if (comparableLiquidityWidgets.has(widgetId)) {
+      if (comparableLiquidityWidgets.has(swid)) {
         option.grid.left = 82;
         option.grid.right = 18;
-        option.grid.bottom = chartData.xAxisLabel ? 96 : 64;
+        option.grid.bottom = chartData.xAxisLabel ? 102 : 64;
         option.grid.containLabel = false;
+        option.legend = { ...option.legend, bottom: 2 };
         if (!Array.isArray(option.yAxis)) {
-          option.yAxis.nameGap = option.yAxis.name ? 58 : undefined;
+          option.yAxis.name = "Nominal Amt.";
+          option.yAxis.nameGap = 58;
+          option.yAxis.nameTextStyle = { color: chartTextColor(), fontSize: 12 };
           option.yAxis.axisLabel = {
             ...option.yAxis.axisLabel,
             width: 62,
@@ -2647,7 +2670,7 @@
           hideOverlap: true,
         };
         if (option.xAxis.name) {
-          option.xAxis.nameGap = 26;
+          option.xAxis.nameGap = 36;
         }
       }
       if (widgetId === "kamino-liability-flows" || widgetId === "kamino-liquidations") {
@@ -2667,7 +2690,7 @@
         const hasBarSeries = seriesList.some((series) => series?.type === "bar");
         option.xAxis.boundaryGap = hasBarSeries;
       }
-      if (widgetId === "liquidity-distribution") {
+      if (swid === "liquidity-distribution") {
         const xValues = Array.isArray(chartData?.x) ? chartData.x : [];
         const series = Array.isArray(option.series) ? option.series : [];
         if (series.length >= 2) {
@@ -2744,7 +2767,7 @@
           }
         }
       }
-      if (isTickLinkedWidget(widgetId)) {
+      if (isTickLinkedWidget(swid)) {
         option.dataZoom = [
           {
             type: "inside",
@@ -2757,7 +2780,7 @@
             type: "slider",
             xAxisIndex: 0,
             height: 12,
-            bottom: 44,
+            bottom: 28,
             borderColor: chartGridColor(),
             brushSelect: false,
             start: focusedTickZoom?.start,
@@ -2765,10 +2788,10 @@
           },
         ];
       }
-      if (getTimeseriesGroupId(widgetId)) {
+      if (getTimeseriesGroupId(swid)) {
         applyLinkedTimeseriesFormat(option);
       }
-      if (tickReferenceWidgets.has(widgetId) && Array.isArray(option.series) && option.series.length > 0) {
+      if (tickReferenceWidgets.has(swid) && Array.isArray(option.series) && option.series.length > 0) {
         const refMarkLine = buildTickReferenceMarkLine(chartData);
         if (refMarkLine) {
           const existing = option.series[0].markLine;
@@ -2783,7 +2806,7 @@
           };
         }
       }
-      if (widgetId === "usdc-lp-flows") {
+      if (swid === "usdc-lp-flows") {
         const lpNetColor = palette()[0];
         const { token1 } = currentPairTokens();
         option.yAxis = [
@@ -2841,7 +2864,7 @@
           };
         });
       }
-      if (widgetId === "swaps-flows-toggle") {
+      if (swid === "swaps-flows-toggle") {
         const flowYLabel = pairAwareLabel(chartData.yAxisLabel) || "";
         const flowYRightLabel = pairAwareLabel(chartData.yRightAxisLabel) || "";
         option.yAxis = [
@@ -2869,7 +2892,7 @@
         ];
         option.grid = { ...(option.grid || {}), right: 90 };
       }
-      if (widgetId === "swaps-price-impacts") {
+      if (swid === "swaps-price-impacts") {
         const impactYLabel = pairAwareLabel(chartData.yAxisLabel) || "";
         option.yAxis = {
           type: "value",
@@ -2889,7 +2912,7 @@
         };
         option.grid = { ...(option.grid || {}), right: 90 };
       }
-      if (widgetId === "swaps-spread-volatility") {
+      if (swid === "swaps-spread-volatility") {
         const spreadYLabel = pairAwareLabel(chartData.yAxisLabel) || "";
         const spreadYRightLabel = pairAwareLabel(chartData.yRightAxisLabel) || "";
         option.yAxis = [
@@ -2948,9 +2971,9 @@
         option.grid = { ...(option.grid || {}), right: 90 };
       }
       if (
-        widgetId === "swaps-sell-usx-distribution" ||
-        widgetId === "swaps-1h-net-sell-pressure-distribution" ||
-        widgetId === "swaps-distribution-toggle"
+        swid === "swaps-sell-usx-distribution" ||
+        swid === "swaps-1h-net-sell-pressure-distribution" ||
+        swid === "swaps-distribution-toggle"
       ) {
         const distYLabel = pairAwareLabel(chartData.yAxisLabel) || "";
         const distYRightLabel = pairAwareLabel(chartData.yRightAxisLabel) || "";
@@ -3018,7 +3041,7 @@
       }
     }
 
-    if (isTickLinkedWidget(widgetId) && chartData.reference_lines && option.dataZoom && option.xAxis) {
+    if (isTickLinkedWidget(swid) && chartData.reference_lines && option.dataZoom && option.xAxis) {
       const xData = Array.isArray(option.xAxis) ? option.xAxis[0].data : option.xAxis.data;
       if (xData && xData.length > 0) {
         const cp = chartData.reference_lines.current_price;
@@ -3040,7 +3063,10 @@
           const lo = Math.min(cpIdx, pegIdx);
           const hi = Math.max(cpIdx, pegIdx);
           const span = hi - lo;
-          const pad = Math.max(span * 2, 30);
+          const isLiqWidget = comparableLiquidityWidgets.has(swid);
+          const pad = isLiqWidget
+            ? Math.max(span, 10)
+            : Math.max(span * 2, 30);
           const startIdx = Math.max(0, lo - pad);
           const endIdx = Math.min(xData.length - 1, hi + pad);
           const startPct = (startIdx / (xData.length - 1)) * 100;
@@ -3083,7 +3109,7 @@
     instance.on("click", () => {
       openChartModal(widgetId);
     });
-    if (leftLinkedZoomWidgets.has(widgetId)) {
+    if (leftLinkedZoomWidgets.has(swid)) {
       instance.group = linkedGroups.left;
       echarts.connect(linkedGroups.left);
       if (focusedTickZoom) {
@@ -3106,7 +3132,7 @@
       instance.group = linkedGroups.raXpOrca;
       echarts.connect(linkedGroups.raXpOrca);
     } else {
-      const tsGroupId = getTimeseriesGroupId(widgetId);
+      const tsGroupId = getTimeseriesGroupId(swid);
       if (tsGroupId) {
         instance.group = tsGroupId;
         echarts.connect(tsGroupId);
@@ -3118,8 +3144,9 @@
     }
   }
 
-  function renderPayload(widgetId, payload) {
+  function renderPayload(widgetId, payload, sourceWidgetId) {
     const kind = payload?.data?.kind;
+    const swid = sourceWidgetId || widgetId;
     if (!kind) {
       return;
     }
@@ -3127,7 +3154,7 @@
     // Backward-compat: some API instances may still return a single table
     // with a "side" column for swaps-ranked-events. Force split-table layout.
     if (
-      widgetId === "swaps-ranked-events" &&
+      swid === "swaps-ranked-events" &&
       kind === "table" &&
       Array.isArray(payload?.data?.rows) &&
       payload.data.rows.some((row) => row && row.side !== undefined)
@@ -3135,13 +3162,18 @@
       const rows = payload.data.rows || [];
       const leftRows = rows.filter((row) => String(row?.side || "").toLowerCase().includes("buy"));
       const rightRows = rows.filter((row) => String(row?.side || "").toLowerCase().includes("sell"));
-      const baseColumns = (payload.data.columns || []).filter((col) => col?.key !== "side");
+      const swapColRenames = {
+        "Swap Amount": "Amount",
+        "Est. Price Impact Now": "Est. Impact Now",
+      };
+      const baseColumns = (payload.data.columns || []).filter((col) => col?.key !== "side")
+        .map((col) => (swapColRenames[col.label] ? { ...col, label: swapColRenames[col.label] } : col));
       const columns = baseColumns.length
         ? baseColumns
         : [
             { key: "tx_time", label: "Time" },
-            { key: "primary_flow", label: "Swap Amount" },
-            { key: "primary_flow_impact_bps_now", label: "Est. Price Impact Now" },
+            { key: "primary_flow", label: "Amount" },
+            { key: "primary_flow_impact_bps_now", label: "Est. Impact Now" },
             { key: "signature", label: "Tx Signature" },
           ];
 
@@ -3153,13 +3185,13 @@
       if (rightTitleEl) {
         rightTitleEl.textContent = pairAwareLabel("USX Sold");
       }
-      renderTable(widgetId, `table-left-${widgetId}`, columns, leftRows);
-      renderTable(widgetId, `table-right-${widgetId}`, columns, rightRows);
+      renderTable(widgetId, `table-left-${widgetId}`, columns, leftRows, swid);
+      renderTable(widgetId, `table-right-${widgetId}`, columns, rightRows, swid);
       return;
     }
 
     if (kind === "kpi") {
-      renderKpi(widgetId, payload.data);
+      renderKpi(widgetId, payload.data, swid);
       return;
     }
 
@@ -3171,12 +3203,12 @@
         const titleEl = document.querySelector(`#widget-${widgetId} .panel-title-group h3`);
         if (titleEl) titleEl.textContent = payload.data.title_override;
       }
-      renderTable(widgetId, `table-${widgetId}`, payload.data.columns || [], payload.data.rows || []);
+      renderTable(widgetId, `table-${widgetId}`, payload.data.columns || [], payload.data.rows || [], swid);
       if (payload.data.subtitle) {
         const subEl = document.getElementById(`table-subtitle-${widgetId}`);
         if (subEl) subEl.textContent = payload.data.subtitle;
       }
-      if (widgetId === "liquidity-depth-table") {
+      if (swid === "liquidity-depth-table") {
         const dtTitleEl = document.querySelector(`#widget-${widgetId} .panel-title-group h3`);
         if (dtTitleEl) {
           const { token0, token1 } = currentPairTokens();
@@ -3193,11 +3225,17 @@
     }
 
     if (kind === "table-split") {
-      const columns = payload.data.columns || [];
+      const splitColRenames = {
+        "Swap Amount": "Amount",
+        "Est. Price Impact Now": "Est. Impact Now",
+      };
+      const columns = (payload.data.columns || []).map(
+        (col) => (splitColRenames[col.label] ? { ...col, label: splitColRenames[col.label] } : col)
+      );
       document.getElementById(`table-left-title-${widgetId}`).textContent = pairAwareLabel(payload.data.left_title || "Left");
       document.getElementById(`table-right-title-${widgetId}`).textContent = pairAwareLabel(payload.data.right_title || "Right");
-      renderTable(widgetId, `table-left-${widgetId}`, columns, payload.data.left_rows || []);
-      renderTable(widgetId, `table-right-${widgetId}`, columns, payload.data.right_rows || []);
+      renderTable(widgetId, `table-left-${widgetId}`, columns, payload.data.left_rows || [], swid);
+      renderTable(widgetId, `table-right-${widgetId}`, columns, payload.data.right_rows || [], swid);
       const splitTitleEl = document.querySelector(`#widget-${widgetId} .panel-header h3`);
       if (splitTitleEl) {
         const baseTitle = splitTitleEl.dataset.baseTitle || splitTitleEl.textContent || "";
@@ -3220,12 +3258,12 @@
         const pctSuffix = payload.data.event_pct != null ? ` (${payload.data.event_pct}%)` : "";
         chartSubEl.textContent = `${Number(payload.data.event_count).toLocaleString()} ${noun} in ${windowLabel} Sample${pctSuffix}`;
       } else {
-        const interval = bucketIntervalLabel(widgetId);
+        const interval = bucketIntervalLabel(swid);
         chartSubEl.textContent = interval ? `Reported at ${interval} intervals` : "";
       }
     }
 
-    renderChart(widgetId, payload.data);
+    renderChart(widgetId, payload.data, swid);
     if (widgetId === "ra-stress-test") {
       hydrateStressAssetOptions(payload.data);
     }
@@ -3340,10 +3378,7 @@
   async function refreshProtocolPairSelectors(defaults) {
     const protocolSelect = document.getElementById("protocol-select");
     const pairSelect = document.getElementById("pair-select");
-    if (!protocolSelect || !pairSelect) return;
-
-    let selectedProtocol = (defaults && defaults.protocol) || protocolSelect.value || currentProtocol();
-    let selectedPair = (defaults && defaults.pair) || pairSelect.value || currentPair();
+    const assetSelect = document.getElementById("asset-select");
 
     try {
       const pl = currentPipeline();
@@ -3351,27 +3386,40 @@
       const response = await fetch(`${getApiBaseUrl()}/api/v1/meta${qs}`, { cache: "no-store" });
       const payload = await response.json();
       protocolPairs = payload.protocol_pairs || [];
-      const protocols = payload.protocols || protocolPairs.map((item) => item.protocol);
 
-      if (defaults && defaults.protocol && !protocols.includes(defaults.protocol)) {
-        protocols.unshift(defaults.protocol);
-      }
-      if (defaults && defaults.protocol && defaults.pair) {
-        if (!protocolPairs.some((pp) => pp.protocol === defaults.protocol && pp.pair === defaults.pair)) {
-          protocolPairs.push({ protocol: defaults.protocol, pair: defaults.pair });
+      if (protocolSelect && pairSelect) {
+        let selectedProtocol = (defaults && defaults.protocol) || protocolSelect.value || currentProtocol();
+        let selectedPair = (defaults && defaults.pair) || pairSelect.value || currentPair();
+        const protocols = payload.protocols || protocolPairs.map((item) => item.protocol);
+        if (defaults && defaults.protocol && !protocols.includes(defaults.protocol)) {
+          protocols.unshift(defaults.protocol);
         }
+        if (defaults && defaults.protocol && defaults.pair) {
+          if (!protocolPairs.some((pp) => pp.protocol === defaults.protocol && pp.pair === defaults.pair)) {
+            protocolPairs.push({ protocol: defaults.protocol, pair: defaults.pair });
+          }
+        }
+        setSelectOptions(protocolSelect, protocols, selectedProtocol);
+        selectedProtocol = protocolSelect.value || selectedProtocol;
+        setSelectOptions(pairSelect, pairsForProtocol(selectedProtocol), selectedPair);
+        applyGlobalFilters(selectedProtocol, pairSelect.value || selectedPair, currentLastWindow(), false);
+      } else if (assetSelect) {
+        const assets = [...new Set(protocolPairs.map((pp) => pp.pair.split("-")[0]))];
+        const selectedAsset = assetSelect.value || assets[0] || "";
+        setSelectOptions(assetSelect, assets, selectedAsset);
       }
-
-      setSelectOptions(protocolSelect, protocols, selectedProtocol);
-      selectedProtocol = protocolSelect.value || selectedProtocol;
-      setSelectOptions(pairSelect, pairsForProtocol(selectedProtocol), selectedPair);
     } catch (_) {
-      protocolPairs = [{ protocol: selectedProtocol, pair: selectedPair }];
+      if (protocolSelect && pairSelect) {
+        const sp = (defaults && defaults.protocol) || currentProtocol();
+        const spr = (defaults && defaults.pair) || currentPair();
+        protocolPairs = [{ protocol: sp, pair: spr }];
+        applyGlobalFilters(sp, spr, currentLastWindow(), false);
+      }
     }
 
-    applyGlobalFilters(selectedProtocol, pairSelect.value || selectedPair, currentLastWindow(), false);
     applyPairAwarePanelTitles();
     refreshPairDependentLabels();
+    updateDexSubheaderPairs();
   }
 
   function refreshPairDependentLabels() {
@@ -3418,6 +3466,35 @@
   function currentPair() {
     const select = document.getElementById("pair-select");
     return select ? select.value : "USX-USDC";
+  }
+
+  function currentAsset() {
+    const select = document.getElementById("asset-select");
+    return select ? select.value : "";
+  }
+
+  function pairForAssetProtocol(protocol, asset) {
+    if (!asset) return currentPair();
+    const match = protocolPairs.find(
+      (pp) => pp.protocol === protocol && pp.pair.split("-").includes(asset)
+    );
+    return match ? match.pair : `${asset}-USDC`;
+  }
+
+  function updateDexSubheaderPairs() {
+    document.querySelectorAll(".dx-section-subheader").forEach((el) => {
+      const proto = el.dataset.protocol;
+      if (!proto) return;
+      const fullProto = proto === "ray" ? "raydium" : proto;
+      const asset = currentAsset();
+      const pair = asset ? pairForAssetProtocol(fullProto, asset) : "";
+      const pairSpan = el.querySelector(".dx-subheader-pair");
+      if (pairSpan) pairSpan.textContent = pair || "";
+    });
+  }
+
+  function resolveSourceWidgetId(el) {
+    return el.dataset.sourceWidgetId || el.dataset.widgetId || "";
   }
 
   function currentLastWindow() {
@@ -3582,6 +3659,8 @@
       selectedLastWindow = persisted.lastWindow;
     }
 
+    const assetSelect = document.getElementById("asset-select");
+
     if (protocolSelect && pairSelect) {
       try {
         const plMeta = currentPipeline();
@@ -3597,10 +3676,24 @@
       } catch (_) {
         protocolPairs = [{ protocol: selectedProtocol, pair: selectedPair }];
       }
+    } else if (assetSelect) {
+      try {
+        const plMeta = currentPipeline();
+        const metaQs = plMeta ? `?_pipeline=${encodeURIComponent(plMeta)}` : "";
+        const response = await fetch(`${getApiBaseUrl()}/api/v1/meta${metaQs}`, { cache: "no-store" });
+        const payload = await response.json();
+        protocolPairs = payload.protocol_pairs || [];
+        const assets = [...new Set(protocolPairs.map((pp) => pp.pair.split("-")[0]))];
+        const selectedAsset = assetSelect.value || assets[0] || "";
+        setSelectOptions(assetSelect, assets, selectedAsset);
+      } catch (_) {
+        // keep default value
+      }
     }
 
     applyGlobalFilters(selectedProtocol, selectedPair, selectedLastWindow, false);
     applyPairAwarePanelTitles();
+    updateDexSubheaderPairs();
 
     if (protocolSelect && pairSelect) {
       protocolSelect.addEventListener("change", () => {
@@ -3617,6 +3710,17 @@
         initSwapsFlowModeToggle();
         resetDashboardLoading();
         applyGlobalFilters(protocolSelect.value, pairSelect.value, lastWindowSelect.value, true);
+      });
+    }
+
+    if (assetSelect) {
+      assetSelect.addEventListener("change", () => {
+        applyPairAwarePanelTitles();
+        updateDexSubheaderPairs();
+        initSwapsFlowModeToggle();
+        resetDashboardLoading();
+        persistFilters(currentProtocol(), currentPair(), lastWindowSelect.value);
+        htmx.trigger(document.body, "dashboard-refresh");
       });
     }
 
@@ -3719,67 +3823,59 @@
   }
 
   function initTradeImpactModeToggle() {
-    const modeSelect = document.getElementById("trade-impact-mode");
-    const widget = document.getElementById("widget-trade-impact-toggle");
-    if (!modeSelect || !widget) {
-      return;
-    }
-    widget.dataset.impactMode = modeSelect.value || "size";
-    modeSelect.addEventListener("change", () => {
+    document.querySelectorAll(".impact-mode-select").forEach((modeSelect) => {
+      const widget = modeSelect.closest(".widget-loader");
+      if (!widget) return;
       widget.dataset.impactMode = modeSelect.value || "size";
-      resetWidgetView(widget);
-      htmx.trigger(widget, "impact-mode-change");
+      modeSelect.addEventListener("change", () => {
+        widget.dataset.impactMode = modeSelect.value || "size";
+        resetWidgetView(widget);
+        htmx.trigger(widget, "impact-mode-change");
+      });
     });
   }
 
   function initSwapsDistributionModeToggle() {
-    const modeSelect = document.getElementById("swaps-distribution-mode");
-    const widget = document.getElementById("widget-swaps-distribution-toggle");
-    if (!modeSelect || !widget) {
-      return;
-    }
-    widget.dataset.distributionMode = modeSelect.value || "sell-order";
-    modeSelect.addEventListener("change", () => {
+    document.querySelectorAll(".dist-mode-select").forEach((modeSelect) => {
+      const widget = modeSelect.closest(".widget-loader");
+      if (!widget) return;
       widget.dataset.distributionMode = modeSelect.value || "sell-order";
-      resetWidgetView(widget);
-      htmx.trigger(widget, "distribution-mode-change");
+      modeSelect.addEventListener("change", () => {
+        widget.dataset.distributionMode = modeSelect.value || "sell-order";
+        resetWidgetView(widget);
+        htmx.trigger(widget, "distribution-mode-change");
+      });
     });
   }
 
   function initSwapsFlowModeToggle() {
-    const modeSelect = document.getElementById("swaps-flow-mode");
-    const widget = document.getElementById("widget-swaps-flows-toggle");
-    if (!modeSelect || !widget) {
-      return;
-    }
     const { token0, token1 } = currentPairTokens();
-    const token0Option = modeSelect.querySelector('option[value="usx"]');
-    const token1Option = modeSelect.querySelector('option[value="usdc"]');
-    if (token0Option) {
-      token0Option.textContent = token0;
-    }
-    if (token1Option) {
-      token1Option.textContent = token1;
-    }
-    widget.dataset.flowMode = modeSelect.value || "usx";
-    modeSelect.addEventListener("change", () => {
+    document.querySelectorAll(".flow-mode-select").forEach((modeSelect) => {
+      const widget = modeSelect.closest(".widget-loader");
+      if (!widget) return;
+      const token0Option = modeSelect.querySelector('option[value="usx"]');
+      const token1Option = modeSelect.querySelector('option[value="usdc"]');
+      if (token0Option) token0Option.textContent = token0;
+      if (token1Option) token1Option.textContent = token1;
       widget.dataset.flowMode = modeSelect.value || "usx";
-      resetWidgetView(widget);
-      htmx.trigger(widget, "flow-mode-change");
+      modeSelect.addEventListener("change", () => {
+        widget.dataset.flowMode = modeSelect.value || "usx";
+        resetWidgetView(widget);
+        htmx.trigger(widget, "flow-mode-change");
+      });
     });
   }
 
   function initSwapsOhlcvIntervalToggle() {
-    const intervalSelect = document.getElementById("swaps-ohlcv-interval");
-    const widget = document.getElementById("widget-swaps-ohlcv");
-    if (!intervalSelect || !widget) {
-      return;
-    }
-    widget.dataset.ohlcvInterval = intervalSelect.value || "1d";
-    intervalSelect.addEventListener("change", () => {
+    document.querySelectorAll(".ohlcv-interval-select").forEach((intervalSelect) => {
+      const widget = intervalSelect.closest(".widget-loader");
+      if (!widget) return;
       widget.dataset.ohlcvInterval = intervalSelect.value || "1d";
-      resetWidgetView(widget);
-      htmx.trigger(widget, "ohlcv-interval-change");
+      intervalSelect.addEventListener("change", () => {
+        widget.dataset.ohlcvInterval = intervalSelect.value || "1d";
+        resetWidgetView(widget);
+        htmx.trigger(widget, "ohlcv-interval-change");
+      });
     });
   }
 
@@ -3881,7 +3977,8 @@
         setWidgetError(widgetId, payload.detail || "request failed");
         return;
       }
-      renderPayload(widgetId, payload);
+      const srcId = resolveSourceWidgetId(sourceEl);
+      renderPayload(widgetId, payload, srcId);
       updateTimestamp(widgetId, payload?.metadata?.generated_at);
     } catch (error) {
       setWidgetError(widgetId, String(error));
@@ -3911,9 +4008,18 @@
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
-    // Enforce active global filters on every widget request.
-    event.detail.parameters.protocol = currentProtocol();
-    event.detail.parameters.pair = currentPair();
+    const protoOverride = sourceEl.dataset.protocolOverride;
+    if (protoOverride) {
+      const fullProto = protoOverride === "ray" ? "raydium" : protoOverride;
+      event.detail.parameters.protocol = fullProto;
+      const asset = currentAsset();
+      event.detail.parameters.pair = asset
+        ? pairForAssetProtocol(fullProto, asset)
+        : currentPair();
+    } else {
+      event.detail.parameters.protocol = currentProtocol();
+      event.detail.parameters.pair = currentPair();
+    }
     event.detail.parameters.last_window = currentLastWindow();
     const pl = currentPipeline();
     if (pl) event.detail.parameters._pipeline = pl;
@@ -3921,16 +4027,17 @@
     const m2 = currentMkt2();
     if (m1) event.detail.parameters.mkt1 = m1;
     if (m2) event.detail.parameters.mkt2 = m2;
-    if (sourceEl.dataset.widgetId === "trade-impact-toggle") {
+    const swid = resolveSourceWidgetId(sourceEl);
+    if (swid === "trade-impact-toggle") {
       event.detail.parameters.impact_mode = sourceEl.dataset.impactMode || "size";
     }
-    if (sourceEl.dataset.widgetId === "swaps-flows-toggle") {
+    if (swid === "swaps-flows-toggle") {
       event.detail.parameters.flow_mode = sourceEl.dataset.flowMode || "usx";
     }
-    if (sourceEl.dataset.widgetId === "swaps-distribution-toggle") {
+    if (swid === "swaps-distribution-toggle") {
       event.detail.parameters.distribution_mode = sourceEl.dataset.distributionMode || "sell-order";
     }
-    if (sourceEl.dataset.widgetId === "swaps-ohlcv") {
+    if (swid === "swaps-ohlcv") {
       event.detail.parameters.ohlcv_interval = sourceEl.dataset.ohlcvInterval || "1d";
     }
     if (sourceEl.dataset.widgetId === "health-queue-chart" || sourceEl.dataset.widgetId === "health-queue-chart-2") {

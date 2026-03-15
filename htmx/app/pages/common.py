@@ -13,6 +13,9 @@ class WidgetConfig:
     expandable: bool = True
     detail_table_id: str = ""
     tooltip: str = ""
+    source_page_id: str = ""
+    source_widget_id: str = ""
+    protocol_override: str = ""
 
 
 @dataclass(frozen=True)
@@ -31,9 +34,11 @@ class PageConfig:
     api_page_id: str
     widgets: list[WidgetConfig]
     show_protocol_pair_filters: bool = False
+    show_asset_filter: bool = False
     show_market_selectors: bool = False
     default_protocol: str = ""
     default_pair: str = ""
+    default_asset: str = ""
     show_pipeline_switcher: bool = True
     widget_filter_env_var: str = ""
     page_actions: list[PageAction] = field(default_factory=list)

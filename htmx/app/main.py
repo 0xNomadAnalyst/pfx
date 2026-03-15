@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from app.pages.common import PageConfig, build_widget_endpoint
 from app.pages.dex_liquidity import PAGE_CONFIG as DEX_LIQUIDITY_PAGE
 from app.pages.dex_swaps import PAGE_CONFIG as DEX_SWAPS_PAGE
+from app.pages.dexes import PAGE_CONFIG as DEXES_PAGE
 from app.pages.exponent import PAGE_CONFIG as EXPONENT_PAGE
 from app.pages.health import PAGE_CONFIG as HEALTH_PAGE
 from app.pages.kamino import PAGE_CONFIG as KAMINO_PAGE
@@ -43,7 +44,7 @@ _health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 # is consistent across all routes.
 COVER_PAGE = PageConfig(slug="cover", label="Cover", api_page_id="cover", widgets=[])
 
-PAGES: list[PageConfig] = [COVER_PAGE, RISK_ANALYSIS_PAGE, GLOBAL_ECOSYSTEM_PAGE, DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE, KAMINO_PAGE, EXPONENT_PAGE, HEALTH_PAGE]
+PAGES: list[PageConfig] = [COVER_PAGE, RISK_ANALYSIS_PAGE, GLOBAL_ECOSYSTEM_PAGE, DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE, DEXES_PAGE, KAMINO_PAGE, EXPONENT_PAGE, HEALTH_PAGE]
 PAGES_BY_SLUG: dict[str, PageConfig] = {page.slug: page for page in PAGES}
 
 app = FastAPI(
@@ -110,18 +111,22 @@ def render_page(request: Request, page: PageConfig):
         else:
             refresh_interval_seconds = int(os.getenv("HTMX_REFRESH_CHART_SECONDS", "60"))
 
+        endpoint_page = widget.source_page_id or page.api_page_id
+        endpoint_wid = widget.source_widget_id or widget.id
         widget_bindings.append(
             {
                 "id": widget.id,
                 "title": widget.title,
                 "kind": widget.kind,
                 "refresh_interval_seconds": max(15, refresh_interval_seconds),
-                "endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, page.api_page_id, widget.id),
+                "endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, endpoint_page, endpoint_wid),
                 "css_class": widget.css_class,
                 "expandable": widget.expandable if widget.kind == "chart" else False,
                 "load_delay_seconds": load_delay_seconds,
                 "tooltip": widget.tooltip,
-                "detail_table_endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, page.api_page_id, widget.detail_table_id) if widget.detail_table_id else "",
+                "detail_table_endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, endpoint_page, widget.detail_table_id) if widget.detail_table_id else "",
+                "source_widget_id": widget.source_widget_id,
+                "protocol_override": widget.protocol_override,
             }
         )
     page_options = [{"slug": cfg.slug, "label": cfg.label, "path": f"/{cfg.slug}"} for cfg in PAGES]
@@ -157,10 +162,12 @@ def render_page(request: Request, page: PageConfig):
             "widgets": widget_bindings,
             "page_actions": page_action_bindings,
             "show_protocol_pair_filters": page.show_protocol_pair_filters,
+            "show_asset_filter": page.show_asset_filter,
             "show_market_selectors": page.show_market_selectors,
             "api_page_id": page.api_page_id,
             "protocol": protocol,
             "pair": pair,
+            "asset": page.default_asset,
             "last_window": "7d",
             "api_base_url": BROWSER_API_BASE_URL,
             "show_pipeline_switcher": show_pipeline,
@@ -215,6 +222,11 @@ def dex_liquidity(request: Request):
 @app.get("/dex-swaps")
 def dex_swaps(request: Request):
     return render_page(request, PAGES_BY_SLUG["dex-swaps"])
+
+
+@app.get("/dexes")
+def dexes(request: Request):
+    return render_page(request, PAGES_BY_SLUG["dexes"])
 
 
 @app.get("/kamino")

@@ -6,6 +6,15 @@
 >
   <h2 class="ge-section-title">{{ widget.title }}</h2>
 </div>
+{% elif widget.kind == "section-subheader" %}
+<div
+  id="widget-{{ widget.id }}"
+  class="{{ widget.css_class }} dx-section-subheader"
+  {% if widget.protocol_override %}data-protocol="{{ widget.protocol_override }}"{% endif %}
+>
+  <span class="dx-subheader-label">{{ widget.title }}</span>
+  <span class="dx-subheader-pair"></span>
+</div>
 {% elif widget.kind == "placeholder" %}
 <div
   id="widget-{{ widget.id }}"
@@ -27,6 +36,8 @@
   data-health-base-schema="dexes"
   data-base-endpoint="{{ widget.endpoint }}"
   {% if widget.detail_table_endpoint %}data-detail-table-endpoint="{{ widget.detail_table_endpoint }}"{% endif %}
+  {% if widget.protocol_override %}data-protocol-override="{{ widget.protocol_override }}"{% endif %}
+  {% if widget.source_widget_id %}data-source-widget-id="{{ widget.source_widget_id }}"{% endif %}
   hx-get="{{ widget.endpoint }}"
   hx-request='{"timeout":90000}'
   hx-trigger="load delay:{{ widget.load_delay_seconds }}s, dashboard-refresh from:body, impact-mode-change, flow-mode-change, distribution-mode-change, ohlcv-interval-change, {% if widget.id != 'health-queue-chart-2' %}health-schema-change from:body, health-attribute-change from:body, {% endif %}{% if widget.id == 'health-queue-chart-2' %}health-schema-change-2 from:body, health-attribute-change-2 from:body, {% endif %}health-base-schema-change from:body, risk-event-type-change from:body, risk-interval-change from:body, risk-liq-source-change from:body, risk-stress-asset-change from:body, every {{ widget.refresh_interval_seconds }}s"
@@ -42,35 +53,40 @@
         <span class="info-tip-card">{{ widget.tooltip }}</span>
       </span>
       {% endif %}
-      {% if widget.id == "swaps-distribution-toggle" %}
-        <span class="title-separator">|</span>
-        <span class="title-inline-label">Select Event:</span>
-        <select id="swaps-distribution-mode" class="filter-select chart-mode-select" aria-label="Swaps distribution chart mode">
-          <option value="sell-order">Sell Swaps</option>
-          <option value="net-sell-pressure">1hr Net Sell Pressure</option>
-        </select>
-      {% elif widget.id == "swaps-flows-toggle" %}
+      {% set swid = widget.source_widget_id or widget.id %}
+      {% if swid == "swaps-distribution-toggle" %}
+        <span class="title-control-group">
+          <span class="title-separator">|</span>
+          <span class="title-inline-label">Select Event:</span>
+          <select id="dist-mode-{{ widget.id }}" class="dist-mode-select filter-select chart-mode-select dist-select-narrow" aria-label="Swaps distribution chart mode">
+            <option value="sell-order">Sell Swaps</option>
+            <option value="net-sell-pressure">1hr Net Sell Pressure</option>
+          </select>
+        </span>
+      {% elif swid == "swaps-flows-toggle" %}
         <span class="title-separator">|</span>
         <span class="title-inline-label">Select Token:</span>
-        <select id="swaps-flow-mode" class="filter-select chart-mode-select" aria-label="Swap flow token and side">
+        <select id="flow-mode-{{ widget.id }}" class="flow-mode-select filter-select chart-mode-select" aria-label="Swap flow token and side">
           <option value="usx" selected>USX</option>
           <option value="usdc">USDC</option>
         </select>
-      {% elif widget.id == "swaps-ohlcv" %}
-        <span class="title-separator">|</span>
-        <span class="title-inline-label">Candle Size:</span>
-        <select id="swaps-ohlcv-interval" class="filter-select chart-mode-select" aria-label="OHLCV candle interval">
-          <option value="1m">1m</option>
-          <option value="5m">5m</option>
-          <option value="15m">15m</option>
-          <option value="1h" selected>1h</option>
-          <option value="4h">4h</option>
-          <option value="1d">1d</option>
-        </select>
-      {% elif widget.id == "trade-impact-toggle" %}
+      {% elif swid == "swaps-ohlcv" %}
+        <span class="title-control-group">
+          <span class="title-separator">|</span>
+          <span class="title-inline-label">Candle Size:</span>
+          <select id="ohlcv-interval-{{ widget.id }}" class="ohlcv-interval-select filter-select chart-mode-select ohlcv-select-narrow" aria-label="OHLCV candle interval">
+            <option value="1m">1m</option>
+            <option value="5m">5m</option>
+            <option value="15m">15m</option>
+            <option value="1h" selected>1h</option>
+            <option value="4h">4h</option>
+            <option value="1d">1d</option>
+          </select>
+        </span>
+      {% elif swid == "trade-impact-toggle" %}
         <span class="title-separator">|</span>
         <span class="title-inline-label">Select:</span>
-        <select id="trade-impact-mode" class="filter-select chart-mode-select" aria-label="Trade impact chart mode">
+        <select id="impact-mode-{{ widget.id }}" class="impact-mode-select filter-select chart-mode-select" aria-label="Trade impact chart mode">
           <option value="size">Order Size for Target bps</option>
           <option value="impact">Impact bps at 3 Size Levels</option>
         </select>
