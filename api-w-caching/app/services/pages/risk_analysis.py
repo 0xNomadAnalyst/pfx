@@ -153,12 +153,81 @@ class RiskAnalysisPageService(BasePageService):
                     "  reserve_coll_all_shares_pct_array, reserve_brw_all_shares_pct_array "
                     "FROM kamino_lend.v_last LIMIT 1"
                 )
-                return rows[0] if rows else {}
+                if rows and rows[0].get("reserve_coll_all_symbols_array"):
+                    return rows[0]
             except Exception as exc:
-                logger.warning("_kamino_v_last_row query failed: %s", exc)
-                return {}
+                logger.warning("_kamino_v_last_row v_last query failed: %s", exc)
+
+            return self._reserve_symbols_fallback()
 
         return self._cached("ra::kamino_v_last", _load, ttl_seconds=self._V_LAST_TTL_SECONDS)
+
+    def _reserve_symbols_fallback(self) -> dict[str, Any]:
+        """Fallback: derive collateral/borrow symbol arrays + share percentages
+        from aux_market_reserve_tokens joined with latest src_reserves data."""
+        try:
+            rows = self.sql.fetch_rows(
+                "WITH lr AS ( "
+                "  SELECT DISTINCT ON (reserve_address) "
+                "    reserve_address, "
+                "    liquidity_borrowed_amount_sf, "
+                "    collateral_mint_total_supply, "
+                "    env_decimals "
+                "  FROM kamino_lend.src_reserves "
+                "  WHERE utilization_ratio IS NOT NULL "
+                "  ORDER BY reserve_address, time DESC "
+                "), "
+                "shares AS ( "
+                "  SELECT "
+                "    mrt.reserve_type, "
+                "    mrt.token_symbol, "
+                "    CASE "
+                "      WHEN mrt.reserve_type = 'borrow' THEN "
+                "        COALESCE(lr.liquidity_borrowed_amount_sf "
+                "          / mrt.sf_scaling_factor "
+                "          / POWER(10, lr.env_decimals), 0) "
+                "      WHEN mrt.reserve_type = 'collateral' THEN "
+                "        COALESCE(lr.collateral_mint_total_supply "
+                "          / POWER(10, lr.env_decimals), 0) "
+                "      ELSE 0 "
+                "    END AS raw_qty "
+                "  FROM kamino_lend.aux_market_reserve_tokens mrt "
+                "  LEFT JOIN lr ON lr.reserve_address = mrt.reserve_address "
+                "  WHERE mrt.env_market_address_matches = TRUE "
+                ") "
+                "SELECT reserve_type, token_symbol, "
+                "  CASE WHEN SUM(raw_qty) OVER (PARTITION BY reserve_type) > 0 "
+                "    THEN ROUND((raw_qty / SUM(raw_qty) OVER (PARTITION BY reserve_type) * 100)::NUMERIC, 1) "
+                "    ELSE 0 "
+                "  END AS share_pct "
+                "FROM shares "
+                "ORDER BY reserve_type, token_symbol"
+            )
+            coll_syms: list[str] = []
+            coll_pcts: list[float] = []
+            brw_syms: list[str] = []
+            brw_pcts: list[float] = []
+            for r in rows:
+                rt = str(r.get("reserve_type", "")).lower()
+                sym = str(r.get("token_symbol", ""))
+                pct = float(r.get("share_pct") or 0)
+                if not sym:
+                    continue
+                if rt == "collateral":
+                    coll_syms.append(sym)
+                    coll_pcts.append(pct)
+                elif rt == "borrow":
+                    brw_syms.append(sym)
+                    brw_pcts.append(pct)
+            return {
+                "reserve_coll_all_symbols_array": coll_syms or None,
+                "reserve_brw_all_symbols_array": brw_syms or None,
+                "reserve_coll_all_shares_pct_array": coll_pcts or None,
+                "reserve_brw_all_shares_pct_array": brw_pcts or None,
+            }
+        except Exception as exc:
+            logger.warning("_reserve_symbols_fallback query failed: %s", exc)
+            return {}
 
     def _sensitivity_rows(self, coll_asset: str = "", debt_asset: str = "") -> list[dict[str, Any]]:
         cache_key = f"ra::sensitivities::{coll_asset}::{debt_asset}"

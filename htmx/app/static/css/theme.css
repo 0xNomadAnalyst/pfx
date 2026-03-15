@@ -276,11 +276,18 @@ body {
 .ra-filter-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   width: 100%;
 }
 .ra-filter-row .chart-mode-select {
   margin-left: 0;
+}
+.ra-filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .title-separator {
@@ -1401,6 +1408,9 @@ td:first-child {
   gap: 6px;
   padding: 2px 0 0;
 }
+.ra-xp-selector-row .chart-mode-select {
+  margin-left: 0;
+}
 
 /* Section 2: Downside Price Risk - Cross-Protocol Events */
 .ra-hdr-2          { grid-row: 14 / 15; }
@@ -1428,6 +1438,12 @@ td:first-child {
     grid-column: auto !important;
     grid-row: auto !important;
   }
+}
+
+.dashboard-grid.page-risk-analysis {
+  max-width: var(--half-screen, 960px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* ── Fixed bottom bar ── */

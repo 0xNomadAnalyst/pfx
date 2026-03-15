@@ -2337,11 +2337,24 @@
       const cascRounds = chartData.cascade_rounds || [];
       const liqPreBonus = chartData.liq_pre_bonus || [];
       const liqPostBonus = chartData.liq_post_bonus || [];
+      const bonusMult = baseLiq.map((b, i) => {
+        const pre = liqPreBonus[i] || 0;
+        const post = liqPostBonus[i] || 0;
+        return (pre > 0) ? post / pre : 1;
+      });
+      const basePlusBonusData = baseLiq.map((b, i) => b * bonusMult[i]);
       series.push({
         name: "Liquidated Value", type: "line", xAxisIndex: 0, yAxisIndex: 0,
         data: baseLiq, areaStyle: { opacity: 0.25 },
         lineStyle: { color: "#e8a838", width: 1.5 },
         itemStyle: { color: "#e8a838" }, symbol: "none",
+      });
+      series.push({
+        name: "Liq. Bonus", type: "line", xAxisIndex: 0, yAxisIndex: 0,
+        data: basePlusBonusData,
+        areaStyle: { opacity: 0.15, color: "#d4764e" },
+        lineStyle: { color: "#d4764e", width: 1, type: "dashed" },
+        itemStyle: { color: "#d4764e" }, symbol: "none",
       });
       series.push({
         name: "Cascade Add'l", type: "line", xAxisIndex: 0, yAxisIndex: 0,
@@ -2468,7 +2481,7 @@
         },
       ];
       option = {
-        color: ["#e8a838", "#5599dd", ...cascColors],
+        color: ["#e8a838", "#d4764e", "#5599dd", ...cascColors],
         graphic: cascGraphic,
         legend: {
           bottom: 2,
@@ -2487,7 +2500,11 @@
             let tip = `<b>Shock: ${xVal}%</b><br/>`;
             items.forEach((it) => {
               const v = Number(it.value);
-              if (it.seriesName.includes("Liq") || it.seriesName.includes("Cascade")) {
+              if (it.seriesName.includes("Bonus")) {
+                const base = baseLiq[idx] || 0;
+                const diff = v - base;
+                if (diff > 0) tip += `${it.marker} ${it.seriesName}: +$${(diff / 1e6).toFixed(2)}M<br/>`;
+              } else if (it.seriesName.includes("Liq") || it.seriesName.includes("Cascade")) {
                 tip += `${it.marker} ${it.seriesName}: $${(v / 1e6).toFixed(2)}M<br/>`;
               } else if (it.seriesName.includes("Depth") || it.seriesName.includes("depth")) {
                 tip += `${it.marker} ${it.seriesName}: ${v.toFixed(1)}%<br/>`;

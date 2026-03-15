@@ -161,23 +161,27 @@
         </div>
       {% elif widget.id == "ra-cascade" %}
         <div class="ra-filter-row">
-          <span class="title-inline-label">Pool routing:</span>
-          <select id="ra-cascade-pool" class="filter-select chart-mode-select" aria-label="Pool routing mode">
-            <option value="weighted" selected>Weighted (all pools)</option>
-          </select>
-          <span class="title-separator">|</span>
-          <span class="title-inline-label">Model:</span>
-          <select id="ra-cascade-model-mode" class="filter-select chart-mode-select" aria-label="Liquidation model mode">
-            <option value="protocol" selected>Protocol</option>
-            <option value="heuristic">Heuristic</option>
-          </select>
-          <span class="title-separator">|</span>
-          <span class="title-inline-label">Bonus:</span>
-          <select id="ra-cascade-bonus-mode" class="filter-select chart-mode-select" aria-label="Bonus calculation mode">
-            <option value="blended" selected>Blended</option>
-            <option value="max_conservative">Max (conservative)</option>
-            <option value="none">None</option>
-          </select>
+          <span class="ra-filter-group">
+            <span class="title-inline-label">Pool routing:</span>
+            <select id="ra-cascade-pool" class="filter-select chart-mode-select" aria-label="Pool routing mode">
+              <option value="weighted" selected>Weighted (all pools)</option>
+            </select>
+          </span>
+          <span class="ra-filter-group">
+            <span class="title-inline-label">Model:</span>
+            <select id="ra-cascade-model-mode" class="filter-select chart-mode-select" aria-label="Liquidation model mode">
+              <option value="protocol" selected>Protocol</option>
+              <option value="heuristic">Heuristic</option>
+            </select>
+          </span>
+          <span class="ra-filter-group">
+            <span class="title-inline-label">Bonus:</span>
+            <select id="ra-cascade-bonus-mode" class="filter-select chart-mode-select" aria-label="Bonus calculation mode">
+              <option value="blended" selected>Blended</option>
+              <option value="max_conservative">Max (conservative)</option>
+              <option value="none">None</option>
+            </select>
+          </span>
         </div>
       {% endif %}
     </div>

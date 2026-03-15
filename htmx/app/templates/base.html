@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ app_title }} - {{ page_title }}</title>
-  <link rel="stylesheet" href="/static/css/theme.css?v=28" />
+  <link rel="stylesheet" href="/static/css/theme.css?v=29" />
+  <script>document.documentElement.style.setProperty('--half-screen', (screen.width / 2) + 'px');</script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
@@ -126,7 +127,7 @@
     </div>
   </header>
 
-  <main class="{{ main_css_class|default('dashboard-grid') }}">
+  <main class="{{ main_css_class|default('dashboard-grid') }} page-{{ current_page_slug }}">
     {% include content_template|default("partials/dashboard.html") %}
   </main>
 
