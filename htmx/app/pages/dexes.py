@@ -36,7 +36,7 @@ def _sub(wid, title, css, proto):
 
 PAGE_CONFIG = PageConfig(
     slug="dexes",
-    label="DEXes",
+    label="DEX Pools",
     api_page_id="dexes",
     show_asset_filter=True,
     default_asset="USX",
