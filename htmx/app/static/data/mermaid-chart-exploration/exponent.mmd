@@ -1,0 +1,19 @@
+flowchart LR
+    subgraph WRAP[Wrapping]
+        direction TB
+        BASE["Base Token<br/>e.g. ONyc"] -->|wrap| SY[SY Token]
+        SY -->|unwrap| BASE
+    end
+    subgraph STRIP[Stripping]
+        direction TB
+        SY2[SY] -->|split 1:1| PTYT["PT + YT<br/>(per maturity)"]
+        PTYT -->|merge pair| SY2
+    end
+    subgraph AMM[Yield Trading AMM]
+        direction TB
+        POOL["SY + PT<br/>Liquidity Pool"]
+        LP[LP Providers] -->|deposit| POOL
+        POOL -->|fees| LP
+    end
+    WRAP --> STRIP
+    STRIP --> AMM

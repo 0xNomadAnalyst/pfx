@@ -1,0 +1,25 @@
+flowchart LR
+    subgraph LEFT[ ]
+        direction TB
+        subgraph MARKET[Lending Market]
+            MKT(("Market<br/>Account"))
+        end
+        MKT -->|owns| RB1
+        MKT -->|owns| RB2
+        MKT -->|owns| RC1
+        subgraph RESERVES[Reserve Accounts]
+            RB1["Reserve: USDG<br/>borrow"]
+            RB2["Reserve: USDC<br/>borrow"]
+            RC1["Reserve: ONyc<br/>collateral"]
+        end
+    end
+    subgraph OBLIGATIONS[Obligation Accounts]
+        direction TB
+        O1["Obligation<br/>user_1"]
+        O2["Obligation<br/>user_2"]
+        O3["Obligation<br/>user_n"]
+    end
+    O1 -.->|positions| RESERVES
+    O2 -.->|positions| RESERVES
+    O3 -.->|positions| RESERVES
+    OBLIGATIONS -.->|belongs to| MKT

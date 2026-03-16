@@ -1,0 +1,15 @@
+{
+  "graph": "flowchart TB\n    subgraph VAULTS[Token Vaults]\n        direction LR\n        VA[Token Vault A]\n        VB[Token Vault B]\n    end\n    POOL((Pool Account<br/>sqrtPrice &middot; liquidity<br/>tickCurrentIndex))\n    VA -->|held by| POOL\n    VB -->|held by| POOL\n    subgraph TICKS[\"TickArray Accounts &mdash; liquidity partitioned across N on-chain accounts\"]\n        direction LR\n        TA1[\"TickArray<br/>ticks&#91;88&#93;<br/>low range\"]\n        TA2[\"TickArray<br/>ticks&#91;88&#93;<br/>mid range\"]\n        TA3[\"TickArray<br/>ticks&#91;88&#93;<br/>high range\"]\n    end\n    POOL ==>|partitions liquidity across| TA2\n    P1[\"Position 1<br/>tickLower &harr; tickUpper\"]\n    P2[\"Position 2<br/>tickLower &harr; tickUpper\"]\n    TA1 -->|spans| P1\n    TA2 -->|spans| P1\n    TA2 -->|spans| P2\n    TA3 -->|spans| P2\n    P1 -.->|owned via NFT| U1{{\"&#128100; User 1<br/>holds Position Mint 1\"}}\n    P2 -.->|owned via NFT| U2{{\"&#128100; User 2<br/>holds Position Mint 2\"}}",
+  "styles": {
+    "dark": {
+      "VAULTS": "fill:#152340,stroke:#4b8fe0,stroke-width:2px",
+      "POOL": "fill:#1a3a60,stroke:#4bb7ff,stroke-width:2px",
+      "TICKS": "fill:#111d33,stroke:#22d3ee,stroke-width:1.5px"
+    },
+    "light": {
+      "VAULTS": "fill:#eaf2ff,stroke:#0a78f0,stroke-width:2px",
+      "POOL": "fill:#dbeaff,stroke:#0a78f0,stroke-width:2px",
+      "TICKS": "fill:#f0f8f6,stroke:#0891b2,stroke-width:1.5px"
+    }
+  }
+}

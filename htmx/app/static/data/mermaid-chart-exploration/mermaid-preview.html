@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mermaid Preview</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; }
+
+  .section { padding: 32px; }
+  .section h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .dark-section { background: #0d1526; color: #c8d8f0; }
+  .light-section { background: #f4f7fb; color: #1a2540; }
+
+  .charts-row { display: flex; gap: 32px; flex-wrap: wrap; }
+  .chart-card { flex: 1; min-width: 300px; border-radius: 10px; padding: 24px; }
+  .dark-section .chart-card { background: #111d33; border: 1px solid #1e3255; }
+  .light-section .chart-card { background: #ffffff; border: 1px solid #dde5f0; }
+
+  .chart-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; opacity: 0.6; }
+</style>
+</head>
+<body>
+
+<!-- DARK THEME -->
+<div class="section dark-section">
+  <h2>Dark Theme</h2>
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-label">Exponent Protocol</div>
+      <pre class="mermaid" id="exponent-dark">
+flowchart LR
+    subgraph WRAP[Wrapping]
+        direction TB
+        BASE["Base Token<br/>e.g. ONyc"] -->|wrap| SY[SY Token]
+        SY -->|unwrap| BASE
+    end
+    subgraph STRIP[Stripping]
+        direction TB
+        SY2[SY] -->|split 1:1| PTYT["PT + YT<br/>(per maturity)"]
+        PTYT -->|merge pair| SY2
+    end
+    subgraph AMM[Yield Trading AMM]
+        direction TB
+        POOL["SY + PT<br/>Liquidity Pool"]
+        LP[LP Providers] -->|deposit| POOL
+        POOL -->|fees| LP
+    end
+    WRAP --> STRIP
+    STRIP --> AMM
+      </pre>
+    </div>
+    <div class="chart-card">
+      <div class="chart-label">Kamino Protocol</div>
+      <pre class="mermaid" id="kamino-dark">
+flowchart LR
+    subgraph LEFT[ ]
+        direction TB
+        subgraph MARKET[Lending Market]
+            MKT(("Market<br/>Account"))
+        end
+        MKT -->|owns| RB1
+        MKT -->|owns| RB2
+        MKT -->|owns| RC1
+        subgraph RESERVES[Reserve Accounts]
+            RB1["Reserve: USDG<br/>borrow"]
+            RB2["Reserve: USDC<br/>borrow"]
+            RC1["Reserve: ONyc<br/>collateral"]
+        end
+    end
+    subgraph OBLIGATIONS[Obligation Accounts]
+        direction TB
+        O1["Obligation<br/>user_1"]
+        O2["Obligation<br/>user_2"]
+        O3["Obligation<br/>user_n"]
+    end
+    O1 -.->|positions| RESERVES
+    O2 -.->|positions| RESERVES
+    O3 -.->|positions| RESERVES
+    OBLIGATIONS -.->|belongs to| MKT
+      </pre>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHT THEME -->
+<div class="section light-section">
+  <h2>Light Theme</h2>
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-label">Exponent Protocol</div>
+      <pre class="mermaid" id="exponent-light">
+flowchart LR
+    subgraph WRAP[Wrapping]
+        direction TB
+        BASE["Base Token<br/>e.g. ONyc"] -->|wrap| SY[SY Token]
+        SY -->|unwrap| BASE
+    end
+    subgraph STRIP[Stripping]
+        direction TB
+        SY2[SY] -->|split 1:1| PTYT["PT + YT<br/>(per maturity)"]
+        PTYT -->|merge pair| SY2
+    end
+    subgraph AMM[Yield Trading AMM]
+        direction TB
+        POOL["SY + PT<br/>Liquidity Pool"]
+        LP[LP Providers] -->|deposit| POOL
+        POOL -->|fees| LP
+    end
+    WRAP --> STRIP
+    STRIP --> AMM
+      </pre>
+    </div>
+    <div class="chart-card">
+      <div class="chart-label">Kamino Protocol</div>
+      <pre class="mermaid" id="kamino-light">
+flowchart LR
+    subgraph LEFT[ ]
+        direction TB
+        subgraph MARKET[Lending Market]
+            MKT(("Market<br/>Account"))
+        end
+        MKT -->|owns| RB1
+        MKT -->|owns| RB2
+        MKT -->|owns| RC1
+        subgraph RESERVES[Reserve Accounts]
+            RB1["Reserve: USDG<br/>borrow"]
+            RB2["Reserve: USDC<br/>borrow"]
+            RC1["Reserve: ONyc<br/>collateral"]
+        end
+    end
+    subgraph OBLIGATIONS[Obligation Accounts]
+        direction TB
+        O1["Obligation<br/>user_1"]
+        O2["Obligation<br/>user_2"]
+        O3["Obligation<br/>user_n"]
+    end
+    O1 -.->|positions| RESERVES
+    O2 -.->|positions| RESERVES
+    O3 -.->|positions| RESERVES
+    OBLIGATIONS -.->|belongs to| MKT
+      </pre>
+    </div>
+  </div>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+      darkMode: true,
+      background: '#111d33',
+      primaryColor: '#1a3a60',
+      primaryTextColor: '#c8d8f0',
+      primaryBorderColor: '#4b8fe0',
+      lineColor: '#4b8fe0',
+      secondaryColor: '#152340',
+      tertiaryColor: '#111d33',
+      clusterBkg: '#111d33',
+      clusterBorder: '#4b8fe0',
+    }
+  });
+
+  async function renderAll() {
+    // Dark charts
+    const darkIds = ['exponent-dark', 'kamino-dark'];
+    for (const id of darkIds) {
+      const el = document.getElementById(id);
+      const graphDef = el.textContent.trim();
+      const { svg } = await mermaid.render(id + '-svg', graphDef);
+      el.innerHTML = svg;
+      el.removeAttribute('data-processed');
+
+      // Apply subgraph styles for dark
+      const styleMap = id.includes('exponent')
+        ? { WRAP: 'fill:#111d33,stroke:#4b8fe0,stroke-width:2px', STRIP: 'fill:#111d33,stroke:#22d3ee,stroke-width:2px', AMM: 'fill:#111d33,stroke:#2dd4bf,stroke-width:2px' }
+        : { LEFT: 'fill:none,stroke:none', MARKET: 'fill:#152340,stroke:#4b8fe0,stroke-width:2px', RESERVES: 'fill:#111d33,stroke:#2d7a6e,stroke-width:1.5px', OBLIGATIONS: 'fill:#111d33,stroke:#7b5ea7,stroke-width:1.5px' };
+      applyClusterStyles(el, styleMap);
+    }
+
+    // Re-init for light
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#dbeaff',
+        primaryTextColor: '#1a2540',
+        primaryBorderColor: '#0a78f0',
+        lineColor: '#0a78f0',
+        clusterBkg: '#f0f6ff',
+        clusterBorder: '#0a78f0',
+      }
+    });
+
+    const lightIds = ['exponent-light', 'kamino-light'];
+    for (const id of lightIds) {
+      const el = document.getElementById(id);
+      const graphDef = el.textContent.trim();
+      const { svg } = await mermaid.render(id + '-svg', graphDef);
+      el.innerHTML = svg;
+
+      const styleMap = id.includes('exponent')
+        ? { WRAP: 'fill:#f0f6ff,stroke:#0a78f0,stroke-width:2px', STRIP: 'fill:#f0f8f6,stroke:#0891b2,stroke-width:2px', AMM: 'fill:#f0fdf8,stroke:#0d9488,stroke-width:2px' }
+        : { LEFT: 'fill:none,stroke:none', MARKET: 'fill:#eaf2ff,stroke:#0a78f0,stroke-width:2px', RESERVES: 'fill:#f2f9f7,stroke:#5aafa0,stroke-width:1.5px', OBLIGATIONS: 'fill:#f6f2fc,stroke:#9b80c4,stroke-width:1.5px' };
+      applyClusterStyles(el, styleMap);
+    }
+  }
+
+  function applyClusterStyles(container, styleMap) {
+    container.querySelectorAll('[id]').forEach(el => {
+      const idPart = el.id.replace(/^cluster_?/, '').replace(/-\d+$/, '');
+      if (styleMap[idPart]) {
+        const rect = el.querySelector('rect');
+        if (rect) rect.setAttribute('style', styleMap[idPart]);
+      }
+    });
+  }
+
+  renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+flowchart TB
+    subgraph VAULTS[Token Vaults]
+        direction LR
+        VA[Token Vault A]
+        VB[Token Vault B]
+    end
+
+    POOL(("Pool Account<br/>sqrtPrice · liquidity<br/>tickCurrentIndex"))
+
+    VA -->|held by| POOL
+    VB -->|held by| POOL
+
+    subgraph TICKS["TickArray Accounts — liquidity partitioned across N on-chain accounts"]
+        direction LR
+        TA1["TickArray<br/>ticks&#91;88&#93;<br/>low range"]
+        TA2["TickArray<br/>ticks&#91;88&#93;<br/>mid range"]
+        TA3["TickArray<br/>ticks&#91;88&#93;<br/>high range"]
+    end
+
+    POOL ==>|"partitions liquidity across"| TA2
+
+    P1["Position 1<br/>tickLower ↔ tickUpper"]
+    P2["Position 2<br/>tickLower ↔ tickUpper"]
+
+    TA1 -->|spans| P1
+    TA2 -->|spans| P1
+    TA2 -->|spans| P2
+    TA3 -->|spans| P2
+
+    P1 -.->|"owned via NFT"| U1{{"👤 User 1<br/>holds Position Mint 1"}}
+    P2 -.->|"owned via NFT"| U2{{"👤 User 2<br/>holds Position Mint 2"}}
