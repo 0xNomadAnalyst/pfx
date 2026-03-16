@@ -37,6 +37,23 @@ class BasePageService:
             self._cache[key] = (now + ttl_seconds, value)
         return value
 
+    @staticmethod
+    def _should_invert(params: dict[str, Any], protocol: str) -> bool:
+        from app.services import pipeline_config
+
+        pipeline = str(params.get("_pipeline") or pipeline_config.get_current()).lower()
+        if pipeline != "onyc":
+            return False
+        pb = str(params.get("price_basis", "default")).lower()
+        if pb == "invert-both":
+            return True
+        proto = protocol.lower()
+        if pb == "invert-orca" and proto == "orca":
+            return True
+        if pb == "invert-ray" and proto in ("raydium", "ray"):
+            return True
+        return False
+
     def get_meta(self) -> dict[str, Any]:
         return {}
 

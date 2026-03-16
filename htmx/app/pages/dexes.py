@@ -41,6 +41,7 @@ PAGE_CONFIG = PageConfig(
     show_asset_filter=True,
     default_asset="USX",
     show_pipeline_switcher=True,
+    show_price_basis_filter=True,
     widgets=[
         # ═══════════════════════════════════════════════════════
         # Section 1: LIQUIDITY METRICS (KPIs)

@@ -95,6 +95,40 @@ SELECT
     CAST(AVG(c_sell_t0_for_impact_bps_3) AS NUMERIC) AS sell_t0_for_impact3_avg,
     
     -- =====================================================================
+    -- IMPACT FROM SELLING TOKEN1 (Price Impact in BPS, SIGNED)
+    -- =====================================================================
+    -- Returns POSITIVE BPS (price t1/t0 increases when selling t1)
+    -- Aggregated as MIN, MAX, AVG over the 5-second interval
+    
+    CAST(MIN(c_impact_from_sell_t1_1) AS NUMERIC) AS impact_from_t1_sell1_min,
+    CAST(MAX(c_impact_from_sell_t1_1) AS NUMERIC) AS impact_from_t1_sell1_max,
+    CAST(AVG(c_impact_from_sell_t1_1) AS NUMERIC) AS impact_from_t1_sell1_avg,
+    
+    CAST(MIN(c_impact_from_sell_t1_2) AS NUMERIC) AS impact_from_t1_sell2_min,
+    CAST(MAX(c_impact_from_sell_t1_2) AS NUMERIC) AS impact_from_t1_sell2_max,
+    CAST(AVG(c_impact_from_sell_t1_2) AS NUMERIC) AS impact_from_t1_sell2_avg,
+    
+    CAST(MIN(c_impact_from_sell_t1_3) AS NUMERIC) AS impact_from_t1_sell3_min,
+    CAST(MAX(c_impact_from_sell_t1_3) AS NUMERIC) AS impact_from_t1_sell3_max,
+    CAST(AVG(c_impact_from_sell_t1_3) AS NUMERIC) AS impact_from_t1_sell3_avg,
+    
+    -- =====================================================================
+    -- QUANTITY NEEDED FOR TARGET BPS IMPACT (Selling Token1)
+    -- =====================================================================
+    
+    CAST(MIN(c_sell_t1_for_impact_bps_1) AS NUMERIC) AS sell_t1_for_impact1_min,
+    CAST(MAX(c_sell_t1_for_impact_bps_1) AS NUMERIC) AS sell_t1_for_impact1_max,
+    CAST(AVG(c_sell_t1_for_impact_bps_1) AS NUMERIC) AS sell_t1_for_impact1_avg,
+    
+    CAST(MIN(c_sell_t1_for_impact_bps_2) AS NUMERIC) AS sell_t1_for_impact2_min,
+    CAST(MAX(c_sell_t1_for_impact_bps_2) AS NUMERIC) AS sell_t1_for_impact2_max,
+    CAST(AVG(c_sell_t1_for_impact_bps_2) AS NUMERIC) AS sell_t1_for_impact2_avg,
+    
+    CAST(MIN(c_sell_t1_for_impact_bps_3) AS NUMERIC) AS sell_t1_for_impact3_min,
+    CAST(MAX(c_sell_t1_for_impact_bps_3) AS NUMERIC) AS sell_t1_for_impact3_max,
+    CAST(AVG(c_sell_t1_for_impact_bps_3) AS NUMERIC) AS sell_t1_for_impact3_avg,
+    
+    -- =====================================================================
     -- LIQUIDITY CONCENTRATION METRICS (% of total liquidity)
     -- =====================================================================
     -- Uses pre-calculated concentration metrics from source table

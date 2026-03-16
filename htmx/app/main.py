@@ -27,6 +27,9 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8001")
 BROWSER_API_BASE_URL = os.getenv("BROWSER_API_BASE_URL", "")
 APP_TITLE = "Solana DeFi Ecosystem Dashboard"
 ENABLE_PIPELINE_SWITCHER = os.getenv("ENABLE_PIPELINE_SWITCHER", "0") == "1"
+SHOW_PRICE_BASIS = os.getenv("SHOW_PRICE_BASIS", "1") == "1"
+DEFAULT_PRICE_BASIS = os.getenv("DEFAULT_PRICE_BASIS", "default")
+SHOW_ASSET_FILTER = os.getenv("SHOW_ASSET_FILTER", "1") == "1"
 HEALTH_PROXY_TIMEOUT_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_TIMEOUT_SECONDS", "3"))
 HEALTH_PROXY_TTL_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_CACHE_TTL_SECONDS", "5"))
 _health_proxy_lock = threading.Lock()
@@ -36,22 +39,31 @@ _health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 # Each entry: (PAGE_* env var, python module path, default "1"=on / "0"=off)
 # When a page is OFF its module is never imported — zero resources allocated.
 _PAGE_MODULES: list[tuple[str, str, str]] = [
-    ("PAGE_RISK_ANALYSIS",    "app.pages.risk_analysis",          "1"),
-    ("PAGE_GLOBAL_ECOSYSTEM", "app.pages.global_solstice_version", "0"),
-    ("PAGE_DEX_LIQUIDITY",    "app.pages.dex_liquidity",          "0"),
-    ("PAGE_DEX_SWAPS",        "app.pages.dex_swaps",              "0"),
-    ("PAGE_DEXES",            "app.pages.dexes",                  "1"),
-    ("PAGE_KAMINO",           "app.pages.kamino",                 "1"),
-    ("PAGE_EXPONENT_YIELD",   "app.pages.exponent",               "1"),
-    ("PAGE_SYSTEM_HEALTH",    "app.pages.health",                 "1"),
+    ("PAGE_COVER",            "app.pages.cover",                   "0"),
+    ("PAGE_RISK_ANALYSIS",    "app.pages.risk_analysis",           "1"),
+    ("PAGE_GLOBAL_ECOSYSTEM", "app.pages.global_ecosystem",        "1"),
+    ("PAGE_GLOBAL_SOLSTICE",  "app.pages.global_solstice_version", "0"),
+    ("PAGE_DEX_LIQUIDITY",    "app.pages.dex_liquidity",           "0"),
+    ("PAGE_DEX_SWAPS",        "app.pages.dex_swaps",               "0"),
+    ("PAGE_DEXES",            "app.pages.dexes",                   "1"),
+    ("PAGE_KAMINO",           "app.pages.kamino",                  "1"),
+    ("PAGE_EXPONENT_YIELD",   "app.pages.exponent",                "1"),
+    ("PAGE_SYSTEM_HEALTH",    "app.pages.health",                  "1"),
 ]
 
-COVER_PAGE = PageConfig(slug="cover", label="Cover", api_page_id="cover", widgets=[])
-PAGES: list[PageConfig] = [COVER_PAGE]
+PAGES: list[PageConfig] = []
 
 for _env_key, _mod_path, _default in _PAGE_MODULES:
     if os.getenv(_env_key, _default) == "1":
-        _mod = importlib.import_module(_mod_path)
+        try:
+            _mod = importlib.import_module(_mod_path)
+        except ModuleNotFoundError as exc:
+            # Allow optional pages to be toggled on in env without hard-failing
+            # startup when their module file is not present in this checkout.
+            if exc.name == _mod_path:
+                print(f"[WARN] Skipping missing page module: {_mod_path}")
+                continue
+            raise
         PAGES.append(_mod.PAGE_CONFIG)
 
 PAGES_BY_SLUG: dict[str, PageConfig] = {page.slug: page for page in PAGES}
@@ -82,7 +94,7 @@ def favicon():
 
 @app.get("/", include_in_schema=False)
 def home() -> RedirectResponse:
-    return RedirectResponse(url=f"/{COVER_PAGE.slug}")
+    return RedirectResponse(url=f"/{PAGES[0].slug}")
 
 
 if "dex-liquidity" in PAGES_BY_SLUG:
@@ -172,7 +184,7 @@ def render_page(request: Request, page: PageConfig):
             "widgets": widget_bindings,
             "page_actions": page_action_bindings,
             "show_protocol_pair_filters": page.show_protocol_pair_filters,
-            "show_asset_filter": page.show_asset_filter,
+            "show_asset_filter": page.show_asset_filter and SHOW_ASSET_FILTER,
             "show_market_selectors": page.show_market_selectors,
             "api_page_id": page.api_page_id,
             "protocol": protocol,
@@ -182,34 +194,10 @@ def render_page(request: Request, page: PageConfig):
             "api_base_url": BROWSER_API_BASE_URL,
             "show_pipeline_switcher": show_pipeline,
             "pipeline_info": pipeline_info,
-        },
-    )
-
-
-@app.get("/cover")
-def cover(request: Request):
-    page = PAGES_BY_SLUG["cover"]
-    page_options = [{"slug": cfg.slug, "label": cfg.label, "path": f"/{cfg.slug}"} for cfg in PAGES]
-    return templates.TemplateResponse(
-        request=request,
-        name="base.html",
-        context={
-            "app_title": APP_TITLE,
-            "page_title": page.label,
-            "page_options": page_options,
-            "current_page_slug": page.slug,
-            "widgets": [],
-            "page_actions": [],
-            "show_protocol_pair_filters": False,
-            "show_market_selectors": False,
-            "api_page_id": page.api_page_id,
-            "protocol": "",
-            "pair": "",
-            "last_window": "7d",
-            "api_base_url": BROWSER_API_BASE_URL,
-            "show_pipeline_switcher": False,
-            "pipeline_info": None,
-            "content_template": "partials/cover.html",
+            "render_price_basis_select": page.show_price_basis_filter,
+            "show_price_basis_filter": page.show_price_basis_filter and SHOW_PRICE_BASIS,
+            "default_price_basis": DEFAULT_PRICE_BASIS,
+            "content_template": page.content_template or "",
         },
     )
 
@@ -222,8 +210,6 @@ def _make_page_handler(slug: str):
 
 
 for _page in PAGES:
-    if _page.slug == "cover":
-        continue
     app.get(f"/{_page.slug}")(_make_page_handler(_page.slug))
 
 

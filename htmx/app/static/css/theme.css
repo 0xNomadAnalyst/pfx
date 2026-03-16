@@ -538,6 +538,34 @@ th .info-tip-icon {
   grid-column: 1 / 14;
 }
 
+/* Fixed header height for KPI cards so values align when titles wrap */
+.page-dexes .panel-kpi {
+  container-type: inline-size;
+  display: grid;
+  grid-template-rows: 46px 1fr;
+}
+.page-dexes .panel-kpi .panel-header {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page-dexes .panel-kpi .kpi-primary {
+  font-size: clamp(16px, 12cqi, 28px);
+  overflow-wrap: break-word;
+}
+
+.page-dexes .panel-kpi .kpi-secondary {
+  font-size: clamp(9px, 5cqi, 11px);
+}
+
+.page-dexes .panel-kpi .panel-header h3 {
+  font-size: clamp(10px, 5.5cqi, 13px);
+}
+
+.page-dexes .panel-kpi .panel-updated {
+  font-size: clamp(9px, 4.5cqi, 11px);
+}
+
 /* Dynamic text scaling for KPI cards */
 .page-kamino .panel-kpi {
   container-type: inline-size;

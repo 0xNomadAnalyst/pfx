@@ -19,13 +19,15 @@
 -- Uses cagg_events_5s for efficient aggregation (following approach from get_ranked_net_sell_pressure)
 -- =====================================================
 
+DROP FUNCTION IF EXISTS dexes.get_view_sell_pressure_t0_distribution(TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT);
 CREATE OR REPLACE FUNCTION dexes.get_view_sell_pressure_t0_distribution(
     p_protocol TEXT,                    -- Protocol filter (e.g., 'raydium_clmm', 'orca_whirlpool')
     p_token_pair TEXT,                  -- Token pair filter (e.g., 'USX-USDC', 'eUSX-USX')
     p_pressure_interval TEXT DEFAULT '5 minutes', -- Interval for measuring net sell pressure (e.g., '5 minutes', '1 hour', '30 minutes')
     p_lookback TEXT DEFAULT '7 days',   -- Lookback period (e.g., '1 day', '7 days', '30 days')
     p_buckets INTEGER DEFAULT 50,       -- Number of buckets for distribution (1-1000)
-    p_pressure_filter TEXT DEFAULT NULL -- Filter by pressure direction: 'buy_only' (negative values), 'sell_only' (positive values), or NULL (both)
+    p_pressure_filter TEXT DEFAULT NULL, -- Filter by pressure direction: 'buy_only' (negative values), 'sell_only' (positive values), or NULL (both)
+    p_invert BOOLEAN DEFAULT FALSE      -- When TRUE, negate BPS impact values (inverted price basis)
 )
 RETURNS TABLE (
     -- Distribution buckets
@@ -389,9 +391,9 @@ BEGIN
         dwi.interval_count,
         ROUND(dwi.cumulative_share::NUMERIC, 4)::DOUBLE PRECISION AS cumulative_share,
         ROUND(dwi.cumulative_percentile::NUMERIC, 2)::DOUBLE PRECISION AS cumulative_percentile,
-        ROUND(dwi.price_impact_bps::NUMERIC, 4)::DOUBLE PRECISION AS price_impact_bps,
+        ROUND((CASE WHEN p_invert THEN -1 * dwi.price_impact_bps ELSE dwi.price_impact_bps END)::NUMERIC, 4)::DOUBLE PRECISION AS price_impact_bps,
         ROUND(ABS(dwi.price_impact_bps)::NUMERIC, 4)::DOUBLE PRECISION AS price_impact_bps_abs,
-        ROUND((dwi.price_impact_bps * -1)::NUMERIC, 4)::DOUBLE PRECISION AS price_impact_bps_inv,
+        ROUND((CASE WHEN p_invert THEN dwi.price_impact_bps ELSE -1 * dwi.price_impact_bps END)::NUMERIC, 4)::DOUBLE PRECISION AS price_impact_bps_inv,
         ROUND(dwi.p10::NUMERIC, 2)::DOUBLE PRECISION AS percentile_10,
         ROUND(dwi.p25::NUMERIC, 2)::DOUBLE PRECISION AS percentile_25,
         ROUND(dwi.p50::NUMERIC, 2)::DOUBLE PRECISION AS percentile_50,
@@ -417,7 +419,7 @@ $$;
 -- Function Comments
 -- =====================================================
 
-COMMENT ON FUNCTION dexes.get_view_sell_pressure_t0_distribution(TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT) IS
+COMMENT ON FUNCTION dexes.get_view_sell_pressure_t0_distribution(TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, BOOLEAN) IS
 'Returns density distribution of net sell t0 pressure measured over configurable time intervals.
 Aggregates swap data into time buckets (e.g., 5-minute intervals), calculates net sell t0 pressure
 for each bucket, then creates a histogram distribution of those pressure values.

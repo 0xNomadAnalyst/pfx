@@ -12,10 +12,12 @@
 -- - Historical src_acct_tickarray_tokendist is only used when p_delta_time is provided.
 -- =====================================================
 
+DROP FUNCTION IF EXISTS dexes.get_view_tick_dist_simple(TEXT, TEXT, INTERVAL);
 CREATE OR REPLACE FUNCTION dexes.get_view_tick_dist_simple(
     p_protocol TEXT DEFAULT NULL,      -- Optional protocol filter; NULL = no protocol filter
     p_pair TEXT DEFAULT NULL,          -- Optional token-pair filter; NULL = no pair filter
-    p_delta_time INTERVAL DEFAULT NULL -- Optional lookback interval for delta calculations
+    p_delta_time INTERVAL DEFAULT NULL, -- Optional lookback interval for delta calculations
+    p_invert BOOLEAN DEFAULT FALSE     -- When TRUE, swap t0↔t1 perspective in output
 )
 RETURNS TABLE (
     pool_address TEXT,
@@ -154,25 +156,45 @@ BEGIN
             cr.block_time,
             cr.current_tick,
             cr.current_tick_float,
-            cr.current_price_t1_per_t0,
-            cr.current_price_t0_per_t1,
+            -- Prices: swap t1_per_t0 ↔ t0_per_t1 when inverted
+            CASE WHEN p_invert THEN cr.current_price_t0_per_t1 ELSE cr.current_price_t1_per_t0 END,
+            CASE WHEN p_invert THEN cr.current_price_t1_per_t0 ELSE cr.current_price_t0_per_t1 END,
             cr.tick_lower,
-            cr.tick_price_t1_per_t0,
-            ROUND((1 / NULLIF(cr.tick_price_t1_per_t0, 0))::NUMERIC, 6) AS tick_price_t0_per_t1,
+            CASE WHEN p_invert
+                 THEN ROUND((1 / NULLIF(cr.tick_price_t1_per_t0, 0))::NUMERIC, 6)
+                 ELSE cr.tick_price_t1_per_t0 END,
+            CASE WHEN p_invert
+                 THEN cr.tick_price_t1_per_t0
+                 ELSE ROUND((1 / NULLIF(cr.tick_price_t1_per_t0, 0))::NUMERIC, 6) END,
             (cr.peg_tick - cr.tick_lower) AS tick_delta_to_peg,
-            ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.peg_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) AS tick_delta_to_peg_price_t1_per_t0_bps,
-            ROUND((((cr.peg_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) AS tick_delta_to_peg_price_t0_per_t1_bps,
+            -- BPS deltas: swap t1_per_t0 ↔ t0_per_t1 when inverted
+            CASE WHEN p_invert
+                 THEN ROUND((((cr.peg_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6)
+                 ELSE ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.peg_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) END,
+            CASE WHEN p_invert
+                 THEN ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.peg_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6)
+                 ELSE ROUND((((cr.peg_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) END,
             (cr.current_tick - cr.tick_lower) AS tick_delta_to_current,
-            ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.current_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) AS tick_delta_to_current_price_t1_per_t0_bps,
-            ROUND((((cr.current_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) AS tick_delta_to_current_price_t0_per_t1_bps,
-            cr.token0_value,
-            cr.token1_value,
-            cr.token0_cumul,
-            cr.token1_cumul,
+            CASE WHEN p_invert
+                 THEN ROUND((((cr.current_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6)
+                 ELSE ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.current_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) END,
+            CASE WHEN p_invert
+                 THEN ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.current_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6)
+                 ELSE ROUND((((cr.current_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) END,
+            -- Token values: swap t0↔t1 when inverted
+            CASE WHEN p_invert THEN cr.token1_value ELSE cr.token0_value END,
+            CASE WHEN p_invert THEN cr.token0_value ELSE cr.token1_value END,
+            CASE WHEN p_invert THEN cr.token1_cumul ELSE cr.token0_cumul END,
+            CASE WHEN p_invert THEN cr.token0_cumul ELSE cr.token1_cumul END,
             NULL::DOUBLE PRECISION AS token0_value_delta,
             NULL::DOUBLE PRECISION AS token1_value_delta,
-            ROUND((cr.token0_cumul / NULLIF(vr.token_0_value, 0) * 100)::NUMERIC, 2) AS token0_cumul_pct_reserve,
-            ROUND((cr.token1_cumul / NULLIF(vr.token_1_value, 0) * 100)::NUMERIC, 2) AS token1_cumul_pct_reserve,
+            -- Cumul pct reserve: swap when inverted
+            CASE WHEN p_invert
+                 THEN ROUND((cr.token1_cumul / NULLIF(vr.token_1_value, 0) * 100)::NUMERIC, 2)
+                 ELSE ROUND((cr.token0_cumul / NULLIF(vr.token_0_value, 0) * 100)::NUMERIC, 2) END,
+            CASE WHEN p_invert
+                 THEN ROUND((cr.token0_cumul / NULLIF(vr.token_0_value, 0) * 100)::NUMERIC, 2)
+                 ELSE ROUND((cr.token1_cumul / NULLIF(vr.token_1_value, 0) * 100)::NUMERIC, 2) END,
             NULL::DOUBLE PRECISION AS liquidity_period_delta_in_t1_units,
             NULL::NUMERIC(10,2) AS liquidity_period_delta_in_t1_units_pct,
             NULL::DOUBLE PRECISION AS liquidity_period_delta_net_reallocation_in_t1_units,
@@ -359,100 +381,200 @@ BEGIN
         cr.block_time,
         cr.current_tick,
         cr.current_tick_float,
-        cr.current_price_t1_per_t0,
-        cr.current_price_t0_per_t1,
+        -- Prices: swap t1_per_t0 ↔ t0_per_t1 when inverted
+        CASE WHEN p_invert THEN cr.current_price_t0_per_t1 ELSE cr.current_price_t1_per_t0 END,
+        CASE WHEN p_invert THEN cr.current_price_t1_per_t0 ELSE cr.current_price_t0_per_t1 END,
         cr.tick_lower,
-        cr.tick_price_t1_per_t0,
-        ROUND((1 / NULLIF(cr.tick_price_t1_per_t0, 0))::NUMERIC, 6) AS tick_price_t0_per_t1,
+        CASE WHEN p_invert
+             THEN ROUND((1 / NULLIF(cr.tick_price_t1_per_t0, 0))::NUMERIC, 6)
+             ELSE cr.tick_price_t1_per_t0 END,
+        CASE WHEN p_invert
+             THEN cr.tick_price_t1_per_t0
+             ELSE ROUND((1 / NULLIF(cr.tick_price_t1_per_t0, 0))::NUMERIC, 6) END,
         (cr.peg_tick - cr.tick_lower) AS tick_delta_to_peg,
-        ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.peg_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) AS tick_delta_to_peg_price_t1_per_t0_bps,
-        ROUND((((cr.peg_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) AS tick_delta_to_peg_price_t0_per_t1_bps,
+        -- BPS deltas: swap t1_per_t0 ↔ t0_per_t1 when inverted
+        CASE WHEN p_invert
+             THEN ROUND((((cr.peg_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6)
+             ELSE ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.peg_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) END,
+        CASE WHEN p_invert
+             THEN ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.peg_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6)
+             ELSE ROUND((((cr.peg_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) END,
         (cr.current_tick - cr.tick_lower) AS tick_delta_to_current,
-        ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.current_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) AS tick_delta_to_current_price_t1_per_t0_bps,
-        ROUND((((cr.current_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) AS tick_delta_to_current_price_t0_per_t1_bps,
-        cr.token0_value,
-        cr.token1_value,
-        cr.token0_cumul,
-        cr.token1_cumul,
+        CASE WHEN p_invert
+             THEN ROUND((((cr.current_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6)
+             ELSE ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.current_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) END,
+        CASE WHEN p_invert
+             THEN ROUND((((cr.tick_price_t1_per_t0 / NULLIF(cr.current_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6)
+             ELSE ROUND((((cr.current_price_t1_per_t0 / NULLIF(cr.tick_price_t1_per_t0, 0)) - 1) * 10000)::NUMERIC, 6) END,
+        -- Token values: swap t0↔t1 when inverted
+        CASE WHEN p_invert THEN cr.token1_value ELSE cr.token0_value END,
+        CASE WHEN p_invert THEN cr.token0_value ELSE cr.token1_value END,
+        CASE WHEN p_invert THEN cr.token1_cumul ELSE cr.token0_cumul END,
+        CASE WHEN p_invert THEN cr.token0_cumul ELSE cr.token1_cumul END,
+        -- Token value deltas: swap when inverted
         CASE
-            WHEN cr.prior_query_id IS NOT NULL THEN cr.token0_value - COALESCE(pr.token0_value, 0)
+            WHEN cr.prior_query_id IS NOT NULL THEN
+                CASE WHEN p_invert THEN cr.token1_value - COALESCE(pr.token1_value, 0)
+                     ELSE cr.token0_value - COALESCE(pr.token0_value, 0) END
             ELSE NULL
         END AS token0_value_delta,
         CASE
-            WHEN cr.prior_query_id IS NOT NULL THEN cr.token1_value - COALESCE(pr.token1_value, 0)
+            WHEN cr.prior_query_id IS NOT NULL THEN
+                CASE WHEN p_invert THEN cr.token0_value - COALESCE(pr.token0_value, 0)
+                     ELSE cr.token1_value - COALESCE(pr.token1_value, 0) END
             ELSE NULL
         END AS token1_value_delta,
-        ROUND((cr.token0_cumul / NULLIF(vr.token_0_value, 0) * 100)::NUMERIC, 2) AS token0_cumul_pct_reserve,
-        ROUND((cr.token1_cumul / NULLIF(vr.token_1_value, 0) * 100)::NUMERIC, 2) AS token1_cumul_pct_reserve,
-        CASE
-            WHEN cr.prior_query_id IS NOT NULL AND cr.prior_price_t1_per_t0 IS NOT NULL THEN
-                ((
-                    (ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.current_price_t1_per_t0, 6))
-                    + ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0)
-                ) - (
-                    (ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.prior_price_t1_per_t0, 6))
-                    + ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0)
-                ))::DOUBLE PRECISION
-            ELSE NULL
+        -- Cumul pct reserve: swap when inverted
+        CASE WHEN p_invert
+             THEN ROUND((cr.token1_cumul / NULLIF(vr.token_1_value, 0) * 100)::NUMERIC, 2)
+             ELSE ROUND((cr.token0_cumul / NULLIF(vr.token_0_value, 0) * 100)::NUMERIC, 2) END,
+        CASE WHEN p_invert
+             THEN ROUND((cr.token0_cumul / NULLIF(vr.token_0_value, 0) * 100)::NUMERIC, 2)
+             ELSE ROUND((cr.token1_cumul / NULLIF(vr.token_1_value, 0) * 100)::NUMERIC, 2) END,
+        -- Liquidity period delta: swap t1↔t0 units when inverted
+        CASE WHEN p_invert THEN
+            CASE
+                WHEN cr.prior_query_id IS NOT NULL AND cr.prior_price_t1_per_t0 IS NOT NULL THEN
+                    ((
+                        ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0)
+                        + (ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.current_price_t1_per_t0, 6), 0))
+                    ) - (
+                        ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0)
+                        + (ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.prior_price_t1_per_t0, 6), 0))
+                    ))::DOUBLE PRECISION
+                ELSE NULL
+            END
+        ELSE
+            CASE
+                WHEN cr.prior_query_id IS NOT NULL AND cr.prior_price_t1_per_t0 IS NOT NULL THEN
+                    ((
+                        (ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.current_price_t1_per_t0, 6))
+                        + ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0)
+                    ) - (
+                        (ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.prior_price_t1_per_t0, 6))
+                        + ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0)
+                    ))::DOUBLE PRECISION
+                ELSE NULL
+            END
         END AS liquidity_period_delta_in_t1_units,
-        CASE
-            WHEN cr.prior_query_id IS NOT NULL
-                AND cr.prior_price_t1_per_t0 IS NOT NULL
-                AND tlc.total_abs_change_t1 > 0 THEN
-                ROUND(
-                    (
-                        ((
-                            (ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.current_price_t1_per_t0, 6))
-                            + ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0)
-                        ) - (
-                            (ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.prior_price_t1_per_t0, 6))
-                            + ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0)
-                        ))
-                        / NULLIF(tlc.total_abs_change_t1, 0)
-                        * 100
-                    )::NUMERIC,
-                    2
-                )
-            ELSE NULL
+        CASE WHEN p_invert THEN
+            CASE
+                WHEN cr.prior_query_id IS NOT NULL
+                    AND cr.prior_price_t1_per_t0 IS NOT NULL
+                    AND tlc.total_abs_change_t0 > 0 THEN
+                    ROUND(
+                        (
+                            ((
+                                ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0)
+                                + (ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.current_price_t1_per_t0, 6), 0))
+                            ) - (
+                                ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0)
+                                + (ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.prior_price_t1_per_t0, 6), 0))
+                            ))
+                            / NULLIF(tlc.total_abs_change_t0, 0)
+                            * 100
+                        )::NUMERIC,
+                        2
+                    )
+                ELSE NULL
+            END
+        ELSE
+            CASE
+                WHEN cr.prior_query_id IS NOT NULL
+                    AND cr.prior_price_t1_per_t0 IS NOT NULL
+                    AND tlc.total_abs_change_t1 > 0 THEN
+                    ROUND(
+                        (
+                            ((
+                                (ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.current_price_t1_per_t0, 6))
+                                + ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0)
+                            ) - (
+                                (ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.prior_price_t1_per_t0, 6))
+                                + ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0)
+                            ))
+                            / NULLIF(tlc.total_abs_change_t1, 0)
+                            * 100
+                        )::NUMERIC,
+                        2
+                    )
+                ELSE NULL
+            END
         END AS liquidity_period_delta_in_t1_units_pct,
-        CASE
-            WHEN cr.prior_query_id IS NOT NULL THEN ROUND(tlc.total_abs_change_t1::NUMERIC, 0)::DOUBLE PRECISION
-            ELSE NULL
+        CASE WHEN p_invert
+             THEN CASE WHEN cr.prior_query_id IS NOT NULL THEN ROUND(tlc.total_abs_change_t0::NUMERIC, 0)::DOUBLE PRECISION ELSE NULL END
+             ELSE CASE WHEN cr.prior_query_id IS NOT NULL THEN ROUND(tlc.total_abs_change_t1::NUMERIC, 0)::DOUBLE PRECISION ELSE NULL END
         END AS liquidity_period_delta_net_reallocation_in_t1_units,
-        CASE
-            WHEN cr.prior_query_id IS NOT NULL AND cr.prior_price_t1_per_t0 IS NOT NULL THEN
-                ((
-                    ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0)
-                    + (ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.current_price_t1_per_t0, 6), 0))
-                ) - (
-                    ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0)
-                    + (ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.prior_price_t1_per_t0, 6), 0))
-                ))::DOUBLE PRECISION
-            ELSE NULL
+        CASE WHEN p_invert THEN
+            CASE
+                WHEN cr.prior_query_id IS NOT NULL AND cr.prior_price_t1_per_t0 IS NOT NULL THEN
+                    ((
+                        (ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.current_price_t1_per_t0, 6))
+                        + ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0)
+                    ) - (
+                        (ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.prior_price_t1_per_t0, 6))
+                        + ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0)
+                    ))::DOUBLE PRECISION
+                ELSE NULL
+            END
+        ELSE
+            CASE
+                WHEN cr.prior_query_id IS NOT NULL AND cr.prior_price_t1_per_t0 IS NOT NULL THEN
+                    ((
+                        ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0)
+                        + (ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.current_price_t1_per_t0, 6), 0))
+                    ) - (
+                        ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0)
+                        + (ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.prior_price_t1_per_t0, 6), 0))
+                    ))::DOUBLE PRECISION
+                ELSE NULL
+            END
         END AS liquidity_period_delta_in_t0_units,
-        CASE
-            WHEN cr.prior_query_id IS NOT NULL
-                AND cr.prior_price_t1_per_t0 IS NOT NULL
-                AND tlc.total_abs_change_t0 > 0 THEN
-                ROUND(
-                    (
-                        ((
-                            ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0)
-                            + (ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.current_price_t1_per_t0, 6), 0))
-                        ) - (
-                            ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0)
-                            + (ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.prior_price_t1_per_t0, 6), 0))
-                        ))
-                        / NULLIF(tlc.total_abs_change_t0, 0)
-                        * 100
-                    )::NUMERIC,
-                    2
-                )
-            ELSE NULL
+        CASE WHEN p_invert THEN
+            CASE
+                WHEN cr.prior_query_id IS NOT NULL
+                    AND cr.prior_price_t1_per_t0 IS NOT NULL
+                    AND tlc.total_abs_change_t1 > 0 THEN
+                    ROUND(
+                        (
+                            ((
+                                (ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.current_price_t1_per_t0, 6))
+                                + ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0)
+                            ) - (
+                                (ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0) * ROUND(cr.prior_price_t1_per_t0, 6))
+                                + ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0)
+                            ))
+                            / NULLIF(tlc.total_abs_change_t1, 0)
+                            * 100
+                        )::NUMERIC,
+                        2
+                    )
+                ELSE NULL
+            END
+        ELSE
+            CASE
+                WHEN cr.prior_query_id IS NOT NULL
+                    AND cr.prior_price_t1_per_t0 IS NOT NULL
+                    AND tlc.total_abs_change_t0 > 0 THEN
+                    ROUND(
+                        (
+                            ((
+                                ROUND(COALESCE(cr.token0_value, 0)::NUMERIC, 0)
+                                + (ROUND(COALESCE(cr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.current_price_t1_per_t0, 6), 0))
+                            ) - (
+                                ROUND(COALESCE(pr.token0_value, 0)::NUMERIC, 0)
+                                + (ROUND(COALESCE(pr.token1_value, 0)::NUMERIC, 0) / NULLIF(ROUND(cr.prior_price_t1_per_t0, 6), 0))
+                            ))
+                            / NULLIF(tlc.total_abs_change_t0, 0)
+                            * 100
+                        )::NUMERIC,
+                        2
+                    )
+                ELSE NULL
+            END
         END AS liquidity_period_delta_in_t0_units_pct,
-        CASE
-            WHEN cr.prior_query_id IS NOT NULL THEN ROUND(tlc.total_abs_change_t0::NUMERIC, 0)::DOUBLE PRECISION
-            ELSE NULL
+        CASE WHEN p_invert
+             THEN CASE WHEN cr.prior_query_id IS NOT NULL THEN ROUND(tlc.total_abs_change_t1::NUMERIC, 0)::DOUBLE PRECISION ELSE NULL END
+             ELSE CASE WHEN cr.prior_query_id IS NOT NULL THEN ROUND(tlc.total_abs_change_t0::NUMERIC, 0)::DOUBLE PRECISION ELSE NULL END
         END AS liquidity_period_delta_net_reallocation_in_t0_units
     FROM current_rows cr
     LEFT JOIN prior_rows pr
@@ -473,6 +595,13 @@ COMMENT ON FUNCTION dexes.get_view_tick_dist_simple IS
 This version was developed to remove deprecated frontend-oriented parameters,
 avoid persisting React frontend dependencies, and improve compatibility with
 other dashboarding platforms.
+
+When p_invert = TRUE, the output swaps t0↔t1 perspectives:
+  - Prices: current_price_t1_per_t0 ↔ current_price_t0_per_t1
+  - Tick prices: tick_price_t1_per_t0 ↔ tick_price_t0_per_t1
+  - BPS deltas: t1_per_t0_bps ↔ t0_per_t1_bps
+  - Token values: token0_value ↔ token1_value, token0_cumul ↔ token1_cumul
+  - Liquidity deltas: t1_units ↔ t0_units
 
 Current-state and filtering behavior:
   - Uses src_acct_tickarray_tokendist_latest for current liquidity distribution.
@@ -495,3 +624,4 @@ Additional output fields for dashboard filtering:
 -- SELECT * FROM dexes.get_view_tick_dist_simple(NULL, NULL, NULL);
 -- SELECT * FROM dexes.get_view_tick_dist_simple('raydium_clmm', NULL, NULL);
 -- SELECT * FROM dexes.get_view_tick_dist_simple('raydium_clmm', 'USX-USDC', '5 minutes');
+-- SELECT * FROM dexes.get_view_tick_dist_simple('raydium_clmm', 'USX-USDC', '5 minutes', TRUE);

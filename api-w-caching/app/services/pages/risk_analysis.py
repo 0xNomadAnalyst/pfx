@@ -93,6 +93,12 @@ class RiskAnalysisPageService(BasePageService):
     def _token_color(self, symbol: str) -> str:
         return self._COLOR_ONYC if symbol.upper() == "ONYC" else self._COLOR_COUNTER
 
+    def _display_token0(self, protocol: str, inverted: bool) -> str:
+        return self._token1(protocol) if inverted else self._token0(protocol)
+
+    def _display_token1(self, protocol: str, inverted: bool) -> str:
+        return self._token0(protocol) if inverted else self._token1(protocol)
+
     # ------------------------------------------------------------------
     # Shared data loaders
     # ------------------------------------------------------------------
@@ -113,11 +119,17 @@ class RiskAnalysisPageService(BasePageService):
 
         return self._cached(cache_key, _load, ttl_seconds=self._PVALUE_TTL_SECONDS)
 
-    def _tick_dist_rows(self, protocol: str) -> list[dict[str, Any]]:
-        cache_key = f"ra::tick_dist::{protocol}"
+    def _tick_dist_rows(self, protocol: str, p_invert: bool = False) -> list[dict[str, Any]]:
+        cache_key = f"ra::tick_dist::{protocol}::{p_invert}"
 
         def _load() -> list[dict[str, Any]]:
             try:
+                if p_invert:
+                    return self.sql.fetch_rows(
+                        "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval, %s) "
+                        "ORDER BY tick_price_t1_per_t0",
+                        (protocol, self._pair(protocol), "1 hour", True),
+                    )
                 return self.sql.fetch_rows(
                     "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval) "
                     "ORDER BY tick_price_t1_per_t0",
@@ -331,13 +343,16 @@ class RiskAnalysisPageService(BasePageService):
 
     def _map_sell_amount_to_price(
         self, tick_rows: list[dict[str, Any]], sell_amount: float,
-        protocol: str | None = None,
+        protocol: str | None = None, inverted: bool = False,
     ) -> tuple[float | None, bool]:
         """Walk ticks away from the current price in the direction that a sell
         of the non-stablecoin token pushes the market.
 
         * ONyc is token0 (Orca): selling pushes price DOWN  -> walk LEFT
         * ONyc is token1 (Raydium): selling pushes price UP -> walk RIGHT
+
+        When *inverted* the SQL has swapped token0/token1 in the output, so
+        the walk direction must flip.
 
         On the impact side the dominant physical token is token1 (RIGHT) or
         token0 (LEFT); we convert to sell-token units for a fair comparison.
@@ -350,6 +365,8 @@ class RiskAnalysisPageService(BasePageService):
             return None, False
 
         sell_t1 = self._sell_is_token1(protocol)
+        if inverted:
+            sell_t1 = not sell_t1
 
         impact_ticks: list[tuple[float, float]] = []
         for r in tick_rows:
@@ -385,7 +402,7 @@ class RiskAnalysisPageService(BasePageService):
 
     def _pvalue_mark_lines(
         self, tick_rows: list[dict[str, Any]], pvalue_rows: list[dict[str, Any]],
-        protocol: str | None = None,
+        protocol: str | None = None, inverted: bool = False,
     ) -> list[dict[str, Any]]:
         lines: list[dict[str, Any]] = []
         colors = ["#e24c4c", "#f8a94a", "#c9a032", "#ae82ff", "#4bb7ff", "#2fbf71", "#5c8a8a", "#888", "#aaa"]
@@ -394,7 +411,7 @@ class RiskAnalysisPageService(BasePageService):
             value = self._ff(row.get("value"))
             if value <= 0:
                 continue
-            price, _ = self._map_sell_amount_to_price(tick_rows, value, protocol)
+            price, _ = self._map_sell_amount_to_price(tick_rows, value, protocol, inverted)
             if price is None:
                 continue
             lines.append({
@@ -446,29 +463,33 @@ class RiskAnalysisPageService(BasePageService):
         }
 
     def _ra_liq_dist(self, params: dict[str, Any], protocol: str) -> dict[str, Any]:
-        tick_rows = self._tick_dist_rows(protocol)
+        inverted = self._should_invert(params, protocol)
+        tick_rows = self._tick_dist_rows(protocol, inverted)
         current_price = self._snapped_price(tick_rows)
         event_type, interval = self._event_type_and_interval(params)
         pv_rows = self._pvalue_rows(protocol, event_type, interval)
-        ml = self._pvalue_mark_lines(tick_rows, pv_rows, protocol)
+        ml = self._pvalue_mark_lines(tick_rows, pv_rows, protocol, inverted)
+        dt0 = self._display_token0(protocol, inverted)
+        dt1 = self._display_token1(protocol, inverted)
 
         return {
             "kind": "chart",
             "chart": "bar",
             "x": [r["tick_price_t1_per_t0"] for r in tick_rows],
-            "xAxisLabel": f"Price ({self._token1(protocol)} per {self._token0(protocol)})",
+            "xAxisLabel": f"Price ({dt1} per {dt0})",
             "yAxisLabel": "Liquidity Amount",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._token0(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows], "color": self._token_color(self._token0(protocol))},
-                {"name": f"{self._token1(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows], "color": self._token_color(self._token1(protocol))},
+                {"name": f"{dt0} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows], "color": self._token_color(dt0)},
+                {"name": f"{dt1} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows], "color": self._token_color(dt1)},
             ],
         }
 
     def _ra_liq_depth(self, params: dict[str, Any], protocol: str) -> dict[str, Any]:
-        tick_rows = self._tick_dist_rows(protocol)
+        inverted = self._should_invert(params, protocol)
+        tick_rows = self._tick_dist_rows(protocol, inverted)
         current_price_raw = next(
             (r.get("current_price_t1_per_t0") for r in tick_rows if r.get("current_price_t1_per_t0") is not None), None
         )
@@ -489,27 +510,32 @@ class RiskAnalysisPageService(BasePageService):
 
         event_type, interval = self._event_type_and_interval(params)
         pv_rows = self._pvalue_rows(protocol, event_type, interval)
-        ml = self._pvalue_mark_lines(tick_rows, pv_rows, protocol)
+        ml = self._pvalue_mark_lines(tick_rows, pv_rows, protocol, inverted)
+        dt0 = self._display_token0(protocol, inverted)
+        dt1 = self._display_token1(protocol, inverted)
 
         return {
             "kind": "chart",
             "chart": "line-area",
             "x": x_vals,
-            "xAxisLabel": f"Price ({self._token1(protocol)} per {self._token0(protocol)})",
+            "xAxisLabel": f"Price ({dt1} per {dt0})",
             "yAxisLabel": "Cumulative Liquidity",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price_raw},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._token1(protocol)} Cumulative", "type": "line", "area": True, "data": usdc_cumul, "color": self._token_color(self._token1(protocol))},
-                {"name": f"{self._token0(protocol)} Cumulative", "type": "line", "area": True, "data": t0_cumul, "color": self._token_color(self._token0(protocol))},
+                {"name": f"{dt1} Cumulative", "type": "line", "area": True, "data": usdc_cumul, "color": self._token_color(dt1)},
+                {"name": f"{dt0} Cumulative", "type": "line", "area": True, "data": t0_cumul, "color": self._token_color(dt0)},
             ],
         }
 
     def _ra_probability(self, params: dict[str, Any], protocol: str) -> dict[str, Any]:
-        tick_rows = self._tick_dist_rows(protocol)
+        inverted = self._should_invert(params, protocol)
+        tick_rows = self._tick_dist_rows(protocol, inverted)
         event_type, interval = self._event_type_and_interval(params)
         pv_rows = self._pvalue_rows(protocol, event_type, interval)
+        dt0 = self._display_token0(protocol, inverted)
+        dt1 = self._display_token1(protocol, inverted)
 
         stat_to_prob = {
             "Max": 0.0001,
@@ -532,7 +558,7 @@ class RiskAnalysisPageService(BasePageService):
             sell_amount = self._ff(row.get("value"))
             if sell_amount <= 0:
                 continue
-            price, _ = self._map_sell_amount_to_price(tick_rows, sell_amount, protocol)
+            price, _ = self._map_sell_amount_to_price(tick_rows, sell_amount, protocol, inverted)
             if price is None:
                 continue
             price_to_prob[price] = prob
@@ -550,7 +576,7 @@ class RiskAnalysisPageService(BasePageService):
             "kind": "chart",
             "chart": "probability-curve",
             "x": full_x,
-            "xAxisLabel": f"Price ({self._token1(protocol)} per {self._token0(protocol)})",
+            "xAxisLabel": f"Price ({dt1} per {dt0})",
             "yAxisLabel": "Probability (%)",
             "reference_lines": {
                 "peg": 1.0,
@@ -571,20 +597,25 @@ class RiskAnalysisPageService(BasePageService):
     # Section 2: Downside Price Risk - Cross-Protocol Events
     # ------------------------------------------------------------------
 
-    def _pool_impact_liquidity(self, protocol: str) -> dict[str, Any]:
+    def _pool_impact_liquidity(self, protocol: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Counter-asset liquidity on the sell-impact side of the pool.
 
         Returns the raw stablecoin balance available to absorb a sell of ONyc,
         along with the stablecoin symbol.
         """
-        tick_rows = self._tick_dist_rows(protocol)
+        p_invert = self._should_invert(params, protocol) if params else False
+        tick_rows = self._tick_dist_rows(protocol, p_invert)
         current_price = self._snapped_price(tick_rows) or 0
         sell_t1 = self._sell_is_token1(protocol)
+        if p_invert:
+            sell_t1 = not sell_t1
         ref = self._pool_ref(protocol) if protocol else {}
         if sell_t1:
             counter_sym = ref.get("token0_symbol", "USD")
         else:
             counter_sym = ref.get("token1_symbol", "USD")
+        if p_invert:
+            counter_sym = ref.get("token1_symbol", "USD") if sell_t1 else ref.get("token0_symbol", "USD")
 
         counter_total = 0.0
         for r in tick_rows:
@@ -628,8 +659,8 @@ class RiskAnalysisPageService(BasePageService):
         primary = " | ".join(primary_parts) if primary_parts else "--"
         secondary = f"Total tracked: {fmt(total)} ONyc" if total > 0 else ""
 
-        ray_liq = self._pool_impact_liquidity("raydium")
-        orca_liq = self._pool_impact_liquidity("orca")
+        ray_liq = self._pool_impact_liquidity("raydium", params)
+        orca_liq = self._pool_impact_liquidity("orca", params)
 
         return {
             "kind": "kpi",
@@ -653,7 +684,7 @@ class RiskAnalysisPageService(BasePageService):
 
     def _xp_liquidation_mark_lines(
         self, tick_rows: list[dict[str, Any]], source: str,
-        protocol: str = "orca",
+        protocol: str = "orca", inverted: bool = False,
     ) -> list[dict[str, Any]]:
         xp = self._xp_last()
         kamino = self._ff(xp.get("onyc_in_kamino"))
@@ -668,6 +699,8 @@ class RiskAnalysisPageService(BasePageService):
 
         current_price = self._snapped_price(tick_rows) or 0
         sell_t1 = self._sell_is_token1(protocol)
+        if inverted:
+            sell_t1 = not sell_t1
 
         total_impact_liq = 0.0
         for r in tick_rows:
@@ -687,9 +720,9 @@ class RiskAnalysisPageService(BasePageService):
 
         logger.info(
             "xp_mark_lines: protocol=%s source=%s base_amount=%.2f "
-            "total_impact_liq=%.2f sell_is_t1=%s ticks=%d",
+            "total_impact_liq=%.2f sell_is_t1=%s inverted=%s ticks=%d",
             protocol, source, base_amount, total_impact_liq,
-            sell_t1, len(tick_rows),
+            sell_t1, inverted, len(tick_rows),
         )
 
         lines: list[dict[str, Any]] = []
@@ -698,7 +731,7 @@ class RiskAnalysisPageService(BasePageService):
             if sell_amount <= 0:
                 continue
             price, exhausted = self._map_sell_amount_to_price(
-                tick_rows, sell_amount, protocol,
+                tick_rows, sell_amount, protocol, inverted,
             )
             if price is None:
                 continue
@@ -724,28 +757,32 @@ class RiskAnalysisPageService(BasePageService):
         return lines
 
     def _ra_xp_dist(self, params: dict[str, Any], protocol: str) -> dict[str, Any]:
-        tick_rows = self._tick_dist_rows(protocol)
+        inverted = self._should_invert(params, protocol)
+        tick_rows = self._tick_dist_rows(protocol, inverted)
         current_price = self._snapped_price(tick_rows)
         source = str(params.get("risk_liq_source", "all"))
-        ml = self._xp_liquidation_mark_lines(tick_rows, source, protocol)
+        ml = self._xp_liquidation_mark_lines(tick_rows, source, protocol, inverted)
+        dt0 = self._display_token0(protocol, inverted)
+        dt1 = self._display_token1(protocol, inverted)
 
         return {
             "kind": "chart",
             "chart": "bar",
             "x": [r["tick_price_t1_per_t0"] for r in tick_rows],
-            "xAxisLabel": f"Price ({self._token1(protocol)} per {self._token0(protocol)})",
+            "xAxisLabel": f"Price ({dt1} per {dt0})",
             "yAxisLabel": "Liquidity Amount",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._token0(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows], "color": self._token_color(self._token0(protocol))},
-                {"name": f"{self._token1(protocol)} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows], "color": self._token_color(self._token1(protocol))},
+                {"name": f"{dt0} Liquidity", "type": "bar", "stack": "liq", "data": [r["token0_value"] for r in tick_rows], "color": self._token_color(dt0)},
+                {"name": f"{dt1} Liquidity", "type": "bar", "stack": "liq", "data": [r["token1_value"] for r in tick_rows], "color": self._token_color(dt1)},
             ],
         }
 
     def _ra_xp_depth(self, params: dict[str, Any], protocol: str) -> dict[str, Any]:
-        tick_rows = self._tick_dist_rows(protocol)
+        inverted = self._should_invert(params, protocol)
+        tick_rows = self._tick_dist_rows(protocol, inverted)
         current_price_raw = next(
             (r.get("current_price_t1_per_t0") for r in tick_rows if r.get("current_price_t1_per_t0") is not None), None
         )
@@ -765,20 +802,22 @@ class RiskAnalysisPageService(BasePageService):
                 pass
 
         source = str(params.get("risk_liq_source", "all"))
-        ml = self._xp_liquidation_mark_lines(tick_rows, source, protocol)
+        ml = self._xp_liquidation_mark_lines(tick_rows, source, protocol, inverted)
+        dt0 = self._display_token0(protocol, inverted)
+        dt1 = self._display_token1(protocol, inverted)
 
         return {
             "kind": "chart",
             "chart": "line-area",
             "x": x_vals,
-            "xAxisLabel": f"Price ({self._token1(protocol)} per {self._token0(protocol)})",
+            "xAxisLabel": f"Price ({dt1} per {dt0})",
             "yAxisLabel": "Cumulative Liquidity",
             "yAxisFormat": "compact",
             "reference_lines": {"peg": 1.0, "current_price": current_price_raw},
             "mark_lines": ml,
             "series": [
-                {"name": f"{self._token1(protocol)} Cumulative", "type": "line", "area": True, "data": usdc_cumul, "color": self._token_color(self._token1(protocol))},
-                {"name": f"{self._token0(protocol)} Cumulative", "type": "line", "area": True, "data": t0_cumul, "color": self._token_color(self._token0(protocol))},
+                {"name": f"{dt1} Cumulative", "type": "line", "area": True, "data": usdc_cumul, "color": self._token_color(dt1)},
+                {"name": f"{dt0} Cumulative", "type": "line", "area": True, "data": t0_cumul, "color": self._token_color(dt0)},
             ],
         }
 

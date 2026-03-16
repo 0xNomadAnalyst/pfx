@@ -40,6 +40,8 @@ class PageConfig:
     default_pair: str = ""
     default_asset: str = ""
     show_pipeline_switcher: bool = True
+    show_price_basis_filter: bool = False
+    content_template: str = ""
     widget_filter_env_var: str = ""
     page_actions: list[PageAction] = field(default_factory=list)
 

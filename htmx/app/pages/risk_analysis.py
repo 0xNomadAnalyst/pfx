@@ -17,6 +17,7 @@ PAGE_CONFIG = PageConfig(
     api_page_id="risk-analysis",
     show_protocol_pair_filters=False,
     show_pipeline_switcher=False,
+    show_price_basis_filter=True,
     widgets=[
         # ═══════════════════════════════════════════════════════
         # Section 1: DOWNSIDE PRICE RISK - DEX EVENTS

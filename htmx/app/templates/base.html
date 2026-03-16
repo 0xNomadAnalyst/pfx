@@ -114,6 +114,17 @@
           </select>
       </div>
       {% endif %}
+      {% if render_price_basis_select %}
+      <div class="topbar-meta topbar-filters"{% if not show_price_basis_filter %} style="display:none"{% endif %}>
+        <label class="filter-label" for="price-basis-select">Price Basis</label>
+        <select id="price-basis-select" class="filter-select" aria-label="Price basis"{% if not show_price_basis_filter %} data-locked="true"{% endif %}>
+          <option value="default"{% if default_price_basis == "default" %} selected{% endif %}>Default</option>
+          <option value="invert-orca"{% if default_price_basis == "invert-orca" %} selected{% endif %}>Invert Orca</option>
+          <option value="invert-ray"{% if default_price_basis == "invert-ray" %} selected{% endif %}>Invert Raydium</option>
+          <option value="invert-both"{% if default_price_basis == "invert-both" %} selected{% endif %}>Invert Both</option>
+        </select>
+      </div>
+      {% endif %}
       <div class="topbar-meta topbar-filters">
         <label class="filter-label" for="last-window-select">Last</label>
         <select id="last-window-select" class="filter-select" aria-label="Last window">
@@ -136,7 +147,7 @@
   </header>
 
   <main class="{{ main_css_class|default('dashboard-grid') }} page-{{ current_page_slug }}">
-    {% include content_template|default("partials/dashboard.html") %}
+    {% include content_template|default("partials/dashboard.html", true) %}
   </main>
 
   <div id="chart-modal-backdrop" class="chart-modal-backdrop" hidden>
@@ -201,7 +212,7 @@
   </footer>
 
   <script src="/static/js/theme.js?v=2"></script>
-  <script src="/static/js/charts.js?v=65"></script>
+  <script src="/static/js/charts.js?v=68"></script>
   {% if show_pipeline_switcher %}
   <script>
   (function() {

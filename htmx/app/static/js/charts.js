@@ -2,6 +2,7 @@
   const chartState = new Map();
   let protocolPairs = [];
   const FILTER_STORAGE_KEY = "dashboard.globalFilters.v1";
+  const PRICE_BASIS_STORAGE_KEY = "dashboard.priceBasis.v1";
   const DETAIL_TABLE_CACHE_TTL_MS = 30_000;
   const PAGE_ACTION_CACHE_TTL_MS = 60_000;
   const detailTableCache = new Map();
@@ -230,6 +231,18 @@
     return `${prefix}${number.toFixed(4)}`;
   }
 
+  function formatSigned2dp(value) {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+      return "--";
+    }
+    const number = Number(value);
+    if (!Number.isFinite(number)) {
+      return "--";
+    }
+    const prefix = number > 0 ? "+" : "";
+    return `${prefix}${number.toFixed(2)}`;
+  }
+
   function currentLastWindowLabel() {
     const mapping = {
       "1h": "Last 1H",
@@ -426,10 +439,12 @@
         if (asset) {
           const pair = pairForAssetProtocol(fullProto, asset);
           const parts = String(pair || "").split("-");
-          return {
-            token0: (parts[0] || "T0").trim(),
-            token1: (parts[1] || "T1").trim(),
-          };
+          const t0 = (parts[0] || "T0").trim();
+          const t1 = (parts[1] || "T1").trim();
+          if (shouldInvertProtocol(fullProto)) {
+            return { token0: t1, token1: t0 };
+          }
+          return { token0: t0, token1: t1 };
         }
       }
     }
@@ -818,7 +833,7 @@
     const lastLabelHtml = `<span style="color:#2fbf71">${lastLabel}</span>`;
 
     if (kwid === "kpi-impact-500k") {
-      primary.innerHTML = `<span style="color:var(--bad)">${formatSigned4dp(data.primary)}</span> / ${formatNumber(data.secondary)}`;
+      primary.innerHTML = `<span style="color:var(--bad)">${formatSigned2dp(data.primary)}</span> / ${formatNumber(data.secondary)}`;
       secondary.innerHTML = `bps / ${token0}`;
     } else if (kwid === "kpi-largest-impact" || kwid === "kpi-average-impact") {
       const bpsVal = Number(data.primary);
@@ -862,7 +877,7 @@
       secondary.innerHTML = `${token1} / ${token0}, ${lastLabelHtml}`;
     } else if (kwid === "kpi-vwap-spread") {
       const spread = Number(data.primary);
-      primary.textContent = Number.isFinite(spread) ? spread.toFixed(4) : "--";
+      primary.textContent = Number.isFinite(spread) ? spread.toFixed(2) : "--";
       secondary.innerHTML = `bps, ${lastLabelHtml}`;
     } else if (
       kwid === "kpi-largest-usx-sell" ||
@@ -871,7 +886,7 @@
       kwid === "kpi-max-1h-buy-pressure"
     ) {
       const bpsValue = data.secondary === null || data.secondary === undefined ? null : Number(data.secondary);
-      const bpsStr = formatSigned4dp(data.secondary);
+      const bpsStr = formatSigned2dp(data.secondary);
       const bpsColor = bpsValue === null || !Number.isFinite(bpsValue) ? "" : bpsValue < 0 ? "#e24c4c" : "#2fbf71";
       const bpsHtml = bpsColor ? `<span style="color:${bpsColor}">${bpsStr}</span>` : bpsStr;
       primary.innerHTML = `${formatNumber(data.primary)} / ${bpsHtml}`;
@@ -1041,13 +1056,20 @@
 
     const WATCHLIST_SCALED_BAR_KEYS = new Set(["loan_value_total"]);
     const WATCHLIST_SCALED_BAR_LABELS = new Set(["loan value"]);
+    const AMOUNT_BAR_KEYS = new Set(["primary_flow", "amount", "Amount"]);
+    const AMOUNT_BAR_LABELS = new Set(["amount", "swap amount"]);
 
     function isScaledBarCol(col) {
       return WATCHLIST_SCALED_BAR_KEYS.has(col.key) || WATCHLIST_SCALED_BAR_LABELS.has((col.label || "").toLowerCase().trim());
     }
 
+    function isAmountBarCol(col) {
+      return AMOUNT_BAR_KEYS.has(col.key) || AMOUNT_BAR_LABELS.has((col.label || "").toLowerCase().trim());
+    }
+
     function buildBody(displayRows) {
       let scaledBarMax = 0;
+      let amountBarMax = 0;
       if (isWatchlist) {
         const barCol = visibleColumns.find((c) => isScaledBarCol(c));
         if (barCol) {
@@ -1056,6 +1078,13 @@
             return Number.isFinite(v) && v > mx ? v : mx;
           }, 0);
         }
+      }
+      const amountCol = visibleColumns.find((c) => isAmountBarCol(c));
+      if (amountCol) {
+        amountBarMax = displayRows.reduce((mx, r) => {
+          const v = Math.abs(Number(r[amountCol.key]));
+          return Number.isFinite(v) && v > mx ? v : mx;
+        }, 0);
       }
 
       return displayRows
@@ -1095,10 +1124,20 @@
                   `</td>`
                 );
               }
-              if (column.key === "amount" || column.key === "Amount") {
+              if (isAmountBarCol(column)) {
                 const num = Number(raw);
                 if (Number.isFinite(num)) {
-                  return `<td>${num.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>`;
+                  const fmtVal = Math.abs(num).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                  if (amountBarMax > 0) {
+                    const w = Math.min((Math.abs(num) / amountBarMax) * 100, 100);
+                    return (
+                      `<td><div class="microbar-cell">` +
+                      `<div class="microbar-fill" style="width:${w.toFixed(1)}%"></div>` +
+                      `<span class="microbar-label">${fmtVal}</span>` +
+                      `</div></td>`
+                    );
+                  }
+                  return `<td>${fmtVal}</td>`;
                 }
               }
               if (column.key === "pct_reserve" || column.key === "% Reserve Now" || (column.label || "").toLowerCase().includes("% reserve")) {
@@ -1343,6 +1382,8 @@
     url.searchParams.set("protocol", currentProtocol());
     url.searchParams.set("pair", currentPair());
     url.searchParams.set("last_window", currentLastWindow());
+    const pbModal = currentPriceBasis();
+    if (pbModal && pbModal !== "default") url.searchParams.set("price_basis", pbModal);
     const m1 = currentMkt1();
     const m2 = currentMkt2();
     if (m1) url.searchParams.set("mkt1", m1);
@@ -2543,12 +2584,22 @@
       const cascRounds = chartData.cascade_rounds || [];
       const liqPreBonus = chartData.liq_pre_bonus || [];
       const liqPostBonus = chartData.liq_post_bonus || [];
-      const bonusMult = baseLiq.map((b, i) => {
-        const pre = liqPreBonus[i] || 0;
-        const post = liqPostBonus[i] || 0;
-        return (pre > 0) ? post / pre : 1;
+      const preBonusData = baseLiq.map((b, i) => {
+        const v = Number(liqPreBonus[i]);
+        if (Number.isFinite(v)) return v;
+        return b + (Number(cascLiq[i]) || 0);
       });
-      const basePlusBonusData = baseLiq.map((b, i) => b * bonusMult[i]);
+      const rawPostBonusData = preBonusData.map((pre, i) => {
+        const post = Number(liqPostBonus[i]);
+        if (Number.isFinite(post)) return post;
+        return pre * (1 + (Number(bonusBps[i]) || 0) / 10000);
+      });
+      // Display bonus overlay as non-negative uplift above pre-bonus liquidation.
+      // Raw post-bonus may be below pre-bonus in insolvency/cap scenarios.
+      const bonusLineData = preBonusData.map((pre, i) => {
+        const uplift = Math.max((rawPostBonusData[i] || 0) - pre, 0);
+        return pre + uplift;
+      });
       series.push({
         name: "Liquidated Value", type: "line", xAxisIndex: 0, yAxisIndex: 0,
         data: baseLiq, areaStyle: { opacity: 0.25 },
@@ -2557,7 +2608,7 @@
       });
       series.push({
         name: "Liq. Bonus", type: "line", xAxisIndex: 0, yAxisIndex: 0,
-        data: basePlusBonusData,
+        data: bonusLineData,
         areaStyle: { opacity: 0.15, color: "#d4764e" },
         lineStyle: { color: "#d4764e", width: 1, type: "dashed" },
         itemStyle: { color: "#d4764e" }, symbol: "none",
@@ -2707,9 +2758,13 @@
             items.forEach((it) => {
               const v = Number(it.value);
               if (it.seriesName.includes("Bonus")) {
-                const base = baseLiq[idx] || 0;
-                const diff = v - base;
-                if (diff > 0) tip += `${it.marker} ${it.seriesName}: +$${(diff / 1e6).toFixed(2)}M<br/>`;
+                const pre = preBonusData[idx] || 0;
+                const rawPost = rawPostBonusData[idx] || pre;
+                const uplift = Math.max(rawPost - pre, 0);
+                tip += `${it.marker} ${it.seriesName}: +$${(uplift / 1e6).toFixed(2)}M<br/>`;
+                if (rawPost < pre) {
+                  tip += `<span style="color:#999">Collateral cap active (raw post-bonus < pre-bonus)</span><br/>`;
+                }
               } else if (it.seriesName.includes("Liq") || it.seriesName.includes("Cascade")) {
                 tip += `${it.marker} ${it.seriesName}: $${(v / 1e6).toFixed(2)}M<br/>`;
               } else if (it.seriesName.includes("Depth") || it.seriesName.includes("depth")) {
@@ -2727,7 +2782,11 @@
               if (bps > 0 || amp > 1 || rnds > 0) {
                 tip += `<br/><span style="color:#999">`;
                 if (bps > 0) tip += `Bonus: ${bps.toFixed(0)} bps`;
-                if (preB > 0 && postB > 0) tip += ` ($${(preB / 1e6).toFixed(2)}M \u2192 $${(postB / 1e6).toFixed(2)}M)`;
+                if (preB > 0 && postB > 0) {
+                  const lo = Math.min(preB, postB);
+                  const hi = Math.max(preB, postB);
+                  tip += ` ($${(lo / 1e6).toFixed(2)}M \u2192 $${(hi / 1e6).toFixed(2)}M)`;
+                }
                 if (amp > 1) tip += `<br/>Amplification: ${amp.toFixed(3)}x`;
                 if (rnds > 0) tip += ` (${rnds} rounds)`;
                 tip += `</span>`;
@@ -3722,7 +3781,11 @@
       } else {
         const fullProto = proto === "ray" ? "raydium" : proto;
         const asset = currentAsset();
-        const pair = pairForAssetProtocol(fullProto, asset);
+        let pair = pairForAssetProtocol(fullProto, asset);
+        if (pair && shouldInvertProtocol(fullProto)) {
+          const pts = pair.split("-");
+          if (pts.length === 2) pair = pts[1] + "-" + pts[0];
+        }
         pairSpan.textContent = pair || "";
       }
     });
@@ -3975,6 +4038,32 @@
         const pair = pairSelect ? pairSelect.value : currentPair();
         applyGlobalFilters(protocol, pair, lastWindowSelect.value, true);
       });
+    }
+
+    const priceBasisSelect = document.getElementById("price-basis-select");
+    if (priceBasisSelect) {
+      const pbLocked = priceBasisSelect.dataset.locked === "true";
+      if (!pbLocked) {
+        try {
+          const savedPB = window.localStorage.getItem(PRICE_BASIS_STORAGE_KEY);
+          if (savedPB && priceBasisSelect.querySelector('option[value="' + savedPB + '"]')) {
+            priceBasisSelect.value = savedPB;
+          }
+        } catch (_) {}
+      }
+      applyPairAwarePanelTitles();
+      updateDexSubheaderPairs();
+      refreshPairDependentLabels();
+      if (!pbLocked) {
+        priceBasisSelect.addEventListener("change", () => {
+          try { window.localStorage.setItem(PRICE_BASIS_STORAGE_KEY, priceBasisSelect.value); } catch (_) {}
+          applyPairAwarePanelTitles();
+          updateDexSubheaderPairs();
+          refreshPairDependentLabels();
+          resetDashboardLoading();
+          htmx.trigger(document.body, "dashboard-refresh");
+        });
+      }
     }
 
     await initMarketSelectors();
@@ -4251,6 +4340,22 @@
     return sel ? sel.value : "";
   }
 
+  function currentPriceBasis() {
+    const sel = document.getElementById("price-basis-select");
+    return sel ? sel.value : "default";
+  }
+
+  function shouldInvertProtocol(protocol) {
+    const pipeline = currentPipeline().toLowerCase();
+    if (pipeline !== "onyc") return false;
+    const pb = currentPriceBasis().toLowerCase();
+    if (pb === "invert-both") return true;
+    const proto = (protocol || "").toLowerCase();
+    if (pb === "invert-orca" && proto === "orca") return true;
+    if (pb === "invert-ray" && (proto === "raydium" || proto === "ray")) return true;
+    return false;
+  }
+
   document.body.addEventListener("htmx:configRequest", (event) => {
     const sourceEl = event.detail.elt;
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
@@ -4271,6 +4376,8 @@
     event.detail.parameters.last_window = currentLastWindow();
     const pl = currentPipeline();
     if (pl) event.detail.parameters._pipeline = pl;
+    const pb = currentPriceBasis();
+    if (pb && pb !== "default") event.detail.parameters.price_basis = pb;
     const m1 = currentMkt1();
     const m2 = currentMkt2();
     if (m1) event.detail.parameters.mkt1 = m1;

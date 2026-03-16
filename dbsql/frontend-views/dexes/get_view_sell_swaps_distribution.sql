@@ -15,12 +15,14 @@
 -- - Sample statistics (count, earliest, latest swap dates)
 -- =====================================================
 
+DROP FUNCTION IF EXISTS dexes.get_view_sell_swaps_distribution(TEXT, TEXT, TEXT, TEXT, INTEGER);
 CREATE OR REPLACE FUNCTION dexes.get_view_sell_swaps_distribution(
     p_protocol TEXT,                    -- Protocol filter (e.g., 'raydium', 'orca')
     p_pair TEXT,                        -- Token pair filter (e.g., 'USX-USDC', 'eUSX-USX')
     p_token TEXT DEFAULT 't0',         -- Token to analyze: 't0' or 't1' (default: 't0' - first token in pair name)
     p_lookback TEXT DEFAULT '7 days',  -- Lookback period (e.g., '1 day', '7 days', '30 days')
-    p_buckets INTEGER DEFAULT 50       -- Number of buckets for distribution
+    p_buckets INTEGER DEFAULT 50,      -- Number of buckets for distribution
+    p_invert BOOLEAN DEFAULT FALSE     -- When TRUE, negate BPS impact values (inverted price basis)
 )
 RETURNS TABLE (
     -- Distribution buckets
@@ -267,9 +269,9 @@ BEGIN
         ROUND(dwi.bucket_midpoint::NUMERIC, 2)::DOUBLE PRECISION AS bucket_midpoint,
         dwi.swap_count,
         ROUND(dwi.cumulative_share::NUMERIC, 4)::DOUBLE PRECISION AS cumulative_share,
-        ROUND(dwi.price_impact_bps::NUMERIC, 4)::DOUBLE PRECISION AS price_impact_bps,
+        ROUND((CASE WHEN p_invert THEN -1 * dwi.price_impact_bps ELSE dwi.price_impact_bps END)::NUMERIC, 4)::DOUBLE PRECISION AS price_impact_bps,
         ROUND(ABS(dwi.price_impact_bps)::NUMERIC, 4)::DOUBLE PRECISION AS price_impact_bps_abs,
-        ROUND((dwi.price_impact_bps * -1)::NUMERIC, 4)::DOUBLE PRECISION AS price_impact_bps_inv,
+        ROUND((CASE WHEN p_invert THEN dwi.price_impact_bps ELSE -1 * dwi.price_impact_bps END)::NUMERIC, 4)::DOUBLE PRECISION AS price_impact_bps_inv,
         ROUND(dwi.p10::NUMERIC, 2)::DOUBLE PRECISION AS percentile_10,
         ROUND(dwi.p25::NUMERIC, 2)::DOUBLE PRECISION AS percentile_25,
         ROUND(dwi.p50::NUMERIC, 2)::DOUBLE PRECISION AS percentile_50,
@@ -290,7 +292,7 @@ $$;
 -- Function Comments
 -- =====================================================
 
-COMMENT ON FUNCTION dexes.get_view_sell_swaps_distribution(TEXT, TEXT, TEXT, TEXT, INTEGER) IS
+COMMENT ON FUNCTION dexes.get_view_sell_swaps_distribution(TEXT, TEXT, TEXT, TEXT, INTEGER, BOOLEAN) IS
 'Returns density distribution of swaps by token amount (t0 or t1) with cumulative share and percentiles.
 Uses cagg_events_5s for efficient aggregation, leveraging pre-computed maximum single swap amounts
 (amount0_in_max or amount1_in_max) for each 5-second bucket to avoid querying the source table.

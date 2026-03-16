@@ -2,11 +2,13 @@
 -- Same signature and output schema as the original (dexes/dbsql/views/get_view_dex_ohlcv.sql)
 -- Re-buckets from 1-minute pre-computed OHLCV instead of from 5-second CAGG.
 
+DROP FUNCTION IF EXISTS dexes.get_view_dex_ohlcv(TEXT, TEXT, TEXT, INTEGER);
 CREATE OR REPLACE FUNCTION dexes.get_view_dex_ohlcv(
     p_protocol TEXT,
     p_token_pair TEXT,
     p_interval TEXT DEFAULT '15 minutes',
-    p_rows INTEGER DEFAULT 120
+    p_rows INTEGER DEFAULT 120,
+    p_invert BOOLEAN DEFAULT FALSE
 )
 RETURNS TABLE (
     "time" TIMESTAMPTZ,
@@ -74,12 +76,17 @@ BEGIN
         l.pool_address,
         l.protocol,
         l.token_pair,
-        ROUND(l.open_price, 8),
-        ROUND(l.high_price, 8),
-        ROUND(l.low_price, 8),
-        ROUND(l.close_price, 8),
-        l.volume_t0,
-        l.volume_t1,
+        CASE WHEN p_invert THEN ROUND(1.0 / NULLIF(l.open_price, 0), 8)
+             ELSE ROUND(l.open_price, 8) END,
+        -- When inverted, 1/low becomes the new high and 1/high becomes the new low
+        CASE WHEN p_invert THEN ROUND(1.0 / NULLIF(l.low_price, 0), 8)
+             ELSE ROUND(l.high_price, 8) END,
+        CASE WHEN p_invert THEN ROUND(1.0 / NULLIF(l.high_price, 0), 8)
+             ELSE ROUND(l.low_price, 8) END,
+        CASE WHEN p_invert THEN ROUND(1.0 / NULLIF(l.close_price, 0), 8)
+             ELSE ROUND(l.close_price, 8) END,
+        CASE WHEN p_invert THEN l.volume_t1 ELSE l.volume_t0 END,
+        CASE WHEN p_invert THEN l.volume_t0 ELSE l.volume_t1 END,
         l.swap_count
     FROM limited l
     ORDER BY l.time;

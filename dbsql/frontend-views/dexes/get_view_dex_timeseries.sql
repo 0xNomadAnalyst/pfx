@@ -2,11 +2,13 @@
 -- Same signature and output schema as the original (dexes/dbsql/views/get_view_dex_timeseries.sql)
 -- but reads from the pre-joined 1-minute materialized table instead of joining 4 CAGGs at query time.
 
+DROP FUNCTION IF EXISTS dexes.get_view_dex_timeseries(TEXT, TEXT, TEXT, INTEGER);
 CREATE OR REPLACE FUNCTION dexes.get_view_dex_timeseries(
     p_protocol TEXT,
     p_token_pair TEXT,
     p_interval TEXT DEFAULT '1 minute',
-    p_rows INTEGER DEFAULT 100
+    p_rows INTEGER DEFAULT 100,
+    p_invert BOOLEAN DEFAULT FALSE
 )
 RETURNS TABLE (
     "time" TIMESTAMPTZ,
@@ -155,6 +157,15 @@ BEGIN
             AVG(m.sell_t0_for_impact1_avg)            AS sell_t0_for_impact1_avg,
             AVG(m.sell_t0_for_impact2_avg)            AS sell_t0_for_impact2_avg,
             AVG(m.sell_t0_for_impact3_avg)            AS sell_t0_for_impact3_avg,
+            -- Max est. swap impact from selling token1 (for inverted view)
+            MAX(m.max_est_swap_impact_bps_t1_sell)    AS max_est_swap_impact_bps_t1_sell,
+            -- Impact from tickarrays (selling token1): AVG
+            AVG(m.impact_from_t1_sell1_avg)           AS impact_from_t1_sell1_avg,
+            AVG(m.impact_from_t1_sell2_avg)           AS impact_from_t1_sell2_avg,
+            AVG(m.impact_from_t1_sell3_avg)           AS impact_from_t1_sell3_avg,
+            AVG(m.sell_t1_for_impact1_avg)            AS sell_t1_for_impact1_avg,
+            AVG(m.sell_t1_for_impact2_avg)            AS sell_t1_for_impact2_avg,
+            AVG(m.sell_t1_for_impact3_avg)            AS sell_t1_for_impact3_avg,
             -- Concentration: AVG
             AVG(m.concentration_peg_pct_1)            AS concentration_peg_pct_1,
             AVG(m.concentration_peg_pct_2)            AS concentration_peg_pct_2,
@@ -189,93 +200,208 @@ BEGIN
         n.pool_address,
         n.protocol,
         n.token_pair,
-        n.symbols_t0_t1,
+        -- Symbols: swap when inverted
+        CASE WHEN p_invert THEN ARRAY[n.symbols_t0_t1[2], n.symbols_t0_t1[1]] ELSE n.symbols_t0_t1 END,
         n.swap_count,
-        n.swap_t0_in, n.swap_t0_out, n.swap_t0_net,
-        n.swap_t1_in, n.swap_t1_out, n.swap_t1_net,
+        -- Swap flows: swap t0↔t1 when inverted
+        CASE WHEN p_invert THEN n.swap_t1_in  ELSE n.swap_t0_in  END,
+        CASE WHEN p_invert THEN n.swap_t1_out ELSE n.swap_t0_out END,
+        CASE WHEN p_invert THEN n.swap_t1_net ELSE n.swap_t0_net END,
+        CASE WHEN p_invert THEN n.swap_t0_in  ELSE n.swap_t1_in  END,
+        CASE WHEN p_invert THEN n.swap_t0_out ELSE n.swap_t1_out END,
+        CASE WHEN p_invert THEN n.swap_t0_net ELSE n.swap_t1_net END,
         n.lp_count,
-        n.lp_t0_in, n.lp_t0_out, n.lp_t0_net,
-        n.lp_t1_in, n.lp_t1_out, n.lp_t1_net,
-        -- Swap flows as % of reserves
-        ROUND(CASE WHEN n.t0_reserve > 0 THEN n.swap_t0_in::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN n.t0_reserve > 0 THEN n.swap_t0_out::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN n.t0_reserve > 0 THEN n.swap_t0_net::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN n.t1_reserve > 0 THEN n.swap_t1_in::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN n.t1_reserve > 0 THEN n.swap_t1_out::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN n.t1_reserve > 0 THEN n.swap_t1_net::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        -- LP flows as % of reserves
-        ROUND(CASE WHEN n.t0_reserve > 0 THEN n.lp_t0_in::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN n.t0_reserve > 0 THEN n.lp_t0_out::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN n.t0_reserve > 0 THEN n.lp_t0_net::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN n.t1_reserve > 0 THEN n.lp_t1_in::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN n.t1_reserve > 0 THEN n.lp_t1_out::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN n.t1_reserve > 0 THEN n.lp_t1_net::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4),
-        -- VWAP: LOCF'd from mat table
-        ROUND(n.vwap_buy_t0, 8)::NUMERIC(20,8),
-        ROUND(n.vwap_sell_t0, 8)::NUMERIC(20,8),
+        -- LP flows: swap t0↔t1 when inverted
+        CASE WHEN p_invert THEN n.lp_t1_in  ELSE n.lp_t0_in  END,
+        CASE WHEN p_invert THEN n.lp_t1_out ELSE n.lp_t0_out END,
+        CASE WHEN p_invert THEN n.lp_t1_net ELSE n.lp_t0_net END,
+        CASE WHEN p_invert THEN n.lp_t0_in  ELSE n.lp_t1_in  END,
+        CASE WHEN p_invert THEN n.lp_t0_out ELSE n.lp_t1_out END,
+        CASE WHEN p_invert THEN n.lp_t0_net ELSE n.lp_t1_net END,
+        -- Swap flows as % of reserves: swap t0↔t1 when inverted
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t1_reserve > 0 THEN n.swap_t1_in::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t0_reserve > 0 THEN n.swap_t0_in::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t1_reserve > 0 THEN n.swap_t1_out::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t0_reserve > 0 THEN n.swap_t0_out::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t1_reserve > 0 THEN n.swap_t1_net::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t0_reserve > 0 THEN n.swap_t0_net::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t0_reserve > 0 THEN n.swap_t0_in::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t1_reserve > 0 THEN n.swap_t1_in::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t0_reserve > 0 THEN n.swap_t0_out::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t1_reserve > 0 THEN n.swap_t1_out::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t0_reserve > 0 THEN n.swap_t0_net::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t1_reserve > 0 THEN n.swap_t1_net::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        -- LP flows as % of reserves: swap t0↔t1 when inverted
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t1_reserve > 0 THEN n.lp_t1_in::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t0_reserve > 0 THEN n.lp_t0_in::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t1_reserve > 0 THEN n.lp_t1_out::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t0_reserve > 0 THEN n.lp_t0_out::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t1_reserve > 0 THEN n.lp_t1_net::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t0_reserve > 0 THEN n.lp_t0_net::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t0_reserve > 0 THEN n.lp_t0_in::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t1_reserve > 0 THEN n.lp_t1_in::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t0_reserve > 0 THEN n.lp_t0_out::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t1_reserve > 0 THEN n.lp_t1_out::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN n.t0_reserve > 0 THEN n.lp_t0_net::NUMERIC / n.t0_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN n.t1_reserve > 0 THEN n.lp_t1_net::NUMERIC / n.t1_reserve * 100 ELSE 0 END, 4)::NUMERIC(10,4) END,
+        -- VWAP: invert prices and swap buy↔sell when inverted
+        -- (buy t0 at price X in t1/t0 = sell "new base" at 1/X in t0/t1)
+        CASE WHEN p_invert THEN ROUND(1.0 / NULLIF(n.vwap_sell_t0, 0), 8)::NUMERIC(20,8)
+             ELSE ROUND(n.vwap_buy_t0, 8)::NUMERIC(20,8) END,
+        CASE WHEN p_invert THEN ROUND(1.0 / NULLIF(n.vwap_buy_t0, 0), 8)::NUMERIC(20,8)
+             ELSE ROUND(n.vwap_sell_t0, 8)::NUMERIC(20,8) END,
+        -- Spread BPS: mathematically invariant under inversion for stablecoins near peg
         ROUND(CASE WHEN n.vwap_buy_t0 > 0 AND n.vwap_sell_t0 > 0
                    THEN (n.vwap_buy_t0 - n.vwap_sell_t0) / n.vwap_sell_t0 * 10000
                    ELSE NULL END, 2)::NUMERIC(10,2),
-        -- avg_w_last: AVG for historical, LAST for most recent
-        ROUND(CASE WHEN n.rn = 1 THEN n.vwap_buy_t0
-                   ELSE AVG(n.vwap_buy_t0) OVER (PARTITION BY n.pool_address) END, 8)::NUMERIC(20,8),
-        ROUND(CASE WHEN n.rn = 1 THEN n.vwap_sell_t0
-                   ELSE AVG(n.vwap_sell_t0) OVER (PARTITION BY n.pool_address) END, 8)::NUMERIC(20,8),
+        -- avg_w_last VWAP: same inversion + swap pattern
+        CASE WHEN p_invert
+            THEN ROUND(1.0 / NULLIF(CASE WHEN n.rn = 1 THEN n.vwap_sell_t0
+                   ELSE AVG(n.vwap_sell_t0) OVER (PARTITION BY n.pool_address) END, 0), 8)::NUMERIC(20,8)
+            ELSE ROUND(CASE WHEN n.rn = 1 THEN n.vwap_buy_t0
+                   ELSE AVG(n.vwap_buy_t0) OVER (PARTITION BY n.pool_address) END, 8)::NUMERIC(20,8) END,
+        CASE WHEN p_invert
+            THEN ROUND(1.0 / NULLIF(CASE WHEN n.rn = 1 THEN n.vwap_buy_t0
+                   ELSE AVG(n.vwap_buy_t0) OVER (PARTITION BY n.pool_address) END, 0), 8)::NUMERIC(20,8)
+            ELSE ROUND(CASE WHEN n.rn = 1 THEN n.vwap_sell_t0
+                   ELSE AVG(n.vwap_sell_t0) OVER (PARTITION BY n.pool_address) END, 8)::NUMERIC(20,8) END,
         ROUND(CASE WHEN n.rn = 1
                    THEN CASE WHEN n.vwap_buy_t0 > 0 AND n.vwap_sell_t0 > 0
                              THEN (n.vwap_buy_t0 - n.vwap_sell_t0) / n.vwap_sell_t0 * 10000
                              ELSE NULL END
                    ELSE NULL END, 2)::NUMERIC(10,2),
-        -- LOCF'd avg_w_last VWAP (same as last_vwap for simplicity since LOCF already applied)
-        ROUND(n.vwap_buy_t0, 8)::NUMERIC(20,8),
-        ROUND(n.vwap_sell_t0, 8)::NUMERIC(20,8),
-        -- Impact metrics
-        ROUND(n.avg_est_swap_impact_bps, 6)::NUMERIC(20,6),
-        ROUND(n.min_est_swap_impact_bps_t0_sell, 4)::NUMERIC(20,4),
-        ROUND(n.avg_est_swap_impact_bps_all, 4)::NUMERIC(20,4),
-        -- State metrics (LOCF'd)
+        -- LOCF'd avg_w_last VWAP
+        CASE WHEN p_invert THEN ROUND(1.0 / NULLIF(n.vwap_sell_t0, 0), 8)::NUMERIC(20,8)
+             ELSE ROUND(n.vwap_buy_t0, 8)::NUMERIC(20,8) END,
+        CASE WHEN p_invert THEN ROUND(1.0 / NULLIF(n.vwap_buy_t0, 0), 8)::NUMERIC(20,8)
+             ELSE ROUND(n.vwap_sell_t0, 8)::NUMERIC(20,8) END,
+        -- Impact metrics: negate BPS when inverted
+        ROUND(CASE WHEN p_invert THEN -1 * n.avg_est_swap_impact_bps ELSE n.avg_est_swap_impact_bps END, 6)::NUMERIC(20,6),
+        ROUND(CASE WHEN p_invert THEN -1 * n.max_est_swap_impact_bps_t1_sell
+                   ELSE n.min_est_swap_impact_bps_t0_sell END, 4)::NUMERIC(20,4),
+        ROUND(CASE WHEN p_invert THEN -1 * n.avg_est_swap_impact_bps_all ELSE n.avg_est_swap_impact_bps_all END, 4)::NUMERIC(20,4),
+        -- State metrics (LOCF'd) - tick stays unchanged
         n.current_tick,
         ROUND(n.current_tick_float, 4)::NUMERIC(20,4),
         n.sqrt_price_x64,
-        ROUND(n.price_t1_per_t0, 8)::NUMERIC(20,8),
-        -- Impact arrays (NULL — computed live in original, not pre-materialized)
+        -- Price: invert when requested
+        CASE WHEN p_invert THEN ROUND(1.0 / NULLIF(n.price_t1_per_t0, 0), 8)::NUMERIC(20,8)
+             ELSE ROUND(n.price_t1_per_t0, 8)::NUMERIC(20,8) END,
+        -- Impact arrays
         NULL::DOUBLE PRECISION[],
-        ROUND(n.impact_from_t0_sell1_avg, 2)::NUMERIC(10,2),
-        ROUND(n.impact_from_t0_sell2_avg, 2)::NUMERIC(10,2),
-        ROUND(n.impact_from_t0_sell3_avg, 2)::NUMERIC(10,2),
+        -- Impact BPS from selling: use t1 data when inverted, fall back to negated t0
+        ROUND(CASE WHEN p_invert THEN COALESCE(-1 * n.impact_from_t1_sell1_avg, -1 * n.impact_from_t0_sell1_avg)
+                   ELSE n.impact_from_t0_sell1_avg END, 2)::NUMERIC(10,2),
+        ROUND(CASE WHEN p_invert THEN COALESCE(-1 * n.impact_from_t1_sell2_avg, -1 * n.impact_from_t0_sell2_avg)
+                   ELSE n.impact_from_t0_sell2_avg END, 2)::NUMERIC(10,2),
+        ROUND(CASE WHEN p_invert THEN COALESCE(-1 * n.impact_from_t1_sell3_avg, -1 * n.impact_from_t0_sell3_avg)
+                   ELSE n.impact_from_t0_sell3_avg END, 2)::NUMERIC(10,2),
         NULL::DOUBLE PRECISION[],
-        FLOOR(n.sell_t0_for_impact1_avg)::BIGINT,
-        FLOOR(n.sell_t0_for_impact2_avg)::BIGINT,
-        FLOOR(n.sell_t0_for_impact3_avg)::BIGINT,
-        -- avg_w_last impact (same pattern: AVG for historical, LAST for most recent)
-        FLOOR(CASE WHEN n.rn = 1 THEN n.sell_t0_for_impact1_avg
-                   ELSE AVG(n.sell_t0_for_impact1_avg) OVER (PARTITION BY n.pool_address) END)::BIGINT,
-        FLOOR(CASE WHEN n.rn = 1 THEN n.sell_t0_for_impact2_avg
-                   ELSE AVG(n.sell_t0_for_impact2_avg) OVER (PARTITION BY n.pool_address) END)::BIGINT,
-        FLOOR(CASE WHEN n.rn = 1 THEN n.sell_t0_for_impact3_avg
-                   ELSE AVG(n.sell_t0_for_impact3_avg) OVER (PARTITION BY n.pool_address) END)::BIGINT,
-        ROUND(CASE WHEN n.rn = 1 THEN n.impact_from_t0_sell1_avg
-                   ELSE AVG(n.impact_from_t0_sell1_avg) OVER (PARTITION BY n.pool_address) END, 2)::NUMERIC(10,2),
-        ROUND(CASE WHEN n.rn = 1 THEN n.impact_from_t0_sell2_avg
-                   ELSE AVG(n.impact_from_t0_sell2_avg) OVER (PARTITION BY n.pool_address) END, 2)::NUMERIC(10,2),
-        ROUND(CASE WHEN n.rn = 1 THEN n.impact_from_t0_sell3_avg
-                   ELSE AVG(n.impact_from_t0_sell3_avg) OVER (PARTITION BY n.pool_address) END, 2)::NUMERIC(10,2),
-        -- Reserves
-        FLOOR(n.t0_reserve)::BIGINT,
-        FLOOR(n.t1_reserve)::BIGINT,
-        -- Reserve composition %
-        ROUND(CASE WHEN (n.t0_reserve + n.t1_reserve) > 0 THEN n.t0_reserve / (n.t0_reserve + n.t1_reserve) * 100 ELSE NULL END, 1)::NUMERIC(10,1),
-        ROUND(CASE WHEN (n.t0_reserve + n.t1_reserve) > 0 THEN n.t1_reserve / (n.t0_reserve + n.t1_reserve) * 100 ELSE NULL END, 1)::NUMERIC(10,1),
-        -- TVL
-        FLOOR(COALESCE(n.t0_reserve * n.price_t1_per_t0, 0) + COALESCE(n.t1_reserve, 0))::BIGINT,
-        -- Reserve % of TVL
-        ROUND(CASE WHEN (COALESCE(n.t0_reserve * n.price_t1_per_t0, 0) + COALESCE(n.t1_reserve, 0)) > 0
-                   THEN (n.t0_reserve * n.price_t1_per_t0) / (n.t0_reserve * n.price_t1_per_t0 + n.t1_reserve) * 100
-                   ELSE NULL END, 4)::NUMERIC(10,4),
-        ROUND(CASE WHEN (COALESCE(n.t0_reserve * n.price_t1_per_t0, 0) + COALESCE(n.t1_reserve, 0)) > 0
-                   THEN n.t1_reserve / (n.t0_reserve * n.price_t1_per_t0 + n.t1_reserve) * 100
-                   ELSE NULL END, 4)::NUMERIC(10,4),
-        -- Concentration (AVG'd, may have NULLs)
+        -- Sell quantities: use t1 when inverted, fall back to t0
+        FLOOR(CASE WHEN p_invert THEN COALESCE(n.sell_t1_for_impact1_avg, n.sell_t0_for_impact1_avg)
+                   ELSE n.sell_t0_for_impact1_avg END)::BIGINT,
+        FLOOR(CASE WHEN p_invert THEN COALESCE(n.sell_t1_for_impact2_avg, n.sell_t0_for_impact2_avg)
+                   ELSE n.sell_t0_for_impact2_avg END)::BIGINT,
+        FLOOR(CASE WHEN p_invert THEN COALESCE(n.sell_t1_for_impact3_avg, n.sell_t0_for_impact3_avg)
+                   ELSE n.sell_t0_for_impact3_avg END)::BIGINT,
+        -- avg_w_last impact quantities: use t1 when inverted
+        FLOOR(CASE WHEN p_invert
+                   THEN COALESCE(
+                       CASE WHEN n.rn = 1 THEN n.sell_t1_for_impact1_avg
+                            ELSE AVG(n.sell_t1_for_impact1_avg) OVER (PARTITION BY n.pool_address) END,
+                       CASE WHEN n.rn = 1 THEN n.sell_t0_for_impact1_avg
+                            ELSE AVG(n.sell_t0_for_impact1_avg) OVER (PARTITION BY n.pool_address) END)
+                   ELSE CASE WHEN n.rn = 1 THEN n.sell_t0_for_impact1_avg
+                             ELSE AVG(n.sell_t0_for_impact1_avg) OVER (PARTITION BY n.pool_address) END
+              END)::BIGINT,
+        FLOOR(CASE WHEN p_invert
+                   THEN COALESCE(
+                       CASE WHEN n.rn = 1 THEN n.sell_t1_for_impact2_avg
+                            ELSE AVG(n.sell_t1_for_impact2_avg) OVER (PARTITION BY n.pool_address) END,
+                       CASE WHEN n.rn = 1 THEN n.sell_t0_for_impact2_avg
+                            ELSE AVG(n.sell_t0_for_impact2_avg) OVER (PARTITION BY n.pool_address) END)
+                   ELSE CASE WHEN n.rn = 1 THEN n.sell_t0_for_impact2_avg
+                             ELSE AVG(n.sell_t0_for_impact2_avg) OVER (PARTITION BY n.pool_address) END
+              END)::BIGINT,
+        FLOOR(CASE WHEN p_invert
+                   THEN COALESCE(
+                       CASE WHEN n.rn = 1 THEN n.sell_t1_for_impact3_avg
+                            ELSE AVG(n.sell_t1_for_impact3_avg) OVER (PARTITION BY n.pool_address) END,
+                       CASE WHEN n.rn = 1 THEN n.sell_t0_for_impact3_avg
+                            ELSE AVG(n.sell_t0_for_impact3_avg) OVER (PARTITION BY n.pool_address) END)
+                   ELSE CASE WHEN n.rn = 1 THEN n.sell_t0_for_impact3_avg
+                             ELSE AVG(n.sell_t0_for_impact3_avg) OVER (PARTITION BY n.pool_address) END
+              END)::BIGINT,
+        -- avg_w_last impact BPS: use t1 when inverted, fall back to negated t0
+        ROUND(CASE WHEN p_invert
+                   THEN COALESCE(
+                       -1 * (CASE WHEN n.rn = 1 THEN n.impact_from_t1_sell1_avg
+                                  ELSE AVG(n.impact_from_t1_sell1_avg) OVER (PARTITION BY n.pool_address) END),
+                       -1 * (CASE WHEN n.rn = 1 THEN n.impact_from_t0_sell1_avg
+                                  ELSE AVG(n.impact_from_t0_sell1_avg) OVER (PARTITION BY n.pool_address) END))
+                   ELSE CASE WHEN n.rn = 1 THEN n.impact_from_t0_sell1_avg
+                             ELSE AVG(n.impact_from_t0_sell1_avg) OVER (PARTITION BY n.pool_address) END
+              END, 2)::NUMERIC(10,2),
+        ROUND(CASE WHEN p_invert
+                   THEN COALESCE(
+                       -1 * (CASE WHEN n.rn = 1 THEN n.impact_from_t1_sell2_avg
+                                  ELSE AVG(n.impact_from_t1_sell2_avg) OVER (PARTITION BY n.pool_address) END),
+                       -1 * (CASE WHEN n.rn = 1 THEN n.impact_from_t0_sell2_avg
+                                  ELSE AVG(n.impact_from_t0_sell2_avg) OVER (PARTITION BY n.pool_address) END))
+                   ELSE CASE WHEN n.rn = 1 THEN n.impact_from_t0_sell2_avg
+                             ELSE AVG(n.impact_from_t0_sell2_avg) OVER (PARTITION BY n.pool_address) END
+              END, 2)::NUMERIC(10,2),
+        ROUND(CASE WHEN p_invert
+                   THEN COALESCE(
+                       -1 * (CASE WHEN n.rn = 1 THEN n.impact_from_t1_sell3_avg
+                                  ELSE AVG(n.impact_from_t1_sell3_avg) OVER (PARTITION BY n.pool_address) END),
+                       -1 * (CASE WHEN n.rn = 1 THEN n.impact_from_t0_sell3_avg
+                                  ELSE AVG(n.impact_from_t0_sell3_avg) OVER (PARTITION BY n.pool_address) END))
+                   ELSE CASE WHEN n.rn = 1 THEN n.impact_from_t0_sell3_avg
+                             ELSE AVG(n.impact_from_t0_sell3_avg) OVER (PARTITION BY n.pool_address) END
+              END, 2)::NUMERIC(10,2),
+        -- Reserves: swap t0↔t1 when inverted
+        CASE WHEN p_invert THEN FLOOR(n.t1_reserve)::BIGINT ELSE FLOOR(n.t0_reserve)::BIGINT END,
+        CASE WHEN p_invert THEN FLOOR(n.t0_reserve)::BIGINT ELSE FLOOR(n.t1_reserve)::BIGINT END,
+        -- Reserve composition %: swap when inverted
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN (n.t0_reserve + n.t1_reserve) > 0 THEN n.t1_reserve / (n.t0_reserve + n.t1_reserve) * 100 ELSE NULL END, 1)::NUMERIC(10,1)
+            ELSE ROUND(CASE WHEN (n.t0_reserve + n.t1_reserve) > 0 THEN n.t0_reserve / (n.t0_reserve + n.t1_reserve) * 100 ELSE NULL END, 1)::NUMERIC(10,1) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN (n.t0_reserve + n.t1_reserve) > 0 THEN n.t0_reserve / (n.t0_reserve + n.t1_reserve) * 100 ELSE NULL END, 1)::NUMERIC(10,1)
+            ELSE ROUND(CASE WHEN (n.t0_reserve + n.t1_reserve) > 0 THEN n.t1_reserve / (n.t0_reserve + n.t1_reserve) * 100 ELSE NULL END, 1)::NUMERIC(10,1) END,
+        -- TVL: when inverted, express in t0 units instead of t1 units
+        CASE WHEN p_invert
+            THEN FLOOR(COALESCE(n.t1_reserve / NULLIF(n.price_t1_per_t0, 0), 0) + COALESCE(n.t0_reserve, 0))::BIGINT
+            ELSE FLOOR(COALESCE(n.t0_reserve * n.price_t1_per_t0, 0) + COALESCE(n.t1_reserve, 0))::BIGINT END,
+        -- Reserve % of TVL: swap when inverted
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN (COALESCE(n.t1_reserve / NULLIF(n.price_t1_per_t0, 0), 0) + COALESCE(n.t0_reserve, 0)) > 0
+                       THEN (n.t1_reserve / NULLIF(n.price_t1_per_t0, 0)) / (n.t1_reserve / NULLIF(n.price_t1_per_t0, 0) + n.t0_reserve) * 100
+                       ELSE NULL END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN (COALESCE(n.t0_reserve * n.price_t1_per_t0, 0) + COALESCE(n.t1_reserve, 0)) > 0
+                       THEN (n.t0_reserve * n.price_t1_per_t0) / (n.t0_reserve * n.price_t1_per_t0 + n.t1_reserve) * 100
+                       ELSE NULL END, 4)::NUMERIC(10,4) END,
+        CASE WHEN p_invert
+            THEN ROUND(CASE WHEN (COALESCE(n.t1_reserve / NULLIF(n.price_t1_per_t0, 0), 0) + COALESCE(n.t0_reserve, 0)) > 0
+                       THEN n.t0_reserve / (n.t1_reserve / NULLIF(n.price_t1_per_t0, 0) + n.t0_reserve) * 100
+                       ELSE NULL END, 4)::NUMERIC(10,4)
+            ELSE ROUND(CASE WHEN (COALESCE(n.t0_reserve * n.price_t1_per_t0, 0) + COALESCE(n.t1_reserve, 0)) > 0
+                       THEN n.t1_reserve / (n.t0_reserve * n.price_t1_per_t0 + n.t1_reserve) * 100
+                       ELSE NULL END, 4)::NUMERIC(10,4) END,
+        -- Concentration metrics: unchanged (% of liquidity within spread bands, independent of price basis)
         ROUND(n.concentration_peg_pct_1, 4)::NUMERIC(10,4),
         ROUND(n.concentration_peg_pct_2, 4)::NUMERIC(10,4),
         ROUND(n.concentration_peg_pct_3, 4)::NUMERIC(10,4),
@@ -293,7 +419,7 @@ BEGIN
         ROUND(n.concentration_active_pct_2, 4)::NUMERIC(10,4),
         ROUND(n.concentration_active_pct_3, 4)::NUMERIC(10,4),
         n.concentration_active_halfspread_bps_array,
-        -- Tick crossings
+        -- Tick crossings: unchanged
         n.tick_cross_count,
         ROUND(dexes.calculate_avg_liquidity_change_per_cross(
             n.tick_cross_count,

@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS dexes.mat_dex_timeseries_1m (
     avg_est_swap_impact_bps     NUMERIC(20,6),
     min_est_swap_impact_bps_t0_sell NUMERIC(20,4),
     avg_est_swap_impact_bps_all NUMERIC(20,4),
+    max_est_swap_impact_bps_t1_sell NUMERIC(20,4),
 
     -- Pool state from cagg_tickarrays_5s (LAST within 1m, LOCF across)
     current_tick                INTEGER,
@@ -42,13 +43,21 @@ CREATE TABLE IF NOT EXISTS dexes.mat_dex_timeseries_1m (
     sqrt_price_x64              NUMERIC(40,0),
     price_t1_per_t0             NUMERIC(20,8),
 
-    -- Impact metrics from tickarrays (LAST within 1m, LOCF across)
+    -- Impact metrics from tickarrays - selling token0 (LAST within 1m, LOCF across)
     impact_from_t0_sell1_avg    NUMERIC(10,2),
     impact_from_t0_sell2_avg    NUMERIC(10,2),
     impact_from_t0_sell3_avg    NUMERIC(10,2),
     sell_t0_for_impact1_avg     NUMERIC,
     sell_t0_for_impact2_avg     NUMERIC,
     sell_t0_for_impact3_avg     NUMERIC,
+
+    -- Impact metrics from tickarrays - selling token1 (LAST within 1m, LOCF across)
+    impact_from_t1_sell1_avg    NUMERIC(10,2),
+    impact_from_t1_sell2_avg    NUMERIC(10,2),
+    impact_from_t1_sell3_avg    NUMERIC(10,2),
+    sell_t1_for_impact1_avg     NUMERIC,
+    sell_t1_for_impact2_avg     NUMERIC,
+    sell_t1_for_impact3_avg     NUMERIC,
 
     -- Concentration metrics (AVG within 1m, LOCF across)
     concentration_peg_pct_1     NUMERIC(10,4),
@@ -111,9 +120,12 @@ BEGIN
         lp_t1_in, lp_t1_out, lp_t1_net,
         vwap_buy_t0, vwap_sell_t0,
         avg_est_swap_impact_bps, min_est_swap_impact_bps_t0_sell, avg_est_swap_impact_bps_all,
+        max_est_swap_impact_bps_t1_sell,
         current_tick, current_tick_float, sqrt_price_x64, price_t1_per_t0,
         impact_from_t0_sell1_avg, impact_from_t0_sell2_avg, impact_from_t0_sell3_avg,
         sell_t0_for_impact1_avg, sell_t0_for_impact2_avg, sell_t0_for_impact3_avg,
+        impact_from_t1_sell1_avg, impact_from_t1_sell2_avg, impact_from_t1_sell3_avg,
+        sell_t1_for_impact1_avg, sell_t1_for_impact2_avg, sell_t1_for_impact3_avg,
         concentration_peg_pct_1, concentration_peg_pct_2, concentration_peg_pct_3,
         concentration_peg_halfspread_bps_array,
         concentration_active_pct_1, concentration_active_pct_2, concentration_active_pct_3,
@@ -151,7 +163,8 @@ BEGIN
                  ELSE NULL END AS vwap_sell_t0,
             AVG(e.c_swap_est_impact_bps_avg) FILTER (WHERE e.c_swap_est_impact_bps_avg IS NOT NULL) AS avg_est_swap_impact_bps,
             MIN(e.c_swap_est_impact_bps_min_t0_sell) FILTER (WHERE e.c_swap_est_impact_bps_min_t0_sell IS NOT NULL) AS min_est_swap_impact_bps_t0_sell,
-            AVG(e.c_swap_est_impact_bps_avg) FILTER (WHERE e.c_swap_est_impact_bps_avg IS NOT NULL) AS avg_est_swap_impact_bps_all
+            AVG(e.c_swap_est_impact_bps_avg) FILTER (WHERE e.c_swap_est_impact_bps_avg IS NOT NULL) AS avg_est_swap_impact_bps_all,
+            MAX(e.c_swap_est_impact_bps_max_t1_sell) FILTER (WHERE e.c_swap_est_impact_bps_max_t1_sell IS NOT NULL) AS max_est_swap_impact_bps_t1_sell
         FROM dexes.cagg_events_5s e
         WHERE e.activity_category = 'swap'
           AND e.bucket_time >= v_seed_from
@@ -187,6 +200,12 @@ BEGIN
             AVG(t.sell_t0_for_impact1_avg)        AS sell_t0_for_impact1_avg,
             AVG(t.sell_t0_for_impact2_avg)        AS sell_t0_for_impact2_avg,
             AVG(t.sell_t0_for_impact3_avg)        AS sell_t0_for_impact3_avg,
+            AVG(t.impact_from_t1_sell1_avg)       AS impact_from_t1_sell1_avg,
+            AVG(t.impact_from_t1_sell2_avg)       AS impact_from_t1_sell2_avg,
+            AVG(t.impact_from_t1_sell3_avg)       AS impact_from_t1_sell3_avg,
+            AVG(t.sell_t1_for_impact1_avg)        AS sell_t1_for_impact1_avg,
+            AVG(t.sell_t1_for_impact2_avg)        AS sell_t1_for_impact2_avg,
+            AVG(t.sell_t1_for_impact3_avg)        AS sell_t1_for_impact3_avg,
             AVG(t.liq_pct_within_xticks_of_peg_1) AS concentration_peg_pct_1,
             AVG(t.liq_pct_within_xticks_of_peg_2) AS concentration_peg_pct_2,
             AVG(t.liq_pct_within_xticks_of_peg_3) AS concentration_peg_pct_3,
@@ -255,6 +274,7 @@ BEGIN
             sw.avg_est_swap_impact_bps,
             sw.min_est_swap_impact_bps_t0_sell,
             sw.avg_est_swap_impact_bps_all,
+            sw.max_est_swap_impact_bps_t1_sell,
             tk.current_tick,
             tk.current_tick_float,
             tk.sqrt_price_x64,
@@ -265,6 +285,12 @@ BEGIN
             tk.sell_t0_for_impact1_avg,
             tk.sell_t0_for_impact2_avg,
             tk.sell_t0_for_impact3_avg,
+            tk.impact_from_t1_sell1_avg,
+            tk.impact_from_t1_sell2_avg,
+            tk.impact_from_t1_sell3_avg,
+            tk.sell_t1_for_impact1_avg,
+            tk.sell_t1_for_impact2_avg,
+            tk.sell_t1_for_impact3_avg,
             tk.concentration_peg_pct_1,
             tk.concentration_peg_pct_2,
             tk.concentration_peg_pct_3,
@@ -296,7 +322,8 @@ BEGIN
             COUNT(c.vwap_sell_t0) OVER w_pool         AS grp_vwap_sell,
             COUNT(c.concentration_peg_pct_1) OVER w_pool AS grp_conc_peg,
             COUNT(c.concentration_active_pct_1) OVER w_pool AS grp_conc_active,
-            COUNT(c.impact_from_t0_sell1_avg) OVER w_pool AS grp_impact
+            COUNT(c.impact_from_t0_sell1_avg) OVER w_pool AS grp_impact,
+            COUNT(c.impact_from_t1_sell1_avg) OVER w_pool AS grp_impact_t1
         FROM combined c
         WINDOW w_pool AS (PARTITION BY c.pool_address ORDER BY c.bt ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
     ),
@@ -316,6 +343,7 @@ BEGIN
             lg.avg_est_swap_impact_bps,
             lg.min_est_swap_impact_bps_t0_sell,
             lg.avg_est_swap_impact_bps_all,
+            lg.max_est_swap_impact_bps_t1_sell,
             FIRST_VALUE(lg.current_tick) OVER (PARTITION BY lg.pool_address, lg.grp_price ORDER BY lg.bt) AS current_tick,
             FIRST_VALUE(lg.current_tick_float) OVER (PARTITION BY lg.pool_address, lg.grp_price ORDER BY lg.bt) AS current_tick_float,
             FIRST_VALUE(lg.sqrt_price_x64) OVER (PARTITION BY lg.pool_address, lg.grp_price ORDER BY lg.bt) AS sqrt_price_x64,
@@ -326,6 +354,12 @@ BEGIN
             FIRST_VALUE(lg.sell_t0_for_impact1_avg) OVER (PARTITION BY lg.pool_address, lg.grp_impact ORDER BY lg.bt) AS sell_t0_for_impact1_avg,
             FIRST_VALUE(lg.sell_t0_for_impact2_avg) OVER (PARTITION BY lg.pool_address, lg.grp_impact ORDER BY lg.bt) AS sell_t0_for_impact2_avg,
             FIRST_VALUE(lg.sell_t0_for_impact3_avg) OVER (PARTITION BY lg.pool_address, lg.grp_impact ORDER BY lg.bt) AS sell_t0_for_impact3_avg,
+            FIRST_VALUE(lg.impact_from_t1_sell1_avg) OVER (PARTITION BY lg.pool_address, lg.grp_impact_t1 ORDER BY lg.bt) AS impact_from_t1_sell1_avg,
+            FIRST_VALUE(lg.impact_from_t1_sell2_avg) OVER (PARTITION BY lg.pool_address, lg.grp_impact_t1 ORDER BY lg.bt) AS impact_from_t1_sell2_avg,
+            FIRST_VALUE(lg.impact_from_t1_sell3_avg) OVER (PARTITION BY lg.pool_address, lg.grp_impact_t1 ORDER BY lg.bt) AS impact_from_t1_sell3_avg,
+            FIRST_VALUE(lg.sell_t1_for_impact1_avg) OVER (PARTITION BY lg.pool_address, lg.grp_impact_t1 ORDER BY lg.bt) AS sell_t1_for_impact1_avg,
+            FIRST_VALUE(lg.sell_t1_for_impact2_avg) OVER (PARTITION BY lg.pool_address, lg.grp_impact_t1 ORDER BY lg.bt) AS sell_t1_for_impact2_avg,
+            FIRST_VALUE(lg.sell_t1_for_impact3_avg) OVER (PARTITION BY lg.pool_address, lg.grp_impact_t1 ORDER BY lg.bt) AS sell_t1_for_impact3_avg,
             FIRST_VALUE(lg.concentration_peg_pct_1) OVER (PARTITION BY lg.pool_address, lg.grp_conc_peg ORDER BY lg.bt) AS concentration_peg_pct_1,
             FIRST_VALUE(lg.concentration_peg_pct_2) OVER (PARTITION BY lg.pool_address, lg.grp_conc_peg ORDER BY lg.bt) AS concentration_peg_pct_2,
             FIRST_VALUE(lg.concentration_peg_pct_3) OVER (PARTITION BY lg.pool_address, lg.grp_conc_peg ORDER BY lg.bt) AS concentration_peg_pct_3,
@@ -353,9 +387,12 @@ BEGIN
         la.lp_t1_in, la.lp_t1_out, la.lp_t1_net,
         la.vwap_buy_t0, la.vwap_sell_t0,
         la.avg_est_swap_impact_bps, la.min_est_swap_impact_bps_t0_sell, la.avg_est_swap_impact_bps_all,
+        la.max_est_swap_impact_bps_t1_sell,
         la.current_tick, la.current_tick_float, la.sqrt_price_x64, la.price_t1_per_t0,
         la.impact_from_t0_sell1_avg, la.impact_from_t0_sell2_avg, la.impact_from_t0_sell3_avg,
         la.sell_t0_for_impact1_avg, la.sell_t0_for_impact2_avg, la.sell_t0_for_impact3_avg,
+        la.impact_from_t1_sell1_avg, la.impact_from_t1_sell2_avg, la.impact_from_t1_sell3_avg,
+        la.sell_t1_for_impact1_avg, la.sell_t1_for_impact2_avg, la.sell_t1_for_impact3_avg,
         la.concentration_peg_pct_1, la.concentration_peg_pct_2, la.concentration_peg_pct_3,
         la.concentration_peg_halfspread_bps_array,
         la.concentration_active_pct_1, la.concentration_active_pct_2, la.concentration_active_pct_3,

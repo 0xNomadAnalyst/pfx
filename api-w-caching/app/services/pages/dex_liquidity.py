@@ -67,8 +67,16 @@ class DexLiquidityPageService(BasePageService):
         protocol = str(params.get("protocol", "raydium"))
         pair = str(params.get("pair", "USX-USDC"))
         delta_time = str(params.get("tick_delta_time", "1 hour"))
+        p_invert = self._should_invert(params, protocol)
 
         def _run_query(active_delta_time: str) -> list[dict[str, Any]]:
+            if p_invert:
+                query = """
+                    SELECT *
+                    FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval, %s)
+                    ORDER BY tick_price_t1_per_t0
+                """
+                return self.sql.fetch_rows(query, (protocol, pair, active_delta_time, True))
             query = """
                 SELECT *
                 FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval)
@@ -83,10 +91,9 @@ class DexLiquidityPageService(BasePageService):
                 is_timeout = "statement timeout" in str(exc).lower()
                 if not is_timeout or delta_time == "24 hours":
                     raise
-                # Fallback keeps widget responsive when short-window queries time out.
                 return _run_query("24 hours")
 
-        cache_key = f"tick_dist::{protocol}::{pair}::{delta_time}"
+        cache_key = f"tick_dist::{protocol}::{pair}::{delta_time}::{p_invert}"
         return self._cached(cache_key, _load_rows, ttl_seconds=self._TICK_DIST_TTL_SECONDS)
 
     @staticmethod
@@ -150,10 +157,10 @@ class DexLiquidityPageService(BasePageService):
         last_window = str(params.get("last_window", "24h"))
         lookback_from_window, _, _ = self._timeseries_window_config(last_window)
         lookback = lookback_from_window or lookback
+        p_invert = self._should_invert(params, protocol)
 
         def _run_query(active_lookback: str) -> dict[str, Any]:
-            query = """
-                SELECT
+            cols = """
                     tvl_in_t1_units,
                     impact_from_t0_sell3_bps,
                     reserve_t0_t1_millions,
@@ -161,13 +168,23 @@ class DexLiquidityPageService(BasePageService):
                     swap_token0_in_max,
                     reserve_t0_t1_balance_pct,
                     swap_token0_in_avg_impact_bps,
-                    swap_token0_in_avg
-                FROM dexes.get_view_dex_last(%s, %s, %s::interval)
-                LIMIT 1
-            """
+                    swap_token0_in_avg"""
+            if p_invert:
+                query = f"""
+                    SELECT {cols}
+                    FROM dexes.get_view_dex_last(%s, %s, %s::interval, %s)
+                    LIMIT 1
+                """
+                args = (protocol, pair, active_lookback, True)
+            else:
+                query = f"""
+                    SELECT {cols}
+                    FROM dexes.get_view_dex_last(%s, %s, %s::interval)
+                    LIMIT 1
+                """
+                args = (protocol, pair, active_lookback)
             rows = self.sql.fetch_rows(
-                query,
-                (protocol, pair, active_lookback),
+                query, args,
                 statement_timeout_ms=self._DEX_LAST_TIMEOUT_MS,
             )
             return rows[0] if rows else {}
@@ -182,7 +199,7 @@ class DexLiquidityPageService(BasePageService):
                     raise
                 return _run_query(fallback_lookback)
 
-        cache_key = f"dex_last::{protocol}::{pair}::{lookback}"
+        cache_key = f"dex_last::{protocol}::{pair}::{lookback}::{p_invert}"
         return self._cached(cache_key, _load_row, ttl_seconds=self._DEX_LAST_TTL_SECONDS)
 
     def _dex_timeseries_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -194,10 +211,10 @@ class DexLiquidityPageService(BasePageService):
         _, interval_from_window, rows_from_window = self._timeseries_window_config(last_window)
         interval = interval_from_window or interval
         rows = rows_from_window if rows_from_window > 0 else rows
+        p_invert = self._should_invert(params, protocol)
 
         def _load_rows() -> list[dict[str, Any]]:
-            query = """
-                SELECT
+            cols = """
                     time,
                     reserve_t1_pct,
                     concentration_avg_peg_pct_1_last,
@@ -210,13 +227,22 @@ class DexLiquidityPageService(BasePageService):
                     impact_from_t0_sell1_bps_avg_w_last,
                     impact_from_t0_sell2_bps_avg_w_last,
                     impact_from_t0_sell3_bps_avg_w_last,
-                    impact_t0_quantities
+                    impact_t0_quantities"""
+            if p_invert:
+                query = f"""
+                    SELECT {cols}
+                    FROM dexes.get_view_dex_timeseries(%s, %s, %s, %s, %s)
+                    ORDER BY time
+                """
+                return self.sql.fetch_rows(query, (protocol, pair, interval, rows, True))
+            query = f"""
+                SELECT {cols}
                 FROM dexes.get_view_dex_timeseries(%s, %s, %s, %s)
                 ORDER BY time
             """
             return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
 
-        cache_key = f"dex_timeseries::{protocol}::{pair}::{interval}::{rows}"
+        cache_key = f"dex_timeseries::{protocol}::{pair}::{interval}::{rows}::{p_invert}"
         return self._cached(cache_key, _load_rows, ttl_seconds=self._TIMESERIES_TTL_SECONDS)
 
     def _liquidity_distribution(self, params: dict[str, Any]) -> dict[str, Any]:
@@ -405,22 +431,26 @@ class DexLiquidityPageService(BasePageService):
     def _liquidity_depth_table(self, params: dict[str, Any]) -> dict[str, Any]:
         protocol = str(params.get("protocol", "raydium"))
         pair = str(params.get("pair", "USX-USDC"))
+        p_invert = self._should_invert(params, protocol)
 
         def _load_rows() -> list[dict[str, Any]]:
+            if p_invert:
+                query = """
+                    SELECT bps_target, price_change_pct, calculated_price,
+                           liquidity_in_band, swap_size_equivalent, pct_of_reserve
+                    FROM dexes.get_view_liquidity_depth_table(%s, %s, %s)
+                    ORDER BY bps_target
+                """
+                return self.sql.fetch_rows(query, (protocol, pair, True))
             query = """
-                SELECT
-                    bps_target,
-                    price_change_pct,
-                    calculated_price,
-                    liquidity_in_band,
-                    swap_size_equivalent,
-                    pct_of_reserve
+                SELECT bps_target, price_change_pct, calculated_price,
+                       liquidity_in_band, swap_size_equivalent, pct_of_reserve
                 FROM dexes.get_view_liquidity_depth_table(%s, %s)
                 ORDER BY bps_target
             """
             return self.sql.fetch_rows(query, (protocol, pair))
 
-        cache_key = f"depth_table::{protocol}::{pair}"
+        cache_key = f"depth_table::{protocol}::{pair}::{p_invert}"
         rows = self._cached(cache_key, _load_rows, ttl_seconds=self._DEPTH_TABLE_TTL_SECONDS)
         return {
             "kind": "table",
@@ -545,42 +575,45 @@ class DexLiquidityPageService(BasePageService):
     def _ranked_lp_events(self, params: dict[str, Any]) -> dict[str, Any]:
         protocol = str(params.get("protocol", "raydium"))
         pair = str(params.get("pair", "USX-USDC"))
-        # Keep parity with React reference: always show top 10 per side.
         rows = 10
         lookback = str(params.get("lookback", "1 day"))
         last_window = str(params.get("last_window", "24h"))
         lookback_from_window, _, _ = self._timeseries_window_config(last_window)
         lookback = lookback_from_window or lookback
+        p_invert = self._should_invert(params, protocol)
 
         def _run_ranked(direction: str, active_lookback: str) -> list[dict[str, Any]]:
-            query = """
-                SELECT
-                    tx_time,
-                    primary_flow,
-                    primary_flow_reserve_pct_now,
-                    signature
-                FROM dexes.get_view_dex_table_ranked_events(
-                    %s, %s, 'lp', 't1', %s, %s, %s
-                )
-            """
+            if p_invert:
+                query = """
+                    SELECT tx_time, primary_flow, primary_flow_reserve_pct_now, signature
+                    FROM dexes.get_view_dex_table_ranked_events(
+                        %s, %s, 'lp', 't1', %s, %s, %s, %s
+                    )
+                """
+                args = (protocol, pair, direction, rows, active_lookback, True)
+            else:
+                query = """
+                    SELECT tx_time, primary_flow, primary_flow_reserve_pct_now, signature
+                    FROM dexes.get_view_dex_table_ranked_events(
+                        %s, %s, 'lp', 't1', %s, %s, %s
+                    )
+                """
+                args = (protocol, pair, direction, rows, active_lookback)
             return self.sql.fetch_rows(
-                query,
-                (protocol, pair, direction, rows, active_lookback),
+                query, args,
                 statement_timeout_ms=self._RANKED_LP_TIMEOUT_MS,
             )
 
         def _load_ranked(direction: str) -> list[dict[str, Any]]:
-            # Respect the selected Last window exactly; do not silently shorten
-            # lookback horizons (e.g. 30d -> 12h) for this ranked table.
             return _run_ranked(direction, lookback)
 
         top_in = self._cached(
-            f"ranked_lp::{protocol}::{pair}::in::{rows}::{lookback}",
+            f"ranked_lp::{protocol}::{pair}::in::{rows}::{lookback}::{p_invert}",
             lambda: _load_ranked("in"),
             ttl_seconds=self._RANKED_LP_TTL_SECONDS,
         )
         top_out = self._cached(
-            f"ranked_lp::{protocol}::{pair}::out::{rows}::{lookback}",
+            f"ranked_lp::{protocol}::{pair}::out::{rows}::{lookback}::{p_invert}",
             lambda: _load_ranked("out"),
             ttl_seconds=self._RANKED_LP_TTL_SECONDS,
         )

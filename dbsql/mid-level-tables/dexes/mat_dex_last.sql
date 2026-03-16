@@ -17,6 +17,12 @@ CREATE TABLE IF NOT EXISTS dexes.mat_dex_last (
     impact_from_t0_sell2_bps        NUMERIC,
     impact_from_t0_sell3_bps        NUMERIC,
 
+    -- Price impact for standard trade sizes (selling token1)
+    impact_t1_quantities            DOUBLE PRECISION[],
+    impact_from_t1_sell1_bps        NUMERIC,
+    impact_from_t1_sell2_bps        NUMERIC,
+    impact_from_t1_sell3_bps        NUMERIC,
+
     -- Reserve metrics
     t0_reserve                      BIGINT,
     t1_reserve                      BIGINT,
@@ -171,6 +177,8 @@ BEGIN
                 max_1h_t0_sell_pressure_in_period, max_1h_t0_buy_pressure_in_period,
                 max_1h_t0_sell_pressure_in_period_impact_bps,
                 max_1h_t0_buy_pressure_in_period_impact_bps,
+                impact_t1_quantities, impact_from_t1_sell1_bps,
+                impact_from_t1_sell2_bps, impact_from_t1_sell3_bps,
                 max_1h_t0_sell_pressure_pct_reserve, max_1h_t0_sell_pressure_start,
                 refreshed_at
             )

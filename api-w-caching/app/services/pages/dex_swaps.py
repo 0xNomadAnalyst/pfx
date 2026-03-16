@@ -147,33 +147,35 @@ class DexSwapsPageService(BasePageService):
         protocol = str(params.get("protocol", self.default_protocol))
         pair = str(params.get("pair", self.default_pair))
         lookback = self._lookback(params)
+        p_invert = self._should_invert(params, protocol)
 
         def _run_query(active_lookback: str) -> dict[str, Any]:
-            query = """
-                SELECT
-                    swap_vol_t1_total_24h,
-                    swap_vol_t1_total_24h_pct_tvl_in_t1,
-                    swap_count_24h,
-                    price_t1_per_t0_min,
-                    price_t1_per_t0_max,
-                    vwap_buy_t0_avg,
-                    vwap_sell_t0_avg,
-                    price_t1_per_t0_std,
-                    spread_vwap_avg_bps,
-                    swap_token0_in_max,
-                    swap_token0_in_max_impact_bps,
-                    swap_token0_out_max,
-                    swap_token0_out_max_impact_bps,
+            cols = """
+                    swap_vol_t1_total_24h, swap_vol_t1_total_24h_pct_tvl_in_t1,
+                    swap_count_24h, price_t1_per_t0_min, price_t1_per_t0_max,
+                    vwap_buy_t0_avg, vwap_sell_t0_avg, price_t1_per_t0_std,
+                    spread_vwap_avg_bps, swap_token0_in_max, swap_token0_in_max_impact_bps,
+                    swap_token0_out_max, swap_token0_out_max_impact_bps,
                     max_1h_t0_sell_pressure_in_period,
                     max_1h_t0_sell_pressure_in_period_impact_bps,
                     max_1h_t0_buy_pressure_in_period,
-                    max_1h_t0_buy_pressure_in_period_impact_bps
-                FROM dexes.get_view_dex_last(%s, %s, %s::interval)
-                LIMIT 1
-            """
+                    max_1h_t0_buy_pressure_in_period_impact_bps"""
+            if p_invert:
+                query = f"""
+                    SELECT {cols}
+                    FROM dexes.get_view_dex_last(%s, %s, %s::interval, %s)
+                    LIMIT 1
+                """
+                args = (protocol, pair, active_lookback, True)
+            else:
+                query = f"""
+                    SELECT {cols}
+                    FROM dexes.get_view_dex_last(%s, %s, %s::interval)
+                    LIMIT 1
+                """
+                args = (protocol, pair, active_lookback)
             rows = self.sql.fetch_rows(
-                query,
-                (protocol, pair, active_lookback),
+                query, args,
                 statement_timeout_ms=self._DEX_LAST_TIMEOUT_MS,
             )
             return rows[0] if rows else {}
@@ -188,7 +190,7 @@ class DexSwapsPageService(BasePageService):
                     raise
                 return _run_query(fallback_lookback)
 
-        cache_key = f"dex_swaps::dex_last::{protocol}::{pair}::{lookback}"
+        cache_key = f"dex_swaps::dex_last::{protocol}::{pair}::{lookback}::{p_invert}"
         return self._cached(cache_key, _load_row, ttl_seconds=self._DEX_LAST_TTL_SECONDS)
 
     def _dex_timeseries_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -200,26 +202,28 @@ class DexSwapsPageService(BasePageService):
         _, interval_from_window, rows_from_window = self._timeseries_window_config(last_window)
         interval = interval_from_window or interval
         rows = rows_from_window if rows_from_window > 0 else rows
+        p_invert = self._should_invert(params, protocol)
 
         def _load_rows() -> list[dict[str, Any]]:
-            query = """
-                SELECT
-                    time,
-                    swap_t1_out,
-                    swap_t0_out,
-                    swap_t1_in,
-                    swap_t0_in,
-                    swap_count,
-                    avg_est_swap_impact_bps_all,
-                    min_est_swap_impact_bps_t0_sell,
-                    price_t1_per_t0,
-                    avg_vwap_spread_bps_w_last
+            cols = """time, swap_t1_out, swap_t0_out, swap_t1_in, swap_t0_in,
+                    swap_count, avg_est_swap_impact_bps_all,
+                    min_est_swap_impact_bps_t0_sell, price_t1_per_t0,
+                    avg_vwap_spread_bps_w_last"""
+            if p_invert:
+                query = f"""
+                    SELECT {cols}
+                    FROM dexes.get_view_dex_timeseries(%s, %s, %s, %s, %s)
+                    ORDER BY time
+                """
+                return self.sql.fetch_rows(query, (protocol, pair, interval, rows, True))
+            query = f"""
+                SELECT {cols}
                 FROM dexes.get_view_dex_timeseries(%s, %s, %s, %s)
                 ORDER BY time
             """
             return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
 
-        cache_key = f"dex_swaps::dex_timeseries::v2::{protocol}::{pair}::{interval}::{rows}"
+        cache_key = f"dex_swaps::dex_timeseries::v2::{protocol}::{pair}::{interval}::{rows}::{p_invert}"
         cached_rows = self._cached(cache_key, _load_rows, ttl_seconds=self._TIMESERIES_TTL_SECONDS)
         return self._drop_incomplete_trailing_bucket(cached_rows, interval)
 
@@ -243,22 +247,24 @@ class DexSwapsPageService(BasePageService):
         if interval_seconds > 0 and window_seconds > 0:
             rows = int(ceil(window_seconds / interval_seconds))
         rows = max(2, min(rows, 1000))
+        p_invert = self._should_invert(params, protocol)
 
         def _load_rows() -> list[dict[str, Any]]:
+            if p_invert:
+                query = """
+                    SELECT time, open_price, close_price, low_price, high_price, volume_t1
+                    FROM dexes.get_view_dex_ohlcv(%s, %s, %s, %s, %s)
+                    ORDER BY time
+                """
+                return self.sql.fetch_rows(query, (protocol, pair, interval, rows, True))
             query = """
-                SELECT
-                    time,
-                    open_price,
-                    close_price,
-                    low_price,
-                    high_price,
-                    volume_t1
+                SELECT time, open_price, close_price, low_price, high_price, volume_t1
                 FROM dexes.get_view_dex_ohlcv(%s, %s, %s, %s)
                 ORDER BY time
             """
             return self.sql.fetch_rows(query, (protocol, pair, interval, rows))
 
-        cache_key = f"dex_swaps::dex_ohlcv::v2::{protocol}::{pair}::{last_window}::{interval}::{rows}"
+        cache_key = f"dex_swaps::dex_ohlcv::v2::{protocol}::{pair}::{last_window}::{interval}::{rows}::{p_invert}"
         cached_rows = self._cached(cache_key, _load_rows, ttl_seconds=self._OHLCV_TTL_SECONDS)
         return self._drop_incomplete_trailing_bucket(cached_rows, interval)
 
@@ -266,14 +272,20 @@ class DexSwapsPageService(BasePageService):
         protocol = str(params.get("protocol", self.default_protocol))
         pair = str(params.get("pair", self.default_pair))
         delta_time = str(params.get("tick_delta_time", "1 hour"))
+        p_invert = self._should_invert(params, protocol)
 
         def _run_query(active_delta_time: str) -> list[dict[str, Any]]:
+            if p_invert:
+                query = """
+                    SELECT tick_price_t1_per_t0, current_price_t1_per_t0,
+                           token0_value, token1_value
+                    FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval, %s)
+                    ORDER BY tick_price_t1_per_t0
+                """
+                return self.sql.fetch_rows(query, (protocol, pair, active_delta_time, True))
             query = """
-                SELECT
-                    tick_price_t1_per_t0,
-                    current_price_t1_per_t0,
-                    token0_value,
-                    token1_value
+                SELECT tick_price_t1_per_t0, current_price_t1_per_t0,
+                       token0_value, token1_value
                 FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval)
                 ORDER BY tick_price_t1_per_t0
             """
@@ -288,49 +300,59 @@ class DexSwapsPageService(BasePageService):
                     raise
                 return _run_query("24 hours")
 
-        cache_key = f"dex_swaps::tick_dist::v2::{protocol}::{pair}::{delta_time}"
+        cache_key = f"dex_swaps::tick_dist::v2::{protocol}::{pair}::{delta_time}::{p_invert}"
         return self._cached(cache_key, _load_rows, ttl_seconds=self._TICK_DIST_TTL_SECONDS)
 
     def _sell_swaps_distribution_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         protocol = str(params.get("protocol", self.default_protocol))
         pair = str(params.get("pair", self.default_pair))
         lookback = self._lookback(params)
+        p_invert = self._should_invert(params, protocol)
 
         def _load_rows() -> list[dict[str, Any]]:
+            if p_invert:
+                query = """
+                    SELECT bucket_number, bucket_max_in_k, cumulative_share,
+                           swap_count, price_impact_bps_abs
+                    FROM dexes.get_view_sell_swaps_distribution(%s, %s, 't0', %s, %s, %s)
+                    ORDER BY bucket_number
+                """
+                return self.sql.fetch_rows(query, (protocol, pair, lookback, 10, True))
             query = """
-                SELECT
-                    bucket_number,
-                    bucket_max_in_k,
-                    cumulative_share,
-                    swap_count,
-                    price_impact_bps_abs
+                SELECT bucket_number, bucket_max_in_k, cumulative_share,
+                       swap_count, price_impact_bps_abs
                 FROM dexes.get_view_sell_swaps_distribution(%s, %s, 't0', %s, %s)
                 ORDER BY bucket_number
             """
             return self.sql.fetch_rows(query, (protocol, pair, lookback, 10))
 
-        cache_key = f"dex_swaps::sell_swaps_distribution::{protocol}::{pair}::{lookback}"
+        cache_key = f"dex_swaps::sell_swaps_distribution::{protocol}::{pair}::{lookback}::{p_invert}"
         return self._cached(cache_key, _load_rows, ttl_seconds=self._DISTRIBUTION_TTL_SECONDS)
 
     def _sell_pressure_distribution_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         protocol = str(params.get("protocol", self.default_protocol))
         pair = str(params.get("pair", self.default_pair))
         lookback = self._lookback(params)
+        p_invert = self._should_invert(params, protocol)
 
         def _load_rows() -> list[dict[str, Any]]:
+            if p_invert:
+                query = """
+                    SELECT bucket_number, bucket_max_in_k, cumulative_share,
+                           interval_count, price_impact_bps_abs
+                    FROM dexes.get_view_sell_pressure_t0_distribution(%s, %s, '1 hour', %s, %s, 'sell_only', %s)
+                    ORDER BY bucket_number
+                """
+                return self.sql.fetch_rows(query, (protocol, pair, lookback, 10, True))
             query = """
-                SELECT
-                    bucket_number,
-                    bucket_max_in_k,
-                    cumulative_share,
-                    interval_count,
-                    price_impact_bps_abs
+                SELECT bucket_number, bucket_max_in_k, cumulative_share,
+                       interval_count, price_impact_bps_abs
                 FROM dexes.get_view_sell_pressure_t0_distribution(%s, %s, '1 hour', %s, %s, 'sell_only')
                 ORDER BY bucket_number
             """
             return self.sql.fetch_rows(query, (protocol, pair, lookback, 10))
 
-        cache_key = f"dex_swaps::sell_pressure_distribution::{protocol}::{pair}::{lookback}"
+        cache_key = f"dex_swaps::sell_pressure_distribution::{protocol}::{pair}::{lookback}::{p_invert}"
         return self._cached(cache_key, _load_rows, ttl_seconds=self._DISTRIBUTION_TTL_SECONDS)
 
     def _swaps_ranked_events_rows(self, params: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
@@ -339,6 +361,7 @@ class DexSwapsPageService(BasePageService):
         lookback = self._lookback(params)
         last_window = str(params.get("last_window", "24h")).lower()
         rows = 10
+        p_invert = self._should_invert(params, protocol)
         ranked_timeout_ms = {
             "1h": 15_000,
             "4h": 20_000,
@@ -350,41 +373,46 @@ class DexSwapsPageService(BasePageService):
         }.get(last_window, self._RANKED_EVENTS_TIMEOUT_MS)
 
         def _load_rows() -> list[dict[str, Any]]:
-            query = """
-                SELECT
-                    tx_time,
-                    primary_flow,
-                    primary_flow_impact_bps_now,
-                    signature
-                FROM dexes.get_view_dex_table_ranked_events(
-                    %s, %s, 'swap', 't0', %s, %s, %s
-                )
-            """
+            if p_invert:
+                query = """
+                    SELECT tx_time, primary_flow, primary_flow_impact_bps_now, signature
+                    FROM dexes.get_view_dex_table_ranked_events(
+                        %s, %s, 'swap', 't0', %s, %s, %s, %s
+                    )
+                """
+            else:
+                query = """
+                    SELECT tx_time, primary_flow, primary_flow_impact_bps_now, signature
+                    FROM dexes.get_view_dex_table_ranked_events(
+                        %s, %s, 'swap', 't0', %s, %s, %s
+                    )
+                """
 
             def _run_for_lookback(active_lookback: str) -> dict[str, list[dict[str, Any]]]:
+                if p_invert:
+                    sell_args = (protocol, pair, "in", rows, active_lookback, True)
+                    buy_args = (protocol, pair, "out", rows, active_lookback, True)
+                else:
+                    sell_args = (protocol, pair, "in", rows, active_lookback)
+                    buy_args = (protocol, pair, "out", rows, active_lookback)
                 sell_rows = self.sql.fetch_rows(
-                    query,
-                    (protocol, pair, "in", rows, active_lookback),
+                    query, sell_args,
                     statement_timeout_ms=ranked_timeout_ms,
                 )
                 buy_rows = self.sql.fetch_rows(
-                    query,
-                    (protocol, pair, "out", rows, active_lookback),
+                    query, buy_args,
                     statement_timeout_ms=ranked_timeout_ms,
                 )
                 return {"sell": sell_rows, "buy": buy_rows}
 
-            # Respect selected Last window exactly; never silently shorten lookback.
             try:
                 return _run_for_lookback(lookback)
             except Exception as exc:
-                # Keep widget rendering stable under heavy windows; avoid surfacing
-                # a full SQL traceback blob in the frontend panel.
                 if "statement timeout" in str(exc).lower():
                     return {"sell": [], "buy": []}
                 raise
 
-        cache_key = f"dex_swaps::ranked_events::{protocol}::{pair}::{lookback}"
+        cache_key = f"dex_swaps::ranked_events::{protocol}::{pair}::{lookback}::{p_invert}"
         return self._cached(cache_key, _load_rows, ttl_seconds=self._RANKED_EVENTS_TTL_SECONDS)
 
     def _dex_last_row_fixed_lookback(self, params: dict[str, Any], lookback: str) -> dict[str, Any]:

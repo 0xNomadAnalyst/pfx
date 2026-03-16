@@ -19,6 +19,7 @@
 -- - Trigger: trg_calculate_swap_impact (pre-calculates impact at insert time)
 -- =====================================================
 
+DROP FUNCTION IF EXISTS dexes.get_view_dex_table_ranked_events(TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT);
 CREATE OR REPLACE FUNCTION dexes.get_view_dex_table_ranked_events(
     p_protocol TEXT,                           -- 'raydium' or 'orca'
     p_pair TEXT,                               -- 'usx-usdc' or 'eusx-usx'
@@ -26,7 +27,8 @@ CREATE OR REPLACE FUNCTION dexes.get_view_dex_table_ranked_events(
     p_sort_asset TEXT DEFAULT 't0',            -- 't0' or 't1'
     p_flow_direction TEXT DEFAULT 'out',       -- 'in' or 'out' (inflow or outflow)
     p_rows INTEGER DEFAULT 100,                -- Number of top results to return
-    p_lookback TEXT DEFAULT '1 day'            -- Lookback period (e.g., '4 hours', '1 day', '7 days')
+    p_lookback TEXT DEFAULT '1 day',           -- Lookback period (e.g., '4 hours', '1 day', '7 days')
+    p_invert BOOLEAN DEFAULT FALSE             -- When TRUE, swap t0↔t1 identities and negate impact BPS
 )
 RETURNS TABLE (
     -- Transaction identifiers
@@ -415,8 +417,25 @@ BEGIN
                 ELSE NULL
             END AS primary_flow_impact_bps_at_tx,
             
-            CASE 
-                WHEN activity_type = 'swap' THEN ROUND(COALESCE(c_swap_est_impact_bps, 0)::NUMERIC, 4)::DOUBLE PRECISION
+            CASE
+                WHEN activity_type != 'swap' THEN NULL
+                WHEN '{{FLOW_DIR}}' = 'out' THEN
+                    ROUND(dexes.impact_bps_from_qsell_latest(
+                        pool_address, '{{SORT_ASSET}}',
+                        ABS(CASE
+                            WHEN '{{SORT_ASSET}}' = 't0' THEN token0_out
+                            ELSE token1_out
+                        END)::DOUBLE PRECISION
+                    )::NUMERIC, 4)::DOUBLE PRECISION
+                WHEN '{{FLOW_DIR}}' = 'in' THEN
+                    ROUND(dexes.impact_bps_from_qsell_latest(
+                        pool_address,
+                        CASE WHEN '{{SORT_ASSET}}' = 't0' THEN 't1' ELSE 't0' END,
+                        ABS(CASE
+                            WHEN '{{SORT_ASSET}}' = 't0' THEN token1_out
+                            ELSE token0_out
+                        END)::DOUBLE PRECISION
+                    )::NUMERIC, 4)::DOUBLE PRECISION
                 ELSE NULL
             END AS primary_flow_impact_bps_now,
             
@@ -446,9 +465,59 @@ BEGIN
     -- =====================================================
     -- Execute and Return Results
     -- =====================================================
-    
-    RETURN QUERY EXECUTE v_sql;
-    
+
+    IF p_invert THEN
+        -- Wrap the base query to swap t0↔t1 identities and negate BPS
+        RETURN QUERY EXECUTE format($wrap$
+            SELECT
+                r.tx_time,
+                r.signature,
+                r.block_id,
+                r.pool_address,
+                -- Swap t0↔t1 flows
+                r.token1_in  AS token0_in,
+                r.token1_out AS token0_out,
+                r.token0_in  AS token1_in,
+                r.token0_out AS token1_out,
+                r.primary_flow,
+                r.complement_flow,
+                r.primary_flow_reserve_pct_at_tx,
+                r.primary_flow_reserve_pct_now,
+                r.complement_flow_reserve_pct_at_tx,
+                r.complement_flow_reserve_pct_now,
+                -- Swap t0↔t1 token identity
+                r.token1_mint  AS token0_mint,
+                r.token0_mint  AS token1_mint,
+                r.token1_symbol AS token0_symbol,
+                r.token0_symbol AS token1_symbol,
+                -- Swap balance context
+                r.token1_balance_at_tx AS token0_balance_at_tx,
+                r.token0_balance_at_tx AS token1_balance_at_tx,
+                r.token1_balance_now   AS token0_balance_now,
+                r.token0_balance_now   AS token1_balance_now,
+                -- Swap reserve pct columns
+                r.token1_in_pct_reserve_at_tx  AS token0_in_pct_reserve_at_tx,
+                r.token1_out_pct_reserve_at_tx AS token0_out_pct_reserve_at_tx,
+                r.token0_in_pct_reserve_at_tx  AS token1_in_pct_reserve_at_tx,
+                r.token0_out_pct_reserve_at_tx AS token1_out_pct_reserve_at_tx,
+                r.token1_in_pct_reserve_now    AS token0_in_pct_reserve_now,
+                r.token1_out_pct_reserve_now   AS token0_out_pct_reserve_now,
+                r.token0_in_pct_reserve_now    AS token1_in_pct_reserve_now,
+                r.token0_out_pct_reserve_now   AS token1_out_pct_reserve_now,
+                -- Negate BPS impact
+                CASE WHEN r.primary_flow_impact_bps_at_tx IS NOT NULL
+                     THEN -1 * r.primary_flow_impact_bps_at_tx ELSE NULL END,
+                CASE WHEN r.primary_flow_impact_bps_now IS NOT NULL
+                     THEN -1 * r.primary_flow_impact_bps_now ELSE NULL END,
+                r.activity_type_detail,
+                r.platform,
+                r.data_quality
+            FROM (%s) r
+        $wrap$, v_sql);
+    ELSE
+        RETURN QUERY EXECUTE v_sql;
+    END IF;
+
 END;
 $$;
 
@@ -456,7 +525,7 @@ $$;
 -- Function Comments
 -- =====================================================
 
-COMMENT ON FUNCTION dexes.get_view_dex_table_ranked_events(TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT) IS 
+COMMENT ON FUNCTION dexes.get_view_dex_table_ranked_events(TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, BOOLEAN) IS 
 'OPTIMIZED: Retrieves top N DEX transactions with LOCF balance context and price impact analysis.
 PERFORMANCE IMPROVEMENTS:
 - Uses pre-calculated c_swap_est_impact_bps (calculated by trigger at insert time)
