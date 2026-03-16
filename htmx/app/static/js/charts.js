@@ -887,9 +887,24 @@
       secondary.textContent = data.secondary || "";
     } else {
       let pText = formatNumber(data.primary);
-      pText = maskNoneMarketSide(pText);
+      let sText = data.secondary ? formatNumber(data.secondary) : "";
+      const mktSide = sourceWidgetId && widgetId !== sourceWidgetId
+        ? (widgetId.endsWith("-mkt1") ? 0 : widgetId.endsWith("-mkt2") ? 1 : -1)
+        : -1;
+      if (mktSide >= 0) {
+        if (typeof pText === "string" && pText.includes(" / ")) {
+          const pp = pText.split(" / ");
+          if (pp.length === 2) pText = pp[mktSide].trim();
+        }
+        if (typeof sText === "string" && sText.includes(", ")) {
+          const sp = sText.split(", ");
+          if (sp.length === 2) sText = sp[mktSide].trim();
+        }
+      } else {
+        pText = maskNoneMarketSide(pText);
+      }
       primary.textContent = pText;
-      secondary.textContent = data.secondary ? formatNumber(data.secondary) : "";
+      secondary.textContent = sText;
     }
 
     autoSizeKpi(primary);
@@ -2962,6 +2977,17 @@
       if (getTimeseriesGroupId(swid)) {
         applyLinkedTimeseriesFormat(option);
       }
+      if (swid.startsWith("exponent-")) {
+        option.grid = { ...option.grid, bottom: 82 };
+        if (Array.isArray(option.dataZoom)) {
+          option.dataZoom = option.dataZoom.map(dz =>
+            dz.type === "slider" ? { ...dz, bottom: 36, height: 12 } : dz
+          );
+        }
+        if (option.legend) {
+          option.legend = { ...option.legend, bottom: 4, itemGap: 8 };
+        }
+      }
       if (tickReferenceWidgets.has(swid) && Array.isArray(option.series) && option.series.length > 0) {
         const refMarkLine = buildTickReferenceMarkLine(chartData);
         if (refMarkLine) {
@@ -3668,15 +3694,44 @@
     return match ? match.pair : `${asset}-USDC`;
   }
 
+  function extractSyToken(mktName) {
+    if (!mktName) return "";
+    const parts = mktName.split("-");
+    if (parts.length < 3 || parts[0] !== "PT") return mktName;
+    return parts.slice(1, -1).join("-");
+  }
+
+  function sameSyToken() {
+    const m1 = currentMkt1();
+    const m2 = currentMkt2();
+    if (!m1 || !m2) return false;
+    return extractSyToken(m1) === extractSyToken(m2);
+  }
+
   function updateDexSubheaderPairs() {
     document.querySelectorAll(".dx-section-subheader").forEach((el) => {
       const proto = el.dataset.protocol;
       if (!proto) return;
-      const fullProto = proto === "ray" ? "raydium" : proto;
-      const asset = currentAsset();
-      const pair = pairForAssetProtocol(fullProto, asset);
       const pairSpan = el.querySelector(".dx-subheader-pair");
-      if (pairSpan) pairSpan.textContent = pair || "";
+      if (!pairSpan) return;
+
+      if (proto === "mkt1-sy" || proto === "mkt2-sy"
+          || proto === "mkt1" || proto === "mkt2") {
+        const isMkt1 = proto === "mkt1" || proto === "mkt1-sy";
+        const useSy = proto.endsWith("-sy");
+        const sel = document.getElementById(isMkt1 ? "mkt1-select" : "mkt2-select");
+        const val = sel ? sel.value : "";
+        if (val && val !== "__none__") {
+          pairSpan.textContent = useSy ? extractSyToken(val) : val;
+        } else {
+          pairSpan.textContent = "";
+        }
+      } else {
+        const fullProto = proto === "ray" ? "raydium" : proto;
+        const asset = currentAsset();
+        const pair = pairForAssetProtocol(fullProto, asset);
+        pairSpan.textContent = pair || "";
+      }
     });
   }
 
@@ -3988,6 +4043,7 @@
 
   async function initMarketSelectors() {
     await populateMarketSelectors();
+    updateDexSubheaderPairs();
 
     const mkt1Select = document.getElementById("mkt1-select");
     const mkt2Select = document.getElementById("mkt2-select");
@@ -3995,6 +4051,7 @@
     const lastWindowSelect = document.getElementById("last-window-select");
 
     mkt1Select.addEventListener("change", () => {
+      updateDexSubheaderPairs();
       resetDashboardLoading();
       const protocol = currentProtocol();
       const pair = currentPair();
@@ -4003,6 +4060,7 @@
     });
 
     mkt2Select.addEventListener("change", () => {
+      updateDexSubheaderPairs();
       resetDashboardLoading();
       const protocol = currentProtocol();
       const pair = currentPair();
@@ -4182,6 +4240,12 @@
     }
   });
 
+  var STAKING_MKT2_WIDGETS = new Set(["exponent-yt-staked-mkt2"]);
+
+  function isSameSyStaking(widgetId) {
+    return STAKING_MKT2_WIDGETS.has(widgetId) && sameSyToken();
+  }
+
   document.body.addEventListener("htmx:beforeRequest", (event) => {
     const sourceEl = event.detail.elt;
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) return;
@@ -4191,6 +4255,22 @@
       resetWidgetView(sourceEl);
       const updatedEl = document.getElementById(`updated-${widgetId}`);
       if (updatedEl) updatedEl.textContent = "market not selected";
+      return;
+    }
+    if (widgetId && isSameSyStaking(widgetId)) {
+      event.preventDefault();
+      resetWidgetView(sourceEl);
+      const sy = extractSyToken(currentMkt1());
+      const chartEl = document.getElementById(`chart-${widgetId}`);
+      if (chartEl) {
+        chartEl.innerHTML =
+          '<div class="same-sy-notice">'
+          + `Both markets share the same underlying SY token (${sy}). `
+          + 'Staking data is shown under Market 1.'
+          + '</div>';
+      }
+      const updatedEl = document.getElementById(`updated-${widgetId}`);
+      if (updatedEl) updatedEl.textContent = "";
       return;
     }
   });
