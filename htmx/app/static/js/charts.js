@@ -654,12 +654,137 @@
     else el.style.fontSize = "16px";
   }
 
+  const DERIVED_STRESS_KPIS = new Set(["kpi-stress-buffer", "kpi-debt-at-risk-1s", "kpi-debt-at-risk-2s"]);
+
+  function renderDerivedStressKpi(widgetId, chartData) {
+    const primary = document.getElementById(`kpi-primary-${widgetId}`);
+    const secondary = document.getElementById(`kpi-secondary-${widgetId}`);
+    if (!primary || !secondary) return;
+
+    const xValues = (chartData.x || []).map(Number);
+    const series = chartData.series || [];
+    const volLines = chartData.volatility_lines || [];
+
+    function findSeries(fragment) {
+      return series.find(function(s) { return (s.name || "").toLowerCase().includes(fragment); });
+    }
+
+    var liqSeries = findSeries("liquidat");
+    var unhealthySeries = findSeries("unhealthy");
+    var badDebtSeries = findSeries("bad debt");
+
+    function atRiskAt(idx) {
+      var total = 0;
+      [liqSeries, unhealthySeries, badDebtSeries].forEach(function(s) {
+        if (s && s.data && s.data[idx] != null) total += Number(s.data[idx]) || 0;
+      });
+      return total;
+    }
+
+    function fmtDollar(v) {
+      if (Math.abs(v) >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
+      if (Math.abs(v) >= 1e3) return "$" + (v / 1e3).toFixed(0) + "k";
+      return "$" + v.toFixed(0);
+    }
+
+    var zeroIdx = xValues.indexOf(0);
+    if (zeroIdx < 0) {
+      var best = Infinity;
+      xValues.forEach(function(v, i) { if (Math.abs(v) < best) { best = Math.abs(v); zeroIdx = i; } });
+    }
+
+    var baseline = zeroIdx >= 0 ? atRiskAt(zeroIdx) : 0;
+
+    if (widgetId === "kpi-stress-buffer") {
+      var threshold = Math.max(baseline * 2, 100000);
+      var bufferPct = null;
+      if (zeroIdx >= 0) {
+        for (var i = zeroIdx - 1; i >= 0; i--) {
+          if (atRiskAt(i) > threshold) {
+            bufferPct = xValues[i];
+            break;
+          }
+        }
+      }
+      if (bufferPct !== null) {
+        primary.innerHTML = '<span style="color:var(--bad)">' + bufferPct.toFixed(1) + "%</span>";
+        secondary.textContent = "Collateral decline to double at-risk debt";
+      } else {
+        primary.textContent = "< " + (xValues[0] || -50).toFixed(0) + "%";
+        secondary.textContent = "Beyond test range";
+      }
+    } else {
+      var sigmaNum = widgetId.includes("1s") ? 1 : 2;
+      var sigmaTag = sigmaNum + "\u03c3";
+
+      function findSigmaLines(n) {
+        var tag = n + "\u03c3";
+        var neg = null, pos = null;
+        volLines.forEach(function(vl) {
+          var lbl = (vl.label || "");
+          if (!lbl.includes(tag)) return;
+          var val = Number(vl.value);
+          if (val < 0) { if (!neg || val < Number(neg.value)) neg = vl; }
+          else         { if (!pos || val > Number(pos.value)) pos = vl; }
+        });
+        return { neg: neg, pos: pos };
+      }
+
+      var found = findSigmaLines(sigmaNum);
+      if (!found.neg && !found.pos && sigmaNum === 1) {
+        var two = findSigmaLines(2);
+        if (two.neg) found.neg = { value: Number(two.neg.value) / 2, label: "1\u03c3 (est.)" };
+        if (two.pos) found.pos = { value: Number(two.pos.value) / 2, label: "1\u03c3 (est.)" };
+      }
+
+      function riskAtX(targetX) {
+        var closestIdx = 0, closestDiff = Infinity;
+        xValues.forEach(function(x, idx) {
+          var d = Math.abs(x - targetX);
+          if (d < closestDiff) { closestDiff = d; closestIdx = idx; }
+        });
+        return atRiskAt(closestIdx);
+      }
+
+      if (found.neg || found.pos) {
+        var negVal = found.neg ? Number(found.neg.value) : 0;
+        var posVal = found.pos ? Number(found.pos.value) : 0;
+        var negRisk = found.neg ? riskAtX(negVal) : baseline;
+        var posRisk = found.pos ? riskAtX(posVal) : baseline;
+        var negPct = negVal.toFixed(1) + "%";
+        var posPct = "+" + posVal.toFixed(1) + "%";
+
+        primary.innerHTML =
+          '<span style="color:var(--bad)">' + fmtDollar(negRisk) + "</span>"
+          + ' <span style="color:var(--text-secondary);font-size:0.6em">/</span> '
+          + '<span style="color:var(--good)">' + fmtDollar(posRisk) + "</span>";
+        secondary.innerHTML =
+          '<span style="color:var(--bad)">' + negPct + "</span>"
+          + " / "
+          + '<span style="color:var(--good)">' + posPct + "</span>"
+          + " uniform stress";
+      } else {
+        primary.textContent = "$0";
+        secondary.textContent = "No " + sigmaTag + " volatility data";
+      }
+    }
+
+    autoSizeKpi(primary);
+    fadeInKpi(primary);
+  }
+
   function renderKpi(widgetId, data, sourceWidgetId) {
     const primary = document.getElementById(`kpi-primary-${widgetId}`);
     const secondary = document.getElementById(`kpi-secondary-${widgetId}`);
     if (!primary || !secondary) {
       return;
     }
+
+    if (DERIVED_STRESS_KPIS.has(widgetId)) {
+      renderDerivedStressKpi(widgetId, data);
+      return;
+    }
+
     const kwid = sourceWidgetId || widgetId;
 
     if (data.market_card) {
@@ -943,6 +1068,18 @@
                   `</td>`
                 );
               }
+              if (isWatchlist && (column.key === "account_id" || (column.label || "").toLowerCase() === "account id") && displayValue) {
+                const addr = String(displayValue);
+                const short = addr.length > 12
+                  ? addr.slice(0, 4) + " ...... " + addr.slice(-4)
+                  : addr;
+                const href = `https://solscan.io/account/${encodeURIComponent(addr)}`;
+                return (
+                  `<td>` +
+                  `<a href="${href}" target="_blank" rel="noopener noreferrer" title="${addr}">${short}</a>` +
+                  `</td>`
+                );
+              }
               if (column.key === "amount" || column.key === "Amount") {
                 const num = Number(raw);
                 if (Number.isFinite(num)) {
@@ -953,6 +1090,13 @@
                 const num = Number(raw);
                 if (Number.isFinite(num)) {
                   return `<td>${num.toFixed(2)}</td>`;
+                }
+              }
+              if (isWatchlist && (column.key === "collateral_value_total"
+                || (column.label || "").toLowerCase() === "collateral value")) {
+                const num = Number(raw);
+                if (Number.isFinite(num)) {
+                  return `<td>${num.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>`;
                 }
               }
               if (isWatchlist && (column.key === "ltv_pct" || (column.label || "").toLowerCase() === "ltv (%)")) {
@@ -968,10 +1112,11 @@
               if (isWatchlist && isScaledBarCol(column) && scaledBarMax > 0) {
                 const num = Number(raw);
                 const w = Number.isFinite(num) ? Math.min((num / scaledBarMax) * 100, 100) : 0;
+                const fmtVal = Number.isFinite(num) ? num.toLocaleString(undefined, { maximumFractionDigits: 0 }) : displayValue;
                 return (
                   `<td><div class="microbar-cell microbar-blue">` +
                   `<div class="microbar-fill" style="width:${w.toFixed(1)}%"></div>` +
-                  `<span class="microbar-label">${displayValue}</span>` +
+                  `<span class="microbar-label">${fmtVal}</span>` +
                   `</div></td>`
                 );
               }
@@ -1243,15 +1388,15 @@
     const hasYRightLabel = !!yRightLabel;
     const dual = hasDualAxis(data);
     const hasBars = (data.series || []).some((s) => s.type === "bar");
-    const rightPad = dual ? (hasYRightLabel ? 60 : 50) : (hasBars ? 30 : 18);
+    const rightPad = dual ? (hasYRightLabel ? 46 : 38) : (hasBars ? 24 : 14);
     const option = {
       color: palette(),
       tooltip: {
         trigger: "axis",
         valueFormatter: yFmt || undefined,
       },
-      legend: { bottom: -4, textStyle: { color: chartTextColor() } },
-      grid: { left: hasYLabel ? 60 : 40, right: rightPad, top: 22, bottom: hasXLabel ? 72 : 60, containLabel: true },
+      legend: { bottom: 2, itemWidth: 14, itemHeight: 10, itemGap: 10, textStyle: { color: chartTextColor(), fontSize: 10 } },
+      grid: { left: hasYLabel ? 60 : 40, right: rightPad, top: 22, bottom: hasXLabel ? 80 : 68, containLabel: true },
       xAxis: {
         type: "category",
         data: data.x || [],
@@ -1502,7 +1647,7 @@
             "Volume",
           ],
           bottom: 2,
-          textStyle: { color: chartTextColor() },
+          textStyle: { color: chartTextColor(), fontSize: 10 },
         },
         tooltip: {
           trigger: "axis",
@@ -1705,7 +1850,7 @@
       option = {
         color: palette(),
         tooltip: { trigger: "axis" },
-        legend: { bottom: 2, textStyle: { color: chartTextColor() } },
+        legend: { bottom: 2, textStyle: { color: chartTextColor(), fontSize: 10 } },
         grid: { left: 60, right: 40, top: 22, bottom: 60, containLabel: true },
         xAxis: {
           type: "category",
@@ -1789,7 +1934,7 @@
           if (idx > 0) {
             legendData.push("");
           }
-          legendData.push({ name: group.title, icon: "none", textStyle: { fontWeight: "bold", color: chartTextColor() } });
+          legendData.push({ name: group.title, icon: "none", textStyle: { fontWeight: "bold", fontSize: 10, color: chartTextColor() } });
           (group.items || []).forEach((item) => {
             const entry = { name: item };
             if (seriesColorMap[item]) {
@@ -1831,7 +1976,7 @@
         axisLabel: { color: chartTextColor(), fontSize: 12, fontWeight: "bold" },
       };
       if (legendData.length > 0) {
-        option.legend = { bottom: 2, textStyle: { color: chartTextColor() }, data: legendData };
+        option.legend = { bottom: 2, itemWidth: 14, itemHeight: 10, itemGap: 8, textStyle: { color: chartTextColor(), fontSize: 10 }, data: legendData };
       }
       option.series = (chartData.series || []).map((series) => {
         const mapped = {
@@ -2005,7 +2150,7 @@
       option = {
         color: palette(),
         tooltip: { trigger: "axis" },
-        legend: { bottom: 2, textStyle: { color: chartTextColor() } },
+        legend: { bottom: 2, textStyle: { color: chartTextColor(), fontSize: 10 } },
         grid: { left: arrows ? 80 : (areaYLabel ? 60 : 50), right: arrows ? 60 : 18, top: topPad, bottom: areaXLabel ? 72 : 60, containLabel: !arrows },
         xAxis: {
           type: "category",
@@ -2092,6 +2237,15 @@
 
       }
       if (Array.isArray(chartData.volatility_lines) && chartData.volatility_lines.length > 0) {
+        option.legend = {
+          ...option.legend,
+          bottom: 2,
+          itemWidth: 14,
+          itemHeight: 10,
+          itemGap: 8,
+          textStyle: { color: chartTextColor(), fontSize: 10 },
+        };
+        option.grid = { ...option.grid, bottom: areaXLabel ? 86 : 72 };
         const xLabels = (chartData.x || []).map(String);
         const isDark = document.documentElement.getAttribute("data-theme") !== "light";
         const labelBg = isDark ? "rgba(0,0,0,0.65)" : "rgba(255,255,255,0.85)";
@@ -2168,7 +2322,7 @@
             return `Price: ${xVal}<br>` + lines.join("<br>");
           },
         },
-        legend: { bottom: 2, textStyle: { color: chartTextColor() } },
+        legend: { bottom: 2, textStyle: { color: chartTextColor(), fontSize: 10 } },
         grid: { left: 60, right: 52, top: 30, bottom: probXLabel ? 72 : 60, containLabel: true },
         xAxis: {
           type: "category",
@@ -2237,7 +2391,7 @@
         },
         legend: {
           bottom: 2,
-          textStyle: { color: chartTextColor() },
+          textStyle: { color: chartTextColor(), fontSize: 10 },
           data: slices.map((s) => s.name),
         },
         series: [
@@ -3096,6 +3250,11 @@
       }
     }
 
+    if (option.legend) {
+      const ls = option.legend.textStyle || (option.legend.textStyle = {});
+      if (!ls.fontSize || ls.fontSize > 10) ls.fontSize = 10;
+    }
+
     instance.setOption(option, true);
 
 
@@ -3204,6 +3363,11 @@
       }
       renderTable(widgetId, `table-left-${widgetId}`, columns, leftRows, swid);
       renderTable(widgetId, `table-right-${widgetId}`, columns, rightRows, swid);
+      return;
+    }
+
+    if (DERIVED_STRESS_KPIS.has(widgetId)) {
+      renderDerivedStressKpi(widgetId, payload.data);
       return;
     }
 
