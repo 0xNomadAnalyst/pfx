@@ -6127,28 +6127,49 @@
   }
 
   function initTooltipPositioning() {
+    function placeTooltipCard(wrap, card, { preferredWidth = 280 } = {}) {
+      const viewportPad = 12;
+      const gap = 6;
+      const wrapRect = wrap.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // Measure real card size (important for long tooltip copy).
+      const cardRect = card.getBoundingClientRect();
+      const cardWidth = Math.min(
+        cardRect.width || preferredWidth,
+        Math.max(preferredWidth, viewportWidth - viewportPad * 2),
+      );
+      const cardHeight = cardRect.height || 0;
+
+      let left = wrapRect.left;
+      const maxLeft = viewportWidth - cardWidth - viewportPad;
+      if (left > maxLeft) left = maxLeft;
+      if (left < viewportPad) left = viewportPad;
+
+      const spaceBelow = viewportHeight - wrapRect.bottom - gap - viewportPad;
+      const spaceAbove = wrapRect.top - gap - viewportPad;
+      const placeBelow = cardHeight <= spaceBelow || spaceBelow >= spaceAbove;
+
+      let top = placeBelow
+        ? wrapRect.bottom + gap
+        : wrapRect.top - gap - cardHeight;
+
+      const maxTop = viewportHeight - cardHeight - viewportPad;
+      if (top > maxTop) top = maxTop;
+      if (top < viewportPad) top = viewportPad;
+
+      card.style.left = `${left}px`;
+      card.style.top = `${top}px`;
+      card.style.bottom = "";
+    }
+
     document.addEventListener("mouseover", (e) => {
       const wrap = e.target.closest(".info-tip-wrap");
       if (!wrap) return;
       const card = wrap.querySelector(".info-tip-card");
       if (!card) return;
-      const rect = wrap.getBoundingClientRect();
-      const cardW = 280;
-      let left = rect.left;
-      if (left + cardW > window.innerWidth - 12) {
-        left = window.innerWidth - cardW - 12;
-      }
-      if (left < 12) left = 12;
-      let top = rect.bottom + 6;
-      if (top + 200 > window.innerHeight) {
-        top = rect.top - 6;
-        card.style.top = "";
-        card.style.bottom = (window.innerHeight - top) + "px";
-      } else {
-        card.style.bottom = "";
-        card.style.top = top + "px";
-      }
-      card.style.left = left + "px";
+      placeTooltipCard(wrap, card, { preferredWidth: 280 });
     });
 
     document.addEventListener("mouseout", (e) => {
