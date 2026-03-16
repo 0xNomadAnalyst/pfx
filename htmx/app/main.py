@@ -319,7 +319,7 @@ def render_page(request: Request, page: PageConfig):
         for action in page.page_actions
     ]
     show_pipeline = ENABLE_PIPELINE_SWITCHER and page.show_pipeline_switcher
-    pipeline_info = _get_pipeline_info() if show_pipeline else None
+    pipeline_info = _get_pipeline_info() if ENABLE_PIPELINE_SWITCHER else None
     protocol = page.default_protocol
     pair = page.default_pair
     if pipeline_info and pipeline_info.get("defaults"):

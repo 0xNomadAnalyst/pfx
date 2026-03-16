@@ -7,8 +7,16 @@
   const PAGE_ACTION_CACHE_TTL_MS = 60_000;
   const DETAIL_TABLE_CACHE_MAX_ENTRIES = 40;
   const PAGE_ACTION_CACHE_MAX_ENTRIES = 40;
+  const SOFT_NAV_SHELL_CACHE_MAX_ENTRIES = 5;
+  const SOFT_NAV_SHELL_CACHE_TTL_MS = 10 * 60_000;
+  const SOFT_NAV_SHELL_REFRESH_DELAY_MS = 3000;
+  const VIEWPORT_REFRESH_DEFER_MS = 280;
+  const VIEWPORT_REFRESH_STAGGER_MS = 70;
+  const WIDGET_RESPONSE_CACHE_PER_WIDGET_LIMIT = 8;
+  const VIEWPORT_POLL_STALE_MS = 45_000;
   const detailTableCache = new Map();
   const pageActionCache = new Map();
+  const softNavShellCache = new Map();
   const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = 100;
   const widgetResponseCache = new Map();
   const WARMUP_SESSION_KEY = "riskdash:warmup:v2";
@@ -3588,14 +3596,37 @@
     const stamp = generatedAt ? new Date(generatedAt).toLocaleTimeString() : new Date().toLocaleTimeString();
     el.textContent = stale ? `updated ${stamp} (updating...)` : `updated ${stamp}`;
     el.style.opacity = stale ? "0.72" : "1";
+    if (stale) {
+      el.dataset.stalePending = "1";
+      setTimeout(() => {
+        if (el.dataset.stalePending === "1" && el.textContent?.includes("(updating...)")) {
+          el.textContent = `updated ${stamp}`;
+          el.style.opacity = "1";
+          el.dataset.stalePending = "0";
+        }
+      }, 6000);
+    } else {
+      el.dataset.stalePending = "0";
+    }
   }
 
   function setWidgetError(widgetId, message) {
     const el = document.getElementById(`updated-${widgetId}`);
     if (el) {
+      el.dataset.stalePending = "0";
       const short = String(message || "unknown error").slice(0, 60).replace(/\s+/g, " ");
       el.textContent = `error: ${short}`;
     }
+  }
+
+  function clearStaleTimestampLabel(widgetId) {
+    const el = document.getElementById(`updated-${widgetId}`);
+    if (!el) return;
+    if (el.dataset.stalePending === "1" && el.textContent?.includes("(updating...)")) {
+      el.textContent = el.textContent.replace(" (updating...)", "");
+      el.style.opacity = "1";
+    }
+    el.dataset.stalePending = "0";
   }
 
   function resetWidgetView(el) {
@@ -3685,6 +3716,7 @@
     detailTableCache.clear();
     pageActionCache.clear();
     widgetResponseCache.clear();
+    softNavShellCache.clear();
     protocolPairs = [];
     const mkt1 = document.getElementById("mkt1-select");
     const mkt2 = document.getElementById("mkt2-select");
@@ -3804,7 +3836,7 @@
     } finally {
       _pipelineSwitchInProgress = false;
       resetDashboardLoading();
-      htmx.trigger(document.body, "dashboard-refresh");
+      triggerDashboardRefresh({ prioritizeViewport: true });
     }
   }
   window.__refreshAfterPipelineSwitch = refreshAfterPipelineSwitch;
@@ -3868,6 +3900,84 @@
 
   function widgetElements() {
     return Array.from(document.querySelectorAll(".widget-loader"));
+  }
+
+  function isWidgetLikelyVisible(el) {
+    if (!el || typeof el.getBoundingClientRect !== "function") return true;
+    const rect = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight || 900;
+    return rect.top < vh * 1.15 && rect.bottom > -40;
+  }
+
+  function requestWidgetNow(el) {
+    if (!el || !el.classList.contains("widget-loader")) return;
+    const endpoint = el.getAttribute("hx-get");
+    if (!endpoint) return;
+    el.dataset.forceRequest = "1";
+    htmx.ajax("GET", endpoint, {
+      source: el,
+      swap: "none",
+      values: buildWidgetRequestParams(el),
+      timeout: 90_000,
+    });
+    setTimeout(() => {
+      if (el.dataset) delete el.dataset.forceRequest;
+    }, 1000);
+  }
+
+  function triggerDashboardRefresh({ prioritizeViewport = true } = {}) {
+    const widgets = widgetElements();
+    if (!widgets.length) return;
+    markInteractiveRefreshWindow();
+    if (!prioritizeViewport) {
+      htmx.trigger(document.body, "dashboard-refresh");
+      return;
+    }
+    const visible = [];
+    const deferred = [];
+    widgets.forEach((el) => {
+      if (isWidgetLikelyVisible(el)) visible.push(el);
+      else deferred.push(el);
+    });
+    visible.forEach((el) => requestWidgetNow(el));
+    deferred.forEach((el, idx) => {
+      const delay = VIEWPORT_REFRESH_DEFER_MS + idx * VIEWPORT_REFRESH_STAGGER_MS;
+      setTimeout(() => requestWidgetNow(el), delay);
+    });
+  }
+
+  function initWidgetVisibilityTracking() {
+    if (_visibilityObserver) {
+      try { _visibilityObserver.disconnect(); } catch (_) {}
+      _visibilityObserver = null;
+    }
+    if (typeof IntersectionObserver !== "function") {
+      const now = Date.now();
+      widgetElements().forEach((el) => {
+        el.dataset.lastVisibleAt = String(now);
+      });
+      return;
+    }
+    _visibilityObserver = new IntersectionObserver(
+      (entries) => {
+        const now = Date.now();
+        entries.forEach((entry) => {
+          const el = entry.target;
+          if (!(el instanceof HTMLElement)) return;
+          if (entry.isIntersecting || entry.intersectionRatio > 0) {
+            el.dataset.lastVisibleAt = String(now);
+          }
+        });
+      },
+      { root: null, rootMargin: "120px 0px 120px 0px", threshold: 0.01 }
+    );
+    const now = Date.now();
+    widgetElements().forEach((el) => {
+      if (!el.dataset.lastVisibleAt) {
+        el.dataset.lastVisibleAt = String(now);
+      }
+      _visibilityObserver.observe(el);
+    });
   }
 
   function currentProtocol() {
@@ -4052,10 +4162,58 @@
     }
   }
 
+  function markInteractiveRefreshWindow(ms = 1500) {
+    _interactiveRefreshUntil = Date.now() + Math.max(0, ms);
+  }
+
+  function normalizeSoftNavPath(path) {
+    try {
+      const u = new URL(path, window.location.origin);
+      return `${u.pathname}${u.search || ""}`;
+    } catch (_) {
+      return path || "";
+    }
+  }
+
+  function setSoftNavShellCache(path, html) {
+    if (!path || !html) return;
+    setLruCacheEntry(softNavShellCache, SOFT_NAV_SHELL_CACHE_MAX_ENTRIES, path, {
+      html,
+      expiresAt: Date.now() + SOFT_NAV_SHELL_CACHE_TTL_MS,
+    });
+  }
+
+  function getSoftNavShellCache(path) {
+    const cached = softNavShellCache.get(path);
+    if (!cached) return null;
+    if (cached.expiresAt <= Date.now()) {
+      softNavShellCache.delete(path);
+      return null;
+    }
+    setLruCacheEntry(softNavShellCache, SOFT_NAV_SHELL_CACHE_MAX_ENTRIES, path, cached);
+    return cached.html;
+  }
+
   function setWidgetCachedPayload(widgetId, signature, payload) {
     if (!widgetId || !payload) return;
     const key = widgetCacheKey(widgetId, signature);
     setLruCacheEntry(widgetResponseCache, WIDGET_RESPONSE_CACHE_MAX_ENTRIES, key, payload);
+    let sameWidgetCount = 0;
+    for (const cacheKey of widgetResponseCache.keys()) {
+      if (cacheKey.startsWith(`${widgetId}::`)) sameWidgetCount += 1;
+    }
+    while (sameWidgetCount > WIDGET_RESPONSE_CACHE_PER_WIDGET_LIMIT) {
+      let evicted = false;
+      for (const cacheKey of widgetResponseCache.keys()) {
+        if (cacheKey.startsWith(`${widgetId}::`)) {
+          widgetResponseCache.delete(cacheKey);
+          sameWidgetCount -= 1;
+          evicted = true;
+          break;
+        }
+      }
+      if (!evicted) break;
+    }
   }
 
   function getWidgetCachedPayload(widgetId, signature) {
@@ -4081,6 +4239,7 @@
     try {
       renderPayload(widgetId, payload, srcId);
       updateTimestamp(widgetId, payload?.metadata?.generated_at, { stale: true });
+      sourceEl.dataset.hasLoadedOnce = "1";
       return true;
     } catch (_) {
       return false;
@@ -4164,9 +4323,7 @@
       pair || currentPair(),
       lastWindow || currentLastWindow()
     );
-    if (shouldRefresh) {
-      htmx.trigger(document.body, "dashboard-refresh");
-    }
+    if (shouldRefresh) triggerDashboardRefresh({ prioritizeViewport: true });
   }
 
   function setSelectOptions(selectEl, values, selected, includeNone) {
@@ -4254,6 +4411,7 @@
     [
       "apiBaseUrl",
       "currentPageSlug",
+      "currentPipeline",
       "warmupBudgetSeconds",
       "warmupMaxJobs",
       "warmupConcurrency",
@@ -4279,6 +4437,8 @@
 
   let _softNavInFlight = false;
   let _softNavController = null;
+  let _interactiveRefreshUntil = 0;
+  let _visibilityObserver = null;
 
   function ensureSoftNavPendingStyles() {
     if (document.getElementById("soft-nav-pending-styles")) return;
@@ -4385,8 +4545,64 @@
     pageSelect.dataset.loading = isBusy ? "1" : "0";
   }
 
+  async function applySoftNavHtml(path, html, { pushHistory = true } = {}) {
+    const parser = new DOMParser();
+    const nextDoc = parser.parseFromString(html, "text/html");
+    const nextMain = nextDoc.querySelector("main");
+    if (!nextMain) return false;
+
+    teardownForSoftNavigation();
+
+    const currentMain = document.querySelector("main");
+    if (!currentMain) return false;
+    currentMain.replaceWith(nextMain.cloneNode(true));
+    document.querySelectorAll(".widget-loader").forEach((el) => {
+      el.dataset.suppressNextLoadRequest = "1";
+    });
+
+    updateOrReplaceNode(".topbar-right", nextDoc);
+    updateOrReplaceNode(".pipeline-switcher", nextDoc);
+    updateOrReplaceNode("#page-select", nextDoc);
+    updateOrReplaceNode(".topbar-page-actions", nextDoc);
+    updateBodyDataAttrsFromDoc(nextDoc);
+    updateWarmupManifest(nextDoc);
+
+    document.title = nextDoc.title || document.title;
+    if (pushHistory) {
+      window.history.pushState({ path }, "", path);
+    }
+
+    _warmupSchedulerStarted = false;
+    _warmupInFlight = false;
+    initPageSelector();
+    initPipelineSwitcher();
+    await initFilters();
+    htmx.process(document.body);
+    return true;
+  }
+
+  async function refreshSoftNavShellCache(path, delayMs = SOFT_NAV_SHELL_REFRESH_DELAY_MS) {
+    const normalizedPath = normalizeSoftNavPath(path);
+    if (!normalizedPath) return;
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    try {
+      const response = await fetch(normalizedPath, {
+        headers: { "X-Requested-With": "riskdash-soft-nav-refresh" },
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const html = await response.text();
+      setSoftNavShellCache(normalizedPath, html);
+    } catch (_) {
+      // Best-effort background shell refresh.
+    }
+  }
+
   async function softNavigateToPage(path, { pushHistory = true } = {}) {
-    if (!path || path === `${window.location.pathname}${window.location.search || ""}`) return;
+    const navPath = normalizeSoftNavPath(path);
+    if (!navPath || navPath === `${window.location.pathname}${window.location.search || ""}`) return;
     if (_softNavController) {
       try { _softNavController.abort(); } catch (_) {}
       _softNavController = null;
@@ -4395,58 +4611,49 @@
     const { signal } = _softNavController;
     _softNavInFlight = true;
     setPageSelectorBusy(true);
-    showSoftNavPending(path);
+    let shellAppliedFromCache = false;
+    const cachedShell = getSoftNavShellCache(navPath);
+    if (cachedShell) {
+      try {
+        shellAppliedFromCache = await applySoftNavHtml(navPath, cachedShell, { pushHistory });
+      } catch (_) {
+        shellAppliedFromCache = false;
+      }
+    }
+    if (!shellAppliedFromCache) {
+      showSoftNavPending(navPath);
+    } else {
+      setPageSelectorBusy(false);
+      void refreshSoftNavShellCache(navPath, SOFT_NAV_SHELL_REFRESH_DELAY_MS);
+      _softNavInFlight = false;
+      _softNavController = null;
+      return;
+    }
 
     try {
-      const response = await fetch(path, {
+      const response = await fetch(navPath, {
         headers: { "X-Requested-With": "riskdash-soft-nav" },
         cache: "no-store",
         signal,
       });
       if (!response.ok) {
-        window.location.assign(path);
+        window.location.assign(navPath);
         return;
       }
 
       const html = await response.text();
-      const parser = new DOMParser();
-      const nextDoc = parser.parseFromString(html, "text/html");
-      const nextMain = nextDoc.querySelector("main");
-      if (!nextMain) {
-        window.location.assign(path);
-        return;
+      setSoftNavShellCache(navPath, html);
+
+      if (!shellAppliedFromCache) {
+        const applied = await applySoftNavHtml(navPath, html, { pushHistory });
+        if (!applied) {
+          window.location.assign(navPath);
+          return;
+        }
       }
-
-      teardownForSoftNavigation();
-
-      const currentMain = document.querySelector("main");
-      if (!currentMain) {
-        window.location.assign(path);
-        return;
-      }
-      currentMain.replaceWith(nextMain.cloneNode(true));
-
-      updateOrReplaceNode(".topbar-right", nextDoc);
-      updateOrReplaceNode(".pipeline-switcher", nextDoc);
-      updateOrReplaceNode("#page-select", nextDoc);
-      updateOrReplaceNode(".topbar-page-actions", nextDoc);
-      updateBodyDataAttrsFromDoc(nextDoc);
-      updateWarmupManifest(nextDoc);
-
-      document.title = nextDoc.title || document.title;
-      if (pushHistory) {
-        window.history.pushState({ path }, "", path);
-      }
-
-      _warmupSchedulerStarted = false;
-      _warmupInFlight = false;
-      initPageSelector();
-      initPipelineSwitcher();
-      await initFilters();
-      htmx.process(document.body);
     } catch (err) {
       if (err && err.name === "AbortError") return;
-      window.location.assign(path);
+      window.location.assign(navPath);
     } finally {
       _softNavInFlight = false;
       setPageSelectorBusy(false);
@@ -4542,7 +4749,7 @@
         initSwapsFlowModeToggle();
         resetDashboardLoading();
         persistFilters(currentProtocol(), currentPair(), lastWindowSelect.value);
-        htmx.trigger(document.body, "dashboard-refresh");
+        triggerDashboardRefresh({ prioritizeViewport: true });
       });
     }
 
@@ -4583,7 +4790,7 @@
           updateDexSubheaderPairs();
           refreshPairDependentLabels();
           resetDashboardLoading();
-          htmx.trigger(document.body, "dashboard-refresh");
+          triggerDashboardRefresh({ prioritizeViewport: true });
         });
       }
     }
@@ -4593,7 +4800,8 @@
     // Stale-first render: if this tab already fetched matching widget payloads,
     // paint immediately and let the refresh request reconcile in background.
     hydrateWidgetsFromCache();
-    htmx.trigger(document.body, "dashboard-refresh");
+    initWidgetVisibilityTracking();
+    triggerDashboardRefresh({ prioritizeViewport: true });
     initWarmupScheduler();
 
     initTradeImpactModeToggle();
@@ -4695,6 +4903,28 @@
     return targets;
   }
 
+  function buildWarmupShellPaths(manifest) {
+    const paths = [];
+    const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
+    manifest.forEach((entry) => {
+      const slug = String(entry?.slug || "").trim();
+      if (!slug) return;
+      const path = normalizeSoftNavPath(`/${slug}`);
+      if (!path || path === currentPath) return;
+      if (!paths.includes(path)) paths.push(path);
+    });
+    return paths;
+  }
+
+  async function prefetchWarmupShells(manifest) {
+    const shellPaths = buildWarmupShellPaths(manifest);
+    if (!shellPaths.length) return;
+    for (const path of shellPaths) {
+      if (getSoftNavShellCache(path)) continue;
+      await refreshSoftNavShellCache(path, 0);
+    }
+  }
+
   function warmupDefaults() {
     const budget = Number(document.body.dataset.warmupBudgetSeconds || "30");
     const maxJobs = Number(document.body.dataset.warmupMaxJobs || "20");
@@ -4728,6 +4958,13 @@
       if (_warmupInFlight || hasWarmupRunThisSession()) return;
       if (document.hidden || _pipelineSwitchInProgress) return;
       if (!userInteracted) return;
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      const effectiveType = String(connection?.effectiveType || "").toLowerCase();
+      const saveData = connection?.saveData === true;
+      if (saveData || effectiveType === "slow-2g" || effectiveType === "2g") {
+        markWarmupRunThisSession();
+        return;
+      }
 
       const targets = buildWarmupTargetsFromManifest(manifest);
       if (!targets.length) {
@@ -4749,6 +4986,10 @@
             concurrency: defaults.concurrency,
           }),
         });
+        // Warm page shells too, so first navigation to warmed pages feels instant.
+        setTimeout(() => {
+          void prefetchWarmupShells(manifest);
+        }, 1200);
       } catch (_) {
         // Best-effort background optimization.
       } finally {
@@ -4903,6 +5144,7 @@
     schemaSelect.addEventListener("change", () => {
       widget.dataset.healthSchema = schemaSelect.value || "dexes";
       resetWidgetView(widget);
+      markInteractiveRefreshWindow();
       htmx.trigger(document.body, "health-schema-change");
     });
   }
@@ -4915,6 +5157,7 @@
     attrSelect.addEventListener("change", () => {
       widget.dataset.healthAttribute = attrSelect.value || "Write Rate";
       resetWidgetView(widget);
+      markInteractiveRefreshWindow();
       htmx.trigger(document.body, "health-attribute-change");
     });
   }
@@ -4929,6 +5172,7 @@
       schemaSelect.addEventListener("change", () => {
         widget.dataset.healthSchema = schemaSelect.value || "dexes";
         resetWidgetView(widget);
+        markInteractiveRefreshWindow();
         htmx.trigger(document.body, "health-schema-change-2");
       });
     }
@@ -4937,6 +5181,7 @@
       attrSelect.addEventListener("change", () => {
         widget.dataset.healthAttribute = attrSelect.value || "Queue Size";
         resetWidgetView(widget);
+        markInteractiveRefreshWindow();
         htmx.trigger(document.body, "health-attribute-change-2");
       });
     }
@@ -4959,6 +5204,7 @@
           accountsWidget.dataset.healthBaseSchema = val;
           resetWidgetView(accountsWidget);
         }
+        markInteractiveRefreshWindow();
         htmx.trigger(document.body, "health-base-schema-change");
       });
     });
@@ -5001,6 +5247,7 @@
       renderPayload(widgetId, payload, srcId);
       updateTimestamp(widgetId, payload?.metadata?.generated_at);
       setWidgetCachedPayload(widgetId, widgetFilterSignature(sourceEl), payload);
+      sourceEl.dataset.hasLoadedOnce = "1";
     } catch (error) {
       setWidgetError(widgetId, String(error));
     } finally {
@@ -5023,7 +5270,8 @@
 
   function currentPipeline() {
     const sel = document.getElementById("pipeline-select");
-    return sel ? sel.value : "";
+    if (sel) return sel.value;
+    return document.body?.dataset?.currentPipeline || "";
   }
 
   function currentPriceBasis() {
@@ -5055,8 +5303,22 @@
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
+    if (sourceEl.dataset.suppressNextLoadRequest === "1" && sourceEl.dataset.forceRequest !== "1") {
+      event.preventDefault();
+      sourceEl.dataset.suppressNextLoadRequest = "0";
+      return;
+    }
     if (_pipelineSwitchInProgress || document.hidden) {
       event.preventDefault();
+      return;
+    }
+    const isForced = sourceEl.dataset.forceRequest === "1";
+    if (!isForced && Date.now() >= _interactiveRefreshUntil && sourceEl.dataset.hasLoadedOnce === "1") {
+      const lastVisibleAt = Number(sourceEl.dataset.lastVisibleAt || 0);
+      const staleOffscreen = !isWidgetLikelyVisible(sourceEl) && (Date.now() - lastVisibleAt) > VIEWPORT_POLL_STALE_MS;
+      if (staleOffscreen) {
+        event.preventDefault();
+      }
     }
   });
 
@@ -5104,6 +5366,16 @@
       return;
     }
     setWidgetError(widgetId, "request timeout");
+  });
+
+  document.body.addEventListener("htmx:abort", (event) => {
+    const sourceEl = event?.detail?.elt || event?.target;
+    if (!sourceEl || !sourceEl.classList || !sourceEl.classList.contains("widget-loader")) {
+      return;
+    }
+    const widgetId = sourceEl.dataset.widgetId;
+    if (!widgetId) return;
+    clearStaleTimestampLabel(widgetId);
   });
 
   document.body.addEventListener("click", (event) => {
@@ -5636,6 +5908,7 @@
         const el = document.getElementById(`widget-${wid}`);
         if (el) resetWidgetView(el);
       });
+      markInteractiveRefreshWindow();
       htmx.trigger(document.body, "risk-event-type-change");
     });
 
@@ -5645,6 +5918,7 @@
           const el = document.getElementById(`widget-${wid}`);
           if (el) resetWidgetView(el);
         });
+        markInteractiveRefreshWindow();
         htmx.trigger(document.body, "risk-interval-change");
       });
     }
@@ -5692,6 +5966,7 @@
         const el = document.getElementById(`widget-${wid}`);
         if (el) resetWidgetView(el);
       });
+      markInteractiveRefreshWindow();
       htmx.trigger(document.body, "risk-liq-source-change");
     });
   }
@@ -5706,6 +5981,7 @@
       resetWidgetView(widget);
       const cascadeWidget = document.getElementById("widget-ra-cascade");
       if (cascadeWidget) resetWidgetView(cascadeWidget);
+      markInteractiveRefreshWindow();
       htmx.trigger(document.body, "risk-stress-asset-change");
     }
     if (collSel) collSel.addEventListener("change", fireChange);
@@ -5781,6 +6057,7 @@
       if (sel) {
         sel.addEventListener("change", () => {
           resetWidgetView(widget);
+          markInteractiveRefreshWindow();
           htmx.trigger(document.body, "risk-stress-asset-change");
         });
       }

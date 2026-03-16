@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,10 +13,30 @@ from app.services.sql_adapter import SqlAdapter
 
 router = APIRouter()
 _service = DataService(SqlAdapter())
+_pipeline_switch_lock = threading.Lock()
 
 
 def get_data_service() -> DataService:
     return _service
+
+
+def _ensure_pipeline_for_request(requested: str) -> None:
+    """Best-effort guard: make API serve from requested pipeline when provided.
+
+    This prevents UI state and API process state from drifting after refresh/nav.
+    """
+    requested_id = (requested or "").strip()
+    if not requested_id or not pipeline_config.is_enabled():
+        return
+    if pipeline_config.get_current() == requested_id:
+        return
+    with _pipeline_switch_lock:
+        if pipeline_config.get_current() == requested_id:
+            return
+        if not pipeline_config.switch_to(requested_id):
+            raise HTTPException(status_code=400, detail=f"Unknown pipeline '{requested_id}'")
+        _service.sql.reset_pool()
+        _service.flush_caches()
 
 
 @router.get("/health")
@@ -82,8 +103,11 @@ def list_widgets(page: Annotated[str, Query()] = "playbook-liquidity") -> dict[s
 
 
 @router.get("/api/v1/meta")
-def get_meta() -> dict[str, object]:
+def get_meta(
+    _pipeline: Annotated[str, Query(alias="_pipeline")] = "",
+) -> dict[str, object]:
     try:
+        _ensure_pipeline_for_request(_pipeline)
         return _service.get_meta()
     except Exception as exc:  # pragma: no cover - defensive path
         raise HTTPException(status_code=500, detail=f"Meta query failed: {str(exc)[:200]}") from exc
@@ -123,6 +147,7 @@ def get_widget(
     _pipeline: Annotated[str, Query(alias="_pipeline")] = "",
     svc: DataService = Depends(get_data_service),
 ) -> WidgetResponse:
+    _ensure_pipeline_for_request(_pipeline)
     params = {
         "protocol": protocol,
         "pair": pair,
