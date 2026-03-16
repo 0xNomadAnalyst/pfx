@@ -1,3 +1,4 @@
+import importlib
 import json
 import os
 import threading
@@ -13,20 +14,11 @@ from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 
 from app.pages.common import PageConfig, build_widget_endpoint
-from app.pages.dex_liquidity import PAGE_CONFIG as DEX_LIQUIDITY_PAGE
-from app.pages.dex_swaps import PAGE_CONFIG as DEX_SWAPS_PAGE
-from app.pages.dexes import PAGE_CONFIG as DEXES_PAGE
-from app.pages.exponent import PAGE_CONFIG as EXPONENT_PAGE
-from app.pages.health import PAGE_CONFIG as HEALTH_PAGE
-from app.pages.kamino import PAGE_CONFIG as KAMINO_PAGE
-from app.pages.risk_analysis import PAGE_CONFIG as RISK_ANALYSIS_PAGE
 
-import importlib as _il
-_ge_mod = _il.import_module("app.pages.global")
-GLOBAL_ECOSYSTEM_PAGE: PageConfig = _ge_mod.PAGE_CONFIG
-
+# ── Load env BEFORE page imports so PAGE_* flags are available ───────
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
+
 # Internal address used for server-side proxy calls (health, pipeline, etc.)
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8001")
 # Base URL embedded in page HTML for browser HTMX widget fetches.
@@ -40,11 +32,28 @@ HEALTH_PROXY_TTL_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_CACHE_TTL_SECONDS
 _health_proxy_lock = threading.Lock()
 _health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 
-# Keep page registration centralized so the shared header view selector
-# is consistent across all routes.
-COVER_PAGE = PageConfig(slug="cover", label="Cover", api_page_id="cover", widgets=[])
+# ── Conditional page loading ────────────────────────────────────────
+# Each entry: (PAGE_* env var, python module path, default "1"=on / "0"=off)
+# When a page is OFF its module is never imported — zero resources allocated.
+_PAGE_MODULES: list[tuple[str, str, str]] = [
+    ("PAGE_RISK_ANALYSIS",    "app.pages.risk_analysis",          "1"),
+    ("PAGE_GLOBAL_ECOSYSTEM", "app.pages.global_solstice_version", "0"),
+    ("PAGE_DEX_LIQUIDITY",    "app.pages.dex_liquidity",          "0"),
+    ("PAGE_DEX_SWAPS",        "app.pages.dex_swaps",              "0"),
+    ("PAGE_DEXES",            "app.pages.dexes",                  "1"),
+    ("PAGE_KAMINO",           "app.pages.kamino",                 "1"),
+    ("PAGE_EXPONENT_YIELD",   "app.pages.exponent",               "1"),
+    ("PAGE_SYSTEM_HEALTH",    "app.pages.health",                 "1"),
+]
 
-PAGES: list[PageConfig] = [COVER_PAGE, RISK_ANALYSIS_PAGE, GLOBAL_ECOSYSTEM_PAGE, DEX_LIQUIDITY_PAGE, DEX_SWAPS_PAGE, DEXES_PAGE, KAMINO_PAGE, EXPONENT_PAGE, HEALTH_PAGE]
+COVER_PAGE = PageConfig(slug="cover", label="Cover", api_page_id="cover", widgets=[])
+PAGES: list[PageConfig] = [COVER_PAGE]
+
+for _env_key, _mod_path, _default in _PAGE_MODULES:
+    if os.getenv(_env_key, _default) == "1":
+        _mod = importlib.import_module(_mod_path)
+        PAGES.append(_mod.PAGE_CONFIG)
+
 PAGES_BY_SLUG: dict[str, PageConfig] = {page.slug: page for page in PAGES}
 
 app = FastAPI(
@@ -76,9 +85,10 @@ def home() -> RedirectResponse:
     return RedirectResponse(url=f"/{COVER_PAGE.slug}")
 
 
-@app.get("/playbook-liquidity", include_in_schema=False)
-def legacy_playbook_liquidity() -> RedirectResponse:
-    return RedirectResponse(url=f"/{DEX_LIQUIDITY_PAGE.slug}")
+if "dex-liquidity" in PAGES_BY_SLUG:
+    @app.get("/playbook-liquidity", include_in_schema=False)
+    def legacy_playbook_liquidity() -> RedirectResponse:
+        return RedirectResponse(url="/dex-liquidity")
 
 
 def render_page(request: Request, page: PageConfig):
@@ -204,44 +214,17 @@ def cover(request: Request):
     )
 
 
-@app.get("/risk-analysis")
-def risk_analysis(request: Request):
-    return render_page(request, PAGES_BY_SLUG["risk-analysis"])
+def _make_page_handler(slug: str):
+    def _handler(request: Request):
+        return render_page(request, PAGES_BY_SLUG[slug])
+    _handler.__name__ = slug.replace("-", "_")
+    return _handler
 
 
-@app.get("/global-ecosystem")
-def global_ecosystem(request: Request):
-    return render_page(request, PAGES_BY_SLUG["global-ecosystem"])
-
-
-@app.get("/dex-liquidity")
-def dex_liquidity(request: Request):
-    return render_page(request, PAGES_BY_SLUG["dex-liquidity"])
-
-
-@app.get("/dex-swaps")
-def dex_swaps(request: Request):
-    return render_page(request, PAGES_BY_SLUG["dex-swaps"])
-
-
-@app.get("/dexes")
-def dexes(request: Request):
-    return render_page(request, PAGES_BY_SLUG["dexes"])
-
-
-@app.get("/kamino")
-def kamino(request: Request):
-    return render_page(request, PAGES_BY_SLUG["kamino"])
-
-
-@app.get("/exponent-yield")
-def exponent_yield(request: Request):
-    return render_page(request, PAGES_BY_SLUG["exponent-yield"])
-
-
-@app.get("/system-health")
-def system_health(request: Request):
-    return render_page(request, PAGES_BY_SLUG["system-health"])
+for _page in PAGES:
+    if _page.slug == "cover":
+        continue
+    app.get(f"/{_page.slug}")(_make_page_handler(_page.slug))
 
 
 @app.get("/chart-export", include_in_schema=False)
