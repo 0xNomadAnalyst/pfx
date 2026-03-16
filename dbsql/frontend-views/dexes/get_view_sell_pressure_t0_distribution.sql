@@ -358,6 +358,7 @@ BEGIN
             -- For negative values: convert to t1 equivalent and sell t1 → positive BPS
             CASE
                 WHEN v_pool_address IS NOT NULL
+                     AND dws.interval_count > 0
                      AND v_current_price > 0
                      AND dws.bucket_midpoint != 0
                 THEN

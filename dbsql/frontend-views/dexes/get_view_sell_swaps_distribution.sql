@@ -93,7 +93,7 @@ BEGIN
     SELECT DISTINCT pool_address INTO v_pool_address
     FROM dexes.cagg_events_5s
     WHERE protocol = p_protocol
-      AND LOWER(token_pair) = LOWER(p_pair)
+      AND token_pair = p_pair
       AND activity_category = 'swap'
     LIMIT 1;
 
@@ -117,7 +117,7 @@ BEGIN
             END AS token_amount
         FROM dexes.cagg_events_5s c
         WHERE c.protocol = p_protocol
-          AND LOWER(c.token_pair) = LOWER(p_pair)
+          AND c.token_pair = p_pair
           AND c.activity_category = 'swap'
           AND c.bucket_time >= NOW() - v_lookback_interval
           -- Only include buckets with swaps for the selected token (where we have max single swap data)
@@ -238,6 +238,7 @@ BEGIN
             dws.*,
             CASE
                 WHEN v_pool_address IS NOT NULL
+                     AND dws.swap_count > 0
                      AND dws.bucket_midpoint > 0
                 THEN
                     CASE

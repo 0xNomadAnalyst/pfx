@@ -19,6 +19,8 @@
   data-warmup-concurrency="{{ warmup_defaults.concurrency if warmup_defaults else 3 }}"
   data-soft-nav-shell-refresh-delay-ms="{{ nav_tuning.soft_nav_shell_refresh_delay_ms if nav_tuning else 3000 }}"
   data-viewport-poll-stale-ms="{{ nav_tuning.viewport_poll_stale_ms if nav_tuning else 45000 }}"
+  data-critical-cache-max-age-ms="{{ nav_tuning.critical_cache_max_age_ms if nav_tuning else 60000 }}"
+  data-default-cache-max-age-ms="{{ nav_tuning.default_cache_max_age_ms if nav_tuning else 300000 }}"
   data-perf-metrics-enabled="{{ '1' if nav_tuning and nav_tuning.perf_metrics_enabled else '0' }}"
 >
   <header class="topbar">
@@ -223,7 +225,7 @@
 
   <script src="/static/js/theme.js?v=2"></script>
   <script id="warmup-manifest" type="application/json">{{ warmup_manifest|tojson }}</script>
-  <script src="/static/js/charts.js?v=69"></script>
+  <script src="/static/js/charts.js?v=70"></script>
   {% if show_pipeline_switcher %}
   <script>
   (function() {

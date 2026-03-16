@@ -52,8 +52,12 @@ def _load_pipelines() -> None:
     onyc = _parse_env_file(onyc_env)
 
     if sol:
+        if not sol.get("DB_SSLMODE") and sol.get("PGSSLMODE"):
+            sol["DB_SSLMODE"] = sol["PGSSLMODE"]
         PIPELINES["solstice"] = {k: sol.get(k, "") for k in _DB_KEYS}
     if onyc:
+        if not onyc.get("DB_SSLMODE") and onyc.get("PGSSLMODE"):
+            onyc["DB_SSLMODE"] = onyc["PGSSLMODE"]
         PIPELINES["onyc"] = {k: onyc.get(k, "") for k in _DB_KEYS}
 
     current_host = os.getenv("DB_HOST", "")

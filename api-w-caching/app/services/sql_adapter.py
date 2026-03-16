@@ -22,7 +22,7 @@ class SqlAdapter:
     def _dsn(self) -> str:
         if hasattr(self, "_fixed_dsn"):
             return self._fixed_dsn
-        sslmode = os.getenv("DB_SSLMODE", "require")
+        sslmode = os.getenv("DB_SSLMODE") or os.getenv("PGSSLMODE") or "require"
         allowed_sslmodes = {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
         if sslmode not in allowed_sslmodes:
             sslmode = "require"
@@ -50,7 +50,7 @@ class SqlAdapter:
         inst = cls.__new__(cls)
         inst._pool = None
         inst._pool_lock = threading.Lock()
-        sslmode = creds.get("DB_SSLMODE") or "require"
+        sslmode = creds.get("DB_SSLMODE") or creds.get("PGSSLMODE") or "require"
         allowed = {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
         if sslmode not in allowed:
             sslmode = "require"

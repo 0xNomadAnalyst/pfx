@@ -69,6 +69,42 @@ class DataService:
         self._health_status_lock = threading.Lock()
         self._health_status_cached: bool | None = None
         self._health_status_expires_at = 0.0
+        self._validate_dbsql_contract()
+
+    def _validate_dbsql_contract(self) -> None:
+        """Best-effort startup check for required DBSQL compatibility surfaces."""
+        enabled = os.getenv("DBSQL_CONTRACT_CHECK_ENABLED", "1") == "1"
+        if not enabled:
+            return
+        strict = os.getenv("DBSQL_CONTRACT_CHECK_STRICT", "0") == "1"
+        required = [
+            "dexes.get_view_dex_last(text,text,boolean)",
+            "dexes.get_view_dex_timeseries(text,text,text,integer,boolean)",
+            "dexes.get_view_tick_dist_simple(text,text,interval,boolean)",
+            "dexes.get_view_dex_ohlcv(text,text,text,boolean)",
+            "dexes.get_view_liquidity_depth_table(text,text,boolean)",
+            "dexes.get_view_dex_table_ranked_events(text,text,text,text,text,integer,text,boolean)",
+            "dexes.get_view_sell_swaps_distribution(text,text,text,text,integer,boolean)",
+            "dexes.get_view_sell_pressure_t0_distribution(text,text,text,text,integer,text,boolean)",
+        ]
+        missing: list[str] = []
+        for signature in required:
+            try:
+                rows = self.sql.fetch_rows("SELECT to_regprocedure(%s) AS proc", (signature,))
+            except Exception as exc:
+                msg = f"DBSQL contract check query failed for {signature}: {exc}"
+                if strict:
+                    raise RuntimeError(msg) from exc
+                logger.warning(msg)
+                return
+            if not rows or rows[0].get("proc") is None:
+                missing.append(signature)
+        if not missing:
+            return
+        message = f"DBSQL compatibility contract missing required functions: {', '.join(missing)}"
+        if strict:
+            raise RuntimeError(message)
+        logger.warning(message)
 
     def flush_caches(self) -> None:
         """Drop all cached query results (e.g. after a pipeline switch)."""

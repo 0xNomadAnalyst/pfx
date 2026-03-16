@@ -25,6 +25,9 @@
   const VIEWPORT_REFRESH_STAGGER_MS = 70;
   const WIDGET_RESPONSE_CACHE_PER_WIDGET_LIMIT = 8;
   const VIEWPORT_POLL_STALE_MS = readRuntimeInt("viewportPollStaleMs", 45_000, 5_000, 300_000);
+  const CRITICAL_CACHE_MAX_AGE_MS = readRuntimeInt("criticalCacheMaxAgeMs", 60_000, 5_000, 300_000);
+  const DEFAULT_CACHE_MAX_AGE_MS = readRuntimeInt("defaultCacheMaxAgeMs", 300_000, 10_000, 1_800_000);
+  const CRITICAL_DEFER_BOOST_MS = 120;
   const PERF_METRICS_ENABLED = readRuntimeBool("perfMetricsEnabled", false);
   const PERF_METRICS_LOG_INTERVAL_MS = 60_000;
   const detailTableCache = new Map();
@@ -57,6 +60,12 @@
     }, PERF_METRICS_LOG_INTERVAL_MS);
   }
   const WARMUP_SESSION_KEY = "riskdash:warmup:v2";
+  const CRITICAL_WIDGET_IDS = new Set([
+    "health-master",
+    "health-queue-table",
+    "health-trigger-table",
+    "health-base-table",
+  ]);
   const comparableLiquidityWidgets = new Set([
     "liquidity-distribution",
     "liquidity-depth",
@@ -3972,17 +3981,38 @@
       htmx.trigger(document.body, "dashboard-refresh");
       return;
     }
-    const visible = [];
-    const deferred = [];
+    const visibleCritical = [];
+    const visibleOther = [];
+    const deferredCritical = [];
+    const deferredOther = [];
     widgets.forEach((el) => {
-      if (isWidgetLikelyVisible(el)) visible.push(el);
-      else deferred.push(el);
+      const critical = isCriticalWidget(el.dataset.widgetId || "");
+      if (isWidgetLikelyVisible(el)) {
+        if (critical) visibleCritical.push(el);
+        else visibleOther.push(el);
+      } else if (critical) {
+        deferredCritical.push(el);
+      } else {
+        deferredOther.push(el);
+      }
     });
-    visible.forEach((el) => requestWidgetNow(el));
-    deferred.forEach((el, idx) => {
+    visibleCritical.forEach((el) => requestWidgetNow(el));
+    visibleOther.forEach((el) => requestWidgetNow(el));
+    deferredCritical.forEach((el, idx) => {
+      const delay = Math.max(0, CRITICAL_DEFER_BOOST_MS + idx * VIEWPORT_REFRESH_STAGGER_MS);
+      setTimeout(() => requestWidgetNow(el), delay);
+    });
+    deferredOther.forEach((el, idx) => {
       const delay = VIEWPORT_REFRESH_DEFER_MS + idx * VIEWPORT_REFRESH_STAGGER_MS;
       setTimeout(() => requestWidgetNow(el), delay);
     });
+  }
+
+  function refreshCriticalWidgetsNow() {
+    const critical = widgetElements().filter((el) => isCriticalWidget(el.dataset.widgetId || ""));
+    if (!critical.length) return;
+    markInteractiveRefreshWindow(2200);
+    critical.forEach((el) => requestWidgetNow(el));
   }
 
   function initWidgetVisibilityTracking() {
@@ -4190,6 +4220,22 @@
     return `${widgetId}::${signature || ""}`;
   }
 
+  function isCriticalWidget(widgetId) {
+    if (!widgetId) return false;
+    if (CRITICAL_WIDGET_IDS.has(widgetId)) return true;
+    return widgetId.startsWith("kpi-");
+  }
+
+  function isPayloadFreshEnoughForWidget(widgetId, payload) {
+    const generatedAt = payload?.metadata?.generated_at;
+    if (!generatedAt) return true;
+    const ts = Date.parse(generatedAt);
+    if (!Number.isFinite(ts)) return true;
+    const ageMs = Date.now() - ts;
+    const budgetMs = isCriticalWidget(widgetId) ? CRITICAL_CACHE_MAX_AGE_MS : DEFAULT_CACHE_MAX_AGE_MS;
+    return ageMs <= budgetMs;
+  }
+
   function setLruCacheEntry(cacheMap, maxEntries, key, value) {
     if (!cacheMap || !key) return;
     if (cacheMap.has(key)) cacheMap.delete(key);
@@ -4272,6 +4318,7 @@
     const signature = widgetFilterSignature(sourceEl);
     const payload = getWidgetCachedPayload(widgetId, signature);
     if (!payload) return false;
+    if (!isPayloadFreshEnoughForWidget(widgetId, payload)) return false;
 
     const srcId = resolveSourceWidgetId(sourceEl);
     _renderingWidgetEl = sourceEl;
@@ -4670,6 +4717,9 @@
     if (!shellAppliedFromCache) {
       showSoftNavPending(navPath);
     } else {
+      setTimeout(() => {
+        refreshCriticalWidgetsNow();
+      }, 60);
       setPageSelectorBusy(false);
       void refreshSoftNavShellCache(navPath, SOFT_NAV_SHELL_REFRESH_DELAY_MS);
       _softNavInFlight = false;
@@ -5375,8 +5425,11 @@
     }
     const isForced = sourceEl.dataset.forceRequest === "1";
     if (!isForced && Date.now() >= _interactiveRefreshUntil && sourceEl.dataset.hasLoadedOnce === "1") {
+      const widgetId = sourceEl.dataset.widgetId || "";
       const lastVisibleAt = Number(sourceEl.dataset.lastVisibleAt || 0);
-      const staleOffscreen = !isWidgetLikelyVisible(sourceEl) && (Date.now() - lastVisibleAt) > VIEWPORT_POLL_STALE_MS;
+      const staleOffscreen = !isCriticalWidget(widgetId)
+        && !isWidgetLikelyVisible(sourceEl)
+        && (Date.now() - lastVisibleAt) > VIEWPORT_POLL_STALE_MS;
       if (staleOffscreen) {
         event.preventDefault();
         recordPerfMetric("suppressedOffscreenPoll");

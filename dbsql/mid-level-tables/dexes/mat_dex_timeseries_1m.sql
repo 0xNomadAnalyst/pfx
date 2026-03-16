@@ -138,51 +138,42 @@ BEGIN
         SELECT pool_address, token0_symbol, token1_symbol, protocol, token_pair
         FROM dexes.pool_tokens_reference
     ),
-    -- 1-minute buckets for each CAGG source
-    swap_1m AS (
+    -- 1-minute buckets from cagg_events_5s (single-pass for swap + lp)
+    events_1m AS (
         SELECT
             time_bucket('1 minute', e.bucket_time) AS bt,
             e.pool_address,
             MAX(e.protocol)       AS protocol,
             MAX(e.token_pair)     AS token_pair,
-            SUM(e.event_count)::BIGINT AS swap_count,
-            SUM(e.amount0_in)     AS swap_t0_in,
-            SUM(e.amount0_out)    AS swap_t0_out,
-            SUM(e.amount0_net)    AS swap_t0_net,
-            SUM(e.amount1_in)     AS swap_t1_in,
-            SUM(e.amount1_out)    AS swap_t1_out,
-            SUM(e.amount1_net)    AS swap_t1_net,
+            SUM(e.event_count) FILTER (WHERE e.activity_category = 'swap')::BIGINT AS swap_count,
+            SUM(e.amount0_in) FILTER (WHERE e.activity_category = 'swap')    AS swap_t0_in,
+            SUM(e.amount0_out) FILTER (WHERE e.activity_category = 'swap')   AS swap_t0_out,
+            SUM(e.amount0_net) FILTER (WHERE e.activity_category = 'swap')   AS swap_t0_net,
+            SUM(e.amount1_in) FILTER (WHERE e.activity_category = 'swap')    AS swap_t1_in,
+            SUM(e.amount1_out) FILTER (WHERE e.activity_category = 'swap')   AS swap_t1_out,
+            SUM(e.amount1_net) FILTER (WHERE e.activity_category = 'swap')   AS swap_t1_net,
+            SUM(e.event_count) FILTER (WHERE e.activity_category = 'lp')::BIGINT AS lp_count,
+            SUM(e.amount0_in) FILTER (WHERE e.activity_category = 'lp')      AS lp_t0_in,
+            SUM(e.amount0_out) FILTER (WHERE e.activity_category = 'lp')     AS lp_t0_out,
+            SUM(e.amount0_net) FILTER (WHERE e.activity_category = 'lp')     AS lp_t0_net,
+            SUM(e.amount1_in) FILTER (WHERE e.activity_category = 'lp')      AS lp_t1_in,
+            SUM(e.amount1_out) FILTER (WHERE e.activity_category = 'lp')     AS lp_t1_out,
+            SUM(e.amount1_net) FILTER (WHERE e.activity_category = 'lp')     AS lp_t1_net,
             -- Volume-weighted VWAP within the 1m bucket
-            CASE WHEN SUM(e.amount0_out) FILTER (WHERE e.vwap_buy_t0 IS NOT NULL AND e.vwap_buy_t0 <> 0) > 0
-                 THEN SUM(e.vwap_buy_t0 * e.amount0_out) FILTER (WHERE e.vwap_buy_t0 IS NOT NULL AND e.vwap_buy_t0 <> 0)
-                      / SUM(e.amount0_out) FILTER (WHERE e.vwap_buy_t0 IS NOT NULL AND e.vwap_buy_t0 <> 0)
+            CASE WHEN SUM(e.amount0_out) FILTER (WHERE e.activity_category = 'swap' AND e.vwap_buy_t0 IS NOT NULL AND e.vwap_buy_t0 <> 0) > 0
+                 THEN SUM(e.vwap_buy_t0 * e.amount0_out) FILTER (WHERE e.activity_category = 'swap' AND e.vwap_buy_t0 IS NOT NULL AND e.vwap_buy_t0 <> 0)
+                      / SUM(e.amount0_out) FILTER (WHERE e.activity_category = 'swap' AND e.vwap_buy_t0 IS NOT NULL AND e.vwap_buy_t0 <> 0)
                  ELSE NULL END AS vwap_buy_t0,
-            CASE WHEN SUM(e.amount0_in) FILTER (WHERE e.vwap_sell_t0 IS NOT NULL AND e.vwap_sell_t0 <> 0) > 0
-                 THEN SUM(e.vwap_sell_t0 * e.amount0_in) FILTER (WHERE e.vwap_sell_t0 IS NOT NULL AND e.vwap_sell_t0 <> 0)
-                      / SUM(e.amount0_in) FILTER (WHERE e.vwap_sell_t0 IS NOT NULL AND e.vwap_sell_t0 <> 0)
+            CASE WHEN SUM(e.amount0_in) FILTER (WHERE e.activity_category = 'swap' AND e.vwap_sell_t0 IS NOT NULL AND e.vwap_sell_t0 <> 0) > 0
+                 THEN SUM(e.vwap_sell_t0 * e.amount0_in) FILTER (WHERE e.activity_category = 'swap' AND e.vwap_sell_t0 IS NOT NULL AND e.vwap_sell_t0 <> 0)
+                      / SUM(e.amount0_in) FILTER (WHERE e.activity_category = 'swap' AND e.vwap_sell_t0 IS NOT NULL AND e.vwap_sell_t0 <> 0)
                  ELSE NULL END AS vwap_sell_t0,
-            AVG(e.c_swap_est_impact_bps_avg) FILTER (WHERE e.c_swap_est_impact_bps_avg IS NOT NULL) AS avg_est_swap_impact_bps,
-            MIN(e.c_swap_est_impact_bps_min_t0_sell) FILTER (WHERE e.c_swap_est_impact_bps_min_t0_sell IS NOT NULL) AS min_est_swap_impact_bps_t0_sell,
-            AVG(e.c_swap_est_impact_bps_avg) FILTER (WHERE e.c_swap_est_impact_bps_avg IS NOT NULL) AS avg_est_swap_impact_bps_all,
-            MAX(e.c_swap_est_impact_bps_max_t1_sell) FILTER (WHERE e.c_swap_est_impact_bps_max_t1_sell IS NOT NULL) AS max_est_swap_impact_bps_t1_sell
+            AVG(e.c_swap_est_impact_bps_avg) FILTER (WHERE e.activity_category = 'swap' AND e.c_swap_est_impact_bps_avg IS NOT NULL) AS avg_est_swap_impact_bps,
+            MIN(e.c_swap_est_impact_bps_min_t0_sell) FILTER (WHERE e.activity_category = 'swap' AND e.c_swap_est_impact_bps_min_t0_sell IS NOT NULL) AS min_est_swap_impact_bps_t0_sell,
+            AVG(e.c_swap_est_impact_bps_avg) FILTER (WHERE e.activity_category = 'swap' AND e.c_swap_est_impact_bps_avg IS NOT NULL) AS avg_est_swap_impact_bps_all,
+            MAX(e.c_swap_est_impact_bps_max_t1_sell) FILTER (WHERE e.activity_category = 'swap' AND e.c_swap_est_impact_bps_max_t1_sell IS NOT NULL) AS max_est_swap_impact_bps_t1_sell
         FROM dexes.cagg_events_5s e
-        WHERE e.activity_category = 'swap'
-          AND e.bucket_time >= v_seed_from
-        GROUP BY time_bucket('1 minute', e.bucket_time), e.pool_address
-    ),
-    lp_1m AS (
-        SELECT
-            time_bucket('1 minute', e.bucket_time) AS bt,
-            e.pool_address,
-            SUM(e.event_count)::BIGINT AS lp_count,
-            SUM(e.amount0_in)     AS lp_t0_in,
-            SUM(e.amount0_out)    AS lp_t0_out,
-            SUM(e.amount0_net)    AS lp_t0_net,
-            SUM(e.amount1_in)     AS lp_t1_in,
-            SUM(e.amount1_out)    AS lp_t1_out,
-            SUM(e.amount1_net)    AS lp_t1_net
-        FROM dexes.cagg_events_5s e
-        WHERE e.activity_category = 'lp'
+        WHERE e.activity_category IN ('swap', 'lp')
           AND e.bucket_time >= v_seed_from
         GROUP BY time_bucket('1 minute', e.bucket_time), e.pool_address
     ),
@@ -241,8 +232,7 @@ BEGIN
     ),
     -- Union all bucket times per pool to get a complete time grid
     all_buckets AS (
-        SELECT DISTINCT bt, pool_address FROM swap_1m
-        UNION SELECT DISTINCT bt, pool_address FROM lp_1m
+        SELECT DISTINCT bt, pool_address FROM events_1m
         UNION SELECT DISTINCT bt, pool_address FROM tick_1m
         UNION SELECT DISTINCT bt, pool_address FROM vault_1m
         UNION SELECT DISTINCT bt, pool_address FROM poolstate_1m
@@ -252,29 +242,29 @@ BEGIN
         SELECT
             ab.bt,
             ab.pool_address,
-            COALESCE(sw.protocol, p.protocol) AS protocol,
-            COALESCE(sw.token_pair, p.token_pair) AS token_pair,
+            COALESCE(ev.protocol, p.protocol) AS protocol,
+            COALESCE(ev.token_pair, p.token_pair) AS token_pair,
             ARRAY[p.token0_symbol, p.token1_symbol] AS symbols_t0_t1,
-            COALESCE(sw.swap_count, 0)     AS swap_count,
-            COALESCE(sw.swap_t0_in, 0)     AS swap_t0_in,
-            COALESCE(sw.swap_t0_out, 0)    AS swap_t0_out,
-            COALESCE(sw.swap_t0_net, 0)    AS swap_t0_net,
-            COALESCE(sw.swap_t1_in, 0)     AS swap_t1_in,
-            COALESCE(sw.swap_t1_out, 0)    AS swap_t1_out,
-            COALESCE(sw.swap_t1_net, 0)    AS swap_t1_net,
-            COALESCE(lp.lp_count, 0)       AS lp_count,
-            COALESCE(lp.lp_t0_in, 0)       AS lp_t0_in,
-            COALESCE(lp.lp_t0_out, 0)      AS lp_t0_out,
-            COALESCE(lp.lp_t0_net, 0)      AS lp_t0_net,
-            COALESCE(lp.lp_t1_in, 0)       AS lp_t1_in,
-            COALESCE(lp.lp_t1_out, 0)      AS lp_t1_out,
-            COALESCE(lp.lp_t1_net, 0)      AS lp_t1_net,
-            sw.vwap_buy_t0,
-            sw.vwap_sell_t0,
-            sw.avg_est_swap_impact_bps,
-            sw.min_est_swap_impact_bps_t0_sell,
-            sw.avg_est_swap_impact_bps_all,
-            sw.max_est_swap_impact_bps_t1_sell,
+            COALESCE(ev.swap_count, 0)     AS swap_count,
+            COALESCE(ev.swap_t0_in, 0)     AS swap_t0_in,
+            COALESCE(ev.swap_t0_out, 0)    AS swap_t0_out,
+            COALESCE(ev.swap_t0_net, 0)    AS swap_t0_net,
+            COALESCE(ev.swap_t1_in, 0)     AS swap_t1_in,
+            COALESCE(ev.swap_t1_out, 0)    AS swap_t1_out,
+            COALESCE(ev.swap_t1_net, 0)    AS swap_t1_net,
+            COALESCE(ev.lp_count, 0)       AS lp_count,
+            COALESCE(ev.lp_t0_in, 0)       AS lp_t0_in,
+            COALESCE(ev.lp_t0_out, 0)      AS lp_t0_out,
+            COALESCE(ev.lp_t0_net, 0)      AS lp_t0_net,
+            COALESCE(ev.lp_t1_in, 0)       AS lp_t1_in,
+            COALESCE(ev.lp_t1_out, 0)      AS lp_t1_out,
+            COALESCE(ev.lp_t1_net, 0)      AS lp_t1_net,
+            ev.vwap_buy_t0,
+            ev.vwap_sell_t0,
+            ev.avg_est_swap_impact_bps,
+            ev.min_est_swap_impact_bps_t0_sell,
+            ev.avg_est_swap_impact_bps_all,
+            ev.max_est_swap_impact_bps_t1_sell,
             tk.current_tick,
             tk.current_tick_float,
             tk.sqrt_price_x64,
@@ -306,8 +296,7 @@ BEGIN
             ps.first_liquidity_t1_units
         FROM all_buckets ab
         LEFT JOIN pools p ON ab.pool_address = p.pool_address
-        LEFT JOIN swap_1m sw ON sw.bt = ab.bt AND sw.pool_address = ab.pool_address
-        LEFT JOIN lp_1m lp ON lp.bt = ab.bt AND lp.pool_address = ab.pool_address
+        LEFT JOIN events_1m ev ON ev.bt = ab.bt AND ev.pool_address = ab.pool_address
         LEFT JOIN tick_1m tk ON tk.bt = ab.bt AND tk.pool_address = ab.pool_address
         LEFT JOIN vault_1m vt ON vt.bt = ab.bt AND vt.pool_address = ab.pool_address
         LEFT JOIN poolstate_1m ps ON ps.bt = ab.bt AND ps.pool_address = ab.pool_address

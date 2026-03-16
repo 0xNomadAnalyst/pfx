@@ -125,72 +125,72 @@ CREATE INDEX IF NOT EXISTS idx_mat_dex_last_pair
     ON dexes.mat_dex_last (protocol, token_pair);
 
 -- ---------------------------------------------------------------------------
--- Refresh procedure: full recompute (one row per pool)
--- Calls get_view_dex_last for each active pool and stores the result.
+-- Refresh procedure: set-based snapshot rebuild with atomic publish.
+-- Builds a staging snapshot first, then swaps into the target table under lock.
+-- This avoids the empty-table correctness window from TRUNCATE + row-by-row loop.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE PROCEDURE dexes.refresh_mat_dex_last()
 LANGUAGE plpgsql AS $$
-DECLARE
-    r RECORD;
 BEGIN
-    TRUNCATE dexes.mat_dex_last;
+    CREATE TEMP TABLE _mat_dex_last_stage (
+        LIKE dexes.mat_dex_last INCLUDING DEFAULTS INCLUDING CONSTRAINTS
+    ) ON COMMIT DROP;
 
-    -- Insert latest snapshot for each active pool
-    FOR r IN
+    INSERT INTO _mat_dex_last_stage (
+        pool_address, protocol, token_pair, symbols_t0_t1,
+        liq_query_id, price_t1_per_t0,
+        impact_t0_quantities, impact_from_t0_sell1_bps,
+        impact_from_t0_sell2_bps, impact_from_t0_sell3_bps,
+        t0_reserve, t1_reserve, tvl_in_t1_units,
+        reserve_t0_t1_millions, reserve_t0_t1_balance_pct,
+        swap_count_period, lp_in_count_period, lp_out_count_period,
+        swap_vol_in_t1_units, swap_vol_in_t0_units,
+        swap_vol_in_t1_units_pct_reserve, swap_vol_in_t0_units_pct_reserve,
+        swap_vol_out_t1_units, swap_vol_out_t0_units,
+        swap_vol_out_t1_units_pct_reserve, swap_vol_out_t0_units_pct_reserve,
+        swap_vol_period_t0_in, swap_vol_period_t0_out,
+        swap_vol_period_t1_in, swap_vol_period_t1_out,
+        lp_token0_in_period_sum, lp_token0_out_period_sum,
+        lp_token1_in_period_sum, lp_token1_out_period_sum,
+        lp_token0_in_period_sum_pct_reserve, lp_token0_out_period_sum_pct_reserve,
+        lp_token1_in_period_sum_pct_reserve, lp_token1_out_period_sum_pct_reserve,
+        swap_token1_in_max, swap_token1_in_max_t0_complement,
+        swap_token1_out_max, swap_token1_out_max_t0_complement,
+        swap_token0_in_max, swap_token0_out_max,
+        swap_token0_in_avg, swap_token0_out_avg,
+        swap_token1_in_avg, swap_token1_out_avg,
+        swap_token1_in_max_pct_reserve, swap_token1_out_max_pct_reserve,
+        swap_token1_in_max_impact_bps, swap_token1_out_max_impact_bps,
+        swap_token0_in_max_impact_bps, swap_token0_out_max_impact_bps,
+        swap_token0_in_avg_impact_bps, swap_token0_out_avg_impact_bps,
+        swap_token1_in_avg_impact_bps, swap_token1_out_avg_impact_bps,
+        vwap_buy_t0_avg, vwap_sell_t0_avg,
+        price_t1_per_t0_avg, spread_vwap_avg_bps,
+        price_t1_per_t0_max, price_t1_per_t0_min, price_t1_per_t0_std,
+        swap_vol_t1_total_24h, swap_vol_t1_total_24h_pct_tvl_in_t1,
+        swap_count_24h,
+        max_1h_t0_sell_pressure_in_period, max_1h_t0_buy_pressure_in_period,
+        max_1h_t0_sell_pressure_in_period_impact_bps,
+        max_1h_t0_buy_pressure_in_period_impact_bps,
+        impact_t1_quantities, impact_from_t1_sell1_bps,
+        impact_from_t1_sell2_bps, impact_from_t1_sell3_bps,
+        max_1h_t0_sell_pressure_pct_reserve, max_1h_t0_sell_pressure_start,
+        refreshed_at
+    )
+    SELECT
+        dl.*,
+        NULL::NUMERIC,
+        NULL::TIMESTAMPTZ,
+        NOW()
+    FROM (
         SELECT DISTINCT protocol, token_pair
         FROM dexes.pool_tokens_reference
-    LOOP
-        BEGIN
-            INSERT INTO dexes.mat_dex_last (
-                pool_address, protocol, token_pair, symbols_t0_t1,
-                liq_query_id, price_t1_per_t0,
-                impact_t0_quantities, impact_from_t0_sell1_bps,
-                impact_from_t0_sell2_bps, impact_from_t0_sell3_bps,
-                t0_reserve, t1_reserve, tvl_in_t1_units,
-                reserve_t0_t1_millions, reserve_t0_t1_balance_pct,
-                swap_count_period, lp_in_count_period, lp_out_count_period,
-                swap_vol_in_t1_units, swap_vol_in_t0_units,
-                swap_vol_in_t1_units_pct_reserve, swap_vol_in_t0_units_pct_reserve,
-                swap_vol_out_t1_units, swap_vol_out_t0_units,
-                swap_vol_out_t1_units_pct_reserve, swap_vol_out_t0_units_pct_reserve,
-                swap_vol_period_t0_in, swap_vol_period_t0_out,
-                swap_vol_period_t1_in, swap_vol_period_t1_out,
-                lp_token0_in_period_sum, lp_token0_out_period_sum,
-                lp_token1_in_period_sum, lp_token1_out_period_sum,
-                lp_token0_in_period_sum_pct_reserve, lp_token0_out_period_sum_pct_reserve,
-                lp_token1_in_period_sum_pct_reserve, lp_token1_out_period_sum_pct_reserve,
-                swap_token1_in_max, swap_token1_in_max_t0_complement,
-                swap_token1_out_max, swap_token1_out_max_t0_complement,
-                swap_token0_in_max, swap_token0_out_max,
-                swap_token0_in_avg, swap_token0_out_avg,
-                swap_token1_in_avg, swap_token1_out_avg,
-                swap_token1_in_max_pct_reserve, swap_token1_out_max_pct_reserve,
-                swap_token1_in_max_impact_bps, swap_token1_out_max_impact_bps,
-                swap_token0_in_max_impact_bps, swap_token0_out_max_impact_bps,
-                swap_token0_in_avg_impact_bps, swap_token0_out_avg_impact_bps,
-                swap_token1_in_avg_impact_bps, swap_token1_out_avg_impact_bps,
-                vwap_buy_t0_avg, vwap_sell_t0_avg,
-                price_t1_per_t0_avg, spread_vwap_avg_bps,
-                price_t1_per_t0_max, price_t1_per_t0_min, price_t1_per_t0_std,
-                swap_vol_t1_total_24h, swap_vol_t1_total_24h_pct_tvl_in_t1,
-                swap_count_24h,
-                max_1h_t0_sell_pressure_in_period, max_1h_t0_buy_pressure_in_period,
-                max_1h_t0_sell_pressure_in_period_impact_bps,
-                max_1h_t0_buy_pressure_in_period_impact_bps,
-                impact_t1_quantities, impact_from_t1_sell1_bps,
-                impact_from_t1_sell2_bps, impact_from_t1_sell3_bps,
-                max_1h_t0_sell_pressure_pct_reserve, max_1h_t0_sell_pressure_start,
-                refreshed_at
-            )
-            SELECT
-                dl.*,
-                NULL::NUMERIC,
-                NULL::TIMESTAMPTZ,
-                NOW()
-            FROM dexes._fn_compute_dex_last(r.protocol, r.token_pair, INTERVAL '1 hour') dl;
-        EXCEPTION WHEN OTHERS THEN
-            RAISE WARNING 'refresh_mat_dex_last: failed for %/% — %', r.protocol, r.token_pair, SQLERRM;
-        END;
-    END LOOP;
+    ) p
+    CROSS JOIN LATERAL dexes._fn_compute_dex_last(p.protocol, p.token_pair, INTERVAL '1 hour') dl;
+
+    LOCK TABLE dexes.mat_dex_last IN ACCESS EXCLUSIVE MODE;
+    TRUNCATE dexes.mat_dex_last;
+    INSERT INTO dexes.mat_dex_last
+    SELECT * FROM _mat_dex_last_stage;
 END;
 $$;

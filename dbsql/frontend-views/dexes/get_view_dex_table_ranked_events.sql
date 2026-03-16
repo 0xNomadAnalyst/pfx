@@ -14,7 +14,7 @@
 -- 
 -- Dependencies:
 -- - src_tx_events: Transaction data with pre-calculated c_swap_est_impact_bps
--- - src_acct_vaults: Token vault balances
+-- - cagg_vaults_5s: Token vault balances
 -- - pool_tokens_reference: Pool to token mapping
 -- - Trigger: trg_calculate_swap_impact (pre-calculates impact at insert time)
 -- =====================================================
@@ -96,6 +96,18 @@ DECLARE
     v_activity_type_filter TEXT;
     v_lookback_interval INTERVAL;
     v_sql TEXT;
+    v_swap_amount_in_expr TEXT;
+    v_swap_amount_out_expr TEXT;
+    v_liq_amount0_in_expr TEXT;
+    v_liq_amount0_out_expr TEXT;
+    v_liq_amount1_in_expr TEXT;
+    v_liq_amount1_out_expr TEXT;
+    v_has_swap_amount_in_num BOOLEAN;
+    v_has_swap_amount_out_num BOOLEAN;
+    v_has_liq_amount0_in_num BOOLEAN;
+    v_has_liq_amount0_out_num BOOLEAN;
+    v_has_liq_amount1_in_num BOOLEAN;
+    v_has_liq_amount1_out_num BOOLEAN;
 BEGIN
     -- =====================================================
     -- Input Validation and Transformation
@@ -129,13 +141,70 @@ BEGIN
     IF v_activity_type_filter IS NULL THEN
         RAISE EXCEPTION 'Invalid activity_category: %. Must be swap or lp', p_activity_category;
     END IF;
+
+    -- Prefer ingestion-time typed numeric columns when available.
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'dexes' AND table_name = 'src_tx_events' AND column_name = 'swap_amount_in_num'
+    ) INTO v_has_swap_amount_in_num;
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'dexes' AND table_name = 'src_tx_events' AND column_name = 'swap_amount_out_num'
+    ) INTO v_has_swap_amount_out_num;
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'dexes' AND table_name = 'src_tx_events' AND column_name = 'liq_amount0_in_num'
+    ) INTO v_has_liq_amount0_in_num;
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'dexes' AND table_name = 'src_tx_events' AND column_name = 'liq_amount0_out_num'
+    ) INTO v_has_liq_amount0_out_num;
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'dexes' AND table_name = 'src_tx_events' AND column_name = 'liq_amount1_in_num'
+    ) INTO v_has_liq_amount1_in_num;
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'dexes' AND table_name = 'src_tx_events' AND column_name = 'liq_amount1_out_num'
+    ) INTO v_has_liq_amount1_out_num;
+
+    v_swap_amount_in_expr := CASE
+        WHEN v_has_swap_amount_in_num
+            THEN 'COALESCE(s.swap_amount_in_num, CAST(NULLIF(REGEXP_REPLACE(s.swap_amount_in, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+        ELSE 'COALESCE(CAST(NULLIF(REGEXP_REPLACE(s.swap_amount_in, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+    END;
+    v_swap_amount_out_expr := CASE
+        WHEN v_has_swap_amount_out_num
+            THEN 'COALESCE(s.swap_amount_out_num, CAST(NULLIF(REGEXP_REPLACE(s.swap_amount_out, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+        ELSE 'COALESCE(CAST(NULLIF(REGEXP_REPLACE(s.swap_amount_out, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+    END;
+    v_liq_amount0_in_expr := CASE
+        WHEN v_has_liq_amount0_in_num
+            THEN 'COALESCE(s.liq_amount0_in_num, CAST(NULLIF(REGEXP_REPLACE(s.liq_amount0_in, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+        ELSE 'COALESCE(CAST(NULLIF(REGEXP_REPLACE(s.liq_amount0_in, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+    END;
+    v_liq_amount0_out_expr := CASE
+        WHEN v_has_liq_amount0_out_num
+            THEN 'COALESCE(s.liq_amount0_out_num, CAST(NULLIF(REGEXP_REPLACE(s.liq_amount0_out, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+        ELSE 'COALESCE(CAST(NULLIF(REGEXP_REPLACE(s.liq_amount0_out, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+    END;
+    v_liq_amount1_in_expr := CASE
+        WHEN v_has_liq_amount1_in_num
+            THEN 'COALESCE(s.liq_amount1_in_num, CAST(NULLIF(REGEXP_REPLACE(s.liq_amount1_in, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+        ELSE 'COALESCE(CAST(NULLIF(REGEXP_REPLACE(s.liq_amount1_in, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+    END;
+    v_liq_amount1_out_expr := CASE
+        WHEN v_has_liq_amount1_out_num
+            THEN 'COALESCE(s.liq_amount1_out_num, CAST(NULLIF(REGEXP_REPLACE(s.liq_amount1_out, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+        ELSE 'COALESCE(CAST(NULLIF(REGEXP_REPLACE(s.liq_amount1_out, ''[^0-9.-]'', '''', ''g''), '''') AS NUMERIC), 0)'
+    END;
     
     -- =====================================================
     -- Build and Execute Dynamic Query  
     -- =====================================================
     
     -- Build query with direct variable substitution to avoid 100-parameter limit
-    v_sql := REPLACE(REPLACE(format($query$
+    v_sql := REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(format($query$
         WITH swap_data AS (
             -- Get swap/liquidity transactions from gRPC + backfilled data
             SELECT 
@@ -158,27 +227,27 @@ BEGIN
                 -- For swaps: use preprocessed swap_amount_in/out and swap_token_in/out
                 CASE 
                     WHEN s.event_type = 'swap' THEN
-                        CASE WHEN s.swap_token_in = ptr.token0_address THEN CAST(NULLIF(REGEXP_REPLACE(s.swap_amount_in, '[^0-9.-]', '', 'g'), '') AS NUMERIC) ELSE 0 END
+                        CASE WHEN s.swap_token_in = ptr.token0_address THEN {{SWAP_AMOUNT_IN_EXPR}} ELSE 0 END
                     ELSE
-                        COALESCE(CAST(NULLIF(REGEXP_REPLACE(s.liq_amount0_in, '[^0-9.-]', '', 'g'), '') AS NUMERIC), 0)
+                        {{LIQ_AMOUNT0_IN_EXPR}}
                 END AS token0_in_raw,
                 CASE 
                     WHEN s.event_type = 'swap' THEN
-                        CASE WHEN s.swap_token_out = ptr.token0_address THEN CAST(NULLIF(REGEXP_REPLACE(s.swap_amount_out, '[^0-9.-]', '', 'g'), '') AS NUMERIC) ELSE 0 END
+                        CASE WHEN s.swap_token_out = ptr.token0_address THEN {{SWAP_AMOUNT_OUT_EXPR}} ELSE 0 END
                     ELSE
-                        COALESCE(CAST(NULLIF(REGEXP_REPLACE(s.liq_amount0_out, '[^0-9.-]', '', 'g'), '') AS NUMERIC), 0)
+                        {{LIQ_AMOUNT0_OUT_EXPR}}
                 END AS token0_out_raw,
                 CASE 
                     WHEN s.event_type = 'swap' THEN
-                        CASE WHEN s.swap_token_in = ptr.token1_address THEN CAST(NULLIF(REGEXP_REPLACE(s.swap_amount_in, '[^0-9.-]', '', 'g'), '') AS NUMERIC) ELSE 0 END
+                        CASE WHEN s.swap_token_in = ptr.token1_address THEN {{SWAP_AMOUNT_IN_EXPR}} ELSE 0 END
                     ELSE
-                        COALESCE(CAST(NULLIF(REGEXP_REPLACE(s.liq_amount1_in, '[^0-9.-]', '', 'g'), '') AS NUMERIC), 0)
+                        {{LIQ_AMOUNT1_IN_EXPR}}
                 END AS token1_in_raw,
                 CASE 
                     WHEN s.event_type = 'swap' THEN
-                        CASE WHEN s.swap_token_out = ptr.token1_address THEN CAST(NULLIF(REGEXP_REPLACE(s.swap_amount_out, '[^0-9.-]', '', 'g'), '') AS NUMERIC) ELSE 0 END
+                        CASE WHEN s.swap_token_out = ptr.token1_address THEN {{SWAP_AMOUNT_OUT_EXPR}} ELSE 0 END
                     ELSE
-                        COALESCE(CAST(NULLIF(REGEXP_REPLACE(s.liq_amount1_out, '[^0-9.-]', '', 'g'), '') AS NUMERIC), 0)
+                        {{LIQ_AMOUNT1_OUT_EXPR}}
                 END AS token1_out_raw,
                 -- Map decimals to token0/token1 (prefer env_* columns for reliability)
                 COALESCE(s.env_token0_decimals, ptr.token0_decimals, 6) AS token0_decimals,
@@ -188,7 +257,7 @@ BEGIN
             WHERE s.time >= NOW() - %L::INTERVAL
                 AND s.protocol = %L
                 AND s.event_type = ANY(string_to_array(%L, ','))
-                AND LOWER(s.token_pair) = LOWER(%L)
+                AND s.token_pair = %L
         ),
         adjusted_swaps AS (
             -- Apply decimal adjustments
@@ -243,7 +312,7 @@ BEGIN
                 token_1_value::DOUBLE PRECISION AS token1_balance_now
             FROM dexes.cagg_vaults_5s
             WHERE protocol = %L
-                AND LOWER(token_pair) = LOWER(%L)
+                AND token_pair = %L
             ORDER BY pool_address, bucket_time DESC
         ),
         ranked_swaps AS (
@@ -460,7 +529,13 @@ BEGIN
         p_protocol,                              -- Protocol for current_balance lookup
         p_pair,                                  -- Pair for current_balance lookup
         p_rows                                   -- Top N limit
-    ), '{{SORT_ASSET}}', p_sort_asset), '{{FLOW_DIR}}', p_flow_direction);
+    ), '{{SORT_ASSET}}', p_sort_asset), '{{FLOW_DIR}}', p_flow_direction),
+    '{{SWAP_AMOUNT_IN_EXPR}}', v_swap_amount_in_expr),
+    '{{SWAP_AMOUNT_OUT_EXPR}}', v_swap_amount_out_expr),
+    '{{LIQ_AMOUNT0_IN_EXPR}}', v_liq_amount0_in_expr),
+    '{{LIQ_AMOUNT0_OUT_EXPR}}', v_liq_amount0_out_expr),
+    '{{LIQ_AMOUNT1_IN_EXPR}}', v_liq_amount1_in_expr),
+    '{{LIQ_AMOUNT1_OUT_EXPR}}', v_liq_amount1_out_expr);
     
     -- =====================================================
     -- Execute and Return Results

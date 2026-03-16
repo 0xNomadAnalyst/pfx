@@ -59,7 +59,7 @@ BEGIN
         -- Fast path: latest-only mode (no historical table access).
         RETURN QUERY
         WITH params AS (
-            SELECT LOWER(p_protocol) AS protocol_filter, LOWER(p_pair) AS pair_filter
+            SELECT NULLIF(TRIM(p_protocol), '') AS protocol_filter, NULLIF(TRIM(p_pair), '') AS pair_filter
         ),
         latest_query_per_pool AS (
             SELECT
@@ -96,8 +96,8 @@ BEGIN
             INNER JOIN src_acct_tickarray_queries q
                 ON q.query_id = lqp.query_id
             CROSS JOIN params p
-            WHERE (p.protocol_filter IS NULL OR LOWER(q.protocol) = p.protocol_filter)
-              AND (p.pair_filter IS NULL OR LOWER(q.token_pair) = p.pair_filter)
+            WHERE (p.protocol_filter IS NULL OR q.protocol = p.protocol_filter)
+              AND (p.pair_filter IS NULL OR q.token_pair = p.pair_filter)
         ),
         vault_reserves AS (
             SELECT
@@ -107,10 +107,9 @@ BEGIN
             FROM current_meta cm
             LEFT JOIN LATERAL (
                 SELECT v.token_0_value, v.token_1_value
-                FROM src_acct_vaults v
+                FROM dexes.cagg_vaults_5s v
                 WHERE v.pool_address = cm.pool_address
-                  AND v.block_time >= NOW() - INTERVAL '1 day'
-                ORDER BY v.block_time DESC
+                ORDER BY v.bucket_time DESC
                 LIMIT 1
             ) vl ON TRUE
         ),
@@ -213,8 +212,8 @@ BEGIN
     RETURN QUERY
     WITH params AS (
         SELECT
-            LOWER(p_protocol) AS protocol_filter,
-            LOWER(p_pair) AS pair_filter,
+            NULLIF(TRIM(p_protocol), '') AS protocol_filter,
+            NULLIF(TRIM(p_pair), '') AS pair_filter,
             p_delta_time AS delta_time
     ),
     latest_query_per_pool AS (
@@ -253,33 +252,35 @@ BEGIN
         INNER JOIN src_acct_tickarray_queries q
             ON q.query_id = lqp.query_id
         CROSS JOIN params p
-        WHERE (p.protocol_filter IS NULL OR LOWER(q.protocol) = p.protocol_filter)
-          AND (p.pair_filter IS NULL OR LOWER(q.token_pair) = p.pair_filter)
+        WHERE (p.protocol_filter IS NULL OR q.protocol = p.protocol_filter)
+          AND (p.pair_filter IS NULL OR q.token_pair = p.pair_filter)
     ),
-    prior_meta AS (
+    prior_candidates AS (
         SELECT
             cm.pool_address,
-            pm.query_id AS prior_query_id,
-            ROUND(
-                (POWER(pm.sqrt_price_x64::DOUBLE PRECISION / POWER(2::DOUBLE PRECISION, 64), 2) *
-                    POWER(10, pm.mint_decimals_0 - pm.mint_decimals_1))::NUMERIC,
-                6
-            ) AS prior_price_t1_per_t0
+            q.query_id,
+            q.sqrt_price_x64,
+            q.mint_decimals_0,
+            q.mint_decimals_1,
+            q.time
         FROM current_meta cm
         CROSS JOIN params p
-        LEFT JOIN LATERAL (
-            SELECT
-                q.query_id,
-                q.sqrt_price_x64,
-                q.mint_decimals_0,
-                q.mint_decimals_1
-            FROM src_acct_tickarray_queries q
-            WHERE q.pool_address = cm.pool_address
-              AND q.time <= cm.query_time - p.delta_time
-              AND q.query_id <> cm.query_id
-            ORDER BY q.time DESC
-            LIMIT 1
-        ) pm ON TRUE
+        JOIN src_acct_tickarray_queries q
+          ON q.pool_address = cm.pool_address
+         AND q.time <= cm.query_time - p.delta_time
+         AND q.query_id <> cm.query_id
+    ),
+    prior_meta AS (
+        SELECT DISTINCT ON (pc.pool_address)
+            pc.pool_address,
+            pc.query_id AS prior_query_id,
+            ROUND(
+                (POWER(pc.sqrt_price_x64::DOUBLE PRECISION / POWER(2::DOUBLE PRECISION, 64), 2) *
+                    POWER(10, pc.mint_decimals_0 - pc.mint_decimals_1))::NUMERIC,
+                6
+            ) AS prior_price_t1_per_t0
+        FROM prior_candidates pc
+        ORDER BY pc.pool_address, pc.time DESC
     ),
     vault_reserves AS (
         SELECT
@@ -289,10 +290,9 @@ BEGIN
         FROM current_meta cm
         LEFT JOIN LATERAL (
             SELECT v.token_0_value, v.token_1_value
-            FROM src_acct_vaults v
+            FROM dexes.cagg_vaults_5s v
             WHERE v.pool_address = cm.pool_address
-              AND v.block_time >= NOW() - INTERVAL '1 day'
-            ORDER BY v.block_time DESC
+            ORDER BY v.bucket_time DESC
             LIMIT 1
         ) vl ON TRUE
     ),

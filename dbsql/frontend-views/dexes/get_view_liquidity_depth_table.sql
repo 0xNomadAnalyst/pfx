@@ -67,8 +67,8 @@ BEGIN
         v_mint_decimals_0,
         v_mint_decimals_1
     FROM dexes.src_acct_tickarray_queries q
-    WHERE LOWER(q.protocol) = LOWER(p_protocol)
-      AND LOWER(q.token_pair) = LOWER(p_pair)
+    WHERE q.protocol = p_protocol
+      AND q.token_pair = p_pair
     ORDER BY q.time DESC
     LIMIT 1;
 
@@ -90,9 +90,9 @@ BEGIN
     INTO
         v_t0_reserve,
         v_t1_reserve
-    FROM dexes.src_acct_vaults v
+    FROM dexes.cagg_vaults_5s v
     WHERE v.pool_address = v_pool_address
-    ORDER BY v.time DESC
+    ORDER BY v.bucket_time DESC
     LIMIT 1;
 
     -- Return results for predefined BPS levels
