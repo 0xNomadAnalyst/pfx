@@ -5,6 +5,8 @@
   const PRICE_BASIS_STORAGE_KEY = "dashboard.priceBasis.v1";
   const DETAIL_TABLE_CACHE_TTL_MS = 30_000;
   const PAGE_ACTION_CACHE_TTL_MS = 60_000;
+  const DETAIL_TABLE_CACHE_MAX_ENTRIES = 40;
+  const PAGE_ACTION_CACHE_MAX_ENTRIES = 40;
   const detailTableCache = new Map();
   const pageActionCache = new Map();
   const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = 100;
@@ -1405,7 +1407,7 @@
           contentEl.innerHTML = "<div class='kpi-secondary'>Failed to load table</div>";
           return;
         }
-        detailTableCache.set(cacheKey, {
+        setLruCacheEntry(detailTableCache, DETAIL_TABLE_CACHE_MAX_ENTRIES, cacheKey, {
           expiresAt: Date.now() + DETAIL_TABLE_CACHE_TTL_MS,
           columns: payload.data.columns || [],
           rows: payload.data.rows || [],
@@ -3577,13 +3579,15 @@
     }
   }
 
-  function updateTimestamp(widgetId, generatedAt) {
+  function updateTimestamp(widgetId, generatedAt, opts = {}) {
+    const stale = opts?.stale === true;
     const el = document.getElementById(`updated-${widgetId}`);
     if (!el) {
       return;
     }
     const stamp = generatedAt ? new Date(generatedAt).toLocaleTimeString() : new Date().toLocaleTimeString();
-    el.textContent = `updated ${stamp}`;
+    el.textContent = stale ? `updated ${stamp} (updating...)` : `updated ${stamp}`;
+    el.style.opacity = stale ? "0.72" : "1";
   }
 
   function setWidgetError(widgetId, message) {
@@ -3656,9 +3660,12 @@
   function resetDashboardLoading() {
     leftDefaultZoomWindow = null;
     leftDefaultZoomSignature = "";
-    widgetElements().forEach((el) => resetWidgetView(el));
+    widgetElements().forEach((el) => {
+      if (!renderCachedWidgetPayload(el)) {
+        resetWidgetView(el);
+      }
+    });
     document.querySelectorAll(".chart-subtitle").forEach((el) => { el.innerHTML = ""; });
-    hydrateWidgetsFromCache();
   }
 
   var _pipelineSwitchInProgress = false;
@@ -4034,18 +4041,21 @@
     return `${widgetId}::${signature || ""}`;
   }
 
+  function setLruCacheEntry(cacheMap, maxEntries, key, value) {
+    if (!cacheMap || !key) return;
+    if (cacheMap.has(key)) cacheMap.delete(key);
+    cacheMap.set(key, value);
+    while (cacheMap.size > maxEntries) {
+      const oldest = cacheMap.keys().next().value;
+      if (!oldest) break;
+      cacheMap.delete(oldest);
+    }
+  }
+
   function setWidgetCachedPayload(widgetId, signature, payload) {
     if (!widgetId || !payload) return;
     const key = widgetCacheKey(widgetId, signature);
-    if (widgetResponseCache.has(key)) {
-      widgetResponseCache.delete(key);
-    }
-    widgetResponseCache.set(key, payload);
-    while (widgetResponseCache.size > WIDGET_RESPONSE_CACHE_MAX_ENTRIES) {
-      const oldest = widgetResponseCache.keys().next().value;
-      if (!oldest) break;
-      widgetResponseCache.delete(oldest);
-    }
+    setLruCacheEntry(widgetResponseCache, WIDGET_RESPONSE_CACHE_MAX_ENTRIES, key, payload);
   }
 
   function getWidgetCachedPayload(widgetId, signature) {
@@ -4070,7 +4080,7 @@
     _renderingWidgetEl = sourceEl;
     try {
       renderPayload(widgetId, payload, srcId);
-      updateTimestamp(widgetId, payload?.metadata?.generated_at);
+      updateTimestamp(widgetId, payload?.metadata?.generated_at, { stale: true });
       return true;
     } catch (_) {
       return false;
@@ -5427,7 +5437,7 @@
         const resp = await fetch(actionUrl);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         data = await resp.json();
-        pageActionCache.set(cacheKey, {
+        setLruCacheEntry(pageActionCache, PAGE_ACTION_CACHE_MAX_ENTRIES, cacheKey, {
           expiresAt: Date.now() + PAGE_ACTION_CACHE_TTL_MS,
           payload: data,
         });

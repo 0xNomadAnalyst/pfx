@@ -782,6 +782,15 @@ th .info-tip-icon {
 .h-hdr-5                    { grid-row: 28 / 29; }
 .health-slot-cagg           { grid-column: 1 / 13; grid-row: 29 / 32; min-height: 280px; }
 
+/* Sync header heights across side-by-side health chart pairs so the chart
+   areas start at the same vertical position even when one header wraps. */
+.health-slot-queue-chart > .panel-header,
+.health-slot-queue-chart-2 > .panel-header,
+.health-slot-base-events > .panel-header,
+.health-slot-base-accts > .panel-header {
+  min-height: 66px;
+}
+
 .health-slot-master .table-wrap,
 .health-slot-trigger .table-wrap,
 .health-slot-base-table .table-wrap,
