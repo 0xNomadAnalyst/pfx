@@ -1,5 +1,5 @@
-fastapi
-uvicorn[standard]
-psycopg2-binary
-pydantic
-python-dotenv
+fastapi>=0.115
+uvicorn[standard]>=0.34
+psycopg2-binary>=2.9
+pydantic>=2.0
+python-dotenv>=1.0

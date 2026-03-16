@@ -6,9 +6,9 @@ WORKDIR /app
 COPY api-w-caching/requirements.txt api-requirements.txt
 RUN pip install --no-cache-dir -r api-requirements.txt
 
-# Install UI dependencies (python-dotenv not yet in htmx/requirements.txt)
+# Install UI dependencies
 COPY htmx/requirements.txt htmx-requirements.txt
-RUN pip install --no-cache-dir -r htmx-requirements.txt python-dotenv
+RUN pip install --no-cache-dir -r htmx-requirements.txt
 
 # Copy source trees
 COPY api-w-caching/ api-w-caching/
