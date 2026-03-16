@@ -65,6 +65,7 @@
           {% endfor %}
         </select>
       </div>
+      {% if page_actions %}
       <div class="topbar-page-actions">
         {% for action in page_actions %}
           <button class="page-action-btn" type="button"
@@ -83,6 +84,7 @@
           </button>
         {% endfor %}
       </div>
+      {% endif %}
       <div class="topbar-video-guide">
         <span class="filter-label">Watch</span>
         <a href="https://www.youtube.com" target="_blank" rel="noopener noreferrer" class="video-guide-link" aria-label="Video Guide">
