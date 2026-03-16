@@ -3,22 +3,59 @@
   let protocolPairs = [];
   const FILTER_STORAGE_KEY = "dashboard.globalFilters.v1";
   const PRICE_BASIS_STORAGE_KEY = "dashboard.priceBasis.v1";
+  function readRuntimeInt(datasetKey, fallback, min = 0, max = Number.MAX_SAFE_INTEGER) {
+    const raw = document.body?.dataset?.[datasetKey];
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(max, Math.max(min, Math.floor(parsed)));
+  }
+  function readRuntimeBool(datasetKey, fallback = false) {
+    const raw = String(document.body?.dataset?.[datasetKey] || "").toLowerCase().trim();
+    if (!raw) return fallback;
+    return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+  }
   const DETAIL_TABLE_CACHE_TTL_MS = 30_000;
   const PAGE_ACTION_CACHE_TTL_MS = 60_000;
   const DETAIL_TABLE_CACHE_MAX_ENTRIES = 40;
   const PAGE_ACTION_CACHE_MAX_ENTRIES = 40;
   const SOFT_NAV_SHELL_CACHE_MAX_ENTRIES = 5;
   const SOFT_NAV_SHELL_CACHE_TTL_MS = 10 * 60_000;
-  const SOFT_NAV_SHELL_REFRESH_DELAY_MS = 3000;
+  const SOFT_NAV_SHELL_REFRESH_DELAY_MS = readRuntimeInt("softNavShellRefreshDelayMs", 3000, 500, 20_000);
   const VIEWPORT_REFRESH_DEFER_MS = 280;
   const VIEWPORT_REFRESH_STAGGER_MS = 70;
   const WIDGET_RESPONSE_CACHE_PER_WIDGET_LIMIT = 8;
-  const VIEWPORT_POLL_STALE_MS = 45_000;
+  const VIEWPORT_POLL_STALE_MS = readRuntimeInt("viewportPollStaleMs", 45_000, 5_000, 300_000);
+  const PERF_METRICS_ENABLED = readRuntimeBool("perfMetricsEnabled", false);
+  const PERF_METRICS_LOG_INTERVAL_MS = 60_000;
   const detailTableCache = new Map();
   const pageActionCache = new Map();
   const softNavShellCache = new Map();
   const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = 100;
   const widgetResponseCache = new Map();
+  const perfMetrics = {
+    softNavShellCacheHit: 0,
+    softNavShellCacheMiss: 0,
+    softNavShellBackgroundRefreshSuccess: 0,
+    softNavShellBackgroundRefreshFailed: 0,
+    warmupShellPrefetchAttempted: 0,
+    warmupShellPrefetchSkippedCached: 0,
+    warmupShellPrefetchSuccess: 0,
+    warmupShellPrefetchFailed: 0,
+    suppressedDuplicateLoadTrigger: 0,
+    suppressedOffscreenPoll: 0,
+    staleLabelClearedOnAbort: 0,
+    staleLabelAutoCleared: 0,
+  };
+  function recordPerfMetric(metricKey, amount = 1) {
+    if (!Object.prototype.hasOwnProperty.call(perfMetrics, metricKey)) return;
+    perfMetrics[metricKey] += amount;
+  }
+  window.__riskdashPerfMetrics = perfMetrics;
+  if (PERF_METRICS_ENABLED) {
+    setInterval(() => {
+      console.info("[riskdash] perf metrics", { ...perfMetrics });
+    }, PERF_METRICS_LOG_INTERVAL_MS);
+  }
   const WARMUP_SESSION_KEY = "riskdash:warmup:v2";
   const comparableLiquidityWidgets = new Set([
     "liquidity-distribution",
@@ -3603,6 +3640,7 @@
           el.textContent = `updated ${stamp}`;
           el.style.opacity = "1";
           el.dataset.stalePending = "0";
+          recordPerfMetric("staleLabelAutoCleared");
         }
       }, 6000);
     } else {
@@ -3625,6 +3663,7 @@
     if (el.dataset.stalePending === "1" && el.textContent?.includes("(updating...)")) {
       el.textContent = el.textContent.replace(" (updating...)", "");
       el.style.opacity = "1";
+      recordPerfMetric("staleLabelClearedOnAbort");
     }
     el.dataset.stalePending = "0";
   }
@@ -4592,11 +4631,16 @@
         headers: { "X-Requested-With": "riskdash-soft-nav-refresh" },
         cache: "no-store",
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        recordPerfMetric("softNavShellBackgroundRefreshFailed");
+        return;
+      }
       const html = await response.text();
       setSoftNavShellCache(normalizedPath, html);
+      recordPerfMetric("softNavShellBackgroundRefreshSuccess");
     } catch (_) {
       // Best-effort background shell refresh.
+      recordPerfMetric("softNavShellBackgroundRefreshFailed");
     }
   }
 
@@ -4614,11 +4658,14 @@
     let shellAppliedFromCache = false;
     const cachedShell = getSoftNavShellCache(navPath);
     if (cachedShell) {
+      recordPerfMetric("softNavShellCacheHit");
       try {
         shellAppliedFromCache = await applySoftNavHtml(navPath, cachedShell, { pushHistory });
       } catch (_) {
         shellAppliedFromCache = false;
       }
+    } else {
+      recordPerfMetric("softNavShellCacheMiss");
     }
     if (!shellAppliedFromCache) {
       showSoftNavPending(navPath);
@@ -4920,8 +4967,21 @@
     const shellPaths = buildWarmupShellPaths(manifest);
     if (!shellPaths.length) return;
     for (const path of shellPaths) {
-      if (getSoftNavShellCache(path)) continue;
-      await refreshSoftNavShellCache(path, 0);
+      recordPerfMetric("warmupShellPrefetchAttempted");
+      if (getSoftNavShellCache(path)) {
+        recordPerfMetric("warmupShellPrefetchSkippedCached");
+        continue;
+      }
+      try {
+        await refreshSoftNavShellCache(path, 0);
+        if (getSoftNavShellCache(path)) {
+          recordPerfMetric("warmupShellPrefetchSuccess");
+        } else {
+          recordPerfMetric("warmupShellPrefetchFailed");
+        }
+      } catch (_) {
+        recordPerfMetric("warmupShellPrefetchFailed");
+      }
     }
   }
 
@@ -5306,6 +5366,7 @@
     if (sourceEl.dataset.suppressNextLoadRequest === "1" && sourceEl.dataset.forceRequest !== "1") {
       event.preventDefault();
       sourceEl.dataset.suppressNextLoadRequest = "0";
+      recordPerfMetric("suppressedDuplicateLoadTrigger");
       return;
     }
     if (_pipelineSwitchInProgress || document.hidden) {
@@ -5318,6 +5379,7 @@
       const staleOffscreen = !isWidgetLikelyVisible(sourceEl) && (Date.now() - lastVisibleAt) > VIEWPORT_POLL_STALE_MS;
       if (staleOffscreen) {
         event.preventDefault();
+        recordPerfMetric("suppressedOffscreenPoll");
       }
     }
   });

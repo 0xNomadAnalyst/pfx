@@ -42,6 +42,9 @@ HTMX_HEALTH_TABLE_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_BASE_D
 HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS", "0.12"))
 HTMX_HEALTH_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_BASE_DELAY_SECONDS", "0.35"))
 HTMX_HEALTH_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_STEP_DELAY_SECONDS", "0.18"))
+HTMX_SOFT_NAV_SHELL_REFRESH_DELAY_MS = int(os.getenv("HTMX_SOFT_NAV_SHELL_REFRESH_DELAY_MS", "3000"))
+HTMX_VIEWPORT_POLL_STALE_MS = int(os.getenv("HTMX_VIEWPORT_POLL_STALE_MS", "45000"))
+HTMX_CLIENT_PERF_METRICS = os.getenv("HTMX_CLIENT_PERF_METRICS", "0") == "1"
 _health_proxy_lock = threading.Lock()
 _health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 _meta_proxy_lock = threading.Lock()
@@ -362,6 +365,11 @@ def render_page(request: Request, page: PageConfig):
                 "budget_seconds": max(1, WARMUP_BUDGET_SECONDS),
                 "max_jobs": max(1, WARMUP_MAX_JOBS),
                 "concurrency": max(1, WARMUP_CONCURRENCY),
+            },
+            "nav_tuning": {
+                "soft_nav_shell_refresh_delay_ms": max(500, min(20000, HTMX_SOFT_NAV_SHELL_REFRESH_DELAY_MS)),
+                "viewport_poll_stale_ms": max(5000, min(300000, HTMX_VIEWPORT_POLL_STALE_MS)),
+                "perf_metrics_enabled": HTMX_CLIENT_PERF_METRICS,
             },
         },
     )
