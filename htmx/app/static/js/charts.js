@@ -4340,7 +4340,8 @@
       entryTargets.forEach((target) => {
         const widgetId = target?.widget_id;
         if (!widgetId) return;
-        targets.push({ page_id: pageId, widget_id: widgetId });
+        const params = (target && typeof target.params === "object" && target.params) ? target.params : null;
+        targets.push(params ? { page_id: pageId, widget_id: widgetId, params } : { page_id: pageId, widget_id: widgetId });
       });
     });
     return targets;

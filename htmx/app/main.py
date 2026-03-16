@@ -38,6 +38,10 @@ WARMUP_WIDGETS_PER_PAGE = int(os.getenv("HTMX_WARMUP_WIDGETS_PER_PAGE", "8"))
 WARMUP_BUDGET_SECONDS = int(os.getenv("HTMX_WARMUP_BUDGET_SECONDS", "30"))
 WARMUP_MAX_JOBS = int(os.getenv("HTMX_WARMUP_MAX_JOBS", "20"))
 WARMUP_CONCURRENCY = int(os.getenv("HTMX_WARMUP_CONCURRENCY", "3"))
+HTMX_HEALTH_TABLE_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_BASE_DELAY_SECONDS", "0.08"))
+HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS", "0.12"))
+HTMX_HEALTH_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_BASE_DELAY_SECONDS", "0.35"))
+HTMX_HEALTH_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_STEP_DELAY_SECONDS", "0.18"))
 _health_proxy_lock = threading.Lock()
 _health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 _meta_proxy_lock = threading.Lock()
@@ -133,6 +137,36 @@ if "dex-liquidity" in PAGES_BY_SLUG:
 
 
 def render_page(request: Request, page: PageConfig):
+    def _is_secondary_lane(widget: object) -> bool:
+        css = str(getattr(widget, "css_class", "") or "").lower()
+        wid = str(getattr(widget, "id", "") or "").lower()
+        proto = str(getattr(widget, "protocol_override", "") or "").lower()
+        return (
+            "dx-ray-" in css
+            or "mkt2" in css
+            or "-right" in css
+            or wid.endswith("-mkt2")
+            or wid.endswith("-ray")
+            or "-ray-" in wid
+            or proto in {"ray", "mkt2", "mkt2-sy"}
+        )
+
+    def _lane_group_key(widget: object) -> str:
+        css = str(getattr(widget, "css_class", "") or "")
+        tokens = [tok for tok in css.split() if tok]
+        normalized: list[str] = []
+        for tok in tokens:
+            key = tok
+            key = key.replace("dx-ray-", "dx-orca-")
+            key = key.replace("-ray-", "-orca-")
+            if key.endswith("-ray"):
+                key = f"{key[:-4]}-orca"
+            key = key.replace("mkt2", "mkt1")
+            key = key.replace("right", "left")
+            normalized.append(key)
+        normalized.sort()
+        return f"{getattr(widget, 'kind', '')}|{' '.join(normalized)}"
+
     widget_ids_filter = []
     if page.widget_filter_env_var:
         widget_ids_filter = [item.strip() for item in os.getenv(page.widget_filter_env_var, "").split(",") if item.strip()]
@@ -141,6 +175,11 @@ def render_page(request: Request, page: PageConfig):
     kpi_index = 0
     non_kpi_index = 0
     last_chart_delay = 0.0
+    dual_pool_pages = {"risk-analysis", "dexes", "exponent-yield"}
+    lane_delay_by_group: dict[str, float] = {}
+    health_table_index = 0
+    health_chart_index = 0
+    health_queue_pair_delay: float | None = None
     widget_bindings = []
     for widget in widgets:
         if widget.kind == "kpi":
@@ -154,6 +193,37 @@ def render_page(request: Request, page: PageConfig):
                 load_delay_seconds = 1.5 + non_kpi_index * 0.6
                 non_kpi_index += 1
             last_chart_delay = load_delay_seconds
+
+        if page.slug in dual_pool_pages and widget.kind in {"kpi", "chart", "table", "table-split"}:
+            lane_key = _lane_group_key(widget)
+            if _is_secondary_lane(widget) and lane_key in lane_delay_by_group:
+                # Promote the second lane to load alongside its first-lane counterpart.
+                load_delay_seconds = lane_delay_by_group[lane_key]
+            elif lane_key:
+                lane_delay_by_group[lane_key] = load_delay_seconds
+
+        if page.slug == "system-health":
+            # Health is operational telemetry; prioritize visible first paint over
+            # broad staggering even when caches are warm.
+            if widget.kind in {"table", "table-split"}:
+                health_delay = (
+                    HTMX_HEALTH_TABLE_BASE_DELAY_SECONDS
+                    + health_table_index * HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS
+                )
+                load_delay_seconds = min(load_delay_seconds, health_delay)
+                health_table_index += 1
+            elif widget.kind == "chart":
+                if widget.id == "health-queue-chart-2" and health_queue_pair_delay is not None:
+                    load_delay_seconds = min(load_delay_seconds, health_queue_pair_delay)
+                else:
+                    health_delay = (
+                        HTMX_HEALTH_CHART_BASE_DELAY_SECONDS
+                        + health_chart_index * HTMX_HEALTH_CHART_STEP_DELAY_SECONDS
+                    )
+                    load_delay_seconds = min(load_delay_seconds, health_delay)
+                    if widget.id == "health-queue-chart":
+                        health_queue_pair_delay = load_delay_seconds
+                    health_chart_index += 1
 
         if widget.kind == "kpi":
             refresh_interval_seconds = int(os.getenv("HTMX_REFRESH_KPI_SECONDS", str(widget.refresh_interval_seconds)))
@@ -186,16 +256,46 @@ def render_page(request: Request, page: PageConfig):
     warmup_manifest = []
     warmup_exclude_kinds = {"section-header", "section-subheader", "placeholder"}
     for idx, cfg in enumerate(warmup_pages):
-        targets: list[dict[str, str]] = []
+        targets: list[dict[str, object]] = []
+        candidate_targets: list[dict[str, object]] = []
         seen_widget_ids: set[str] = set()
         for widget in cfg.widgets:
             if widget.kind in warmup_exclude_kinds:
                 continue
             endpoint_widget_id = widget.source_widget_id or widget.id
-            if endpoint_widget_id in seen_widget_ids:
+            target_params: dict[str, str] = {}
+            if widget.protocol_override:
+                proto = widget.protocol_override
+                if proto == "ray":
+                    proto = "raydium"
+                target_params["protocol"] = proto
+            target_key = f"{endpoint_widget_id}::{target_params.get('protocol', '')}"
+            if target_key in seen_widget_ids:
                 continue
-            seen_widget_ids.add(endpoint_widget_id)
-            targets.append({"widget_id": endpoint_widget_id, "kind": widget.kind})
+            seen_widget_ids.add(target_key)
+            target_payload: dict[str, object] = {"widget_id": endpoint_widget_id, "kind": widget.kind}
+            if target_params:
+                target_payload["params"] = target_params
+            # Prefer operationally-critical tables/charts first on system-health.
+            if cfg.slug == "system-health":
+                priority_map = {
+                    "health-master": 0,
+                    "health-queue-table": 1,
+                    "health-trigger-table": 2,
+                    "health-base-table": 3,
+                    "health-cagg-table": 4,
+                    "health-queue-chart": 5,
+                    "health-queue-chart-2": 6,
+                    "health-base-chart-events": 7,
+                    "health-base-chart-accounts": 8,
+                }
+                target_payload["priority"] = priority_map.get(endpoint_widget_id, 100)
+            candidate_targets.append(target_payload)
+
+        if cfg.slug == "system-health":
+            candidate_targets.sort(key=lambda item: int(item.get("priority", 100)))
+        for target_payload in candidate_targets:
+            targets.append(target_payload)
             if len(targets) >= max(1, WARMUP_WIDGETS_PER_PAGE):
                 break
         if targets:
