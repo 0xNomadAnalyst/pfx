@@ -1711,7 +1711,8 @@ td:first-child {
 .dashboard-grid.page-risk-analysis,
 .dashboard-grid.page-dexes,
 .dashboard-grid.page-global-ecosystem,
-.dashboard-grid.page-kamino {
+.dashboard-grid.page-kamino,
+.dashboard-grid.page-exponent-yield {
   max-width: var(--half-screen, 960px);
   margin-left: auto;
   margin-right: auto;
