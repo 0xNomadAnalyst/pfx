@@ -774,13 +774,20 @@ class KaminoPageService(BasePageService):
             ],
         }
 
+    def _quote_currency_label(self) -> str:
+        cfg = self._v_config_row()
+        raw = str(cfg.get("market_quote_currency") or "").strip()
+        if not raw or len(raw) > 10:
+            return "Amount"
+        return f"{raw} Amount"
+
     def _kamino_liability_flows(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._timeseries_rows(params)
         return {
             "kind": "chart",
             "chart": "bar-line",
             "x": [row["bucket_time"] for row in rows],
-            "yAxisLabel": "USX Amount",
+            "yAxisLabel": self._quote_currency_label(),
             "yAxisFormat": "compact",
             "series": [
                 {"name": "Deposits", "type": "bar", "stack": "flows", "data": [row.get("reserve_brw_all_deposit_sum") for row in rows]},

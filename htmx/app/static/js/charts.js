@@ -4486,6 +4486,34 @@
       return;
     }
     if (!currentNode && incomingNode) {
+      const incomingParent = incomingNode.parentElement;
+      if (!incomingParent) return;
+      const parentSelector = incomingParent.id
+        ? `#${incomingParent.id}`
+        : incomingParent.className
+          ? `.${incomingParent.className.trim().split(/\s+/)[0]}`
+          : null;
+      const liveParent = parentSelector ? document.querySelector(parentSelector) : null;
+      if (!liveParent) return;
+      const siblings = Array.from(incomingParent.children);
+      const idx = siblings.indexOf(incomingNode);
+      const clone = incomingNode.cloneNode(true);
+      if (idx <= 0) {
+        liveParent.prepend(clone);
+      } else {
+        const prevSibling = siblings[idx - 1];
+        const prevSelector = prevSibling.id
+          ? `#${prevSibling.id}`
+          : prevSibling.className
+            ? `.${prevSibling.className.trim().split(/\s+/)[0]}`
+            : null;
+        const livePrev = prevSelector ? liveParent.querySelector(prevSelector) : null;
+        if (livePrev) {
+          livePrev.after(clone);
+        } else {
+          liveParent.appendChild(clone);
+        }
+      }
       return;
     }
     currentNode.replaceWith(incomingNode.cloneNode(true));
