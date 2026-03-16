@@ -4676,7 +4676,7 @@
 
     updateOrReplaceNode(".topbar-right", nextDoc);
     updateOrReplaceNode(".pipeline-switcher", nextDoc);
-    updateOrReplaceNode("#page-select", nextDoc);
+    updateOrReplaceNode("#topbar-view-select", nextDoc);
     updateOrReplaceNode(".topbar-page-actions", nextDoc);
     updateBodyDataAttrsFromDoc(nextDoc);
     updateWarmupManifest(nextDoc);
