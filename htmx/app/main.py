@@ -41,8 +41,8 @@ _health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 # When a page is OFF its module is never imported — zero resources allocated.
 _PAGE_MODULES: list[tuple[str, str, str]] = [
     ("PAGE_COVER",            "app.pages.cover",                   "0"),
+    ("PAGE_GLOBAL_ECOSYSTEM", "app.pages.global",                   "1"),
     ("PAGE_RISK_ANALYSIS",    "app.pages.risk_analysis",           "1"),
-    ("PAGE_GLOBAL_ECOSYSTEM", "app.pages.global_ecosystem",        "1"),
     ("PAGE_GLOBAL_SOLSTICE",  "app.pages.global_solstice_version", "0"),
     ("PAGE_DEX_LIQUIDITY",    "app.pages.dex_liquidity",           "0"),
     ("PAGE_DEX_SWAPS",        "app.pages.dex_swaps",               "0"),
