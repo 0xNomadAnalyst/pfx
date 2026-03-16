@@ -181,8 +181,17 @@ kill_listeners_on_port "${UI_PORT:-8002}"
 run_api &
 api_pid=$!
 
-# Let API start first to reduce initial UI request failures.
-sleep 1
+# Wait until the API is actually accepting connections before launching the UI
+# so the first browser requests don't hit a 502.
+api_port="${API_PORT:-8001}"
+echo "Waiting for API on port $api_port …"
+for _i in $(seq 1 30); do
+  if curl -sf "http://127.0.0.1:${api_port}/docs" >/dev/null 2>&1; then
+    echo "API ready."
+    break
+  fi
+  sleep 0.5
+done
 
 run_ui &
 ui_pid=$!

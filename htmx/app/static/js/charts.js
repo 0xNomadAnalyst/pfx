@@ -415,7 +415,24 @@
     return Math.round(numeric).toString();
   }
 
+  let _renderingWidgetEl = null;
+
   function currentPairTokens() {
+    if (_renderingWidgetEl) {
+      const protoOverride = _renderingWidgetEl.dataset.protocolOverride;
+      if (protoOverride) {
+        const fullProto = protoOverride === "ray" ? "raydium" : protoOverride;
+        const asset = currentAsset();
+        if (asset) {
+          const pair = pairForAssetProtocol(fullProto, asset);
+          const parts = String(pair || "").split("-");
+          return {
+            token0: (parts[0] || "T0").trim(),
+            token1: (parts[1] || "T1").trim(),
+          };
+        }
+      }
+    }
     const pair = currentPair();
     const parts = String(pair || "").split("-");
     return {
@@ -3359,6 +3376,9 @@
 
   function clearAllForPipelineSwitch() {
     _pipelineSwitchInProgress = true;
+    widgetElements().forEach((el) => {
+      try { htmx.trigger(el, "htmx:abort"); } catch (_) {}
+    });
     resetDashboardLoading();
     chartState.forEach(({ instance }) => {
       if (instance) {
@@ -3368,6 +3388,7 @@
     chartState.clear();
     detailTableCache.clear();
     pageActionCache.clear();
+    protocolPairs = [];
     const mkt1 = document.getElementById("mkt1-select");
     const mkt2 = document.getElementById("mkt2-select");
     if (mkt1) mkt1.innerHTML = '<option value="">switching…</option>';
@@ -3423,14 +3444,16 @@
   }
 
   function refreshPairDependentLabels() {
-    const { token0, token1 } = currentPairTokens();
-    const flowSelect = document.getElementById("swaps-flow-mode");
-    if (flowSelect) {
-      const t0 = flowSelect.querySelector('option[value="usx"]');
-      const t1 = flowSelect.querySelector('option[value="usdc"]');
+    document.querySelectorAll(".flow-mode-select").forEach((sel) => {
+      const widget = sel.closest(".widget-loader");
+      _renderingWidgetEl = widget;
+      const { token0, token1 } = currentPairTokens();
+      const t0 = sel.querySelector('option[value="usx"]');
+      const t1 = sel.querySelector('option[value="usdc"]');
       if (t0) t0.textContent = token0;
       if (t1) t1.textContent = token1;
-    }
+    });
+    _renderingWidgetEl = null;
   }
 
   async function refreshAfterPipelineSwitch(defaults) {
@@ -3487,7 +3510,7 @@
       if (!proto) return;
       const fullProto = proto === "ray" ? "raydium" : proto;
       const asset = currentAsset();
-      const pair = asset ? pairForAssetProtocol(fullProto, asset) : "";
+      const pair = pairForAssetProtocol(fullProto, asset);
       const pairSpan = el.querySelector(".dx-subheader-pair");
       if (pairSpan) pairSpan.textContent = pair || "";
     });
@@ -3616,8 +3639,10 @@
     document.querySelectorAll(".widget-loader .panel-header h3").forEach((titleEl) => {
       const baseTitle = titleEl.dataset.baseTitle || titleEl.textContent || "";
       titleEl.dataset.baseTitle = baseTitle;
+      _renderingWidgetEl = titleEl.closest(".widget-loader");
       titleEl.textContent = pairAwareLabel(baseTitle);
     });
+    _renderingWidgetEl = null;
   }
 
   function initPageSelector() {
@@ -3849,10 +3874,11 @@
   }
 
   function initSwapsFlowModeToggle() {
-    const { token0, token1 } = currentPairTokens();
     document.querySelectorAll(".flow-mode-select").forEach((modeSelect) => {
       const widget = modeSelect.closest(".widget-loader");
       if (!widget) return;
+      _renderingWidgetEl = widget;
+      const { token0, token1 } = currentPairTokens();
       const token0Option = modeSelect.querySelector('option[value="usx"]');
       const token1Option = modeSelect.querySelector('option[value="usdc"]');
       if (token0Option) token0Option.textContent = token0;
@@ -3864,6 +3890,7 @@
         htmx.trigger(widget, "flow-mode-change");
       });
     });
+    _renderingWidgetEl = null;
   }
 
   function initSwapsOhlcvIntervalToggle() {
@@ -3959,6 +3986,9 @@
     if (!widgetId) {
       return;
     }
+    if (_pipelineSwitchInProgress) {
+      return;
+    }
     // Skip aborted or failed requests – dedicated handlers
     // (htmx:responseError, htmx:sendError, htmx:timeout) cover real errors.
     // Without this guard, hx-sync="this:replace" aborts produce empty XHR
@@ -3966,6 +3996,7 @@
     if (!event.detail.successful) {
       return;
     }
+    _renderingWidgetEl = sourceEl;
     try {
       const raw = event.detail.xhr.responseText;
       if (!raw) {
@@ -3982,6 +4013,8 @@
       updateTimestamp(widgetId, payload?.metadata?.generated_at);
     } catch (error) {
       setWidgetError(widgetId, String(error));
+    } finally {
+      _renderingWidgetEl = null;
     }
   });
 
