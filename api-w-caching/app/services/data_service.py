@@ -60,6 +60,12 @@ class DataService:
         self._log_slow_widgets = os.getenv("API_LOG_SLOW_WIDGETS", "0") == "1"
         self._slow_widget_threshold_ms = float(os.getenv("API_SLOW_WIDGET_THRESHOLD_MS", "150"))
         self._health_status_cache_ttl_seconds = float(os.getenv("HEALTH_STATUS_TTL_SECONDS", "15"))
+        self._health_status_cache_ttl_green_seconds = float(
+            os.getenv("HEALTH_STATUS_TTL_GREEN_SECONDS", str(self._health_status_cache_ttl_seconds))
+        )
+        self._health_status_cache_ttl_red_seconds = float(
+            os.getenv("HEALTH_STATUS_TTL_RED_SECONDS", "4")
+        )
         self._health_status_lock = threading.Lock()
         self._health_status_cached: bool | None = None
         self._health_status_expires_at = 0.0
@@ -316,7 +322,12 @@ class DataService:
                 return self._health_status_cached
 
             self._health_status_cached = status
-            self._health_status_expires_at = now + self._health_status_cache_ttl_seconds
+            ttl_seconds = self._health_status_cache_ttl_seconds
+            if status is True:
+                ttl_seconds = self._health_status_cache_ttl_green_seconds
+            elif status is False:
+                ttl_seconds = self._health_status_cache_ttl_red_seconds
+            self._health_status_expires_at = now + max(1.0, ttl_seconds)
             return status
         finally:
             self._health_status_lock.release()

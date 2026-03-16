@@ -3502,6 +3502,17 @@
         const subEl = document.getElementById(`table-subtitle-${widgetId}`);
         if (subEl) subEl.textContent = payload.data.subtitle;
       }
+      if (widgetId === "health-master") {
+        const title = String(payload?.data?.title_override || "").toLowerCase();
+        const rows = Array.isArray(payload?.data?.rows) ? payload.data.rows : [];
+        let status = null;
+        if (title.includes("action required")) status = false;
+        else if (title.includes("all systems nominal")) status = true;
+        else if (rows.length) status = !rows.some((row) => row && row.is_red === true);
+        if (status !== null) {
+          document.body.dispatchEvent(new CustomEvent("riskdash:health-master-status", { detail: { status } }));
+        }
+      }
       if (swid === "liquidity-depth-table") {
         const dtTitleEl = document.querySelector(`#widget-${widgetId} .panel-title-group h3`);
         if (dtTitleEl) {
@@ -3735,8 +3746,48 @@
     _renderingWidgetEl = null;
   }
 
+  var _HEALTH_DOMAIN_OPTIONS = [
+    { value: "dexes",                label: "dexes" },
+    { value: "exponent",             label: "exponent" },
+    { value: "kamino_lend",          label: "kamino_lend" },
+    { value: "solstice_proprietary", label: "solstice_proprietary", pipeline: "solstice" },
+    { value: "cross_protocol",       label: "cross_protocol",       pipeline: "onyc" },
+  ];
+
+  function updateHealthDomainSelects(pipeline) {
+    var selects = [
+      document.getElementById("health-schema-select"),
+      document.getElementById("health-schema-select-2"),
+    ];
+    document.querySelectorAll(".health-base-schema-select").forEach(function(s) { selects.push(s); });
+
+    for (var i = 0; i < selects.length; i++) {
+      var sel = selects[i];
+      if (!sel) continue;
+      var prev = sel.value;
+      sel.innerHTML = "";
+      for (var j = 0; j < _HEALTH_DOMAIN_OPTIONS.length; j++) {
+        var d = _HEALTH_DOMAIN_OPTIONS[j];
+        if (d.pipeline && pipeline && d.pipeline !== pipeline) continue;
+        var opt = document.createElement("option");
+        opt.value = d.value;
+        opt.textContent = d.label;
+        sel.appendChild(opt);
+      }
+      if (prev && sel.querySelector('option[value="' + prev + '"]')) {
+        sel.value = prev;
+      } else {
+        sel.value = "dexes";
+      }
+    }
+    document.body.dataset.currentPipeline = pipeline || "";
+  }
+
   async function refreshAfterPipelineSwitch(defaults) {
     try {
+      var pipelineSel = document.getElementById("pipeline-select");
+      var pipeline = pipelineSel ? pipelineSel.value : "";
+      updateHealthDomainSelects(pipeline);
       await Promise.all([
         refreshProtocolPairSelectors(defaults),
         populateMarketSelectors(),
@@ -3750,6 +3801,58 @@
     }
   }
   window.__refreshAfterPipelineSwitch = refreshAfterPipelineSwitch;
+
+  function initPipelineSwitcher() {
+    const sel = document.getElementById("pipeline-select");
+    if (!sel || sel.dataset.boundPipeline === "1") return;
+    sel.dataset.boundPipeline = "1";
+
+    let confirmedPipeline = sel.value;
+
+    fetch("/api/pipeline-info")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data || !data.current) return;
+        for (let i = 0; i < sel.options.length; i += 1) {
+          sel.options[i].selected = sel.options[i].value === data.current;
+        }
+        confirmedPipeline = data.current;
+      })
+      .catch(() => {});
+
+    sel.addEventListener("change", () => {
+      const name = sel.value;
+      sel.disabled = true;
+
+      if (typeof window.__clearAllForPipelineSwitch === "function") {
+        window.__clearAllForPipelineSwitch();
+      }
+
+      fetch(`/api/switch-pipeline?pipeline=${encodeURIComponent(name)}`, { method: "POST" })
+        .then((r) => r.json())
+        .then((data) => {
+          const defaults = (data && data.defaults) || {};
+          try {
+            const stored = { lastWindow: "7d" };
+            if (defaults.protocol) stored.protocol = defaults.protocol;
+            if (defaults.pair) stored.pair = defaults.pair;
+            window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(stored));
+          } catch (_) {}
+          confirmedPipeline = name;
+          sel.disabled = false;
+          if (typeof window.__refreshAfterPipelineSwitch === "function") {
+            window.__refreshAfterPipelineSwitch(defaults);
+          }
+        })
+        .catch(() => {
+          sel.value = confirmedPipeline;
+          sel.disabled = false;
+          if (typeof window.__refreshAfterPipelineSwitch === "function") {
+            window.__refreshAfterPipelineSwitch();
+          }
+        });
+    });
+  }
 
   function getApiBaseUrl() {
     const attr = document.body.dataset.apiBaseUrl;
@@ -4099,11 +4202,246 @@
     if (!pageSelect) {
       return;
     }
+    if (pageSelect.dataset.boundPageNav === "1") return;
+    pageSelect.dataset.boundPageNav = "1";
     pageSelect.addEventListener("change", () => {
       if (pageSelect.value && pageSelect.value !== window.location.pathname) {
-        window.location.assign(pageSelect.value);
+        softNavigateToPage(pageSelect.value, { pushHistory: true });
       }
     });
+  }
+
+  function teardownForSoftNavigation() {
+    widgetElements().forEach((el) => {
+      try { htmx.trigger(el, "htmx:abort"); } catch (_) {}
+    });
+    chartState.forEach(({ instance }) => {
+      if (instance) {
+        try { instance.dispose(); } catch (_) {}
+      }
+    });
+    chartState.clear();
+    _pipelineSwitchInProgress = false;
+  }
+
+  function updateOrReplaceNode(currentSelector, incomingDoc, incomingSelector = currentSelector) {
+    const currentNode = document.querySelector(currentSelector);
+    const incomingNode = incomingDoc.querySelector(incomingSelector);
+    if (!currentNode && !incomingNode) return;
+    if (currentNode && !incomingNode) {
+      currentNode.remove();
+      return;
+    }
+    if (!currentNode && incomingNode) {
+      return;
+    }
+    currentNode.replaceWith(incomingNode.cloneNode(true));
+  }
+
+  function updateBodyDataAttrsFromDoc(incomingDoc) {
+    const incomingBody = incomingDoc.body;
+    if (!incomingBody) return;
+    [
+      "apiBaseUrl",
+      "currentPageSlug",
+      "warmupBudgetSeconds",
+      "warmupMaxJobs",
+      "warmupConcurrency",
+    ].forEach((key) => {
+      const attr = incomingBody.dataset[key];
+      if (attr != null) {
+        document.body.dataset[key] = attr;
+      }
+    });
+  }
+
+  function updateWarmupManifest(incomingDoc) {
+    const incoming = incomingDoc.querySelector("#warmup-manifest");
+    const current = document.querySelector("#warmup-manifest");
+    if (current && incoming) {
+      current.textContent = incoming.textContent || "[]";
+      return;
+    }
+    if (current && !incoming) {
+      current.textContent = "[]";
+    }
+  }
+
+  let _softNavInFlight = false;
+  let _softNavController = null;
+
+  function ensureSoftNavPendingStyles() {
+    if (document.getElementById("soft-nav-pending-styles")) return;
+    const style = document.createElement("style");
+    style.id = "soft-nav-pending-styles";
+    style.textContent = `
+      @keyframes softNavPulse {
+        0% { background-position: 100% 0; }
+        100% { background-position: -100% 0; }
+      }
+      .soft-nav-pending-head {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        border-radius: 10px;
+        border: 1px solid rgba(90, 122, 176, 0.3);
+        background: linear-gradient(120deg, rgba(14, 26, 48, 0.92), rgba(18, 34, 61, 0.78));
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+      }
+      .soft-nav-pending-label {
+        color: var(--text-secondary, #9eb4d8);
+        font-size: 0.85rem;
+        letter-spacing: 0.02em;
+      }
+      .soft-nav-pending-title {
+        color: var(--text, #d8e4ff);
+        font-size: 1.05rem;
+        font-weight: 600;
+      }
+      .soft-nav-pending-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #4bb7ff;
+        box-shadow: 0 0 0 0 rgba(75, 183, 255, 0.45);
+        animation: softNavDot 1.2s ease-in-out infinite;
+      }
+      @keyframes softNavDot {
+        0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(75, 183, 255, 0.35); }
+        50% { transform: scale(1.18); box-shadow: 0 0 0 8px rgba(75, 183, 255, 0); }
+      }
+      .soft-nav-pending-block {
+        grid-column: 1 / -1;
+        min-height: 170px;
+        border-radius: 10px;
+        border: 1px solid rgba(90, 122, 176, 0.28);
+        background: linear-gradient(90deg,
+          rgba(23, 39, 66, 0.82) 25%,
+          rgba(43, 67, 110, 0.52) 37%,
+          rgba(23, 39, 66, 0.82) 63%);
+        background-size: 220% 100%;
+        animation: softNavPulse 1.15s linear infinite;
+      }
+      .soft-nav-pending-row {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .soft-nav-pending-chip {
+        min-height: 64px;
+        border-radius: 10px;
+        border: 1px solid rgba(90, 122, 176, 0.24);
+        background: linear-gradient(90deg,
+          rgba(22, 36, 62, 0.8) 25%,
+          rgba(43, 67, 110, 0.45) 37%,
+          rgba(22, 36, 62, 0.8) 63%);
+        background-size: 220% 100%;
+        animation: softNavPulse 1.25s linear infinite;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function showSoftNavPending(path) {
+    const main = document.querySelector("main");
+    if (!main) return;
+    ensureSoftNavPendingStyles();
+    const pageSelect = document.getElementById("page-select");
+    const selectedLabel = pageSelect ? pageSelect.options[pageSelect.selectedIndex]?.textContent || "Selected view" : "Selected view";
+    main.innerHTML = `
+      <section class="soft-nav-pending-head">
+        <div>
+          <div class="soft-nav-pending-label">Switching dashboard view</div>
+          <div class="soft-nav-pending-title">${selectedLabel}</div>
+        </div>
+        <div class="soft-nav-pending-dot" aria-hidden="true"></div>
+      </section>
+      <section class="soft-nav-pending-block"></section>
+      <section class="soft-nav-pending-row">
+        <div class="soft-nav-pending-chip"></div>
+        <div class="soft-nav-pending-chip"></div>
+        <div class="soft-nav-pending-chip"></div>
+      </section>
+    `;
+  }
+
+  function setPageSelectorBusy(isBusy) {
+    const pageSelect = document.getElementById("page-select");
+    if (!pageSelect) return;
+    pageSelect.disabled = isBusy;
+    pageSelect.dataset.loading = isBusy ? "1" : "0";
+  }
+
+  async function softNavigateToPage(path, { pushHistory = true } = {}) {
+    if (!path || path === `${window.location.pathname}${window.location.search || ""}`) return;
+    if (_softNavController) {
+      try { _softNavController.abort(); } catch (_) {}
+      _softNavController = null;
+    }
+    _softNavController = new AbortController();
+    const { signal } = _softNavController;
+    _softNavInFlight = true;
+    setPageSelectorBusy(true);
+    showSoftNavPending(path);
+
+    try {
+      const response = await fetch(path, {
+        headers: { "X-Requested-With": "riskdash-soft-nav" },
+        cache: "no-store",
+        signal,
+      });
+      if (!response.ok) {
+        window.location.assign(path);
+        return;
+      }
+
+      const html = await response.text();
+      const parser = new DOMParser();
+      const nextDoc = parser.parseFromString(html, "text/html");
+      const nextMain = nextDoc.querySelector("main");
+      if (!nextMain) {
+        window.location.assign(path);
+        return;
+      }
+
+      teardownForSoftNavigation();
+
+      const currentMain = document.querySelector("main");
+      if (!currentMain) {
+        window.location.assign(path);
+        return;
+      }
+      currentMain.replaceWith(nextMain.cloneNode(true));
+
+      updateOrReplaceNode(".topbar-right", nextDoc);
+      updateOrReplaceNode(".pipeline-switcher", nextDoc);
+      updateOrReplaceNode("#page-select", nextDoc);
+      updateOrReplaceNode(".topbar-page-actions", nextDoc);
+      updateBodyDataAttrsFromDoc(nextDoc);
+      updateWarmupManifest(nextDoc);
+
+      document.title = nextDoc.title || document.title;
+      if (pushHistory) {
+        window.history.pushState({ path }, "", path);
+      }
+
+      _warmupSchedulerStarted = false;
+      _warmupInFlight = false;
+      initPageSelector();
+      initPipelineSwitcher();
+      await initFilters();
+      htmx.process(document.body);
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      window.location.assign(path);
+    } finally {
+      _softNavInFlight = false;
+      setPageSelectorBusy(false);
+      _softNavController = null;
+    }
   }
 
   async function initFilters() {
@@ -5119,9 +5457,11 @@
   });
 
   // ── Global health indicator (runs on every page) ──
-  const HEALTH_POLL_INTERVAL_MS = 60_000;
-  const HEALTH_RED_RECOVERY_POLL_INTERVAL_MS = 10_000;
-  const HEALTH_CACHE_TTL_MS = 90_000;
+  const HEALTH_POLL_INTERVAL_MS = 45_000;
+  const HEALTH_RED_RECOVERY_POLL_INTERVAL_MS = 8_000;
+  const HEALTH_ON_PAGE_POLL_INTERVAL_MS = 20_000;
+  const HEALTH_ON_PAGE_RED_POLL_INTERVAL_MS = 5_000;
+  const HEALTH_CACHE_TTL_MS = 35_000;
   const HEALTH_RED_CACHE_TTL_MS = 20_000;
   const HEALTH_CACHE_KEY = "riskdash:header-health-status:v1";
   const HEALTH_RED_CONFIRM_RETRIES = 3;
@@ -5131,6 +5471,7 @@
     const dot = document.querySelector("#health-indicator .health-dot");
     if (!dot) return;
     const url = "/api/health-status";
+    const isHealthPage = () => window.location.pathname.includes("/system-health");
 
     function normalizeStatus(value) {
       if (value === true || value === false) return value;
@@ -5155,6 +5496,11 @@
     }
 
     function readCachedStatus() {
+      if (isHealthPage()) {
+        // On the health page prefer live status to avoid visible mismatch
+        // with the master table.
+        return null;
+      }
       try {
         const raw = localStorage.getItem(HEALTH_CACHE_KEY);
         if (!raw) return null;
@@ -5220,11 +5566,23 @@
 
         writeCachedStatus(status);
         setDotStatus(status);
-        schedulePoll(status === false ? HEALTH_RED_RECOVERY_POLL_INTERVAL_MS : HEALTH_POLL_INTERVAL_MS);
+        const pollDelay = isHealthPage()
+          ? (status === false ? HEALTH_ON_PAGE_RED_POLL_INTERVAL_MS : HEALTH_ON_PAGE_POLL_INTERVAL_MS)
+          : (status === false ? HEALTH_RED_RECOVERY_POLL_INTERVAL_MS : HEALTH_POLL_INTERVAL_MS);
+        schedulePoll(pollDelay);
       } finally {
         pollInFlight = false;
       }
     }
+
+    document.body.addEventListener("riskdash:health-master-status", (event) => {
+      const status = normalizeStatus(event?.detail?.status);
+      if (status === null) return;
+      writeCachedStatus(status);
+      setDotStatus(status);
+      const pollDelay = status === false ? HEALTH_ON_PAGE_RED_POLL_INTERVAL_MS : HEALTH_ON_PAGE_POLL_INTERVAL_MS;
+      schedulePoll(pollDelay);
+    });
 
     const cached = readCachedStatus();
     if (cached !== null) {
@@ -5462,6 +5820,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     initPageSelector();
+    initPipelineSwitcher();
     initFilters();
     initHealthIndicator();
     initTooltipPositioning();
@@ -5472,5 +5831,9 @@
     if (window.mermaid) {
       mermaid.initialize({ startOnLoad: false, theme: "dark" });
     }
+  });
+
+  window.addEventListener("popstate", () => {
+    softNavigateToPage(`${window.location.pathname}${window.location.search || ""}`, { pushHistory: false });
   });
 })();

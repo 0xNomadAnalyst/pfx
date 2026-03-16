@@ -13,6 +13,7 @@
 <body
   data-api-base-url="{{ api_base_url }}"
   data-current-page-slug="{{ current_page_slug }}"
+  data-current-pipeline="{{ current_pipeline }}"
   data-warmup-budget-seconds="{{ warmup_defaults.budget_seconds if warmup_defaults else 30 }}"
   data-warmup-max-jobs="{{ warmup_defaults.max_jobs if warmup_defaults else 20 }}"
   data-warmup-concurrency="{{ warmup_defaults.concurrency if warmup_defaults else 3 }}"

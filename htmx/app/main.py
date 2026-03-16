@@ -329,6 +329,8 @@ def render_page(request: Request, page: PageConfig):
         if defaults.get("pair"):
             pair = defaults["pair"]
 
+    current_pipeline = pipeline_info.get("current", "") if isinstance(pipeline_info, dict) else ""
+
     return templates.TemplateResponse(
         request=request,
         name="base.html",
@@ -350,6 +352,7 @@ def render_page(request: Request, page: PageConfig):
             "api_base_url": BROWSER_API_BASE_URL,
             "show_pipeline_switcher": show_pipeline,
             "pipeline_info": pipeline_info,
+            "current_pipeline": current_pipeline,
             "render_price_basis_select": page.show_price_basis_filter,
             "show_price_basis_filter": page.show_price_basis_filter and SHOW_PRICE_BASIS,
             "default_price_basis": DEFAULT_PRICE_BASIS,
