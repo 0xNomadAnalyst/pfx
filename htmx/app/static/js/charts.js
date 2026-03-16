@@ -1388,7 +1388,7 @@
     const hasYRightLabel = !!yRightLabel;
     const dual = hasDualAxis(data);
     const hasBars = (data.series || []).some((s) => s.type === "bar");
-    const rightPad = dual ? (hasYRightLabel ? 46 : 38) : (hasBars ? 24 : 14);
+    const rightPad = dual ? (hasYRightLabel ? 34 : 28) : (hasBars ? 18 : 10);
     const option = {
       color: palette(),
       tooltip: {
@@ -1851,7 +1851,7 @@
         color: palette(),
         tooltip: { trigger: "axis" },
         legend: { bottom: 2, textStyle: { color: chartTextColor(), fontSize: 10 } },
-        grid: { left: 60, right: 40, top: 22, bottom: 60, containLabel: true },
+        grid: { left: 60, right: 10, top: 22, bottom: 60, containLabel: true },
         xAxis: {
           type: "category",
           data: chartData.x || [],
@@ -2151,7 +2151,7 @@
         color: palette(),
         tooltip: { trigger: "axis" },
         legend: { bottom: 2, textStyle: { color: chartTextColor(), fontSize: 10 } },
-        grid: { left: arrows ? 80 : (areaYLabel ? 60 : 50), right: arrows ? 60 : 18, top: topPad, bottom: areaXLabel ? 72 : 60, containLabel: !arrows },
+        grid: { left: arrows ? 80 : (areaYLabel ? 60 : 50), right: arrows ? 50 : 10, top: topPad, bottom: areaXLabel ? 72 : 60, containLabel: !arrows },
         xAxis: {
           type: "category",
           data: chartData.x || [],
@@ -2323,7 +2323,7 @@
           },
         },
         legend: { bottom: 2, textStyle: { color: chartTextColor(), fontSize: 10 } },
-        grid: { left: 60, right: 52, top: 30, bottom: probXLabel ? 72 : 60, containLabel: true },
+        grid: { left: 60, right: 10, top: 30, bottom: probXLabel ? 72 : 60, containLabel: true },
         xAxis: {
           type: "category",
           data: (chartData.x || []).map(String),
