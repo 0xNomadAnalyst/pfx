@@ -1,5 +1,5 @@
 {
-  "graph": "flowchart LR\n    subgraph WRAP[Wrapping]\n        direction TB\n        BASE[Base Token<br/>e.g. ONyc] -->|wrap| SY[SY Token]\n        SY -->|unwrap| BASE\n    end\n    subgraph STRIP[Stripping]\n        direction TB\n        SY2[SY] -->|split 1:1| PTYT[\"PT + YT<br/>(per maturity)\"]\n        PTYT -->|merge pair| SY2\n    end\n    subgraph AMM[Yield Trading AMM]\n        direction TB\n        POOL[\"SY + PT<br/>Liquidity Pool\"]\n        LP[LP Providers] -->|deposit| POOL\n        POOL -->|fees| LP\n    end\n    WRAP --> STRIP\n    STRIP --> AMM",
+  "graph": "flowchart TB\n    subgraph WRAP[Wrapping]\n        direction LR\n        BASE[Base Token<br/>e.g. ONyc] -->|wrap| SY[SY Token]\n        SY -->|unwrap| BASE\n    end\n    subgraph STRIP[Stripping]\n        direction LR\n        SY2[SY] -->|split 1:1| PTYT[\"PT + YT<br/>(per maturity)\"]\n        PTYT -->|merge pair| SY2\n    end\n    subgraph AMM[Yield Trading AMM]\n        direction LR\n        POOL[\"SY + PT<br/>Liquidity Pool\"]\n        LP[LP Providers] -->|deposit| POOL\n        POOL -->|fees| LP\n    end\n    WRAP --> STRIP\n    STRIP --> AMM",
   "styles": {
     "dark": {
       "WRAP": "fill:#111d33,stroke:#4b8fe0,stroke-width:2px",

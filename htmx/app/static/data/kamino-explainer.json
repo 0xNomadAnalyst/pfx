@@ -1,15 +1,13 @@
 {
-  "graph": "flowchart LR\n    subgraph LEFT[ ]\n        direction TB\n        subgraph MARKET[Lending Market]\n            MKT((Market<br/>Account))\n        end\n        MKT -->|owns| RB1\n        MKT -->|owns| RB2\n        MKT -->|owns| RC1\n        subgraph RESERVES[Reserve Accounts]\n            RB1[Reserve: USDG<br/>borrow]\n            RB2[Reserve: USDC<br/>borrow]\n            RC1[Reserve: ONyc<br/>collateral]\n        end\n    end\n    subgraph OBLIGATIONS[Obligation Accounts]\n        direction TB\n        O1[Obligation<br/>user_1]\n        O2[Obligation<br/>user_2]\n        O3[Obligation<br/>user_n]\n    end\n    O1 -.->|positions| RESERVES\n    O2 -.->|positions| RESERVES\n    O3 -.->|positions| RESERVES\n    OBLIGATIONS -.->|belongs to| MKT",
+  "graph": "flowchart TB\n    subgraph MARKET[Lending Market]\n        MKT((Market<br/>Account))\n    end\n    subgraph RESERVES[Reserve Accounts]\n        direction LR\n        RB1[Reserve: USDG<br/>borrow]\n        RB2[Reserve: USDC<br/>borrow]\n        RC1[Reserve: ONyc<br/>collateral]\n    end\n    subgraph OBLIGATIONS[Obligation Accounts]\n        direction LR\n        O1[Obligation<br/>user_1]\n        O2[Obligation<br/>user_2]\n        O3[Obligation<br/>user_n]\n    end\n    MKT -->|owns| RB1\n    MKT -->|owns| RB2\n    MKT -->|owns| RC1\n    RB1 -.->|positions| O1\n    RB2 -.->|positions| O2\n    RC1 -.->|positions| O3\n    OBLIGATIONS -.->|belongs to| MKT",
   "styles": {
     "dark": {
-      "LEFT": "fill:none,stroke:none",
       "MARKET": "fill:#152340,stroke:#4b8fe0,stroke-width:2px",
       "RESERVES": "fill:#111d33,stroke:#2d7a6e,stroke-width:1.5px",
       "OBLIGATIONS": "fill:#111d33,stroke:#7b5ea7,stroke-width:1.5px",
       "MKT": "fill:#1a3a60,stroke:#4bb7ff,stroke-width:2px"
     },
     "light": {
-      "LEFT": "fill:none,stroke:none",
       "MARKET": "fill:#eaf2ff,stroke:#0a78f0,stroke-width:2px",
       "RESERVES": "fill:#f2f9f7,stroke:#5aafa0,stroke-width:1.5px",
       "OBLIGATIONS": "fill:#f6f2fc,stroke:#9b80c4,stroke-width:1.5px",
