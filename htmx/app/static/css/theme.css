@@ -1477,7 +1477,7 @@ td:first-child {
   white-space: nowrap !important;
 }
 .page-action-modal-body .mermaid-wrap--kamino  { height: 640px; }
-.page-action-modal-body .mermaid-wrap--exponent { height: 640px; }
+.page-action-modal-body .mermaid-wrap--exponent { height: 560px; }
 .page-action-modal-body blockquote {
   border-left: 3px solid var(--border);
   padding: 4px 12px;
