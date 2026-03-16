@@ -211,6 +211,13 @@ body {
   width: 160px;
 }
 
+/* Risk Analysis stress-test selectors: shorter values, tighter controls */
+#ra-stress-collateral,
+#ra-stress-debt {
+  min-width: 110px;
+  width: 110px;
+}
+
 .theme-toggle {
   background: transparent;
   color: var(--text);

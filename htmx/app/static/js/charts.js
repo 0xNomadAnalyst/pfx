@@ -436,9 +436,9 @@
       if (protoOverride) {
         const fullProto = protoOverride === "ray" ? "raydium" : protoOverride;
         const asset = currentAsset();
-        if (asset) {
-          const pair = pairForAssetProtocol(fullProto, asset);
-          const parts = String(pair || "").split("-");
+        const pair = pairForAssetProtocol(fullProto, asset);
+        if (pair) {
+          const parts = String(pair).split("-");
           const t0 = (parts[0] || "T0").trim();
           const t1 = (parts[1] || "T1").trim();
           if (shouldInvertProtocol(fullProto)) {
@@ -2676,33 +2676,52 @@
         }, cx.findIndex((x) => Number(x) > 0) || 0);
         const leftPeakVal = totalData[leftPeakIdx];
         const rightPeakVal = totalData[rightPeakIdx];
-        const rightExhaustIdx = depthData.findIndex((d, i) => Number(cx[i]) > 0 && Number(d) >= 100);
+        const DEPTH_EXHAUST_THRESHOLD = 99.5;
+        const leftCandidates = cx
+          .map((x, i) => ({ x: Number(x), i }))
+          .filter((p) => Number.isFinite(p.x) && p.x <= 0)
+          .sort((a, b) => b.x - a.x); // from 0 toward more negative shocks
+        const leftExhaust = leftCandidates.find((p) => Number(depthData[p.i]) >= DEPTH_EXHAUST_THRESHOLD);
+        const leftExhaustIdx = leftExhaust ? leftExhaust.i : -1;
+        const peakCappedByDepthLeft =
+          leftExhaustIdx >= 0 && Math.abs(Number(cx[leftExhaustIdx])) <= Math.abs(Number(cx[leftPeakIdx]));
+        const leftMarkerIdx = (peakCappedByDepthLeft ? leftExhaustIdx : leftPeakIdx);
+        const rightExhaustIdx = depthData.findIndex(
+          (d, i) => Number(cx[i]) > 0 && Number(d) >= DEPTH_EXHAUST_THRESHOLD
+        );
+        const peakCappedByDepth = rightExhaustIdx >= 0 && rightExhaustIdx <= rightPeakIdx;
         const rightMarkerIdx = (rightExhaustIdx >= 0 && rightExhaustIdx < rightPeakIdx)
           ? rightExhaustIdx
           : rightPeakIdx;
         const impactMarks = [];
         if (Number.isFinite(leftPeakVal) && Math.abs(impactData[leftPeakIdx]) > 0.005) {
           const leftDelta = Math.abs(impactData[leftPeakIdx]);
-          const markerLeftIdx = Math.min(cx.length - 1, leftPeakIdx + 3);
+          const markerLeftIdx = leftMarkerIdx;
+          const leftLabel = peakCappedByDepthLeft
+            ? `cascade (capped by depth): +${leftDelta.toFixed(2)}%`
+            : `cascade: +${leftDelta.toFixed(2)}%`;
           impactMarks.push({
             coord: [markerLeftIdx, totalData[markerLeftIdx]],
             symbol: "arrow", symbolSize: [14, 18], symbolRotate: 180,
             itemStyle: { color: col, opacity: 0.9 },
             label: { show: true,
-              formatter: `cascade: +${leftDelta.toFixed(2)}%`,
+              formatter: leftLabel,
               color: col, fontSize: 9, fontWeight: "bold",
               position: "top", distance: 8,
               backgroundColor: "rgba(10,16,32,0.75)", padding: [2, 5], borderRadius: 2 },
           });
         }
         if (Number.isFinite(rightPeakVal) && Math.abs(rightPeakVal) > 0.005) {
-          const markerIdx = Math.max(0, rightMarkerIdx - 3);
+          const markerIdx = rightMarkerIdx;
+          const peakLabel = peakCappedByDepth
+            ? `peak (capped by depth): ${Math.abs(rightPeakVal).toFixed(2)}%`
+            : `peak: ${Math.abs(rightPeakVal).toFixed(2)}%`;
           impactMarks.push({
             coord: [markerIdx, totalData[markerIdx]],
             symbol: "arrow", symbolSize: [14, 18], symbolRotate: 180,
             itemStyle: { color: col, opacity: 0.9 },
             label: { show: true,
-              formatter: `peak: ${Math.abs(rightPeakVal).toFixed(2)}%`,
+              formatter: peakLabel,
               color: col, fontSize: 9, fontWeight: "bold",
               position: "top", distance: 8,
               backgroundColor: "rgba(10,16,32,0.75)", padding: [2, 5], borderRadius: 2 },
@@ -3752,7 +3771,12 @@
   }
 
   function pairForAssetProtocol(protocol, asset) {
-    if (!asset) return currentPair();
+    if (!asset) {
+      const pairSel = document.getElementById("pair-select");
+      if (pairSel) return pairSel.value || "USX-USDC";
+      const match = protocolPairs.find((pp) => pp.protocol === protocol);
+      return match ? match.pair : "";
+    }
     const match = protocolPairs.find(
       (pp) => pp.protocol === protocol && pp.pair.split("-").includes(asset)
     );
@@ -4372,9 +4396,7 @@
       const fullProto = protoOverride === "ray" ? "raydium" : protoOverride;
       event.detail.parameters.protocol = fullProto;
       const asset = currentAsset();
-      event.detail.parameters.pair = asset
-        ? pairForAssetProtocol(fullProto, asset)
-        : currentPair();
+      event.detail.parameters.pair = pairForAssetProtocol(fullProto, asset) || currentPair();
     } else {
       event.detail.parameters.protocol = currentProtocol();
       event.detail.parameters.pair = currentPair();
