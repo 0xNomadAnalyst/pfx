@@ -27,6 +27,7 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8001")
 BROWSER_API_BASE_URL = os.getenv("BROWSER_API_BASE_URL", "")
 APP_TITLE = "Solana DeFi Ecosystem Dashboard"
 ENABLE_PIPELINE_SWITCHER = os.getenv("ENABLE_PIPELINE_SWITCHER", "0") == "1"
+DEFAULT_PIPELINE = os.getenv("DEFAULT_PIPELINE", "")
 SHOW_PRICE_BASIS = os.getenv("SHOW_PRICE_BASIS", "1") == "1"
 DEFAULT_PRICE_BASIS = os.getenv("DEFAULT_PRICE_BASIS", "default")
 SHOW_ASSET_FILTER = os.getenv("SHOW_ASSET_FILTER", "1") == "1"
@@ -75,6 +76,27 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
+
+
+@app.on_event("startup")
+def _apply_default_pipeline():
+    """If DEFAULT_PIPELINE is set, tell the API server to switch on boot."""
+    if not DEFAULT_PIPELINE:
+        return
+    try:
+        body = json.dumps({"pipeline": DEFAULT_PIPELINE}).encode()
+        req = urllib.request.Request(
+            f"{API_BASE_URL}/api/v1/pipeline",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            payload = json.loads(resp.read())
+            _pipeline_cache["value"] = payload
+            _pipeline_cache["expires_at"] = time.time() + 5.0
+    except Exception:
+        pass
 
 
 @app.middleware("http")

@@ -64,12 +64,14 @@
           </select>
         </span>
       {% elif swid == "swaps-flows-toggle" %}
-        <span class="title-separator">|</span>
-        <span class="title-inline-label">Select Token:</span>
-        <select id="flow-mode-{{ widget.id }}" class="flow-mode-select filter-select chart-mode-select" aria-label="Swap flow token and side">
-          <option value="usx" selected>USX</option>
-          <option value="usdc">USDC</option>
-        </select>
+        <span class="title-control-group">
+          <span class="title-separator">|</span>
+          <span class="title-inline-label">Select Token:</span>
+          <select id="flow-mode-{{ widget.id }}" class="flow-mode-select filter-select chart-mode-select flow-select-narrow" aria-label="Swap flow token and side">
+            <option value="usx" selected>USX</option>
+            <option value="usdc">USDC</option>
+          </select>
+        </span>
       {% elif swid == "swaps-ohlcv" %}
         <span class="title-control-group">
           <span class="title-separator">|</span>
@@ -193,22 +195,14 @@
               <option value="weighted" selected>Weighted (all pools)</option>
             </select>
           </span>
-          <span class="ra-filter-group">
-            <span class="title-inline-label">Model:</span>
-            <select id="ra-cascade-model-mode" class="filter-select chart-mode-select" aria-label="Liquidation model mode">
-              <option value="protocol" selected>Protocol</option>
-              <option value="heuristic">Heuristic</option>
-            </select>
-          </span>
-          <span class="ra-filter-group">
-            <span class="title-inline-label">Bonus:</span>
-            <select id="ra-cascade-bonus-mode" class="filter-select chart-mode-select" aria-label="Bonus calculation mode">
-              <option value="blended" selected>Blended</option>
-              <option value="max_conservative">Max (conservative)</option>
-              <option value="none">None</option>
-            </select>
-          </span>
         </div>
+        <!-- Hidden fixed defaults for risk-analysis cascade -->
+        <select id="ra-cascade-model-mode" class="filter-select chart-mode-select" aria-label="Liquidation model mode" style="display:none">
+          <option value="protocol" selected>Protocol-faithful</option>
+        </select>
+        <select id="ra-cascade-bonus-mode" class="filter-select chart-mode-select" aria-label="Bonus calculation mode" style="display:none">
+          <option value="blended" selected>State-aware blend</option>
+        </select>
       {% endif %}
     </div>
     <span class="panel-updated" id="updated-{{ widget.id }}">loading...</span>

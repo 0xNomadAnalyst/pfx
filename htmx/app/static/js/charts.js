@@ -2632,7 +2632,8 @@
       });
       series.push({
         name: "100% depth ref", type: "line", xAxisIndex: 0, yAxisIndex: 1,
-        data: cx.map(() => 100), lineStyle: { color: "#ffffff", width: 1, type: "dotted", opacity: 0.35 },
+        data: cx.map(() => 100),
+        lineStyle: { color: "#ffe08a", width: 2, type: "dashed", opacity: 0.9 },
         symbol: "none", silent: true,
       });
       pools.forEach((pool, pi) => {
@@ -2651,6 +2652,7 @@
           inverse: true,
         });
         const impactData = pool.impact_pct || [];
+        const depthData = pool.depth_used_pct || [];
         const exogData = cx.map((x) => x <= 0 ? x : 0);
         series.push({
           name: `Exog. shock (${pool.counter_pair})`, type: "line",
@@ -2674,6 +2676,10 @@
         }, cx.findIndex((x) => Number(x) > 0) || 0);
         const leftPeakVal = totalData[leftPeakIdx];
         const rightPeakVal = totalData[rightPeakIdx];
+        const rightExhaustIdx = depthData.findIndex((d, i) => Number(cx[i]) > 0 && Number(d) >= 100);
+        const rightMarkerIdx = (rightExhaustIdx >= 0 && rightExhaustIdx < rightPeakIdx)
+          ? rightExhaustIdx
+          : rightPeakIdx;
         const impactMarks = [];
         if (Number.isFinite(leftPeakVal) && Math.abs(impactData[leftPeakIdx]) > 0.005) {
           const leftDelta = Math.abs(impactData[leftPeakIdx]);
@@ -2690,7 +2696,7 @@
           });
         }
         if (Number.isFinite(rightPeakVal) && Math.abs(rightPeakVal) > 0.005) {
-          const markerIdx = Math.max(0, rightPeakIdx - 3);
+          const markerIdx = Math.max(0, rightMarkerIdx - 3);
           impactMarks.push({
             coord: [markerIdx, totalData[markerIdx]],
             symbol: "arrow", symbolSize: [14, 18], symbolRotate: 180,
@@ -4422,10 +4428,9 @@
     if (wid === "ra-cascade") {
       const pSel = document.getElementById("ra-cascade-pool");
       if (pSel) event.detail.parameters.risk_cascade_pool = pSel.value;
-      const mSel = document.getElementById("ra-cascade-model-mode");
-      if (mSel) event.detail.parameters.risk_cascade_model_mode = mSel.value;
-      const bSel = document.getElementById("ra-cascade-bonus-mode");
-      if (bSel) event.detail.parameters.risk_cascade_bonus_mode = bSel.value;
+      // Risk-analysis cascade is fixed to protocol-faithful + state-aware blend.
+      event.detail.parameters.risk_cascade_model_mode = "protocol";
+      event.detail.parameters.risk_cascade_bonus_mode = "blended";
     }
   });
 
