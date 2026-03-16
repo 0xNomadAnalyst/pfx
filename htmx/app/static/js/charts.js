@@ -3701,13 +3701,6 @@
     return parts.slice(1, -1).join("-");
   }
 
-  function sameSyToken() {
-    const m1 = currentMkt1();
-    const m2 = currentMkt2();
-    if (!m1 || !m2) return false;
-    return extractSyToken(m1) === extractSyToken(m2);
-  }
-
   function updateDexSubheaderPairs() {
     document.querySelectorAll(".dx-section-subheader").forEach((el) => {
       const proto = el.dataset.protocol;
@@ -4240,12 +4233,6 @@
     }
   });
 
-  var STAKING_MKT2_WIDGETS = new Set(["exponent-yt-staked-mkt2"]);
-
-  function isSameSyStaking(widgetId) {
-    return STAKING_MKT2_WIDGETS.has(widgetId) && sameSyToken();
-  }
-
   document.body.addEventListener("htmx:beforeRequest", (event) => {
     const sourceEl = event.detail.elt;
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) return;
@@ -4255,22 +4242,6 @@
       resetWidgetView(sourceEl);
       const updatedEl = document.getElementById(`updated-${widgetId}`);
       if (updatedEl) updatedEl.textContent = "market not selected";
-      return;
-    }
-    if (widgetId && isSameSyStaking(widgetId)) {
-      event.preventDefault();
-      resetWidgetView(sourceEl);
-      const sy = extractSyToken(currentMkt1());
-      const chartEl = document.getElementById(`chart-${widgetId}`);
-      if (chartEl) {
-        chartEl.innerHTML =
-          '<div class="same-sy-notice">'
-          + `Both markets share the same underlying SY token (${sy}). `
-          + 'Staking data is shown under Market 1.'
-          + '</div>';
-      }
-      const updatedEl = document.getElementById(`updated-${widgetId}`);
-      if (updatedEl) updatedEl.textContent = "";
       return;
     }
   });

@@ -9,6 +9,7 @@ from app.services.pages.base import BasePageService
 _TABLE_TTL = float(os.getenv("HEALTH_TABLE_TTL_SECONDS", "60"))
 _CHART_TTL = float(os.getenv("HEALTH_CHART_TTL_SECONDS", "120"))
 _CHART_TIMEOUT_MS = 30_000
+_MASTER_TIMEOUT_MS = int(os.getenv("HEALTH_MASTER_TIMEOUT_MS", "60000"))
 _HEALTH_STATUS_TIMEOUT_MS = int(os.getenv("HEALTH_STATUS_TIMEOUT_MS", "2000"))
 
 QUEUE_COLORS = [
@@ -325,7 +326,8 @@ class HealthPageService(BasePageService):
                 "SELECT "
                 "  domain, domain_label, is_red, "
                 "  queue_red, trigger_red, base_red, cagg_red "
-                "FROM health.v_health_master_table"
+                "FROM health.v_health_master_table",
+                statement_timeout_ms=_MASTER_TIMEOUT_MS,
             ),
             ttl_seconds=_TABLE_TTL,
         )

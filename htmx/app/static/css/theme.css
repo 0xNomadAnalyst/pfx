@@ -722,20 +722,6 @@ th .info-tip-icon {
 .exp-slot-chart-left-7  { grid-column: 1 / 7;  grid-row: 49 / 52; min-height: 390px; }
 .exp-slot-chart-right-7 { grid-column: 7 / 13; grid-row: 49 / 52; min-height: 390px; }
 
-/* Same-SY placeholder notice (staking section mkt2 when both markets share underlying) */
-.same-sy-notice {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 24px;
-  text-align: center;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text-muted, #6b7280);
-  border: 1px dashed var(--border, #374151);
-  border-radius: 6px;
-}
 
 /* ── System Health page ── */
 .h-hdr-1                    { grid-row: 1  / 2;  }
