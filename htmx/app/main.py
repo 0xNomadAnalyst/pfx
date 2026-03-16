@@ -33,8 +33,15 @@ DEFAULT_PRICE_BASIS = os.getenv("DEFAULT_PRICE_BASIS", "default")
 SHOW_ASSET_FILTER = os.getenv("SHOW_ASSET_FILTER", "1") == "1"
 HEALTH_PROXY_TIMEOUT_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_TIMEOUT_SECONDS", "3"))
 HEALTH_PROXY_TTL_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_CACHE_TTL_SECONDS", "5"))
+META_PROXY_TTL_SECONDS = float(os.getenv("HTMX_META_CACHE_TTL_SECONDS", "300"))
+WARMUP_WIDGETS_PER_PAGE = int(os.getenv("HTMX_WARMUP_WIDGETS_PER_PAGE", "8"))
+WARMUP_BUDGET_SECONDS = int(os.getenv("HTMX_WARMUP_BUDGET_SECONDS", "30"))
+WARMUP_MAX_JOBS = int(os.getenv("HTMX_WARMUP_MAX_JOBS", "20"))
+WARMUP_CONCURRENCY = int(os.getenv("HTMX_WARMUP_CONCURRENCY", "3"))
 _health_proxy_lock = threading.Lock()
 _health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
+_meta_proxy_lock = threading.Lock()
+_meta_proxy_cache: dict[str, tuple[float, dict]] = {}
 
 # ── Conditional page loading ────────────────────────────────────────
 # Each entry: (PAGE_* env var, python module path, default "1"=on / "0"=off)
@@ -174,6 +181,33 @@ def render_page(request: Request, page: PageConfig):
             }
         )
     page_options = [{"slug": cfg.slug, "label": cfg.label, "path": f"/{cfg.slug}"} for cfg in PAGES]
+    current_index = next((idx for idx, cfg in enumerate(PAGES) if cfg.slug == page.slug), 0)
+    warmup_pages = PAGES[current_index + 1 :] + PAGES[:current_index]
+    warmup_manifest = []
+    warmup_exclude_kinds = {"section-header", "section-subheader", "placeholder"}
+    for idx, cfg in enumerate(warmup_pages):
+        targets: list[dict[str, str]] = []
+        seen_widget_ids: set[str] = set()
+        for widget in cfg.widgets:
+            if widget.kind in warmup_exclude_kinds:
+                continue
+            endpoint_widget_id = widget.source_widget_id or widget.id
+            if endpoint_widget_id in seen_widget_ids:
+                continue
+            seen_widget_ids.add(endpoint_widget_id)
+            targets.append({"widget_id": endpoint_widget_id, "kind": widget.kind})
+            if len(targets) >= max(1, WARMUP_WIDGETS_PER_PAGE):
+                break
+        if targets:
+            warmup_manifest.append(
+                {
+                    "slug": cfg.slug,
+                    "page_id": cfg.api_page_id,
+                    "order": idx,
+                    "targets": targets,
+                }
+            )
+
     page_action_bindings = [
         {
             "id": action.id,
@@ -220,6 +254,12 @@ def render_page(request: Request, page: PageConfig):
             "show_price_basis_filter": page.show_price_basis_filter and SHOW_PRICE_BASIS,
             "default_price_basis": DEFAULT_PRICE_BASIS,
             "content_template": page.content_template or "",
+            "warmup_manifest": warmup_manifest,
+            "warmup_defaults": {
+                "budget_seconds": max(1, WARMUP_BUDGET_SECONDS),
+                "max_jobs": max(1, WARMUP_MAX_JOBS),
+                "concurrency": max(1, WARMUP_CONCURRENCY),
+            },
         },
     )
 
@@ -314,6 +354,8 @@ def switch_pipeline_proxy(request: Request):
             _pipeline_cache["expires_at"] = time.time() + 5.0
             _health_proxy_cache["value"] = None
             _health_proxy_cache["expires_at"] = 0.0
+            with _meta_proxy_lock:
+                _meta_proxy_cache.clear()
             return JSONResponse(content=payload)
     except urllib.error.HTTPError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=exc.code)
@@ -334,6 +376,13 @@ async def api_v1_proxy(path: str, request: Request):
     if qs:
         target = f"{target}?{qs}"
 
+    if request.method.upper() == "GET" and path == "meta":
+        now = time.time()
+        with _meta_proxy_lock:
+            cached = _meta_proxy_cache.get(qs)
+            if cached and cached[0] > now:
+                return JSONResponse(content=cached[1], headers={"Cache-Control": "no-store"})
+
     body: bytes | None = None
     method = request.method.upper()
     if method in ("POST", "PUT", "PATCH"):
@@ -345,6 +394,13 @@ async def api_v1_proxy(path: str, request: Request):
         with urllib.request.urlopen(req, timeout=30) as resp:
             content = resp.read()
             ct = resp.headers.get("content-type", "application/json")
+            if request.method.upper() == "GET" and path == "meta":
+                try:
+                    payload = json.loads(content)
+                    with _meta_proxy_lock:
+                        _meta_proxy_cache[qs] = (time.time() + META_PROXY_TTL_SECONDS, payload)
+                except Exception:
+                    pass
             return Response(
                 content=content, media_type=ct, status_code=resp.status,
                 headers={"Cache-Control": "no-store"},

@@ -28,6 +28,14 @@ def health() -> dict[str, str]:
 class _SwitchRequest(BaseModel):
     pipeline: str
 
+
+class _WarmupRequest(BaseModel):
+    targets: list[dict[str, object]] = []
+    base_params: dict[str, object] = {}
+    budget_seconds: float = 30.0
+    max_jobs: int = 20
+    concurrency: int = 3
+
 @router.get("/api/v1/pipeline")
 def get_pipeline() -> dict[str, object]:
     if not pipeline_config.is_enabled():
@@ -152,3 +160,19 @@ def get_widget(
     except Exception as exc:  # pragma: no cover - defensive path
         short = str(exc)[:200]
         raise HTTPException(status_code=500, detail=f"Widget query failed: {short}") from exc
+
+
+@router.post("/api/v1/warmup")
+def warmup_targets(body: _WarmupRequest, svc: DataService = Depends(get_data_service)) -> dict[str, object]:
+    try:
+        stats = svc.warmup_targets(
+            targets=body.targets,
+            base_params=body.base_params,
+            budget_seconds=body.budget_seconds,
+            max_jobs=body.max_jobs,
+            concurrency=body.concurrency,
+        )
+        return {"status": "ok", "stats": stats}
+    except Exception as exc:
+        short = str(exc)[:200]
+        raise HTTPException(status_code=500, detail=f"Warmup failed: {short}") from exc

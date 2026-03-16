@@ -7,6 +7,9 @@
   const PAGE_ACTION_CACHE_TTL_MS = 60_000;
   const detailTableCache = new Map();
   const pageActionCache = new Map();
+  const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = 100;
+  const widgetResponseCache = new Map();
+  const WARMUP_SESSION_KEY = "riskdash:warmup:v2";
   const comparableLiquidityWidgets = new Set([
     "liquidity-distribution",
     "liquidity-depth",
@@ -2458,7 +2461,7 @@
             avoidLabelOverlap: true,
             label: {
               show: true,
-              formatter: "{d}%",
+              formatter: (params) => `${params.percent != null ? params.percent.toFixed(1) : "?"}%`,
               fontSize: 13,
               fontWeight: "bold",
               position: "inside",
@@ -3644,6 +3647,7 @@
     leftDefaultZoomSignature = "";
     widgetElements().forEach((el) => resetWidgetView(el));
     document.querySelectorAll(".chart-subtitle").forEach((el) => { el.innerHTML = ""; });
+    hydrateWidgetsFromCache();
   }
 
   var _pipelineSwitchInProgress = false;
@@ -3662,6 +3666,7 @@
     chartState.clear();
     detailTableCache.clear();
     pageActionCache.clear();
+    widgetResponseCache.clear();
     protocolPairs = [];
     const mkt1 = document.getElementById("mkt1-select");
     const mkt2 = document.getElementById("mkt2-select");
@@ -3840,6 +3845,145 @@
     const select = document.getElementById("mkt2-select");
     const val = select ? select.value : "";
     return val === "__none__" ? "" : val;
+  }
+
+  function buildWidgetRequestParams(sourceEl) {
+    const params = {};
+    if (!sourceEl) return params;
+
+    const protoOverride = sourceEl.dataset.protocolOverride;
+    if (protoOverride) {
+      const fullProto = protoOverride === "ray" ? "raydium" : protoOverride;
+      params.protocol = fullProto;
+      const asset = currentAsset();
+      params.pair = pairForAssetProtocol(fullProto, asset) || currentPair();
+    } else {
+      params.protocol = currentProtocol();
+      params.pair = currentPair();
+    }
+
+    params.last_window = currentLastWindow();
+    const pl = currentPipeline();
+    if (pl) params._pipeline = pl;
+    const pb = currentPriceBasis();
+    if (pb && pb !== "default") params.price_basis = pb;
+
+    const m1 = currentMkt1();
+    const m2 = currentMkt2();
+    if (m1) params.mkt1 = m1;
+    if (m2) params.mkt2 = m2;
+
+    const swid = resolveSourceWidgetId(sourceEl);
+    if (swid === "trade-impact-toggle") {
+      params.impact_mode = sourceEl.dataset.impactMode || "size";
+    }
+    if (swid === "swaps-flows-toggle") {
+      params.flow_mode = sourceEl.dataset.flowMode || "usx";
+    }
+    if (swid === "swaps-distribution-toggle") {
+      params.distribution_mode = sourceEl.dataset.distributionMode || "sell-order";
+    }
+    if (swid === "swaps-ohlcv") {
+      params.ohlcv_interval = sourceEl.dataset.ohlcvInterval || "1d";
+    }
+    if (sourceEl.dataset.widgetId === "health-queue-chart" || sourceEl.dataset.widgetId === "health-queue-chart-2") {
+      params.health_schema = sourceEl.dataset.healthSchema || "dexes";
+      params.health_attribute = sourceEl.dataset.healthAttribute || "Write Rate";
+    }
+    if (sourceEl.dataset.widgetId === "health-base-chart-events" || sourceEl.dataset.widgetId === "health-base-chart-accounts") {
+      params.health_base_schema = sourceEl.dataset.healthBaseSchema || "dexes";
+    }
+
+    const wid = sourceEl.dataset.widgetId || "";
+    if (RA_SECTION1_WIDGETS.has(wid)) {
+      const etSel = document.getElementById("ra-event-type");
+      const ivSel = document.getElementById("ra-interval-size");
+      if (etSel) params.risk_event_type = etSel.value;
+      if (ivSel) params.risk_interval = ivSel.value;
+    }
+    if (RA_SECTION2_WIDGETS.has(wid)) {
+      const lsSel = document.getElementById("ra-liq-source");
+      if (lsSel) params.risk_liq_source = lsSel.value;
+    }
+    if (wid === "ra-stress-test" || wid === "ra-sensitivity-table" || wid === "ra-cascade") {
+      const cSel = document.getElementById("ra-stress-collateral");
+      const dSel = document.getElementById("ra-stress-debt");
+      if (cSel) params.risk_stress_collateral = cSel.value;
+      if (dSel) params.risk_stress_debt = dSel.value;
+    }
+    if (wid === "ra-cascade") {
+      const pSel = document.getElementById("ra-cascade-pool");
+      if (pSel) params.risk_cascade_pool = pSel.value;
+      params.risk_cascade_model_mode = "protocol";
+      params.risk_cascade_bonus_mode = "blended";
+    }
+
+    return params;
+  }
+
+  function widgetFilterSignature(sourceEl) {
+    const params = buildWidgetRequestParams(sourceEl);
+    const keys = Object.keys(params).sort();
+    return keys.map((key) => `${key}=${String(params[key])}`).join("&");
+  }
+
+  function widgetCacheKey(widgetId, signature) {
+    return `${widgetId}::${signature || ""}`;
+  }
+
+  function setWidgetCachedPayload(widgetId, signature, payload) {
+    if (!widgetId || !payload) return;
+    const key = widgetCacheKey(widgetId, signature);
+    if (widgetResponseCache.has(key)) {
+      widgetResponseCache.delete(key);
+    }
+    widgetResponseCache.set(key, payload);
+    while (widgetResponseCache.size > WIDGET_RESPONSE_CACHE_MAX_ENTRIES) {
+      const oldest = widgetResponseCache.keys().next().value;
+      if (!oldest) break;
+      widgetResponseCache.delete(oldest);
+    }
+  }
+
+  function getWidgetCachedPayload(widgetId, signature) {
+    if (!widgetId) return null;
+    const key = widgetCacheKey(widgetId, signature);
+    const payload = widgetResponseCache.get(key);
+    if (!payload) return null;
+    widgetResponseCache.delete(key);
+    widgetResponseCache.set(key, payload);
+    return payload;
+  }
+
+  function renderCachedWidgetPayload(sourceEl) {
+    if (!sourceEl || !sourceEl.classList.contains("widget-loader")) return false;
+    const widgetId = sourceEl.dataset.widgetId || "";
+    if (!widgetId) return false;
+    const signature = widgetFilterSignature(sourceEl);
+    const payload = getWidgetCachedPayload(widgetId, signature);
+    if (!payload) return false;
+
+    const srcId = resolveSourceWidgetId(sourceEl);
+    _renderingWidgetEl = sourceEl;
+    try {
+      renderPayload(widgetId, payload, srcId);
+      updateTimestamp(widgetId, payload?.metadata?.generated_at);
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      _renderingWidgetEl = null;
+    }
+  }
+
+  function hydrateWidgetsFromCache() {
+    let hits = 0;
+    widgetElements().forEach((el) => {
+      if (renderCachedWidgetPayload(el)) {
+        hits += 1;
+      }
+    });
+    return hits;
   }
 
   function isMarketDisabled(widgetId) {
@@ -4098,7 +4242,11 @@
 
     await initMarketSelectors();
 
+    // Stale-first render: if this tab already fetched matching widget payloads,
+    // paint immediately and let the refresh request reconcile in background.
+    hydrateWidgetsFromCache();
     htmx.trigger(document.body, "dashboard-refresh");
+    initWarmupScheduler();
 
     initTradeImpactModeToggle();
     initSwapsFlowModeToggle();
@@ -4108,6 +4256,164 @@
     initHealthAttributeToggle();
     initHealthQueueChart2Toggle();
     initHealthBaseSchemaToggle();
+  }
+
+  function readWarmupManifest() {
+    const script = document.getElementById("warmup-manifest");
+    if (!script || !script.textContent) return [];
+    try {
+      const parsed = JSON.parse(script.textContent);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function warmupSessionFingerprint() {
+    return [
+      document.body.dataset.currentPageSlug || "",
+      currentPipeline() || "",
+      currentProtocol() || "",
+      currentPair() || "",
+      currentLastWindow() || "",
+      currentPriceBasis() || "default",
+    ].join("|");
+  }
+
+  function hasWarmupRunThisSession() {
+    try {
+      return window.sessionStorage.getItem(WARMUP_SESSION_KEY) === warmupSessionFingerprint();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function markWarmupRunThisSession() {
+    try {
+      window.sessionStorage.setItem(WARMUP_SESSION_KEY, warmupSessionFingerprint());
+    } catch (_) {}
+  }
+
+  function buildWarmupBaseParams() {
+    const params = {
+      protocol: currentProtocol(),
+      pair: currentPair(),
+      last_window: currentLastWindow(),
+    };
+    const pl = currentPipeline();
+    if (pl) params._pipeline = pl;
+    const pb = currentPriceBasis();
+    if (pb && pb !== "default") params.price_basis = pb;
+    const m1 = currentMkt1();
+    const m2 = currentMkt2();
+    if (m1) params.mkt1 = m1;
+    if (m2) params.mkt2 = m2;
+
+    const healthSchema = document.getElementById("health-schema-select");
+    const healthAttribute = document.getElementById("health-attribute-select");
+    const healthBase = document.querySelector(".health-base-schema-select");
+    if (healthSchema && healthSchema.value) params.health_schema = healthSchema.value;
+    if (healthAttribute && healthAttribute.value) params.health_attribute = healthAttribute.value;
+    if (healthBase && healthBase.value) params.health_base_schema = healthBase.value;
+
+    const eventType = document.getElementById("ra-event-type");
+    const interval = document.getElementById("ra-interval-size");
+    const liqSource = document.getElementById("ra-liq-source");
+    const stressCollateral = document.getElementById("ra-stress-collateral");
+    const stressDebt = document.getElementById("ra-stress-debt");
+    const cascadePool = document.getElementById("ra-cascade-pool");
+    if (eventType && eventType.value) params.risk_event_type = eventType.value;
+    if (interval && interval.value) params.risk_interval = interval.value;
+    if (liqSource && liqSource.value) params.risk_liq_source = liqSource.value;
+    if (stressCollateral && stressCollateral.value) params.risk_stress_collateral = stressCollateral.value;
+    if (stressDebt && stressDebt.value) params.risk_stress_debt = stressDebt.value;
+    if (cascadePool && cascadePool.value) params.risk_cascade_pool = cascadePool.value;
+    return params;
+  }
+
+  function buildWarmupTargetsFromManifest(manifest) {
+    const targets = [];
+    manifest.forEach((entry) => {
+      const pageId = entry?.page_id;
+      const entryTargets = Array.isArray(entry?.targets) ? entry.targets : [];
+      if (!pageId) return;
+      entryTargets.forEach((target) => {
+        const widgetId = target?.widget_id;
+        if (!widgetId) return;
+        targets.push({ page_id: pageId, widget_id: widgetId });
+      });
+    });
+    return targets;
+  }
+
+  function warmupDefaults() {
+    const budget = Number(document.body.dataset.warmupBudgetSeconds || "30");
+    const maxJobs = Number(document.body.dataset.warmupMaxJobs || "20");
+    const concurrency = Number(document.body.dataset.warmupConcurrency || "3");
+    return {
+      budget_seconds: Number.isFinite(budget) ? Math.max(1, Math.floor(budget)) : 30,
+      max_jobs: Number.isFinite(maxJobs) ? Math.max(1, Math.floor(maxJobs)) : 20,
+      concurrency: Number.isFinite(concurrency) ? Math.max(1, Math.floor(concurrency)) : 3,
+    };
+  }
+
+  let _warmupSchedulerStarted = false;
+  let _warmupInFlight = false;
+
+  function initWarmupScheduler() {
+    if (_warmupSchedulerStarted) return;
+    _warmupSchedulerStarted = true;
+    if (hasWarmupRunThisSession()) return;
+
+    const manifest = readWarmupManifest();
+    if (!manifest.length) return;
+
+    let userInteracted = false;
+    const markInteraction = () => {
+      userInteracted = true;
+    };
+    document.addEventListener("pointerdown", markInteraction, { once: true });
+    document.addEventListener("keydown", markInteraction, { once: true });
+
+    const attemptWarmup = async () => {
+      if (_warmupInFlight || hasWarmupRunThisSession()) return;
+      if (document.hidden || _pipelineSwitchInProgress) return;
+      if (!userInteracted) return;
+
+      const targets = buildWarmupTargetsFromManifest(manifest);
+      if (!targets.length) {
+        markWarmupRunThisSession();
+        return;
+      }
+
+      _warmupInFlight = true;
+      try {
+        const defaults = warmupDefaults();
+        await fetch(`${getApiBaseUrl()}/api/v1/warmup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            targets,
+            base_params: buildWarmupBaseParams(),
+            budget_seconds: defaults.budget_seconds,
+            max_jobs: defaults.max_jobs,
+            concurrency: defaults.concurrency,
+          }),
+        });
+      } catch (_) {
+        // Best-effort background optimization.
+      } finally {
+        _warmupInFlight = false;
+        markWarmupRunThisSession();
+      }
+    };
+
+    setTimeout(attemptWarmup, 4000);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        setTimeout(attemptWarmup, 500);
+      }
+    });
   }
 
   async function populateMarketSelectors() {
@@ -4345,6 +4651,7 @@
       const srcId = resolveSourceWidgetId(sourceEl);
       renderPayload(widgetId, payload, srcId);
       updateTimestamp(widgetId, payload?.metadata?.generated_at);
+      setWidgetCachedPayload(widgetId, widgetFilterSignature(sourceEl), payload);
     } catch (error) {
       setWidgetError(widgetId, String(error));
     } finally {
@@ -4391,69 +4698,7 @@
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
-    const protoOverride = sourceEl.dataset.protocolOverride;
-    if (protoOverride) {
-      const fullProto = protoOverride === "ray" ? "raydium" : protoOverride;
-      event.detail.parameters.protocol = fullProto;
-      const asset = currentAsset();
-      event.detail.parameters.pair = pairForAssetProtocol(fullProto, asset) || currentPair();
-    } else {
-      event.detail.parameters.protocol = currentProtocol();
-      event.detail.parameters.pair = currentPair();
-    }
-    event.detail.parameters.last_window = currentLastWindow();
-    const pl = currentPipeline();
-    if (pl) event.detail.parameters._pipeline = pl;
-    const pb = currentPriceBasis();
-    if (pb && pb !== "default") event.detail.parameters.price_basis = pb;
-    const m1 = currentMkt1();
-    const m2 = currentMkt2();
-    if (m1) event.detail.parameters.mkt1 = m1;
-    if (m2) event.detail.parameters.mkt2 = m2;
-    const swid = resolveSourceWidgetId(sourceEl);
-    if (swid === "trade-impact-toggle") {
-      event.detail.parameters.impact_mode = sourceEl.dataset.impactMode || "size";
-    }
-    if (swid === "swaps-flows-toggle") {
-      event.detail.parameters.flow_mode = sourceEl.dataset.flowMode || "usx";
-    }
-    if (swid === "swaps-distribution-toggle") {
-      event.detail.parameters.distribution_mode = sourceEl.dataset.distributionMode || "sell-order";
-    }
-    if (swid === "swaps-ohlcv") {
-      event.detail.parameters.ohlcv_interval = sourceEl.dataset.ohlcvInterval || "1d";
-    }
-    if (sourceEl.dataset.widgetId === "health-queue-chart" || sourceEl.dataset.widgetId === "health-queue-chart-2") {
-      event.detail.parameters.health_schema = sourceEl.dataset.healthSchema || "dexes";
-      event.detail.parameters.health_attribute = sourceEl.dataset.healthAttribute || "Write Rate";
-    }
-    if (sourceEl.dataset.widgetId === "health-base-chart-events" || sourceEl.dataset.widgetId === "health-base-chart-accounts") {
-      event.detail.parameters.health_base_schema = sourceEl.dataset.healthBaseSchema || "dexes";
-    }
-    const wid = sourceEl.dataset.widgetId || "";
-    if (RA_SECTION1_WIDGETS.has(wid)) {
-      const etSel = document.getElementById("ra-event-type");
-      const ivSel = document.getElementById("ra-interval-size");
-      if (etSel) event.detail.parameters.risk_event_type = etSel.value;
-      if (ivSel) event.detail.parameters.risk_interval = ivSel.value;
-    }
-    if (RA_SECTION2_WIDGETS.has(wid)) {
-      const lsSel = document.getElementById("ra-liq-source");
-      if (lsSel) event.detail.parameters.risk_liq_source = lsSel.value;
-    }
-    if (wid === "ra-stress-test" || wid === "ra-sensitivity-table" || wid === "ra-cascade") {
-      const cSel = document.getElementById("ra-stress-collateral");
-      const dSel = document.getElementById("ra-stress-debt");
-      if (cSel) event.detail.parameters.risk_stress_collateral = cSel.value;
-      if (dSel) event.detail.parameters.risk_stress_debt = dSel.value;
-    }
-    if (wid === "ra-cascade") {
-      const pSel = document.getElementById("ra-cascade-pool");
-      if (pSel) event.detail.parameters.risk_cascade_pool = pSel.value;
-      // Risk-analysis cascade is fixed to protocol-faithful + state-aware blend.
-      event.detail.parameters.risk_cascade_model_mode = "protocol";
-      event.detail.parameters.risk_cascade_bonus_mode = "blended";
-    }
+    Object.assign(event.detail.parameters, buildWidgetRequestParams(sourceEl));
   });
 
   document.body.addEventListener("htmx:beforeRequest", (event) => {

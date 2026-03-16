@@ -4,6 +4,7 @@ import logging
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from typing import Any
 
@@ -29,6 +30,7 @@ class DataService:
             ttl_seconds=float(os.getenv("API_CACHE_TTL_SECONDS", "30")),
             max_entries=int(os.getenv("API_CACHE_MAX_ENTRIES", "256")),
         )
+        self._query_cache = cache
         liquidity = DexLiquidityPageService(sql_adapter, cache)
         swaps = DexSwapsPageService(sql_adapter, cache)
         kamino = KaminoPageService(sql_adapter, cache)
@@ -348,3 +350,94 @@ class DataService:
             if elapsed_ms >= self._slow_widget_threshold_ms:
                 logger.warning("Slow widget %.2fms page=%s widget=%s", elapsed_ms, page, widget_id)
         return response
+
+    def warmup_targets(
+        self,
+        *,
+        targets: list[dict[str, Any]],
+        base_params: dict[str, Any] | None = None,
+        budget_seconds: float = 30.0,
+        max_jobs: int = 20,
+        concurrency: int = 3,
+    ) -> dict[str, Any]:
+        started = time.perf_counter()
+        common_params = dict(base_params or {})
+        dedup: set[str] = set()
+        queue: list[tuple[str, str, dict[str, Any]]] = []
+
+        for target in targets:
+            page_id = str(target.get("page_id") or target.get("page") or "").strip()
+            widget_id = str(target.get("widget_id") or "").strip()
+            if not page_id or not widget_id:
+                continue
+            merged_params = dict(common_params)
+            override_params = target.get("params")
+            if isinstance(override_params, dict):
+                merged_params.update(override_params)
+            signature = "|".join(
+                [
+                    page_id,
+                    widget_id,
+                    "&".join(
+                        f"{key}={merged_params[key]}"
+                        for key in sorted(merged_params.keys())
+                    ),
+                ]
+            )
+            if signature in dedup:
+                continue
+            dedup.add(signature)
+            queue.append((page_id, widget_id, merged_params))
+
+        queue = queue[: max(1, int(max_jobs))]
+        attempted = 0
+        completed = 0
+        failed = 0
+        skipped = 0
+        budget = max(1.0, float(budget_seconds))
+        worker_count = max(1, int(concurrency))
+
+        def _run_job(job: tuple[str, str, dict[str, Any]]) -> bool:
+            page_id, widget_id, params = job
+            self.get_widget_data(page=page_id, widget_id=widget_id, params=params)
+            return True
+
+        futures = []
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            for job in queue:
+                if (time.perf_counter() - started) >= budget:
+                    skipped += 1
+                    continue
+                attempted += 1
+                futures.append(executor.submit(_run_job, job))
+
+            deadline = started + budget
+            for future in as_completed(futures):
+                if time.perf_counter() > deadline:
+                    skipped += 1
+                    continue
+                try:
+                    future.result()
+                    completed += 1
+                except Exception as exc:
+                    failed += 1
+                    logger.warning("Warmup job failed: %s", exc)
+
+        elapsed = time.perf_counter() - started
+        logger.info(
+            "Targeted warmup complete: attempted=%s completed=%s failed=%s skipped=%s elapsed=%.2fs budget=%.2fs",
+            attempted,
+            completed,
+            failed,
+            skipped,
+            elapsed,
+            budget,
+        )
+        return {
+            "attempted": attempted,
+            "completed": completed,
+            "failed": failed,
+            "skipped": skipped,
+            "elapsed_seconds": round(elapsed, 3),
+            "budget_seconds": budget,
+        }
