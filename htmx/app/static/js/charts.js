@@ -4842,6 +4842,9 @@
         <div class="soft-nav-pending-chip"></div>
       </section>
     `;
+    window.scrollTo(0, 0);
+    main.classList.add("soft-nav-enter");
+    main.addEventListener("animationend", () => main.classList.remove("soft-nav-enter"), { once: true });
   }
 
   function setPageSelectorBusy(isBusy) {
@@ -4862,6 +4865,12 @@
     const currentMain = document.querySelector("main");
     if (!currentMain) return false;
     currentMain.replaceWith(nextMain.cloneNode(true));
+    window.scrollTo(0, 0);
+    const insertedMain = document.querySelector("main");
+    if (insertedMain) {
+      insertedMain.classList.add("soft-nav-enter");
+      insertedMain.addEventListener("animationend", () => insertedMain.classList.remove("soft-nav-enter"), { once: true });
+    }
     document.querySelectorAll(".widget-loader").forEach((el) => {
       el.dataset.suppressNextLoadRequest = "1";
     });

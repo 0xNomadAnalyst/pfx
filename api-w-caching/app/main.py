@@ -3,16 +3,20 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.gzip import GZipMiddleware
 from dotenv import load_dotenv
 
-from app.api.routes import get_data_service, router
-from app.services.cache_config import API_CACHE_CONFIG
-
+# load_dotenv MUST run before any app imports that trigger
+# pipeline_config._load_pipelines(), which reads DB_HOST to detect
+# the current pipeline.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
+
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from starlette.middleware.gzip import GZipMiddleware  # noqa: E402
+
+from app.api.routes import get_data_service, router  # noqa: E402
+from app.services.cache_config import API_CACHE_CONFIG  # noqa: E402
 logger = logging.getLogger(__name__)
 
 

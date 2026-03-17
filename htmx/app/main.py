@@ -490,7 +490,7 @@ def render_page(request: Request, page: PageConfig):
         if defaults.get("pair"):
             pair = defaults["pair"]
 
-    current_pipeline = pipeline_info.get("current", "") if isinstance(pipeline_info, dict) else ""
+    current_pipeline = pipeline_info.get("current", "") if isinstance(pipeline_info, dict) else DEFAULT_PIPELINE
 
     return templates.TemplateResponse(
         request=request,

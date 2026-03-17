@@ -974,6 +974,14 @@ th .info-tip-icon {
   font-size: 11px;
 }
 
+@keyframes soft-nav-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+main.soft-nav-enter {
+  animation: soft-nav-enter 0.18s ease-out both;
+}
+
 @keyframes kpi-fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
