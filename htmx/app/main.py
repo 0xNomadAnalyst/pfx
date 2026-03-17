@@ -31,22 +31,171 @@ DEFAULT_PIPELINE = os.getenv("DEFAULT_PIPELINE", "")
 SHOW_PRICE_BASIS = os.getenv("SHOW_PRICE_BASIS", "1") == "1"
 DEFAULT_PRICE_BASIS = os.getenv("DEFAULT_PRICE_BASIS", "default")
 SHOW_ASSET_FILTER = os.getenv("SHOW_ASSET_FILTER", "1") == "1"
+# ── Server-side proxy settings (not part of cache mode) ──────────────
 HEALTH_PROXY_TIMEOUT_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_TIMEOUT_SECONDS", "3"))
 HEALTH_PROXY_TTL_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_CACHE_TTL_SECONDS", "5"))
 META_PROXY_TTL_SECONDS = float(os.getenv("HTMX_META_CACHE_TTL_SECONDS", "300"))
-WARMUP_WIDGETS_PER_PAGE = int(os.getenv("HTMX_WARMUP_WIDGETS_PER_PAGE", "8"))
-WARMUP_BUDGET_SECONDS = int(os.getenv("HTMX_WARMUP_BUDGET_SECONDS", "30"))
-WARMUP_MAX_JOBS = int(os.getenv("HTMX_WARMUP_MAX_JOBS", "20"))
-WARMUP_CONCURRENCY = int(os.getenv("HTMX_WARMUP_CONCURRENCY", "3"))
 HTMX_HEALTH_TABLE_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_BASE_DELAY_SECONDS", "0.08"))
 HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS", "0.12"))
 HTMX_HEALTH_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_BASE_DELAY_SECONDS", "0.35"))
 HTMX_HEALTH_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_STEP_DELAY_SECONDS", "0.18"))
-HTMX_SOFT_NAV_SHELL_REFRESH_DELAY_MS = int(os.getenv("HTMX_SOFT_NAV_SHELL_REFRESH_DELAY_MS", "3000"))
-HTMX_VIEWPORT_POLL_STALE_MS = int(os.getenv("HTMX_VIEWPORT_POLL_STALE_MS", "45000"))
-HTMX_CRITICAL_CACHE_MAX_AGE_MS = int(os.getenv("HTMX_CRITICAL_CACHE_MAX_AGE_MS", "60000"))
-HTMX_DEFAULT_CACHE_MAX_AGE_MS = int(os.getenv("HTMX_DEFAULT_CACHE_MAX_AGE_MS", "300000"))
-HTMX_CLIENT_PERF_METRICS = os.getenv("HTMX_CLIENT_PERF_METRICS", "0") == "1"
+
+# ── Cache mode profiles ──────────────────────────────────────────────
+# conservative = freshness-first, no speculation (frequent refresh, no preload)
+# balanced     = today's exact behavior (default, strict no-op)
+# aggressive   = speed-first, accept staleness (all new features enabled)
+#
+# HTMX_CACHE_MODE selects a profile.  Individual HTMX_* env vars override
+# any key from the profile.  refresh_kpi_seconds=0 means "use widget default".
+
+CACHE_PROFILES: dict[str, dict] = {
+    "conservative": {
+        "warmup_enabled": False,
+        "warmup_budget_seconds": 30,
+        "warmup_max_jobs": 20,
+        "warmup_concurrency": 3,
+        "warmup_widgets_per_page": 8,
+        "critical_cache_max_age_ms": 15_000,
+        "default_cache_max_age_ms": 30_000,
+        "soft_nav_shell_refresh_delay_ms": 500,
+        "soft_nav_shell_cache_ttl_ms": 60_000,
+        "viewport_poll_stale_ms": 15_000,
+        "refresh_kpi_seconds": 15,
+        "refresh_chart_seconds": 30,
+        "refresh_table_seconds": 45,
+        "widget_response_cache_max_entries": 50,
+        "soft_nav_shell_cache_max_entries": 3,
+        "perf_metrics_enabled": False,
+        "hover_prefetch_enabled": False,
+        "parallel_shell_prefetch": False,
+        "shell_prefetch_concurrency": 1,
+        "rewarmup_on_filter_change": False,
+        "rewarmup_idle_delay_ms": 0,
+        "batched_reveal_enabled": False,
+        "batched_reveal_timeout_ms": 0,
+        "max_concurrent_widget_requests": 3,
+        "offscreen_pause_enabled": False,
+        "skeleton_min_display_ms": 0,
+        "adaptive_dialdown_enabled": False,
+        "adaptive_dialdown_hit_threshold": 0,
+        "persist_cache_enabled": False,
+    },
+    "balanced": {
+        "warmup_enabled": True,
+        "warmup_budget_seconds": 30,
+        "warmup_max_jobs": 20,
+        "warmup_concurrency": 3,
+        "warmup_widgets_per_page": 8,
+        "critical_cache_max_age_ms": 60_000,
+        "default_cache_max_age_ms": 300_000,
+        "soft_nav_shell_refresh_delay_ms": 3_000,
+        "soft_nav_shell_cache_ttl_ms": 600_000,
+        "viewport_poll_stale_ms": 45_000,
+        "refresh_kpi_seconds": 0,
+        "refresh_chart_seconds": 60,
+        "refresh_table_seconds": 90,
+        "widget_response_cache_max_entries": 100,
+        "soft_nav_shell_cache_max_entries": 5,
+        "perf_metrics_enabled": False,
+        "hover_prefetch_enabled": False,
+        "parallel_shell_prefetch": False,
+        "shell_prefetch_concurrency": 1,
+        "rewarmup_on_filter_change": False,
+        "rewarmup_idle_delay_ms": 0,
+        "batched_reveal_enabled": False,
+        "batched_reveal_timeout_ms": 0,
+        "max_concurrent_widget_requests": 0,
+        "offscreen_pause_enabled": False,
+        "skeleton_min_display_ms": 0,
+        "adaptive_dialdown_enabled": False,
+        "adaptive_dialdown_hit_threshold": 0,
+        "persist_cache_enabled": False,
+    },
+    "aggressive": {
+        "warmup_enabled": True,
+        "warmup_budget_seconds": 60,
+        "warmup_max_jobs": 40,
+        "warmup_concurrency": 5,
+        "warmup_widgets_per_page": 14,
+        "critical_cache_max_age_ms": 120_000,
+        "default_cache_max_age_ms": 600_000,
+        "soft_nav_shell_refresh_delay_ms": 5_000,
+        "soft_nav_shell_cache_ttl_ms": 1_200_000,
+        "viewport_poll_stale_ms": 90_000,
+        "refresh_kpi_seconds": 90,
+        "refresh_chart_seconds": 120,
+        "refresh_table_seconds": 120,
+        "widget_response_cache_max_entries": 200,
+        "soft_nav_shell_cache_max_entries": 8,
+        "perf_metrics_enabled": True,
+        "hover_prefetch_enabled": True,
+        "parallel_shell_prefetch": True,
+        "shell_prefetch_concurrency": 3,
+        "rewarmup_on_filter_change": True,
+        "rewarmup_idle_delay_ms": 3_000,
+        "batched_reveal_enabled": True,
+        "batched_reveal_timeout_ms": 400,
+        "max_concurrent_widget_requests": 5,
+        "offscreen_pause_enabled": True,
+        "skeleton_min_display_ms": 150,
+        "adaptive_dialdown_enabled": True,
+        "adaptive_dialdown_hit_threshold": 0.2,
+        "persist_cache_enabled": False,
+    },
+}
+
+_CACHE_ENV_MAP: dict[str, tuple[str, type]] = {
+    "warmup_enabled": ("HTMX_WARMUP_ENABLED", bool),
+    "warmup_budget_seconds": ("HTMX_WARMUP_BUDGET_SECONDS", int),
+    "warmup_max_jobs": ("HTMX_WARMUP_MAX_JOBS", int),
+    "warmup_concurrency": ("HTMX_WARMUP_CONCURRENCY", int),
+    "warmup_widgets_per_page": ("HTMX_WARMUP_WIDGETS_PER_PAGE", int),
+    "critical_cache_max_age_ms": ("HTMX_CRITICAL_CACHE_MAX_AGE_MS", int),
+    "default_cache_max_age_ms": ("HTMX_DEFAULT_CACHE_MAX_AGE_MS", int),
+    "soft_nav_shell_refresh_delay_ms": ("HTMX_SOFT_NAV_SHELL_REFRESH_DELAY_MS", int),
+    "soft_nav_shell_cache_ttl_ms": ("HTMX_SOFT_NAV_SHELL_CACHE_TTL_MS", int),
+    "viewport_poll_stale_ms": ("HTMX_VIEWPORT_POLL_STALE_MS", int),
+    "refresh_kpi_seconds": ("HTMX_REFRESH_KPI_SECONDS", int),
+    "refresh_chart_seconds": ("HTMX_REFRESH_CHART_SECONDS", int),
+    "refresh_table_seconds": ("HTMX_REFRESH_TABLE_SECONDS", int),
+    "widget_response_cache_max_entries": ("HTMX_WIDGET_RESPONSE_CACHE_MAX_ENTRIES", int),
+    "soft_nav_shell_cache_max_entries": ("HTMX_SOFT_NAV_SHELL_CACHE_MAX_ENTRIES", int),
+    "perf_metrics_enabled": ("HTMX_CLIENT_PERF_METRICS", bool),
+    "hover_prefetch_enabled": ("HTMX_HOVER_PREFETCH_ENABLED", bool),
+    "parallel_shell_prefetch": ("HTMX_PARALLEL_SHELL_PREFETCH", bool),
+    "shell_prefetch_concurrency": ("HTMX_SHELL_PREFETCH_CONCURRENCY", int),
+    "rewarmup_on_filter_change": ("HTMX_REWARMUP_ON_FILTER_CHANGE", bool),
+    "rewarmup_idle_delay_ms": ("HTMX_REWARMUP_IDLE_DELAY_MS", int),
+    "batched_reveal_enabled": ("HTMX_BATCHED_REVEAL_ENABLED", bool),
+    "batched_reveal_timeout_ms": ("HTMX_BATCHED_REVEAL_TIMEOUT_MS", int),
+    "max_concurrent_widget_requests": ("HTMX_MAX_CONCURRENT_WIDGET_REQUESTS", int),
+    "offscreen_pause_enabled": ("HTMX_OFFSCREEN_PAUSE_ENABLED", bool),
+    "skeleton_min_display_ms": ("HTMX_SKELETON_MIN_DISPLAY_MS", int),
+    "adaptive_dialdown_enabled": ("HTMX_ADAPTIVE_DIALDOWN_ENABLED", bool),
+    "adaptive_dialdown_hit_threshold": ("HTMX_ADAPTIVE_DIALDOWN_HIT_THRESHOLD", float),
+    "persist_cache_enabled": ("HTMX_PERSIST_CACHE_ENABLED", bool),
+}
+
+
+def resolve_cache_config() -> dict:
+    """Resolve cache config: mode profile as baseline, explicit env vars override."""
+    mode = os.getenv("HTMX_CACHE_MODE", "balanced").lower().strip()
+    profile = CACHE_PROFILES.get(mode, CACHE_PROFILES["balanced"]).copy()
+    for key, (env_name, converter) in _CACHE_ENV_MAP.items():
+        if env_name not in os.environ:
+            continue
+        raw = os.environ[env_name]
+        if converter is bool:
+            profile[key] = raw.strip().lower() in ("1", "true", "yes", "on")
+        elif converter is float:
+            profile[key] = float(raw)
+        else:
+            profile[key] = converter(raw)
+    profile["cache_mode"] = mode
+    return profile
+
+
+_CACHE_CONFIG = resolve_cache_config()
 _health_proxy_lock = threading.Lock()
 _health_proxy_cache: dict[str, object] = {"value": None, "expires_at": 0.0}
 _meta_proxy_lock = threading.Lock()
@@ -231,11 +380,12 @@ def render_page(request: Request, page: PageConfig):
                     health_chart_index += 1
 
         if widget.kind == "kpi":
-            refresh_interval_seconds = int(os.getenv("HTMX_REFRESH_KPI_SECONDS", str(widget.refresh_interval_seconds)))
+            kpi_override = _CACHE_CONFIG["refresh_kpi_seconds"]
+            refresh_interval_seconds = kpi_override if kpi_override > 0 else widget.refresh_interval_seconds
         elif widget.kind in {"table", "table-split"}:
-            refresh_interval_seconds = int(os.getenv("HTMX_REFRESH_TABLE_SECONDS", "90"))
+            refresh_interval_seconds = _CACHE_CONFIG["refresh_table_seconds"]
         else:
-            refresh_interval_seconds = int(os.getenv("HTMX_REFRESH_CHART_SECONDS", "60"))
+            refresh_interval_seconds = _CACHE_CONFIG["refresh_chart_seconds"]
 
         endpoint_page = widget.source_page_id or page.api_page_id
         endpoint_wid = widget.source_widget_id or widget.id
@@ -301,7 +451,7 @@ def render_page(request: Request, page: PageConfig):
             candidate_targets.sort(key=lambda item: int(item.get("priority", 100)))
         for target_payload in candidate_targets:
             targets.append(target_payload)
-            if len(targets) >= max(1, WARMUP_WIDGETS_PER_PAGE):
+            if len(targets) >= max(1, _CACHE_CONFIG["warmup_widgets_per_page"]):
                 break
         if targets:
             warmup_manifest.append(
@@ -363,18 +513,7 @@ def render_page(request: Request, page: PageConfig):
             "default_price_basis": DEFAULT_PRICE_BASIS,
             "content_template": page.content_template or "",
             "warmup_manifest": warmup_manifest,
-            "warmup_defaults": {
-                "budget_seconds": max(1, WARMUP_BUDGET_SECONDS),
-                "max_jobs": max(1, WARMUP_MAX_JOBS),
-                "concurrency": max(1, WARMUP_CONCURRENCY),
-            },
-            "nav_tuning": {
-                "soft_nav_shell_refresh_delay_ms": max(500, min(20000, HTMX_SOFT_NAV_SHELL_REFRESH_DELAY_MS)),
-                "viewport_poll_stale_ms": max(5000, min(300000, HTMX_VIEWPORT_POLL_STALE_MS)),
-                "critical_cache_max_age_ms": max(5000, min(300000, HTMX_CRITICAL_CACHE_MAX_AGE_MS)),
-                "default_cache_max_age_ms": max(10000, min(1800000, HTMX_DEFAULT_CACHE_MAX_AGE_MS)),
-                "perf_metrics_enabled": HTMX_CLIENT_PERF_METRICS,
-            },
+            "cache_config": _CACHE_CONFIG,
         },
     )
 

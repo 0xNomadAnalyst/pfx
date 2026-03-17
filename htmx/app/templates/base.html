@@ -14,14 +14,32 @@
   data-api-base-url="{{ api_base_url }}"
   data-current-page-slug="{{ current_page_slug }}"
   data-current-pipeline="{{ current_pipeline }}"
-  data-warmup-budget-seconds="{{ warmup_defaults.budget_seconds if warmup_defaults else 30 }}"
-  data-warmup-max-jobs="{{ warmup_defaults.max_jobs if warmup_defaults else 20 }}"
-  data-warmup-concurrency="{{ warmup_defaults.concurrency if warmup_defaults else 3 }}"
-  data-soft-nav-shell-refresh-delay-ms="{{ nav_tuning.soft_nav_shell_refresh_delay_ms if nav_tuning else 3000 }}"
-  data-viewport-poll-stale-ms="{{ nav_tuning.viewport_poll_stale_ms if nav_tuning else 45000 }}"
-  data-critical-cache-max-age-ms="{{ nav_tuning.critical_cache_max_age_ms if nav_tuning else 60000 }}"
-  data-default-cache-max-age-ms="{{ nav_tuning.default_cache_max_age_ms if nav_tuning else 300000 }}"
-  data-perf-metrics-enabled="{{ '1' if nav_tuning and nav_tuning.perf_metrics_enabled else '0' }}"
+  data-cache-mode="{{ cache_config.cache_mode if cache_config else 'balanced' }}"
+  data-warmup-enabled="{{ '1' if cache_config and cache_config.warmup_enabled else '0' }}"
+  data-warmup-budget-seconds="{{ cache_config.warmup_budget_seconds if cache_config else 30 }}"
+  data-warmup-max-jobs="{{ cache_config.warmup_max_jobs if cache_config else 20 }}"
+  data-warmup-concurrency="{{ cache_config.warmup_concurrency if cache_config else 3 }}"
+  data-soft-nav-shell-refresh-delay-ms="{{ cache_config.soft_nav_shell_refresh_delay_ms if cache_config else 3000 }}"
+  data-soft-nav-shell-cache-ttl-ms="{{ cache_config.soft_nav_shell_cache_ttl_ms if cache_config else 600000 }}"
+  data-viewport-poll-stale-ms="{{ cache_config.viewport_poll_stale_ms if cache_config else 45000 }}"
+  data-critical-cache-max-age-ms="{{ cache_config.critical_cache_max_age_ms if cache_config else 60000 }}"
+  data-default-cache-max-age-ms="{{ cache_config.default_cache_max_age_ms if cache_config else 300000 }}"
+  data-perf-metrics-enabled="{{ '1' if cache_config and cache_config.perf_metrics_enabled else '0' }}"
+  data-widget-response-cache-max-entries="{{ cache_config.widget_response_cache_max_entries if cache_config else 100 }}"
+  data-soft-nav-shell-cache-max-entries="{{ cache_config.soft_nav_shell_cache_max_entries if cache_config else 5 }}"
+  data-hover-prefetch-enabled="{{ '1' if cache_config and cache_config.hover_prefetch_enabled else '0' }}"
+  data-parallel-shell-prefetch="{{ '1' if cache_config and cache_config.parallel_shell_prefetch else '0' }}"
+  data-shell-prefetch-concurrency="{{ cache_config.shell_prefetch_concurrency if cache_config else 1 }}"
+  data-rewarmup-on-filter-change="{{ '1' if cache_config and cache_config.rewarmup_on_filter_change else '0' }}"
+  data-rewarmup-idle-delay-ms="{{ cache_config.rewarmup_idle_delay_ms if cache_config else 0 }}"
+  data-batched-reveal-enabled="{{ '1' if cache_config and cache_config.batched_reveal_enabled else '0' }}"
+  data-batched-reveal-timeout-ms="{{ cache_config.batched_reveal_timeout_ms if cache_config else 0 }}"
+  data-max-concurrent-widget-requests="{{ cache_config.max_concurrent_widget_requests if cache_config else 0 }}"
+  data-offscreen-pause-enabled="{{ '1' if cache_config and cache_config.offscreen_pause_enabled else '0' }}"
+  data-skeleton-min-display-ms="{{ cache_config.skeleton_min_display_ms if cache_config else 0 }}"
+  data-adaptive-dialdown-enabled="{{ '1' if cache_config and cache_config.adaptive_dialdown_enabled else '0' }}"
+  data-adaptive-dialdown-hit-threshold="{{ cache_config.adaptive_dialdown_hit_threshold if cache_config else 0 }}"
+  data-persist-cache-enabled="{{ '1' if cache_config and cache_config.persist_cache_enabled else '0' }}"
 >
   <header class="topbar">
     <div class="topbar-left">
@@ -225,7 +243,7 @@
 
   <script src="/static/js/theme.js?v=2"></script>
   <script id="warmup-manifest" type="application/json">{{ warmup_manifest|tojson }}</script>
-  <script src="/static/js/charts.js?v=71"></script>
+  <script src="/static/js/charts.js?v=72"></script>
   {% if show_pipeline_switcher %}
   <script>
   (function() {

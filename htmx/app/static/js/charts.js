@@ -18,8 +18,8 @@
   const PAGE_ACTION_CACHE_TTL_MS = 60_000;
   const DETAIL_TABLE_CACHE_MAX_ENTRIES = 40;
   const PAGE_ACTION_CACHE_MAX_ENTRIES = 40;
-  const SOFT_NAV_SHELL_CACHE_MAX_ENTRIES = 5;
-  const SOFT_NAV_SHELL_CACHE_TTL_MS = 10 * 60_000;
+  const SOFT_NAV_SHELL_CACHE_MAX_ENTRIES = readRuntimeInt("softNavShellCacheMaxEntries", 5, 1, 20);
+  const SOFT_NAV_SHELL_CACHE_TTL_MS = readRuntimeInt("softNavShellCacheTtlMs", 600_000, 10_000, 3_600_000);
   const SOFT_NAV_SHELL_REFRESH_DELAY_MS = readRuntimeInt("softNavShellRefreshDelayMs", 3000, 500, 20_000);
   const VIEWPORT_REFRESH_DEFER_MS = 280;
   const VIEWPORT_REFRESH_STAGGER_MS = 70;
@@ -30,10 +30,30 @@
   const CRITICAL_DEFER_BOOST_MS = 120;
   const PERF_METRICS_ENABLED = readRuntimeBool("perfMetricsEnabled", false);
   const PERF_METRICS_LOG_INTERVAL_MS = 60_000;
+  const WARMUP_ENABLED = readRuntimeBool("warmupEnabled", true);
+  const HOVER_PREFETCH_ENABLED = readRuntimeBool("hoverPrefetchEnabled", false);
+  const PARALLEL_SHELL_PREFETCH = readRuntimeBool("parallelShellPrefetch", false);
+  const SHELL_PREFETCH_CONCURRENCY = readRuntimeInt("shellPrefetchConcurrency", 1, 1, 10);
+  const REWARMUP_ON_FILTER_CHANGE = readRuntimeBool("rewarmupOnFilterChange", false);
+  const REWARMUP_IDLE_DELAY_MS = readRuntimeInt("rewarmupIdleDelayMs", 0, 0, 30_000);
+  const BATCHED_REVEAL_ENABLED = readRuntimeBool("batchedRevealEnabled", false);
+  const BATCHED_REVEAL_TIMEOUT_MS = readRuntimeInt("batchedRevealTimeoutMs", 0, 0, 5_000);
+  const MAX_CONCURRENT_WIDGET_REQUESTS = readRuntimeInt("maxConcurrentWidgetRequests", 0, 0, 50);
+  const OFFSCREEN_PAUSE_ENABLED = readRuntimeBool("offscreenPauseEnabled", false);
+  const SKELETON_MIN_DISPLAY_MS = readRuntimeInt("skeletonMinDisplayMs", 0, 0, 1_000);
+  const ADAPTIVE_DIALDOWN_ENABLED = readRuntimeBool("adaptiveDialdownEnabled", false);
+  const ADAPTIVE_DIALDOWN_HIT_THRESHOLD = (() => {
+    const raw = parseFloat(document.body?.dataset?.adaptiveDialdownHitThreshold || "0");
+    return Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0;
+  })();
+  const PERSIST_CACHE_ENABLED = readRuntimeBool("persistCacheEnabled", false);
+  const PERSIST_CACHE_KEY_PREFIX = "riskdash:pcache:";
+  const PERSIST_CACHE_VERSION_KEY = "riskdash:pcache:version";
+  const PERSIST_CACHE_MAX_BYTES = 2 * 1024 * 1024;
   const detailTableCache = new Map();
   const pageActionCache = new Map();
   const softNavShellCache = new Map();
-  const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = 100;
+  const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = readRuntimeInt("widgetResponseCacheMaxEntries", 100, 10, 500);
   const widgetResponseCache = new Map();
   const perfMetrics = {
     softNavShellCacheHit: 0,
@@ -48,6 +68,7 @@
     suppressedOffscreenPoll: 0,
     staleLabelClearedOnAbort: 0,
     staleLabelAutoCleared: 0,
+    adaptiveDialdownTriggered: 0,
   };
   function recordPerfMetric(metricKey, amount = 1) {
     if (!Object.prototype.hasOwnProperty.call(perfMetrics, metricKey)) return;
@@ -3677,11 +3698,45 @@
     el.dataset.stalePending = "0";
   }
 
+  function ensureSkeletonStyles() {
+    if (document.getElementById("widget-skeleton-styles")) return;
+    const style = document.createElement("style");
+    style.id = "widget-skeleton-styles";
+    style.textContent = `
+      @keyframes skeletonPulse {
+        0% { background-position: 100% 0; }
+        100% { background-position: -100% 0; }
+      }
+      .skeleton-bar {
+        border-radius: 4px;
+        background: linear-gradient(90deg,
+          rgba(90,122,176,0.08) 25%,
+          rgba(90,122,176,0.18) 50%,
+          rgba(90,122,176,0.08) 75%);
+        background-size: 200% 100%;
+        animation: skeletonPulse 1.4s ease-in-out infinite;
+      }
+      .skeleton-bar--kpi-primary { height: 40px; width: 60%; margin: 6px 0; }
+      .skeleton-bar--kpi-secondary { height: 16px; width: 40%; margin: 4px 0; }
+      .skeleton-bar--chart { height: 100%; min-height: 140px; width: 100%; border-radius: 6px; }
+      .skeleton-bar--table-row { height: 22px; width: 100%; margin: 6px 0; }
+    `;
+    document.head.appendChild(style);
+  }
+
   function resetWidgetView(el) {
     const widgetId = el.dataset.widgetId;
     const kind = el.dataset.widgetKind;
     if (!widgetId) {
       return;
+    }
+
+    const useSkeleton = SKELETON_MIN_DISPLAY_MS > 0;
+    if (useSkeleton) {
+      ensureSkeletonStyles();
+      _skeletonShownAt.set(widgetId, Date.now());
+    } else {
+      _skeletonShownAt.delete(widgetId);
     }
 
     const updatedEl = document.getElementById(`updated-${widgetId}`);
@@ -3693,11 +3748,19 @@
       const primary = document.getElementById(`kpi-primary-${widgetId}`);
       const secondary = document.getElementById(`kpi-secondary-${widgetId}`);
       if (primary) {
-        primary.textContent = "--";
-        autoSizeKpi(primary);
+        if (useSkeleton) {
+          primary.innerHTML = '<div class="skeleton-bar skeleton-bar--kpi-primary"></div>';
+        } else {
+          primary.textContent = "--";
+          autoSizeKpi(primary);
+        }
       }
       if (secondary) {
-        secondary.textContent = "";
+        if (useSkeleton) {
+          secondary.innerHTML = '<div class="skeleton-bar skeleton-bar--kpi-secondary"></div>';
+        } else {
+          secondary.textContent = "";
+        }
       }
       return;
     }
@@ -3705,7 +3768,11 @@
     if (kind === "table") {
       const table = document.getElementById(`table-${widgetId}`);
       if (table) {
-        table.innerHTML = "";
+        if (useSkeleton) {
+          table.innerHTML = '<div class="skeleton-bar skeleton-bar--table-row"></div>'.repeat(4);
+        } else {
+          table.innerHTML = "";
+        }
       }
       return;
     }
@@ -3715,24 +3782,40 @@
       const rightTitle = document.getElementById(`table-right-title-${widgetId}`);
       const left = document.getElementById(`table-left-${widgetId}`);
       const right = document.getElementById(`table-right-${widgetId}`);
-      if (leftTitle) {
-        leftTitle.textContent = "";
-      }
-      if (rightTitle) {
-        rightTitle.textContent = "";
-      }
+      if (leftTitle) leftTitle.textContent = "";
+      if (rightTitle) rightTitle.textContent = "";
       if (left) {
-        left.innerHTML = "";
+        if (useSkeleton) {
+          left.innerHTML = '<div class="skeleton-bar skeleton-bar--table-row"></div>'.repeat(3);
+        } else {
+          left.innerHTML = "";
+        }
       }
       if (right) {
-        right.innerHTML = "";
+        if (useSkeleton) {
+          right.innerHTML = '<div class="skeleton-bar skeleton-bar--table-row"></div>'.repeat(3);
+        } else {
+          right.innerHTML = "";
+        }
       }
       return;
     }
 
-    const chart = chartState.get(widgetId);
-    if (chart?.instance) {
-      chart.instance.clear();
+    if (useSkeleton) {
+      const chartContainer = document.getElementById(`chart-${widgetId}`);
+      if (chartContainer) {
+        const chart = chartState.get(widgetId);
+        if (chart?.instance) {
+          try { chart.instance.dispose(); } catch (_) {}
+          chartState.delete(widgetId);
+        }
+        chartContainer.innerHTML = '<div class="skeleton-bar skeleton-bar--chart"></div>';
+      }
+    } else {
+      const chart = chartState.get(widgetId);
+      if (chart?.instance) {
+        chart.instance.clear();
+      }
     }
   }
 
@@ -3973,10 +4056,58 @@
     }, 1000);
   }
 
+  let _concurrencyInFlight = 0;
+  const _concurrencyQueue = [];
+
+  function _flushBatchedReveal() {
+    if (_batchedRevealTimer) {
+      clearTimeout(_batchedRevealTimer);
+      _batchedRevealTimer = null;
+    }
+    if (_batchedRevealBuffer.size === 0) {
+      _batchedRevealTargets.clear();
+      return;
+    }
+    requestAnimationFrame(() => {
+      _batchedRevealBuffer.forEach(({ widgetId, payload, srcId, sourceEl }) => {
+        renderPayload(widgetId, payload, srcId);
+        updateTimestamp(widgetId, payload?.metadata?.generated_at);
+        setWidgetCachedPayload(widgetId, widgetFilterSignature(sourceEl), payload);
+        sourceEl.dataset.hasLoadedOnce = "1";
+      });
+      _batchedRevealBuffer.clear();
+      _batchedRevealTargets.clear();
+    });
+  }
+
+  function _drainConcurrencyQueue() {
+    if (MAX_CONCURRENT_WIDGET_REQUESTS <= 0) return;
+    while (_concurrencyQueue.length > 0 && _concurrencyInFlight < MAX_CONCURRENT_WIDGET_REQUESTS) {
+      const next = _concurrencyQueue.shift();
+      if (next && next.isConnected) {
+        requestWidgetNow(next);
+      }
+    }
+  }
+
+  function _requestWidgetManaged(el) {
+    if (MAX_CONCURRENT_WIDGET_REQUESTS <= 0) {
+      requestWidgetNow(el);
+      return;
+    }
+    if (_concurrencyInFlight < MAX_CONCURRENT_WIDGET_REQUESTS) {
+      requestWidgetNow(el);
+    } else {
+      _concurrencyQueue.push(el);
+    }
+  }
+
   function triggerDashboardRefresh({ prioritizeViewport = true } = {}) {
     const widgets = widgetElements();
     if (!widgets.length) return;
     markInteractiveRefreshWindow();
+    _concurrencyQueue.length = 0;
+
     if (!prioritizeViewport) {
       htmx.trigger(document.body, "dashboard-refresh");
       return;
@@ -3996,16 +4127,39 @@
         deferredOther.push(el);
       }
     });
-    visibleCritical.forEach((el) => requestWidgetNow(el));
-    visibleOther.forEach((el) => requestWidgetNow(el));
-    deferredCritical.forEach((el, idx) => {
-      const delay = Math.max(0, CRITICAL_DEFER_BOOST_MS + idx * VIEWPORT_REFRESH_STAGGER_MS);
-      setTimeout(() => requestWidgetNow(el), delay);
-    });
-    deferredOther.forEach((el, idx) => {
-      const delay = VIEWPORT_REFRESH_DEFER_MS + idx * VIEWPORT_REFRESH_STAGGER_MS;
-      setTimeout(() => requestWidgetNow(el), delay);
-    });
+
+    if (BATCHED_REVEAL_ENABLED) {
+      _batchedRevealBuffer.clear();
+      _batchedRevealTargets.clear();
+      if (_batchedRevealTimer) clearTimeout(_batchedRevealTimer);
+      [...visibleCritical, ...visibleOther].forEach((el) => {
+        const wid = el.dataset.widgetId;
+        if (wid) _batchedRevealTargets.add(wid);
+      });
+      if (_batchedRevealTargets.size > 0 && BATCHED_REVEAL_TIMEOUT_MS > 0) {
+        _batchedRevealTimer = setTimeout(_flushBatchedReveal, BATCHED_REVEAL_TIMEOUT_MS);
+      }
+    }
+
+    if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
+      const reservedSlots = Math.min(3, MAX_CONCURRENT_WIDGET_REQUESTS);
+      visibleCritical.slice(0, reservedSlots).forEach((el) => requestWidgetNow(el));
+      visibleCritical.slice(reservedSlots).forEach((el) => _requestWidgetManaged(el));
+      visibleOther.forEach((el) => _requestWidgetManaged(el));
+      deferredCritical.forEach((el) => _requestWidgetManaged(el));
+      deferredOther.forEach((el) => _requestWidgetManaged(el));
+    } else {
+      visibleCritical.forEach((el) => requestWidgetNow(el));
+      visibleOther.forEach((el) => requestWidgetNow(el));
+      deferredCritical.forEach((el, idx) => {
+        const delay = Math.max(0, CRITICAL_DEFER_BOOST_MS + idx * VIEWPORT_REFRESH_STAGGER_MS);
+        setTimeout(() => requestWidgetNow(el), delay);
+      });
+      deferredOther.forEach((el, idx) => {
+        const delay = VIEWPORT_REFRESH_DEFER_MS + idx * VIEWPORT_REFRESH_STAGGER_MS;
+        setTimeout(() => requestWidgetNow(el), delay);
+      });
+    }
   }
 
   function refreshCriticalWidgetsNow() {
@@ -4035,6 +4189,10 @@
           if (!(el instanceof HTMLElement)) return;
           if (entry.isIntersecting || entry.intersectionRatio > 0) {
             el.dataset.lastVisibleAt = String(now);
+            if (OFFSCREEN_PAUSE_ENABLED && el.dataset.offscreenDeferred === "1") {
+              el.dataset.offscreenDeferred = "0";
+              requestWidgetNow(el);
+            }
           }
         });
       },
@@ -4409,7 +4567,10 @@
       pair || currentPair(),
       lastWindow || currentLastWindow()
     );
-    if (shouldRefresh) triggerDashboardRefresh({ prioritizeViewport: true });
+    if (shouldRefresh) {
+      triggerDashboardRefresh({ prioritizeViewport: true });
+      scheduleRewarmup();
+    }
   }
 
   function setSelectOptions(selectEl, values, selected, includeNone) {
@@ -4457,8 +4618,38 @@
     }
     if (pageSelect.dataset.boundPageNav === "1") return;
     pageSelect.dataset.boundPageNav = "1";
+
+    if (HOVER_PREFETCH_ENABLED) {
+      const prefetchAdjacentShells = () => {
+        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (conn && conn.saveData) return;
+        const idx = pageSelect.selectedIndex;
+        const opts = pageSelect.options;
+        if (!opts.length) return;
+        const neighbors = [];
+        if (idx > 0) neighbors.push(opts[idx - 1].value);
+        if (idx < opts.length - 1) neighbors.push(opts[idx + 1].value);
+        for (const path of neighbors) {
+          const normalized = normalizeSoftNavPath(path);
+          if (normalized && !getSoftNavShellCache(normalized)) {
+            refreshSoftNavShellCache(normalized, 0);
+          }
+        }
+      };
+      pageSelect.addEventListener("focus", prefetchAdjacentShells);
+    }
+
     pageSelect.addEventListener("change", () => {
       if (pageSelect.value && pageSelect.value !== window.location.pathname) {
+        if (HOVER_PREFETCH_ENABLED) {
+          const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+          if (!(conn && conn.saveData)) {
+            const normalized = normalizeSoftNavPath(pageSelect.value);
+            if (normalized && !getSoftNavShellCache(normalized)) {
+              refreshSoftNavShellCache(normalized, 0);
+            }
+          }
+        }
         softNavigateToPage(pageSelect.value, { pushHistory: true });
       }
     });
@@ -4734,6 +4925,7 @@
     const cachedShell = getSoftNavShellCache(navPath);
     if (cachedShell) {
       recordPerfMetric("softNavShellCacheHit");
+      _adaptiveShellPrefetchUsed++;
       try {
         shellAppliedFromCache = await applySoftNavHtml(navPath, cachedShell, { pushHistory });
       } catch (_) {
@@ -5044,11 +5236,13 @@
   async function prefetchWarmupShells(manifest) {
     const shellPaths = buildWarmupShellPaths(manifest);
     if (!shellPaths.length) return;
-    for (const path of shellPaths) {
+
+    const prefetchOne = async (path) => {
       recordPerfMetric("warmupShellPrefetchAttempted");
+      _adaptiveShellPrefetchAttempted++;
       if (getSoftNavShellCache(path)) {
         recordPerfMetric("warmupShellPrefetchSkippedCached");
-        continue;
+        return;
       }
       try {
         await refreshSoftNavShellCache(path, 0);
@@ -5059,6 +5253,35 @@
         }
       } catch (_) {
         recordPerfMetric("warmupShellPrefetchFailed");
+      }
+    };
+
+    if (PARALLEL_SHELL_PREFETCH && SHELL_PREFETCH_CONCURRENCY > 1) {
+      let active = 0;
+      const queue = [...shellPaths];
+      const results = [];
+      const runNext = () => new Promise((resolve) => {
+        const drain = () => {
+          while (active < SHELL_PREFETCH_CONCURRENCY && queue.length) {
+            const path = queue.shift();
+            active++;
+            prefetchOne(path).finally(() => {
+              active--;
+              if (queue.length === 0 && active === 0) {
+                resolve();
+              } else {
+                drain();
+              }
+            });
+          }
+          if (queue.length === 0 && active === 0) resolve();
+        };
+        drain();
+      });
+      await runNext();
+    } else {
+      for (const path of shellPaths) {
+        await prefetchOne(path);
       }
     }
   }
@@ -5074,10 +5297,98 @@
     };
   }
 
+  function _persistCacheVersionKey() {
+    const slug = document.body?.dataset?.currentPageSlug || "";
+    const mode = document.body?.dataset?.cacheMode || "balanced";
+    return `${slug}:${mode}`;
+  }
+
+  function persistCacheWrite() {
+    if (!PERSIST_CACHE_ENABLED) return;
+    try {
+      const version = _persistCacheVersionKey();
+      const shells = {};
+      softNavShellCache.forEach((entry, path) => {
+        if (entry && entry.html) {
+          shells[path] = { html: entry.html, storedAt: entry.storedAt || Date.now() };
+        }
+      });
+      const widgets = {};
+      let widgetCount = 0;
+      widgetResponseCache.forEach((entry, key) => {
+        if (widgetCount >= 20) return;
+        if (entry) {
+          widgets[key] = { payload: entry, storedAt: Date.now() };
+          widgetCount++;
+        }
+      });
+      const blob = JSON.stringify({ version, shells, widgets, savedAt: Date.now() });
+      if (blob.length > PERSIST_CACHE_MAX_BYTES) return;
+      localStorage.setItem(PERSIST_CACHE_KEY_PREFIX + "data", blob);
+      localStorage.setItem(PERSIST_CACHE_VERSION_KEY, version);
+    } catch (_) {
+      // Quota exceeded or private browsing — silently skip.
+    }
+  }
+
+  function persistCacheHydrate() {
+    if (!PERSIST_CACHE_ENABLED) return;
+    try {
+      const currentVersion = _persistCacheVersionKey();
+      const storedVersion = localStorage.getItem(PERSIST_CACHE_VERSION_KEY);
+      if (storedVersion !== currentVersion) {
+        localStorage.removeItem(PERSIST_CACHE_KEY_PREFIX + "data");
+        localStorage.removeItem(PERSIST_CACHE_VERSION_KEY);
+        return;
+      }
+      const raw = localStorage.getItem(PERSIST_CACHE_KEY_PREFIX + "data");
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      const maxAge = SOFT_NAV_SHELL_CACHE_TTL_MS;
+      const now = Date.now();
+      if (data.shells) {
+        for (const [path, entry] of Object.entries(data.shells)) {
+          if (now - (entry.storedAt || 0) > maxAge) continue;
+          if (!getSoftNavShellCache(path)) {
+            setSoftNavShellCache(path, entry.html);
+          }
+        }
+      }
+      if (data.widgets) {
+        const cacheMaxAge = DEFAULT_CACHE_MAX_AGE_MS;
+        for (const [key, entry] of Object.entries(data.widgets)) {
+          if (now - (entry.storedAt || 0) > cacheMaxAge) continue;
+          if (!widgetResponseCache.has(key) && entry.payload) {
+            widgetResponseCache.set(key, entry.payload);
+          }
+        }
+      }
+    } catch (_) {
+      // Corrupted or unavailable — silently skip.
+    }
+  }
+
+  function persistCacheClear() {
+    try {
+      localStorage.removeItem(PERSIST_CACHE_KEY_PREFIX + "data");
+      localStorage.removeItem(PERSIST_CACHE_VERSION_KEY);
+    } catch (_) {}
+  }
+
   let _warmupSchedulerStarted = false;
   let _warmupInFlight = false;
+  let _rewarmupDebounceTimer = null;
+  let _adaptiveShellPrefetchAttempted = 0;
+  let _adaptiveShellPrefetchUsed = 0;
+  let _adaptiveDialdownTriggered = false;
+  let _adaptiveDialdownConsecutiveLow = 0;
+  const _batchedRevealBuffer = new Map();
+  const _batchedRevealTargets = new Set();
+  let _batchedRevealTimer = null;
+  const _skeletonShownAt = new Map();
 
   function initWarmupScheduler() {
+    if (!WARMUP_ENABLED) return;
     if (_warmupSchedulerStarted) return;
     _warmupSchedulerStarted = true;
     if (hasWarmupRunThisSession()) return;
@@ -5124,15 +5435,17 @@
             concurrency: defaults.concurrency,
           }),
         });
-        // Warm page shells too, so first navigation to warmed pages feels instant.
-        setTimeout(() => {
-          void prefetchWarmupShells(manifest);
-        }, 1200);
+        if (!_adaptiveDialdownTriggered) {
+          setTimeout(() => {
+            void prefetchWarmupShells(manifest);
+          }, 1200);
+        }
       } catch (_) {
         // Best-effort background optimization.
       } finally {
         _warmupInFlight = false;
         markWarmupRunThisSession();
+        evaluateAdaptiveDialdown();
       }
     };
 
@@ -5142,6 +5455,65 @@
         setTimeout(attemptWarmup, 500);
       }
     });
+  }
+
+  function scheduleRewarmup() {
+    if (!REWARMUP_ON_FILTER_CHANGE || !WARMUP_ENABLED) return;
+    if (_adaptiveDialdownTriggered) return;
+    if (_rewarmupDebounceTimer !== null) {
+      clearTimeout(_rewarmupDebounceTimer);
+    }
+    const delay = REWARMUP_IDLE_DELAY_MS > 0 ? REWARMUP_IDLE_DELAY_MS : 3000;
+    _rewarmupDebounceTimer = setTimeout(async () => {
+      _rewarmupDebounceTimer = null;
+      if (_warmupInFlight || document.hidden || _pipelineSwitchInProgress) return;
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (conn && (conn.saveData || String(conn.effectiveType || "").toLowerCase() === "slow-2g" || String(conn.effectiveType || "").toLowerCase() === "2g")) return;
+      try { sessionStorage.removeItem(WARMUP_SESSION_KEY); } catch (_) {}
+      const manifest = readWarmupManifest();
+      if (!manifest.length) return;
+      const targets = buildWarmupTargetsFromManifest(manifest);
+      if (!targets.length) return;
+      _warmupInFlight = true;
+      try {
+        const defaults = warmupDefaults();
+        await fetch(`${getApiBaseUrl()}/api/v1/warmup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            targets,
+            base_params: buildWarmupBaseParams(),
+            budget_seconds: defaults.budget_seconds,
+            max_jobs: defaults.max_jobs,
+            concurrency: defaults.concurrency,
+          }),
+        });
+        setTimeout(() => {
+          void prefetchWarmupShells(manifest);
+        }, 1200);
+      } catch (_) {
+        // Best-effort background re-warmup.
+      } finally {
+        _warmupInFlight = false;
+        markWarmupRunThisSession();
+        evaluateAdaptiveDialdown();
+      }
+    }, delay);
+  }
+
+  function evaluateAdaptiveDialdown() {
+    if (!ADAPTIVE_DIALDOWN_ENABLED || _adaptiveDialdownTriggered) return;
+    if (_adaptiveShellPrefetchAttempted < 5) return;
+    const hitRate = _adaptiveShellPrefetchUsed / _adaptiveShellPrefetchAttempted;
+    if (hitRate < ADAPTIVE_DIALDOWN_HIT_THRESHOLD) {
+      _adaptiveDialdownConsecutiveLow++;
+      if (_adaptiveDialdownConsecutiveLow >= 2) {
+        _adaptiveDialdownTriggered = true;
+        recordPerfMetric("adaptiveDialdownTriggered");
+      }
+    } else {
+      _adaptiveDialdownConsecutiveLow = 0;
+    }
   }
 
   async function populateMarketSelectors() {
@@ -5350,10 +5722,43 @@
     if (accountsWidget) accountsWidget.dataset.healthBaseSchema = selects[0].value || "dexes";
   }
 
+  document.body.addEventListener("htmx:beforeSend", (event) => {
+    const el = event.detail.elt;
+    if (!el || !el.classList.contains("widget-loader")) return;
+    if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
+      _concurrencyInFlight++;
+    }
+  });
+
+  function _renderWidgetResponse(widgetId, payload, srcId, sourceEl) {
+    const skeletonStart = _skeletonShownAt.get(widgetId);
+    const minDelay = SKELETON_MIN_DISPLAY_MS;
+    const elapsed = skeletonStart ? Date.now() - skeletonStart : minDelay;
+    const remaining = minDelay > 0 && elapsed < minDelay ? minDelay - elapsed : 0;
+
+    const doRender = () => {
+      _skeletonShownAt.delete(widgetId);
+      renderPayload(widgetId, payload, srcId);
+      updateTimestamp(widgetId, payload?.metadata?.generated_at);
+      setWidgetCachedPayload(widgetId, widgetFilterSignature(sourceEl), payload);
+      sourceEl.dataset.hasLoadedOnce = "1";
+    };
+
+    if (remaining > 0) {
+      setTimeout(doRender, remaining);
+    } else {
+      doRender();
+    }
+  }
+
   document.body.addEventListener("htmx:afterRequest", (event) => {
     const sourceEl = event.detail.elt;
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
       return;
+    }
+    if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
+      _concurrencyInFlight = Math.max(0, _concurrencyInFlight - 1);
+      _drainConcurrencyQueue();
     }
     const widgetId = sourceEl.dataset.widgetId;
     if (!widgetId) {
@@ -5362,10 +5767,6 @@
     if (_pipelineSwitchInProgress) {
       return;
     }
-    // Skip aborted or failed requests – dedicated handlers
-    // (htmx:responseError, htmx:sendError, htmx:timeout) cover real errors.
-    // Without this guard, hx-sync="this:replace" aborts produce empty XHR
-    // responses that flash a spurious "no response from API" error.
     if (!event.detail.successful) {
       return;
     }
@@ -5382,10 +5783,16 @@
         return;
       }
       const srcId = resolveSourceWidgetId(sourceEl);
-      renderPayload(widgetId, payload, srcId);
-      updateTimestamp(widgetId, payload?.metadata?.generated_at);
-      setWidgetCachedPayload(widgetId, widgetFilterSignature(sourceEl), payload);
-      sourceEl.dataset.hasLoadedOnce = "1";
+
+      if (BATCHED_REVEAL_ENABLED && _batchedRevealTargets.has(widgetId)) {
+        _batchedRevealBuffer.set(widgetId, { widgetId, payload, srcId, sourceEl });
+        if (_batchedRevealBuffer.size >= _batchedRevealTargets.size) {
+          _flushBatchedReveal();
+        }
+        return;
+      }
+
+      _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
     } catch (error) {
       setWidgetError(widgetId, String(error));
     } finally {
@@ -5452,15 +5859,24 @@
       return;
     }
     const isForced = sourceEl.dataset.forceRequest === "1";
-    if (!isForced && Date.now() >= _interactiveRefreshUntil && sourceEl.dataset.hasLoadedOnce === "1") {
+    if (!isForced && Date.now() >= _interactiveRefreshUntil) {
       const widgetId = sourceEl.dataset.widgetId || "";
-      const lastVisibleAt = Number(sourceEl.dataset.lastVisibleAt || 0);
-      const staleOffscreen = !isCriticalWidget(widgetId)
-        && !isWidgetLikelyVisible(sourceEl)
-        && (Date.now() - lastVisibleAt) > VIEWPORT_POLL_STALE_MS;
-      if (staleOffscreen) {
+      const isOffscreen = !isCriticalWidget(widgetId) && !isWidgetLikelyVisible(sourceEl);
+
+      if (OFFSCREEN_PAUSE_ENABLED && isOffscreen) {
         event.preventDefault();
+        sourceEl.dataset.offscreenDeferred = "1";
         recordPerfMetric("suppressedOffscreenPoll");
+        return;
+      }
+
+      if (sourceEl.dataset.hasLoadedOnce === "1") {
+        const lastVisibleAt = Number(sourceEl.dataset.lastVisibleAt || 0);
+        const staleOffscreen = isOffscreen && (Date.now() - lastVisibleAt) > VIEWPORT_POLL_STALE_MS;
+        if (staleOffscreen) {
+          event.preventDefault();
+          recordPerfMetric("suppressedOffscreenPoll");
+        }
       }
     }
   });
@@ -5515,6 +5931,10 @@
     const sourceEl = event?.detail?.elt || event?.target;
     if (!sourceEl || !sourceEl.classList || !sourceEl.classList.contains("widget-loader")) {
       return;
+    }
+    if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
+      _concurrencyInFlight = Math.max(0, _concurrencyInFlight - 1);
+      _drainConcurrencyQueue();
     }
     const widgetId = sourceEl.dataset.widgetId;
     if (!widgetId) return;
@@ -6270,6 +6690,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    persistCacheHydrate();
     initPageSelector();
     initPipelineSwitcher();
     initFilters();
@@ -6281,6 +6702,10 @@
     initCascadePoolToggle();
     if (window.mermaid) {
       mermaid.initialize({ startOnLoad: false, theme: "dark" });
+    }
+    if (PERSIST_CACHE_ENABLED) {
+      setInterval(persistCacheWrite, 30_000);
+      window.addEventListener("beforeunload", persistCacheWrite);
     }
   });
 
