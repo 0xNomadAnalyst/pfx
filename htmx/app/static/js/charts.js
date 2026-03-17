@@ -1534,6 +1534,10 @@
     const dual = hasDualAxis(data);
     const hasBars = (data.series || []).some((s) => s.type === "bar");
     const rightPad = dual ? (hasYRightLabel ? 34 : 28) : (hasBars ? 18 : 10);
+    const rotated = data.xAxisLabelRotate > 0;
+    const gridLeft = rotated ? 38 : (hasYLabel ? 60 : 40);
+    const gridRight = rotated ? 8 : rightPad;
+    const gridBottom = rotated ? 90 : (hasXLabel ? 80 : 68);
     const option = {
       color: palette(),
       tooltip: {
@@ -1541,7 +1545,7 @@
         valueFormatter: yFmt || undefined,
       },
       legend: { bottom: 2, itemWidth: 14, itemHeight: 10, itemGap: 10, textStyle: { color: chartTextColor(), fontSize: 10 } },
-      grid: { left: hasYLabel ? 60 : 40, right: rightPad, top: 22, bottom: hasXLabel ? 80 : 68, containLabel: true },
+      grid: { left: gridLeft, right: gridRight, top: 22, bottom: gridBottom, containLabel: !rotated },
       xAxis: {
         type: "category",
         data: data.x || [],
@@ -6511,10 +6515,8 @@
 
     function syncIntervalVisibility() {
       const isSingle = eventSelect.value === "Single Swaps";
-      const sepEl = document.querySelector(".ra-interval-sep");
       const lblEl = document.querySelector(".ra-interval-label");
       const selEl = document.querySelector(".ra-interval-select");
-      if (sepEl) sepEl.style.display = isSingle ? "none" : "";
       if (lblEl) lblEl.style.display = isSingle ? "none" : "";
       if (selEl) selEl.style.display = isSingle ? "none" : "";
     }

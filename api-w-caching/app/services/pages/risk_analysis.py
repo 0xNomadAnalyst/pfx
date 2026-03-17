@@ -400,12 +400,15 @@ class RiskAnalysisPageService(BasePageService):
 
         return last_price, remaining > 0
 
+    _MARK_LINE_MIN_GAP_FRAC = 0.03  # minimum gap between lines as fraction of x-axis range
+
     def _pvalue_mark_lines(
         self, tick_rows: list[dict[str, Any]], pvalue_rows: list[dict[str, Any]],
         protocol: str | None = None, inverted: bool = False,
     ) -> list[dict[str, Any]]:
-        lines: list[dict[str, Any]] = []
         colors = ["#e24c4c", "#f8a94a", "#c9a032", "#ae82ff", "#4bb7ff", "#2fbf71", "#5c8a8a", "#888", "#aaa"]
+
+        candidates: list[dict[str, Any]] = []
         for idx, row in enumerate(pvalue_rows):
             stat = row.get("stat_name", "")
             value = self._ff(row.get("value"))
@@ -414,12 +417,33 @@ class RiskAnalysisPageService(BasePageService):
             price, _ = self._map_sell_amount_to_price(tick_rows, value, protocol, inverted)
             if price is None:
                 continue
-            lines.append({
+            candidates.append({
                 "value": price,
                 "label": stat,
                 "color": colors[idx % len(colors)],
+                "priority": idx,
             })
-        return lines
+
+        if len(candidates) <= 1:
+            return [{k: v for k, v in c.items() if k != "priority"} for c in candidates]
+
+        x_prices = [self._ff(r.get("tick_price_t1_per_t0", 0)) for r in tick_rows]
+        x_range = max(x_prices) - min(x_prices) if x_prices else 1.0
+        min_gap = x_range * self._MARK_LINE_MIN_GAP_FRAC
+
+        candidates.sort(key=lambda c: c["value"])
+
+        kept: list[dict[str, Any]] = []
+        for c in candidates:
+            if kept and abs(c["value"] - kept[-1]["value"]) < min_gap:
+                # Too close -- keep whichever has higher priority (lower index)
+                if c["priority"] < kept[-1]["priority"]:
+                    kept[-1] = c
+                continue
+            kept.append(c)
+
+        kept.sort(key=lambda c: c["priority"])
+        return [{k: v for k, v in c.items() if k != "priority"} for c in kept]
 
     def _event_type_and_interval(self, params: dict[str, Any]) -> tuple[str, str]:
         event_type = str(params.get("risk_event_type", "Single Swaps"))

@@ -149,23 +149,23 @@
           </select>
         </span>
       {% elif widget.id == "ra-pvalue-tables" %}
-        <span class="title-separator">|</span>
-        <span class="title-inline-label">Select event type:</span>
-        <select id="ra-event-type" class="filter-select chart-mode-select" aria-label="Event type">
-          <option value="Single Swaps" selected>Single Swaps</option>
-          <option value="Max Net Pressure Over Interval">Net Pressure Over Interval</option>
-          <option value="Max Net Pressure Within Interval">Net Pressure Within Interval</option>
-        </select>
-        <span class="title-separator ra-interval-sep">|</span>
-        <span class="title-inline-label ra-interval-label">Select interval size:</span>
-        <select id="ra-interval-size" class="filter-select chart-mode-select ra-interval-select" aria-label="Interval size">
-          <option value="5 minutes" selected>5 minutes</option>
-          <option value="15 minutes">15 minutes</option>
-          <option value="30 minutes">30 minutes</option>
-          <option value="1 hour">1 hour</option>
-          <option value="6 hours">6 hours</option>
-          <option value="24 hours">24 hours</option>
-        </select>
+        <div class="ra-filter-row ra-pvalue-filter-row">
+          <span class="title-inline-label">Select event type:</span>
+          <select id="ra-event-type" class="filter-select chart-mode-select" aria-label="Event type">
+            <option value="Single Swaps" selected>Single Swaps</option>
+            <option value="Max Net Pressure Over Interval">Net Pressure Over Interval</option>
+            <option value="Max Net Pressure Within Interval">Net Pressure Within Interval</option>
+          </select>
+          <span class="title-inline-label ra-interval-label">Select interval size:</span>
+          <select id="ra-interval-size" class="filter-select chart-mode-select ra-interval-select" aria-label="Interval size">
+            <option value="5 minutes" selected>5 minutes</option>
+            <option value="15 minutes">15 minutes</option>
+            <option value="30 minutes">30 minutes</option>
+            <option value="1 hour">1 hour</option>
+            <option value="6 hours">6 hours</option>
+            <option value="24 hours">24 hours</option>
+          </select>
+        </div>
       {% elif widget.id == "ra-xp-exposure" %}
         <div id="ra-xp-notice" class="ra-xp-notice-bar"></div>
         <div class="ra-xp-selector-row">
