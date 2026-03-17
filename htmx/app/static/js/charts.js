@@ -360,7 +360,7 @@
   function applyLinkedTimeseriesFormat(option) {
     const hasRightAxis = Array.isArray(option.yAxis) && option.yAxis.length > 1;
     const hasRightLabel = hasRightAxis && !!option.yAxis[1].name;
-    option.grid = { ...(option.grid || {}), left: 68, right: 90, top: 14, bottom: 60, containLabel: false };
+    option.grid = { ...(option.grid || {}), left: 68, right: 90, top: 14, bottom: 68, containLabel: false };
 
     if (option.xAxis && !Array.isArray(option.xAxis)) {
       option.xAxis.axisLabel = {
@@ -402,7 +402,7 @@
         type: "slider",
         xAxisIndex: 0,
         height: 10,
-        bottom: 20,
+        bottom: 28,
         borderColor: chartGridColor(),
         brushSelect: false,
       },
@@ -1535,9 +1535,9 @@
     const hasBars = (data.series || []).some((s) => s.type === "bar");
     const rightPad = dual ? (hasYRightLabel ? 34 : 28) : (hasBars ? 18 : 10);
     const rotated = data.xAxisLabelRotate > 0;
-    const gridLeft = rotated ? 38 : (hasYLabel ? 60 : 40);
+    const gridLeft = rotated ? 46 : (hasYLabel ? 60 : 40);
     const gridRight = rotated ? 8 : rightPad;
-    const gridBottom = rotated ? 90 : (hasXLabel ? 80 : 68);
+    const gridBottom = rotated ? 98 : (hasXLabel ? 80 : 68);
     const option = {
       color: palette(),
       tooltip: {

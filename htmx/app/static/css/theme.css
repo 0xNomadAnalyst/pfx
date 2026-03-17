@@ -255,6 +255,10 @@ body {
 .theme-icon {
   font-size: 16px;
   line-height: 1;
+  color: var(--cv-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dashboard-grid {
@@ -1529,6 +1533,13 @@ td:first-child {
   background: color-mix(in srgb, var(--cv-accent) 35%, var(--border));
 }
 
+html[data-theme="light"] .ge-section-title {
+  color: #1a2f5a;
+}
+html[data-theme="light"] .ge-section-header::after {
+  background: color-mix(in srgb, #1a2f5a 30%, var(--border));
+}
+
 /* Placeholder row (for upcoming sections) */
 .ge-section-placeholder {
   grid-column: 1 / 13;
@@ -2115,6 +2126,13 @@ html[data-theme="light"] .bottombar-partner {
 
 .cv-section-header::after {
   background: color-mix(in srgb, var(--cv-accent) 35%, var(--border));
+}
+
+html[data-theme="light"] .cv-section-header .ge-section-title {
+  color: #1a2f5a;
+}
+html[data-theme="light"] .cv-section-header::after {
+  background: color-mix(in srgb, #1a2f5a 30%, var(--border));
 }
 
 /* Welcome panel title */
