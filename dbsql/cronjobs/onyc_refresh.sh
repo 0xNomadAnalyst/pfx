@@ -30,6 +30,9 @@ AUX_REFRESH_MULT="${AUX_REFRESH_MULT:-10}"
 # Health check: every N hot-path cycles
 HEALTH_CHECK_MULT="${HEALTH_CHECK_MULT:-60}"
 
+# Risk analytics (pvalues): every N hot-path cycles (default 60 = 30min @ 30s)
+RISK_REFRESH_MULT="${RISK_REFRESH_MULT:-60}"
+
 # Mat data retention (for cleanup of old materialized rows)
 MAT_RETENTION_DAYS="${MAT_RETENTION_DAYS:-100}"
 
@@ -63,6 +66,7 @@ echo "$LOG_PREFIX Hot-path interval: ${MAT_REFRESH_INTERVAL_S}s"
 echo "$LOG_PREFIX CAGG window: ${CAGG_REFRESH_WINDOW}"
 echo "$LOG_PREFIX Aux sync: every ${AUX_REFRESH_MULT} cycles ($((MAT_REFRESH_INTERVAL_S * AUX_REFRESH_MULT))s)"
 echo "$LOG_PREFIX Health check: every ${HEALTH_CHECK_MULT} cycles ($((MAT_REFRESH_INTERVAL_S * HEALTH_CHECK_MULT))s)"
+echo "$LOG_PREFIX Risk analytics: every ${RISK_REFRESH_MULT} cycles ($((MAT_REFRESH_INTERVAL_S * RISK_REFRESH_MULT))s)"
 echo "$LOG_PREFIX Database: ${PGHOST}:${PGPORT}/${PGDATABASE}"
 
 echo "$LOG_PREFIX Testing database connection..."
@@ -281,6 +285,15 @@ EOF
 }
 
 # =====================================================
+# Risk analytics: Risk pvalues refresh
+# =====================================================
+refresh_risk_analytics() {
+    psql "$DB_CONNECTION" <<EOF
+CALL ${DEX_SCHEMA}.refresh_risk_pvalues();
+EOF
+}
+
+# =====================================================
 # Tier 3: Health check
 # =====================================================
 check_health() {
@@ -394,6 +407,15 @@ while true; do
         if [ "$failure_count" -ge "$MAX_CONSECUTIVE_FAILURES" ]; then
             echo "$LOG_PREFIX Too many consecutive failures — exiting"
             exit 1
+        fi
+    fi
+
+    # --- Risk analytics (pvalues) ---
+    if [ $((cycle_count % RISK_REFRESH_MULT)) -eq 0 ]; then
+        if refresh_risk_analytics 2>&1; then
+            echo "$LOG_PREFIX Risk pvalues refreshed"
+        else
+            echo "$LOG_PREFIX Risk pvalues refresh failed (non-fatal)"
         fi
     fi
 
