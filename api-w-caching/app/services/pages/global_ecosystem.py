@@ -689,7 +689,7 @@ class GlobalEcosystemPageService(BasePageService):
             "chart": "line",
             "x": [row["bucket_time"] for row in rows],
             "yAxisLabel": "ONyc",
-            "yAxisFormat": "compact",
+            "yAxisFormat": "compact0",
             "series": [
                 {"name": "DEXes", "type": "bar", "stack": "tvl",
                  "color": _COLORS["blue"],
@@ -820,7 +820,7 @@ class GlobalEcosystemPageService(BasePageService):
             "chart": "line",
             "x": [row["bucket_time"] for row in rows],
             "yAxisLabel": "ONyc",
-            "yAxisFormat": "compact",
+            "yAxisFormat": "compact0",
             "dynamic_title": f"Activity Volume vs. Time (Last {wl})",
             "series": [
                 {"name": "DEXes", "type": "bar", "stack": "vol",

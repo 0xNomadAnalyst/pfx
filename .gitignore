@@ -4,6 +4,8 @@ __pycache__/
 *.py[cod]
 *.pyc
 **/*.parquet
+**/*.parquet.bak
+**/metadata/signatures_*.json
 
 # Env / secrets
 .env

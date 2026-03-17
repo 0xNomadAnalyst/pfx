@@ -1511,6 +1511,14 @@
       if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(1) + "k";
       return n.toFixed(0);
     };
+    if (fmt === "compact0") return (v) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return v;
+      if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(0) + "B";
+      if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(0) + "M";
+      if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(0) + "k";
+      return n.toFixed(0);
+    };
     return null;
   }
 
