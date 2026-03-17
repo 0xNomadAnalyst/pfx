@@ -4210,12 +4210,14 @@
 
   function currentProtocol() {
     const select = document.getElementById("protocol-select");
-    return select ? select.value : "raydium";
+    if (select) return select.value;
+    return document.body?.dataset?.defaultProtocol || "raydium";
   }
 
   function currentPair() {
     const select = document.getElementById("pair-select");
-    return select ? select.value : "USX-USDC";
+    if (select) return select.value;
+    return document.body?.dataset?.defaultPair || "USX-USDC";
   }
 
   function currentAsset() {
@@ -4718,6 +4720,8 @@
       "apiBaseUrl",
       "currentPageSlug",
       "currentPipeline",
+      "defaultProtocol",
+      "defaultPair",
       "warmupBudgetSeconds",
       "warmupMaxJobs",
       "warmupConcurrency",

@@ -14,6 +14,8 @@
   data-api-base-url="{{ api_base_url }}"
   data-current-page-slug="{{ current_page_slug }}"
   data-current-pipeline="{{ current_pipeline }}"
+  data-default-protocol="{{ protocol }}"
+  data-default-pair="{{ pair }}"
   data-cache-mode="{{ cache_config.cache_mode if cache_config else 'balanced' }}"
   data-warmup-enabled="{{ '1' if cache_config and cache_config.warmup_enabled else '0' }}"
   data-warmup-budget-seconds="{{ cache_config.warmup_budget_seconds if cache_config else 30 }}"

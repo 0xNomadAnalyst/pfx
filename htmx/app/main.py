@@ -32,6 +32,10 @@ DEFAULT_PIPELINE = os.getenv("DEFAULT_PIPELINE", "")
 SHOW_PRICE_BASIS = os.getenv("SHOW_PRICE_BASIS", "1") == "1"
 DEFAULT_PRICE_BASIS = os.getenv("DEFAULT_PRICE_BASIS", "default")
 SHOW_ASSET_FILTER = os.getenv("SHOW_ASSET_FILTER", "1") == "1"
+PIPELINE_DEFAULTS: dict[str, dict[str, str]] = {
+    "solstice": {"protocol": "raydium", "pair": "USX-USDC", "asset": "USX"},
+    "onyc":     {"protocol": "orca",    "pair": "ONyc-USDC", "asset": "ONyc"},
+}
 # ── Server-side proxy settings (not part of cache mode) ──────────────
 HEALTH_PROXY_TIMEOUT_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_TIMEOUT_SECONDS", "3"))
 HEALTH_PROXY_TTL_SECONDS = float(os.getenv("HTMX_HEALTH_STATUS_CACHE_TTL_SECONDS", "5"))
@@ -489,6 +493,16 @@ def render_page(request: Request, page: PageConfig):
             protocol = defaults["protocol"]
         if defaults.get("pair"):
             pair = defaults["pair"]
+    elif DEFAULT_PIPELINE and DEFAULT_PIPELINE in PIPELINE_DEFAULTS:
+        pl_defaults = PIPELINE_DEFAULTS[DEFAULT_PIPELINE]
+        if not protocol and pl_defaults.get("protocol"):
+            protocol = pl_defaults["protocol"]
+        if not pair and pl_defaults.get("pair"):
+            pair = pl_defaults["pair"]
+
+    asset = page.default_asset
+    if page.show_asset_filter and DEFAULT_PIPELINE and DEFAULT_PIPELINE in PIPELINE_DEFAULTS:
+        asset = PIPELINE_DEFAULTS[DEFAULT_PIPELINE].get("asset", asset)
 
     current_pipeline = pipeline_info.get("current", "") if isinstance(pipeline_info, dict) else DEFAULT_PIPELINE
 
@@ -508,7 +522,7 @@ def render_page(request: Request, page: PageConfig):
             "api_page_id": page.api_page_id,
             "protocol": protocol,
             "pair": pair,
-            "asset": page.default_asset,
+            "asset": asset,
             "last_window": "7d",
             "api_base_url": BROWSER_API_BASE_URL,
             "show_pipeline_switcher": show_pipeline,
