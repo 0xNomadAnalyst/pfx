@@ -68,6 +68,19 @@ All tables use `orderby = '<time_col> DESC'` to align with the descending-time a
 | Source tables | 30 days | Raw ingestion data cools fast; mat tables serve frontend |
 | CAGGs | 60 days | Beyond 30D frontend lookback; still queryable from S3 |
 | Mat tables | 60 days | 90D frontend lookback uses 1-day aggregation; tiered tail is slower but acceptable |
+| `src_acct_tickarray_tokendist` | 25000 query_ids (~8 days) | Integer-partitioned; heatmap needs 7D of prior snapshots locally |
+
+### Database-level tiered read setting
+
+Tiered reads must be enabled globally so that SQL functions can transparently
+query S3-stored chunks:
+
+```sql
+ALTER DATABASE tsdb SET timescaledb.enable_tiered_reads = true;
+```
+
+Without this, queries against tiered chunks silently return empty results.
+This is already applied on the ONyc pipeline database.
 
 ### Retention
 
@@ -78,9 +91,15 @@ All tables use `orderby = '<time_col> DESC'` to align with the descending-time a
 | Queue health | 90 days | Operational monitoring; 90D sufficient |
 | Mat tables | 90 days | Matches max frontend lookback |
 
-### Tables excluded from time-based policies
+### Tables with integer-based tiering
 
-- `dexes.src_acct_tickarray_tokendist` — integer-partitioned (query_id), not time
-- `kamino_lend.src_obligations` — integer-partitioned (query_id), not time
+These tables use query_id (integer) as their partition dimension and cannot use
+the standard `add_tiering_policy()` which expects an INTERVAL. They are managed
+via custom `policy_movechunk_to_s3` jobs configured with `alter_job()`.
 
-These need manual or integer-based cleanup.
+| Table | move_after | Notes |
+|---|---|---|
+| `dexes.src_acct_tickarray_tokendist` | 25000 query_ids (~8 days) | Heatmap delta widget needs 7D of prior snapshots locally |
+| `kamino_lend.src_obligations` | *(manual cleanup)* | No automated policy yet |
+
+See `04_tiered_storage.sql` for operational commands to inspect and update these jobs.

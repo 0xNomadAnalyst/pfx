@@ -328,11 +328,20 @@ class DexLiquidityPageService(BasePageService):
             ],
         }
 
+    _HEATMAP_LOOKBACK_CASCADE = ["7 days", "24 hours", "6 hours", "4 hours", "1 hour"]
+
     def _liquidity_change_heatmap(self, params: dict[str, Any]) -> dict[str, Any]:
         last_window = str(params.get("last_window", "24h"))
         lookback, _, _ = self._timeseries_window_config(last_window)
-        heatmap_params = {**params, "tick_delta_time": lookback}
-        rows = self._tick_dist_rows(heatmap_params)
+        rows = self._tick_dist_rows({**params, "tick_delta_time": lookback})
+        if not any(row.get("liquidity_period_delta_in_t1_units_pct") is not None for row in rows):
+            for fallback in self._HEATMAP_LOOKBACK_CASCADE:
+                if fallback == lookback:
+                    continue
+                rows = self._tick_dist_rows({**params, "tick_delta_time": fallback})
+                if any(row.get("liquidity_period_delta_in_t1_units_pct") is not None for row in rows):
+                    lookback = fallback
+                    break
         x_axis = [row["tick_price_t1_per_t0"] for row in rows]
         current_price = next((row.get("current_price_t1_per_t0") for row in rows if row.get("current_price_t1_per_t0") is not None), None)
         total_change = next(
