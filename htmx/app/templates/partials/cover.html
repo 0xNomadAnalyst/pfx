@@ -263,3 +263,21 @@
     </div>
   </div>
 </div>
+
+<!-- ── Data Notes ──────────────────────────────────────────── -->
+<div class="ge-section-header cv-section-header cv-slot-full-1">
+  <h2 class="ge-section-title">Data Notes</h2>
+</div>
+
+<div class="panel cv-slot-full-1">
+  <div class="panel-header">
+    <h3>Historical Coverage</h3>
+  </div>
+  <div class="panel-body cv-body">
+    <ul>
+      <li><strong>Real-time ingestion</strong> — continuous monitoring of on-chain events and account balances began on 16 March 2026. All data from this date forward is captured live via the streaming pipeline.</li>
+      <li><strong>Backfilled history</strong> — balances prior to 16 March have been reconstructed from transaction data sourced via the Solscan API. Reconstruction has been extensively validated, though minor drift remains possible. Production installs requiring deep historical coverage would typically source from long-running indexers such as Dune or Allium.</li>
+      <li><strong>Kamino obligation history</strong> — the backfill reconstruction does not extend to individual obligation balances on Kamino. Historical obligation-level data is available only from the live-ingestion start date onward.</li>
+    </ul>
+  </div>
+</div>
