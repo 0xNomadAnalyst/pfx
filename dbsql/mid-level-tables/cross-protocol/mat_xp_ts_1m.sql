@@ -334,6 +334,9 @@ BEGIN
             0)::NUMERIC, 1),
         -- Yields
         c.kam_supply_apy,
+        c.kam_usdc_borrow_apy,
+        c.kam_usdg_borrow_apy,
+        c.kam_usds_borrow_apy,
         c.weighted_implied_apy,
         NOW()
     FROM combined c
@@ -362,6 +365,9 @@ BEGIN
         kam_volume_pct     = EXCLUDED.kam_volume_pct,
         exp_volume_pct     = EXCLUDED.exp_volume_pct,
         kam_onyc_supply_apy = EXCLUDED.kam_onyc_supply_apy,
+        kam_usdc_borrow_apy = EXCLUDED.kam_usdc_borrow_apy,
+        kam_usdg_borrow_apy = EXCLUDED.kam_usdg_borrow_apy,
+        kam_usds_borrow_apy = EXCLUDED.kam_usds_borrow_apy,
         exp_weighted_implied_apy = EXCLUDED.exp_weighted_implied_apy,
         refreshed_at       = EXCLUDED.refreshed_at;
 END;

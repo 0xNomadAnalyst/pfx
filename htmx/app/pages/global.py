@@ -71,8 +71,8 @@ PAGE_CONFIG = PageConfig(
             "chart",
             "panel panel-large ge-slot-right-2",
             expandable=True,
-            tooltip="Time series of ONyc base token trailing yield, Kamino weighted "
-            "borrow APY, and Exponent implied APY.",
+            tooltip="Time series of ONyc base token trailing yield, per-asset "
+            "Kamino borrow APYs (USDC, USDG, USDS), and Exponent implied APY.",
         ),
 
         # ═══════════════════════════════════════════════════════

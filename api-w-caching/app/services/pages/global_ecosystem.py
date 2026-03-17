@@ -125,7 +125,8 @@ class GlobalEcosystemPageService(BasePageService):
                 "  dex_swap_volume, dex_lp_volume, dex_total_volume, "
                 "  kam_total_volume, exp_total_volume, all_protocol_volume, "
                 "  dex_volume_pct, kam_volume_pct, exp_volume_pct, "
-                "  kam_onyc_supply_apy, exp_weighted_implied_apy "
+                "  kam_onyc_supply_apy, kam_usdc_borrow_apy, kam_usdg_borrow_apy, kam_usds_borrow_apy, "
+                "  exp_weighted_implied_apy "
                 "FROM cross_protocol.get_view_xp_timeseries("
                 "  %s, NOW() - %s::interval, NOW()"
                 ") ORDER BY bucket_time",
@@ -753,9 +754,13 @@ class GlobalEcosystemPageService(BasePageService):
             "series": [
                 {"name": "ONyc Yield (7d trailing)", "type": "line", "color": _COLORS["orange"],
                  "data": [base_by_time.get(t) for t in x_times]},
-                {"name": "Kamino Borrow APY (wtd)", "type": "line", "color": _COLORS["green"],
-                 "data": [row.get("kam_onyc_supply_apy") for row in rows]},
-                {"name": "Exponent Implied APY", "type": "line", "color": _COLORS["yellow"],
+                {"name": "Borrow USDC", "type": "line", "color": _COLORS["green"],
+                 "data": [row.get("kam_usdc_borrow_apy") for row in rows]},
+                {"name": "Borrow USDG", "type": "line", "color": _COLORS["teal"],
+                 "data": [row.get("kam_usdg_borrow_apy") for row in rows]},
+                {"name": "Borrow USDS", "type": "line", "color": _COLORS["blue"],
+                 "data": [row.get("kam_usds_borrow_apy") for row in rows]},
+                {"name": "Exp. Implied", "type": "line", "color": _COLORS["yellow"],
                  "data": [row.get("exp_weighted_implied_apy") for row in rows]},
             ],
         }
