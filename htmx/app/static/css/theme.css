@@ -1621,14 +1621,14 @@ html[data-theme="light"] .ge-section-header::after {
 
 .ra-sub-left-1, .ra-sub-right-1 { grid-row: 5; }
 
-.ra-slot-s1-left-1  { grid-column: 1 / 7;  grid-row: 6 / 9;   min-height: 320px; }
-.ra-slot-s1-right-1 { grid-column: 7 / 13; grid-row: 6 / 9;   min-height: 320px; }
+.ra-slot-s1-left-1  { grid-column: 1 / 7;  grid-row: 6 / 9;   min-height: 390px; }
+.ra-slot-s1-right-1 { grid-column: 7 / 13; grid-row: 6 / 9;   min-height: 390px; }
 
-.ra-slot-s1-left-2  { grid-column: 1 / 7;  grid-row: 9 / 12;  min-height: 320px; }
-.ra-slot-s1-right-2 { grid-column: 7 / 13; grid-row: 9 / 12;  min-height: 320px; }
+.ra-slot-s1-left-2  { grid-column: 1 / 7;  grid-row: 9 / 12;  min-height: 390px; }
+.ra-slot-s1-right-2 { grid-column: 7 / 13; grid-row: 9 / 12;  min-height: 390px; }
 
-.ra-slot-s1-left-3  { grid-column: 1 / 7;  grid-row: 12 / 15; min-height: 320px; }
-.ra-slot-s1-right-3 { grid-column: 7 / 13; grid-row: 12 / 15; min-height: 320px; }
+.ra-slot-s1-left-3  { grid-column: 1 / 7;  grid-row: 12 / 15; min-height: 390px; }
+.ra-slot-s1-right-3 { grid-column: 7 / 13; grid-row: 12 / 15; min-height: 390px; }
 
 #widget-ra-xp-exposure .panel-body {
   display: none;

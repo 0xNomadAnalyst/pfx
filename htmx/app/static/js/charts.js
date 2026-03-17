@@ -1682,7 +1682,7 @@
           const nearLeft = xLen > 0 && ml.xIdx < xLen * 0.2;
           return {
             xAxis: ml.xIdx,
-            lineStyle: { type: "dashed", color: ml.color || "#aaa", width: 2 },
+            lineStyle: { type: ml.lineStyle || "dashed", color: ml.color || "#aaa", width: 2 },
             label: {
               show: true,
               formatter: ml.label,
@@ -1699,6 +1699,12 @@
           };
         }),
       };
+      const mlCount = resolved.length;
+      const neededTop = 22 + mlCount * stepPx;
+      const curTop = option.grid.top || 22;
+      if (neededTop > curTop) {
+        option.grid = { ...option.grid, top: neededTop };
+      }
     }
     return option;
   }

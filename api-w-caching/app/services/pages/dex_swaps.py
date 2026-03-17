@@ -536,14 +536,14 @@ class DexSwapsPageService(BasePageService):
         }
 
     @staticmethod
-    def _filter_impact_outliers(values: list[float | None], multiplier: float = 10.0) -> list[float | None]:
-        valid = [abs(v) for v in values if v is not None and math.isfinite(v)]
-        if len(valid) < 5:
+    def _filter_impact_outliers(values: list[float | None], fence: float = 20.0, floor: float = 10.0) -> list[float | None]:
+        valid = sorted(abs(v) for v in values if v is not None and math.isfinite(v))
+        if len(valid) < 8:
             return values
-        valid.sort()
-        p99_idx = int(len(valid) * 0.99)
-        p99 = valid[min(p99_idx, len(valid) - 1)]
-        threshold = max(p99 * multiplier, 10.0)
+        q1 = valid[len(valid) // 4]
+        q3 = valid[3 * len(valid) // 4]
+        iqr = q3 - q1
+        threshold = max(q3 + iqr * fence, floor)
         return [v if v is not None and abs(v) <= threshold else None for v in values]
 
     def _swaps_price_impacts(self, params: dict[str, Any]) -> dict[str, Any]:

@@ -417,11 +417,13 @@ class RiskAnalysisPageService(BasePageService):
             price, _ = self._map_sell_amount_to_price(tick_rows, value, protocol, inverted)
             if price is None:
                 continue
+            is_mean = stat.strip().lower() == "mean"
             candidates.append({
                 "value": price,
                 "label": stat,
-                "color": colors[idx % len(colors)],
-                "priority": idx,
+                "color": "#2fbf71" if is_mean else colors[idx % len(colors)],
+                "lineStyle": "dashed" if is_mean else "solid",
+                "priority": -1 if is_mean else idx,
             })
 
         if len(candidates) <= 1:
