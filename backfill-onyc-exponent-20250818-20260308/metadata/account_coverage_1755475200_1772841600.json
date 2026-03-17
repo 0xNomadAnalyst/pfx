@@ -1,0 +1,44 @@
+[
+  {
+    "address": "G1qbuP11CdquJCzuDjruWqatQAHroajmxhLfeQVgHosF",
+    "label": "SY mint (shared)",
+    "status": "ok",
+    "signatures": 25424
+  },
+  {
+    "address": "AqSfXMdsQ99ioNB3VhHXYsKFQDMDVFooh9JNv8Ap4bC",
+    "label": "V1 PT mint",
+    "status": "ok",
+    "signatures_in_ptyt_scan": 13908
+  },
+  {
+    "address": "AARbKyQUkv2iVFyNFCXNPN7wxfibeuW6R78MDSGQ33SM",
+    "label": "V1 YT mint",
+    "status": "ok",
+    "signatures_in_ptyt_scan": 7888
+  },
+  {
+    "address": "FRHauWqNT5DrgjByrAMq3LosNJGDLb8L9dZix2wDVboF",
+    "label": "V1 LP mint",
+    "status": "ok",
+    "signatures_in_lp_scan": 3417
+  },
+  {
+    "address": "ZeqaGvENXeyDtb8mBrC3xi1Zi3zhCfKTV2vr2z5Bwao",
+    "label": "V2 PT mint",
+    "status": "ok",
+    "signatures_in_ptyt_scan": 4738
+  },
+  {
+    "address": "3pSHfnjPveEoyseB7AkPLvf3rmYv6VZ7UE3es52kLgEY",
+    "label": "V2 YT mint",
+    "status": "ok",
+    "signatures_in_ptyt_scan": 2350
+  },
+  {
+    "address": "3gqhwFZtkU1dUyNN6taFp8sbnu3E5bmkumfjtoF9P9JD",
+    "label": "V2 LP mint",
+    "status": "ok",
+    "signatures_in_lp_scan": 2085
+  }
+]

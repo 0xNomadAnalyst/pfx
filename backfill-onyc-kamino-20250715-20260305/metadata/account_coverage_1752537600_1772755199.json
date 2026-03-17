@@ -1,0 +1,67 @@
+[
+  {
+    "address": "3JmDtKLsCmBsns4e5svC1tpxEEd79Bk2SpoYFwVGxqwU",
+    "status": "ok",
+    "pages": 126,
+    "rows_seen": 4978,
+    "in_window_rows": 4946,
+    "new_signatures": 4946,
+    "oldest_seen": 1754314970,
+    "newest_seen": 1772867282,
+    "cap_hit": false,
+    "reached_start": false,
+    "cursor_from_db": false
+  },
+  {
+    "address": "3yDc9ARvtPLhYxZLgucZGuBtZ9bHshBvXTwHxGe3nhmC",
+    "status": "ok",
+    "pages": 1749,
+    "rows_seen": 69911,
+    "in_window_rows": 69906,
+    "new_signatures": 68943,
+    "oldest_seen": 1757669811,
+    "newest_seen": 1772755659,
+    "cap_hit": false,
+    "reached_start": false,
+    "cursor_from_db": true
+  },
+  {
+    "address": "6ZxkBSJEqsXA3Kdm2PDAzHLUdPTPUK93Lf4bAezec1UQ",
+    "status": "ok",
+    "pages": 599,
+    "rows_seen": 23887,
+    "in_window_rows": 23886,
+    "new_signatures": 18871,
+    "oldest_seen": 1752590251,
+    "newest_seen": 1772758462,
+    "cap_hit": false,
+    "reached_start": false,
+    "cursor_from_db": true
+  },
+  {
+    "address": "AYL4LMc4ZCVyq3Z7XPJGWDM4H9PiWjqXAAuuHBEGVR2Z",
+    "status": "request_failed",
+    "pages": 9100,
+    "rows_seen": 363960,
+    "in_window_rows": 363955,
+    "new_signatures": 356219,
+    "oldest_seen": 1760470827,
+    "newest_seen": 1772755398,
+    "cap_hit": false,
+    "reached_start": false,
+    "cursor_from_db": true
+  },
+  {
+    "address": "JBmLCoKqjdKSStK45onRqe6U6sxVgSpdXoeXe4h7NwJw",
+    "status": "ok",
+    "pages": 2224,
+    "rows_seen": 88917,
+    "in_window_rows": 88913,
+    "new_signatures": 73157,
+    "oldest_seen": 1752589912,
+    "newest_seen": 1772756431,
+    "cap_hit": false,
+    "reached_start": false,
+    "cursor_from_db": true
+  }
+]

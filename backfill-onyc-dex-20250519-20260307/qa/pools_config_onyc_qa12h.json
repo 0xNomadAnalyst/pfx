@@ -1,0 +1,55 @@
+{
+  "solscan_api_key": "set-via-env-or-local-config",
+  "upload_target": {
+    "schema": "dexes",
+    "transactions_table": "src_transactions",
+    "events_table": "src_tx_events",
+    "dependent_caggs": [
+      "dexes.cagg_events_5s"
+    ]
+  },
+  "qa_settings": {
+    "vault_reconstruction": {
+      "abs_tolerance": 1000,
+      "rel_tolerance": 0.005,
+      "anchor_table": "dexes.src_acct_vaults",
+      "events_table": "dexes.src_tx_events"
+    },
+    "liquidity_reconstruction": {
+      "abs_tolerance": 1000,
+      "rel_tolerance": 0.005,
+      "snapshot_table": "dexes.src_acct_tickarray_tokendist",
+      "query_table": "dexes.src_acct_tickarray_queries",
+      "events_table": "dexes.src_tx_events"
+    }
+  },
+  "tokens": {
+    "5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5": {"symbol": "ONyc", "decimals": 9},
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": {"symbol": "USDC", "decimals": 6},
+    "2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH": {"symbol": "USDG", "decimals": 6}
+  },
+  "pools": [
+    {
+      "name": "orca_whirlpool_onyc_usdc",
+      "address": "7jhhyxPUKpu42hPGSYwgMXbR2dtVJHKhs8DW3sAAgAvX",
+      "protocol": "orca",
+      "program": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "token_pair": "ONyc-USDC",
+      "token_a": "5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5",
+      "token_b": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "vault_a": null,
+      "vault_b": null
+    },
+    {
+      "name": "raydium_clmm_usdg_onyc",
+      "address": "A9RdNEf4T9x1eNPnEHFX1ABHS7J4e9kxBm43S3o5r9Kw",
+      "protocol": "raydium",
+      "program": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "token_pair": "USDG-ONyc",
+      "token_a": "2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH",
+      "token_b": "5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5",
+      "vault_a": null,
+      "vault_b": null
+    }
+  ]
+}

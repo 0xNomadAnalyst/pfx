@@ -22,6 +22,11 @@ SELECT
     ROUND(COALESCE(kam_onyc_utilization * 100, 0)::NUMERIC, 1)  AS kam_onyc_utilization_pct,
     ROUND(COALESCE(exp_weighted_implied_apy * 100, 0)::NUMERIC, 2) AS exp_weighted_implied_apy_pct,
 
+    -- Per-asset Kamino borrow APYs
+    ROUND(COALESCE(kam_usdc_borrow_apy * 100, 0)::NUMERIC, 2) AS kam_usdc_borrow_apy_pct,
+    ROUND(COALESCE(kam_usdg_borrow_apy * 100, 0)::NUMERIC, 2) AS kam_usdg_borrow_apy_pct,
+    ROUND(COALESCE(kam_usds_borrow_apy * 100, 0)::NUMERIC, 2) AS kam_usds_borrow_apy_pct,
+
     -- DEX price
     dex_avg_price_t1_per_t0,
 

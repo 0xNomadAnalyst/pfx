@@ -1,0 +1,11 @@
+{
+  "raydium_clmm_usdg_onyc": {
+    "count": 125650,
+    "activity_types": {
+      "ACTIVITY_TOKEN_SWAP": 58839,
+      "ACTIVITY_TOKEN_REMOVE_LIQ": 837,
+      "ACTIVITY_TOKEN_ADD_LIQ": 1254,
+      "ACTIVITY_AGG_TOKEN_SWAP": 64720
+    }
+  }
+}

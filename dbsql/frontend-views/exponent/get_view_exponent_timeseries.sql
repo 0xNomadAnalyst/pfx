@@ -104,6 +104,9 @@ DECLARE
     v_interval INTERVAL;
     v_vault_address TEXT;
     v_market_id TEXT;
+    v_rate_earliest NUMERIC;
+    v_ts_earliest TIMESTAMPTZ;
+    v_start_ts_vault INTEGER;
 BEGIN
     BEGIN
         v_interval := bucket_interval::INTERVAL;
@@ -136,8 +139,32 @@ BEGIN
         RETURN;
     END IF;
 
+    -- Earliest exchange rate for vault-life / all-time APY baselines
+    SELECT m.bucket_time, m.sy_exchange_rate
+    INTO v_ts_earliest, v_rate_earliest
+    FROM exponent.mat_exp_timeseries_1m m
+    WHERE m.vault_address = v_vault_address
+      AND m.sy_exchange_rate IS NOT NULL
+    ORDER BY m.bucket_time ASC
+    LIMIT 1;
+
+    SELECT m.start_ts INTO v_start_ts_vault
+    FROM exponent.mat_exp_timeseries_1m m
+    WHERE m.vault_address = v_vault_address
+      AND m.start_ts IS NOT NULL
+    ORDER BY m.bucket_time DESC
+    LIMIT 1;
+
     RETURN QUERY
-    WITH rebucketed AS (
+    WITH
+    rate_sparse AS (
+        SELECT m.bucket_time AS rt, m.sy_exchange_rate AS rate
+        FROM exponent.mat_exp_timeseries_1m m
+        WHERE m.vault_address = v_vault_address
+          AND m.sy_exchange_rate IS NOT NULL
+          AND m.bucket_time <= to_ts
+    ),
+    rebucketed AS (
         SELECT
             time_bucket(v_interval, m.bucket_time) AS bt,
             -- State: LAST within rebucket
@@ -220,11 +247,12 @@ BEGIN
             -- PT supply UI deltas
             GREATEST(r.pt_supply - LAG(r.pt_supply) OVER (ORDER BY r.bt), 0) AS pt_supply_delta_pos,
             LEAST(r.pt_supply - LAG(r.pt_supply) OVER (ORDER BY r.bt), 0) AS pt_supply_delta_neg,
-            -- YT metrics
+            -- YT metrics: escrow = staked (deposit_yt puts YT into escrow for yield)
+            -- Clamped to [0,100]; ratio can exceed 100% when PT redeemed but YT remains in escrow
             CASE WHEN r.pt_supply > 0
-                 THEN ROUND(r.yt_escrow_balance / r.pt_supply * 100, 2) END AS yt_unstaked_pct,
+                 THEN GREATEST(0, LEAST(100, ROUND((r.pt_supply - r.yt_escrow_balance) / r.pt_supply * 100, 2))) END AS yt_unstaked_pct,
             CASE WHEN r.pt_supply > 0
-                 THEN ROUND((r.pt_supply - r.yt_escrow_balance) / r.pt_supply * 100, 2) END AS yt_staked_pct,
+                 THEN GREATEST(0, LEAST(100, ROUND(r.yt_escrow_balance / r.pt_supply * 100, 2))) END AS yt_staked_pct,
             -- SY claims composition (legacy)
             CASE WHEN r.total_sy_in_escrow > 0
                  THEN ROUND(r.sy_for_pt / r.total_sy_in_escrow * 100, 4) END AS sy_claims_pt_pct,
@@ -236,6 +264,29 @@ BEGIN
             MAX(r.c_market_implied_apy) OVER () AS apy_ath,
             MIN(r.c_market_implied_apy) OVER () AS apy_atl
         FROM rebucketed r
+    ),
+    with_rates AS (
+        SELECT
+            d.*,
+            COALESCE(d.sy_exchange_rate,
+                (SELECT rate FROM rate_sparse WHERE rt <= d.bt ORDER BY rt DESC LIMIT 1)
+            ) AS sy_rate_locf,
+            (SELECT rate FROM rate_sparse
+             WHERE rt <= date_trunc('day', d.bt - INTERVAL '2 hours') + INTERVAL '2 hours'
+             ORDER BY rt DESC LIMIT 1) AS rate_day_snap,
+            (SELECT rate FROM rate_sparse
+             WHERE rt <= d.bt - INTERVAL '1 hour' ORDER BY rt DESC LIMIT 1) AS rate_1h_ago,
+            (SELECT rate FROM rate_sparse
+             WHERE rt <= d.bt - INTERVAL '24 hours' ORDER BY rt DESC LIMIT 1) AS rate_24h_ago,
+            (SELECT rate FROM rate_sparse
+             WHERE rt <= d.bt - INTERVAL '7 days' ORDER BY rt DESC LIMIT 1) AS rate_7d_ago,
+            (SELECT rate FROM rate_sparse
+             WHERE rt <= date_trunc('day', d.bt - INTERVAL '24 hours' - INTERVAL '2 hours') + INTERVAL '2 hours'
+             ORDER BY rt DESC LIMIT 1) AS rate_day_snap_24h_ago,
+            (SELECT rate FROM rate_sparse
+             WHERE rt <= date_trunc('day', d.bt - INTERVAL '7 days' - INTERVAL '2 hours') + INTERVAL '2 hours'
+             ORDER BY rt DESC LIMIT 1) AS rate_day_snap_7d_ago
+        FROM with_deltas d
     )
     SELECT
         d.bt,
@@ -299,12 +350,32 @@ BEGIN
         d.yt_unstaked_pct,
         d.yt_staked_pct,
         ROUND(d.sy_exchange_rate, 10),
-        -- Trailing APYs (not pre-computed in mat table — return NULL, calculated live if needed)
-        NULL::NUMERIC, NULL::NUMERIC, NULL::NUMERIC, NULL::NUMERIC, NULL::NUMERIC,
-        -- Yield divergence
-        CASE WHEN d.c_market_implied_apy IS NOT NULL
-             THEN ROUND(d.c_market_implied_apy * 100, 2) END,
-        NULL::NUMERIC,
+        -- Trailing APYs: annualised simple yield from exchange-rate lookback
+        CASE WHEN d.sy_rate_locf IS NOT NULL AND d.rate_1h_ago IS NOT NULL AND d.rate_1h_ago > 0
+             THEN ROUND(((d.sy_rate_locf / d.rate_1h_ago - 1.0) * 8766.0) * 100, 2) END,
+        CASE WHEN d.rate_day_snap IS NOT NULL AND d.rate_day_snap_24h_ago IS NOT NULL AND d.rate_day_snap_24h_ago > 0
+             THEN ROUND(((d.rate_day_snap / d.rate_day_snap_24h_ago - 1.0) * 365.25) * 100, 2) END,
+        CASE WHEN d.rate_day_snap IS NOT NULL AND d.rate_day_snap_7d_ago IS NOT NULL AND d.rate_day_snap_7d_ago > 0
+             THEN ROUND(((d.rate_day_snap / d.rate_day_snap_7d_ago - 1.0) * 365.25 / 7.0) * 100, 2) END,
+        CASE WHEN d.rate_day_snap IS NOT NULL AND v_rate_earliest IS NOT NULL AND v_rate_earliest > 0
+                  AND v_start_ts_vault IS NOT NULL
+                  AND EXTRACT(EPOCH FROM d.bt - GREATEST(to_timestamp(v_start_ts_vault), v_ts_earliest)) > 86400
+             THEN ROUND(((d.rate_day_snap / v_rate_earliest - 1.0) * 365.25
+                   / GREATEST(FLOOR((EXTRACT(EPOCH FROM d.bt - GREATEST(to_timestamp(v_start_ts_vault), v_ts_earliest)) - 7200) / 86400.0), 1)) * 100, 2) END,
+        CASE WHEN d.rate_day_snap IS NOT NULL AND v_rate_earliest IS NOT NULL AND v_rate_earliest > 0
+                  AND v_ts_earliest IS NOT NULL
+                  AND EXTRACT(EPOCH FROM d.bt - v_ts_earliest) > 86400
+             THEN ROUND(((d.rate_day_snap / v_rate_earliest - 1.0) * 365.25
+                   / GREATEST(FLOOR((EXTRACT(EPOCH FROM d.bt - v_ts_earliest) - 7200) / 86400.0), 1)) * 100, 2) END,
+        -- Yield divergence: fixed rate minus trailing variable rate
+        CASE WHEN d.c_market_implied_apy IS NOT NULL AND d.rate_day_snap IS NOT NULL
+                  AND d.rate_day_snap_24h_ago IS NOT NULL AND d.rate_day_snap_24h_ago > 0
+             THEN ROUND(d.c_market_implied_apy * 100
+                  - ((d.rate_day_snap / d.rate_day_snap_24h_ago - 1.0) * 365.25) * 100, 2) END,
+        CASE WHEN d.c_market_implied_apy IS NOT NULL AND d.rate_day_snap IS NOT NULL
+                  AND d.rate_day_snap_7d_ago IS NOT NULL AND d.rate_day_snap_7d_ago > 0
+             THEN ROUND(d.c_market_implied_apy * 100
+                  - ((d.rate_day_snap / d.rate_day_snap_7d_ago - 1.0) * 365.25 / 7.0) * 100, 2) END,
         ROUND(d.apy_ath * 100, 2),
         ROUND(d.apy_atl * 100, 2),
         d.amm_pt_swap_count,
@@ -325,7 +396,7 @@ BEGIN
         d.is_expired,
         d.bt,
         d.slot
-    FROM with_deltas d
+    FROM with_rates d
     ORDER BY d.bt;
 END;
 $$ LANGUAGE plpgsql STABLE;

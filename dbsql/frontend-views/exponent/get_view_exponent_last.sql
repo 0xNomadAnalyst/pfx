@@ -225,36 +225,68 @@ BEGIN
                      POW(10, (SELECT decimals_mkt2 FROM decimals_config))
             END AS locked_usx_terms_mkt2
     ),
-    -- Trailing APY: SY meta lookback for mkt1 and mkt2 base tokens
-    sy_meta_trailing_mkt1 AS (
-        SELECT mint_sy, time, sy_exchange_rate
-        FROM exponent.src_sy_meta_account
-        WHERE meta_base_mint = (SELECT base_mint_mkt1 FROM vault_base_tokens)
-          AND time >= NOW() - INTERVAL '8 days'
+    -- Exchange rate history from mat table (better historical coverage than src_sy_meta_account)
+    rate_history_mkt1 AS (
+        SELECT bucket_time AS time, sy_exchange_rate
+        FROM exponent.mat_exp_timeseries_1m
+        WHERE vault_address = v_va_mkt1
+          AND sy_exchange_rate IS NOT NULL
     ),
-    sy_meta_trailing_mkt2 AS (
-        SELECT mint_sy, time, sy_exchange_rate
-        FROM exponent.src_sy_meta_account
-        WHERE meta_base_mint = (SELECT base_mint_mkt2 FROM vault_base_tokens)
-          AND time >= NOW() - INTERVAL '8 days'
-    ),
-    sy_meta_trailing_general AS (
-        SELECT mint_sy, time, sy_exchange_rate
-        FROM exponent.src_sy_meta_account
-        WHERE mint_sy = (SELECT mint_sy FROM shared_mint_sy)
-          AND time >= NOW() - INTERVAL '8 days'
+    rate_history_mkt2 AS (
+        SELECT bucket_time AS time, sy_exchange_rate
+        FROM exponent.mat_exp_timeseries_1m
+        WHERE vault_address = COALESCE(v_va_mkt2, v_va_mkt1)
+          AND sy_exchange_rate IS NOT NULL
     ),
     sy_rates AS (
         SELECT
-            (SELECT sy_exchange_rate FROM sy_meta_trailing_general ORDER BY time DESC LIMIT 1) AS rate_now,
-            (SELECT sy_exchange_rate FROM sy_meta_trailing_general WHERE time <= NOW() - INTERVAL '24 hours' ORDER BY time DESC LIMIT 1) AS rate_24h_ago,
-            (SELECT sy_exchange_rate FROM sy_meta_trailing_general WHERE time <= NOW() - INTERVAL '7 days' ORDER BY time DESC LIMIT 1) AS rate_7d_ago,
-            (SELECT sy_exchange_rate FROM sy_meta_trailing_mkt1 ORDER BY time DESC LIMIT 1) AS rate_now_mkt1,
-            (SELECT sy_exchange_rate FROM sy_meta_trailing_mkt1 WHERE time <= NOW() - INTERVAL '24 hours' ORDER BY time DESC LIMIT 1) AS rate_24h_ago_mkt1,
-            (SELECT sy_exchange_rate FROM sy_meta_trailing_mkt1 WHERE time <= NOW() - INTERVAL '7 days' ORDER BY time DESC LIMIT 1) AS rate_7d_ago_mkt1,
-            (SELECT sy_exchange_rate FROM sy_meta_trailing_mkt2 ORDER BY time DESC LIMIT 1) AS rate_now_mkt2,
-            (SELECT sy_exchange_rate FROM sy_meta_trailing_mkt2 WHERE time <= NOW() - INTERVAL '24 hours' ORDER BY time DESC LIMIT 1) AS rate_24h_ago_mkt2,
-            (SELECT sy_exchange_rate FROM sy_meta_trailing_mkt2 WHERE time <= NOW() - INTERVAL '7 days' ORDER BY time DESC LIMIT 1) AS rate_7d_ago_mkt2
+            (SELECT sy_exchange_rate FROM rate_history_mkt1
+             WHERE time <= date_trunc('day', NOW() - INTERVAL '2 hours') + INTERVAL '2 hours'
+             ORDER BY time DESC LIMIT 1) AS rate_now_mkt1,
+            (SELECT sy_exchange_rate FROM rate_history_mkt1
+             WHERE time <= date_trunc('day', NOW() - INTERVAL '24 hours' - INTERVAL '2 hours') + INTERVAL '2 hours'
+             ORDER BY time DESC LIMIT 1) AS rate_24h_ago_mkt1,
+            (SELECT sy_exchange_rate FROM rate_history_mkt1
+             WHERE time <= date_trunc('day', NOW() - INTERVAL '7 days' - INTERVAL '2 hours') + INTERVAL '2 hours'
+             ORDER BY time DESC LIMIT 1) AS rate_7d_ago_mkt1,
+            (SELECT sy_exchange_rate FROM rate_history_mkt1 ORDER BY time ASC LIMIT 1) AS rate_earliest_mkt1,
+            (SELECT time FROM rate_history_mkt1 ORDER BY time ASC LIMIT 1) AS ts_earliest_mkt1,
+            (SELECT sy_exchange_rate FROM rate_history_mkt2
+             WHERE time <= date_trunc('day', NOW() - INTERVAL '2 hours') + INTERVAL '2 hours'
+             ORDER BY time DESC LIMIT 1) AS rate_now_mkt2,
+            (SELECT sy_exchange_rate FROM rate_history_mkt2
+             WHERE time <= date_trunc('day', NOW() - INTERVAL '24 hours' - INTERVAL '2 hours') + INTERVAL '2 hours'
+             ORDER BY time DESC LIMIT 1) AS rate_24h_ago_mkt2,
+            (SELECT sy_exchange_rate FROM rate_history_mkt2
+             WHERE time <= date_trunc('day', NOW() - INTERVAL '7 days' - INTERVAL '2 hours') + INTERVAL '2 hours'
+             ORDER BY time DESC LIMIT 1) AS rate_7d_ago_mkt2,
+            (SELECT sy_exchange_rate FROM rate_history_mkt2 ORDER BY time ASC LIMIT 1) AS rate_earliest_mkt2,
+            (SELECT time FROM rate_history_mkt2 ORDER BY time ASC LIMIT 1) AS ts_earliest_mkt2,
+            -- General rates (prefer mkt2, fallback mkt1, day-snapped)
+            COALESCE(
+                (SELECT sy_exchange_rate FROM rate_history_mkt2
+                 WHERE time <= date_trunc('day', NOW() - INTERVAL '2 hours') + INTERVAL '2 hours'
+                 ORDER BY time DESC LIMIT 1),
+                (SELECT sy_exchange_rate FROM rate_history_mkt1
+                 WHERE time <= date_trunc('day', NOW() - INTERVAL '2 hours') + INTERVAL '2 hours'
+                 ORDER BY time DESC LIMIT 1)
+            ) AS rate_now,
+            COALESCE(
+                (SELECT sy_exchange_rate FROM rate_history_mkt2
+                 WHERE time <= date_trunc('day', NOW() - INTERVAL '24 hours' - INTERVAL '2 hours') + INTERVAL '2 hours'
+                 ORDER BY time DESC LIMIT 1),
+                (SELECT sy_exchange_rate FROM rate_history_mkt1
+                 WHERE time <= date_trunc('day', NOW() - INTERVAL '24 hours' - INTERVAL '2 hours') + INTERVAL '2 hours'
+                 ORDER BY time DESC LIMIT 1)
+            ) AS rate_24h_ago,
+            COALESCE(
+                (SELECT sy_exchange_rate FROM rate_history_mkt2
+                 WHERE time <= date_trunc('day', NOW() - INTERVAL '7 days' - INTERVAL '2 hours') + INTERVAL '2 hours'
+                 ORDER BY time DESC LIMIT 1),
+                (SELECT sy_exchange_rate FROM rate_history_mkt1
+                 WHERE time <= date_trunc('day', NOW() - INTERVAL '7 days' - INTERVAL '2 hours') + INTERVAL '2 hours'
+                 ORDER BY time DESC LIMIT 1)
+            ) AS rate_7d_ago
     ),
     -- Base token escrow
     base_token_escrow_unique AS (
@@ -466,9 +498,42 @@ BEGIN
             ELSE (SELECT pt_base_price FROM m2)
         END::NUMERIC, 4),
 
-        -- REALIZED VAULT LIFE APY (from mat_exp_last)
-        ROUND((SELECT sy_trailing_apy_vault_life FROM m1)::NUMERIC, 2),
-        ROUND((SELECT sy_trailing_apy_vault_life FROM m2)::NUMERIC, 2),
+        -- REALIZED VAULT LIFE APY (computed from exchange rate history, day-floored denominator)
+        ROUND(CASE
+            WHEN (SELECT rate_now_mkt1 FROM sy_rates) IS NOT NULL
+                 AND (SELECT rate_earliest_mkt1 FROM sy_rates) IS NOT NULL
+                 AND (SELECT rate_earliest_mkt1 FROM sy_rates) > 0
+                 AND EXTRACT(EPOCH FROM NOW() - GREATEST(
+                     to_timestamp(COALESCE((SELECT start_ts FROM m1), 0)),
+                     COALESCE((SELECT ts_earliest_mkt1 FROM sy_rates), NOW())
+                 )) > 86400
+            THEN ((SELECT rate_now_mkt1 FROM sy_rates) / (SELECT rate_earliest_mkt1 FROM sy_rates) - 1.0)
+                 * 365.25
+                 / GREATEST(FLOOR((EXTRACT(EPOCH FROM NOW() - GREATEST(
+                     to_timestamp(COALESCE((SELECT start_ts FROM m1), 0)),
+                     COALESCE((SELECT ts_earliest_mkt1 FROM sy_rates), NOW())
+                 )) - 7200) / 86400.0), 1)
+                 * 100
+            ELSE NULL
+        END::NUMERIC, 2),
+        ROUND(CASE
+            WHEN v_va_mkt2 IS NOT NULL
+                 AND (SELECT rate_now_mkt2 FROM sy_rates) IS NOT NULL
+                 AND (SELECT rate_earliest_mkt2 FROM sy_rates) IS NOT NULL
+                 AND (SELECT rate_earliest_mkt2 FROM sy_rates) > 0
+                 AND EXTRACT(EPOCH FROM NOW() - GREATEST(
+                     to_timestamp(COALESCE((SELECT start_ts FROM m2), 0)),
+                     COALESCE((SELECT ts_earliest_mkt2 FROM sy_rates), NOW())
+                 )) > 86400
+            THEN ((SELECT rate_now_mkt2 FROM sy_rates) / (SELECT rate_earliest_mkt2 FROM sy_rates) - 1.0)
+                 * 365.25
+                 / GREATEST(FLOOR((EXTRACT(EPOCH FROM NOW() - GREATEST(
+                     to_timestamp(COALESCE((SELECT start_ts FROM m2), 0)),
+                     COALESCE((SELECT ts_earliest_mkt2 FROM sy_rates), NOW())
+                 )) - 7200) / 86400.0), 1)
+                 * 100
+            ELSE NULL
+        END::NUMERIC, 2),
 
         -- REALIZED 24h APY (general, live)
         ROUND(CASE
@@ -590,7 +655,11 @@ BEGIN
             ELSE 0
         END::NUMERIC, 1),
         ROUND(COALESCE((SELECT amm_share_sy_pct FROM m1), 0)::NUMERIC, 1),
-        ROUND(COALESCE((SELECT yt_staked_pct FROM m1), 0)::NUMERIC, 1),
+        GREATEST(0, LEAST(100, ROUND(
+            CASE WHEN COALESCE((SELECT pt_supply FROM m1), 0) > 0
+                 THEN COALESCE((SELECT yt_escrow_balance FROM m1), 0) / (SELECT pt_supply FROM m1) * 100
+                 ELSE 0
+            END::NUMERIC, 1))),
 
         -- Market 2
         ROUND(CASE WHEN v_va_mkt2 IS NOT NULL THEN (SELECT c_vault_collateralization_ratio FROM m2) ELSE NULL END::NUMERIC, 2),
@@ -606,7 +675,10 @@ BEGIN
             ELSE NULL
         END::NUMERIC, 1),
         ROUND(CASE WHEN v_va_mkt2 IS NOT NULL THEN (SELECT amm_share_sy_pct FROM m2) ELSE NULL END::NUMERIC, 1),
-        ROUND(CASE WHEN v_va_mkt2 IS NOT NULL THEN (SELECT yt_staked_pct FROM m2) ELSE NULL END::NUMERIC, 1),
+        CASE WHEN v_va_mkt2 IS NOT NULL AND COALESCE((SELECT pt_supply FROM m2), 0) > 0
+             THEN GREATEST(0, LEAST(100, ROUND(
+                 (COALESCE((SELECT yt_escrow_balance FROM m2), 0) / (SELECT pt_supply FROM m2) * 100)::NUMERIC, 1)))
+             ELSE NULL END,
 
         -- ARRAY COLUMNS
         ARRAY[

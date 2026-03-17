@@ -1,0 +1,15 @@
+{
+  "upload_target": {
+    "schema": "exponent",
+    "transactions_table": "src_txns",
+    "events_table": "src_tx_events",
+    "dependent_caggs": []
+  },
+  "tracked_base_tokens": [
+    {
+      "address": "5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5",
+      "symbol": "ONyc",
+      "decimals": 9
+    }
+  ]
+}

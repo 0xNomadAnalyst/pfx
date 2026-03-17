@@ -58,6 +58,10 @@ DECLARE
     v_kam_coll_val    NUMERIC;
     v_kam_borr_val    NUMERIC;
     v_kam_avg_ltv     NUMERIC;
+
+    v_kam_usdc_borrow_apy NUMERIC;
+    v_kam_usdg_borrow_apy NUMERIC;
+    v_kam_usds_borrow_apy NUMERIC;
 BEGIN
     -- ── DEX: ONyc reserves from mat_dex_last ──
     SELECT COALESCE(SUM(
@@ -79,17 +83,56 @@ BEGIN
     WHERE dl.price_t1_per_t0 IS NOT NULL
       AND dl.price_t1_per_t0 > 0;
 
-    -- ── KAMINO: ONyc reserve TVL + yield from mat_klend_last_reserves ──
-    SELECT
-        COALESCE(SUM(lr.collateral_total_supply), 0),
-        MAX(lr.supply_apy),
-        MAX(lr.borrow_apy),
-        MAX(lr.utilization_ratio)
-    INTO v_kam_tvl, v_kam_supply_apy, v_kam_borrow_apy, v_kam_util
+    -- ── KAMINO: ONyc TVL from the collateral reserve ──
+    SELECT COALESCE(SUM(lr.collateral_total_supply), 0)
+    INTO v_kam_tvl
     FROM kamino_lend.mat_klend_last_reserves lr
     JOIN kamino_lend.aux_market_reserve_tokens art
         ON lr.reserve_address = art.reserve_address
     WHERE art.token_mint = v_onyc_mint;
+
+    -- ── KAMINO: Weighted-avg supply/borrow APY + utilization from borrow-type reserves ──
+    SELECT
+        CASE WHEN SUM(COALESCE(lr.collateral_total_supply, 0)) > 0
+             THEN SUM(COALESCE(lr.supply_apy, 0) * COALESCE(lr.collateral_total_supply, 0))
+                  / SUM(COALESCE(lr.collateral_total_supply, 0))
+             ELSE NULL END,
+        CASE WHEN SUM(COALESCE(lr.collateral_total_supply, 0)) > 0
+             THEN SUM(COALESCE(lr.borrow_apy, 0) * COALESCE(lr.collateral_total_supply, 0))
+                  / SUM(COALESCE(lr.collateral_total_supply, 0))
+             ELSE NULL END,
+        CASE WHEN SUM(COALESCE(lr.collateral_total_supply, 0)) > 0
+             THEN SUM(COALESCE(lr.utilization_ratio, 0) * COALESCE(lr.collateral_total_supply, 0))
+                  / SUM(COALESCE(lr.collateral_total_supply, 0))
+             ELSE NULL END
+    INTO v_kam_supply_apy, v_kam_borrow_apy, v_kam_util
+    FROM kamino_lend.mat_klend_last_reserves lr
+    JOIN kamino_lend.aux_market_reserve_tokens art
+        ON lr.reserve_address = art.reserve_address
+    WHERE art.market_address = (
+            SELECT market_address FROM kamino_lend.aux_market_reserve_tokens
+            WHERE token_mint = v_onyc_mint LIMIT 1
+          )
+      AND art.reserve_type = 'borrow';
+
+    -- ── KAMINO: Per-asset borrow APYs ──
+    SELECT lr.borrow_apy INTO v_kam_usdc_borrow_apy
+    FROM kamino_lend.mat_klend_last_reserves lr
+    JOIN kamino_lend.aux_market_reserve_tokens art ON lr.reserve_address = art.reserve_address
+    WHERE art.token_symbol = 'USDC'
+      AND art.market_address = (SELECT market_address FROM kamino_lend.aux_market_reserve_tokens WHERE token_mint = v_onyc_mint LIMIT 1);
+
+    SELECT lr.borrow_apy INTO v_kam_usdg_borrow_apy
+    FROM kamino_lend.mat_klend_last_reserves lr
+    JOIN kamino_lend.aux_market_reserve_tokens art ON lr.reserve_address = art.reserve_address
+    WHERE art.token_symbol = 'USDG'
+      AND art.market_address = (SELECT market_address FROM kamino_lend.aux_market_reserve_tokens WHERE token_mint = v_onyc_mint LIMIT 1);
+
+    SELECT lr.borrow_apy INTO v_kam_usds_borrow_apy
+    FROM kamino_lend.mat_klend_last_reserves lr
+    JOIN kamino_lend.aux_market_reserve_tokens art ON lr.reserve_address = art.reserve_address
+    WHERE art.token_symbol = 'USDS'
+      AND art.market_address = (SELECT market_address FROM kamino_lend.aux_market_reserve_tokens WHERE token_mint = v_onyc_mint LIMIT 1);
 
     -- Kamino market risk summary from mat_klend_last_obligations
     SELECT
@@ -137,6 +180,7 @@ BEGIN
         onyc_in_dexes, onyc_in_kamino, onyc_in_exponent, onyc_tracked_total,
         onyc_in_dexes_pct, onyc_in_kamino_pct, onyc_in_exponent_pct,
         kam_onyc_supply_apy, kam_onyc_borrow_apy, kam_onyc_utilization,
+        kam_usdc_borrow_apy, kam_usdg_borrow_apy, kam_usds_borrow_apy,
         exp_weighted_implied_apy,
         dex_avg_price_t1_per_t0,
         kam_total_collateral_value, kam_total_borrow_value, kam_weighted_avg_ltv,
@@ -148,6 +192,7 @@ BEGIN
         ROUND(COALESCE(v_kam_tvl / NULLIF(v_total, 0) * 100, 0)::NUMERIC, 1),
         ROUND(COALESCE(v_exp_tvl / NULLIF(v_total, 0) * 100, 0)::NUMERIC, 1),
         v_kam_supply_apy, v_kam_borrow_apy, v_kam_util,
+        v_kam_usdc_borrow_apy, v_kam_usdg_borrow_apy, v_kam_usds_borrow_apy,
         v_exp_apy,
         v_dex_price,
         v_kam_coll_val, v_kam_borr_val, v_kam_avg_ltv,
@@ -164,6 +209,9 @@ BEGIN
         kam_onyc_supply_apy = EXCLUDED.kam_onyc_supply_apy,
         kam_onyc_borrow_apy = EXCLUDED.kam_onyc_borrow_apy,
         kam_onyc_utilization = EXCLUDED.kam_onyc_utilization,
+        kam_usdc_borrow_apy = EXCLUDED.kam_usdc_borrow_apy,
+        kam_usdg_borrow_apy = EXCLUDED.kam_usdg_borrow_apy,
+        kam_usds_borrow_apy = EXCLUDED.kam_usds_borrow_apy,
         exp_weighted_implied_apy = EXCLUDED.exp_weighted_implied_apy,
         dex_avg_price_t1_per_t0 = EXCLUDED.dex_avg_price_t1_per_t0,
         kam_total_collateral_value = EXCLUDED.kam_total_collateral_value,

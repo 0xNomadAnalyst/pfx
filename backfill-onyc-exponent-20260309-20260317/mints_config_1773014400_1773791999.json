@@ -1,0 +1,48 @@
+[
+  {
+    "vault_address": "4qprmHpgscYUDfUKBEs52TZe1sZCGpBUvNeitaNTCCAU",
+    "market_address": "68mFWWL25B5uGjpZJwJh84WnaDXyhjA68RN3R3hssPH5",
+    "mint_sy": "G1qbuP11CdquJCzuDjruWqatQAHroajmxhLfeQVgHosF",
+    "mint_pt": "AqSfXMdsQ99ioNB3VhHXYsKFQDMDVFooh9JNv8Ap4bC",
+    "mint_yt": "AARbKyQUkv2iVFyNFCXNPN7wxfibeuW6R78MDSGQ33SM",
+    "mint_lp": "FRHauWqNT5DrgjByrAMq3LosNJGDLb8L9dZix2wDVboF",
+    "env_sy_symbol": "wONyc",
+    "env_sy_decimals": 9,
+    "is_active": false,
+    "source": "aux_key_relations"
+  },
+  {
+    "vault_address": "J2apQJvzq1yuhBoa1mVwAXr3P5oEzFaCVohq1GQMcW2c",
+    "market_address": "8QJRc12BDXHRLghZXFyPtYtAQeRwnZGKMJQa3G2NVQoC",
+    "mint_sy": "G1qbuP11CdquJCzuDjruWqatQAHroajmxhLfeQVgHosF",
+    "mint_pt": "ZeqaGvENXeyDtb8mBrC3xi1Zi3zhCfKTV2vr2z5Bwao",
+    "mint_yt": "3pSHfnjPveEoyseB7AkPLvf3rmYv6VZ7UE3es52kLgEY",
+    "mint_lp": "3gqhwFZtkU1dUyNN6taFp8sbnu3E5bmkumfjtoF9P9JD",
+    "env_sy_symbol": "wONyc",
+    "env_sy_decimals": 9,
+    "is_active": false,
+    "source": "aux_key_relations"
+  },
+  {
+    "vault_address": "4qprmHpgscYUDfUKBEs52TZe1sZCGpBUvNeitaNTCCAU",
+    "market_address": "68mFWWL25B5uGjpZJwJh84WnaDXyhjA68RN3R3hssPH5",
+    "mint_sy": "G1qbuP11CdquJCzuDjruWqatQAHroajmxhLfeQVgHosF",
+    "mint_pt": "AqSfXMdsQ99ioNB3VhHXYsKFQDMDVFooh9JNv8Ap4bC",
+    "mint_yt": "AARbKyQUkv2iVFyNFCXNPN7wxfibeuW6R78MDSGQ33SM",
+    "mint_lp": null,
+    "env_sy_symbol": "Market-68mFWWL2",
+    "is_active": false,
+    "source": "api_market_discovery"
+  },
+  {
+    "vault_address": "J2apQJvzq1yuhBoa1mVwAXr3P5oEzFaCVohq1GQMcW2c",
+    "market_address": "8QJRc12BDXHRLghZXFyPtYtAQeRwnZGKMJQa3G2NVQoC",
+    "mint_sy": "G1qbuP11CdquJCzuDjruWqatQAHroajmxhLfeQVgHosF",
+    "mint_pt": "ZeqaGvENXeyDtb8mBrC3xi1Zi3zhCfKTV2vr2z5Bwao",
+    "mint_yt": "3pSHfnjPveEoyseB7AkPLvf3rmYv6VZ7UE3es52kLgEY",
+    "mint_lp": null,
+    "env_sy_symbol": "Market-8QJRc12B",
+    "is_active": true,
+    "source": "api_market_discovery"
+  }
+]

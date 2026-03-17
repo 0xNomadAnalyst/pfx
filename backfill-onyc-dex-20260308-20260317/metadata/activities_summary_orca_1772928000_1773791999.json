@@ -1,0 +1,10 @@
+{
+  "orca_whirlpool_onyc_usdc": {
+    "count": 25977,
+    "activity_types": {
+      "ACTIVITY_TOKEN_SWAP": 25592,
+      "ACTIVITY_TOKEN_ADD_LIQ": 215,
+      "ACTIVITY_TOKEN_REMOVE_LIQ": 170
+    }
+  }
+}

@@ -100,6 +100,7 @@ class GlobalEcosystemPageService(BasePageService):
                 "  onyc_in_dexes_pct, onyc_in_kamino_pct, onyc_in_exponent_pct, "
                 "  kam_onyc_supply_apy_pct, kam_onyc_borrow_apy_pct, "
                 "  kam_onyc_utilization_pct, exp_weighted_implied_apy_pct, "
+                "  kam_usdc_borrow_apy_pct, kam_usdg_borrow_apy_pct, kam_usds_borrow_apy_pct, "
                 "  dex_avg_price_t1_per_t0, "
                 "  kam_total_collateral_value, kam_total_borrow_value, kam_weighted_avg_ltv_pct, "
                 "  refreshed_at "
@@ -318,21 +319,26 @@ class GlobalEcosystemPageService(BasePageService):
     # ------------------------------------------------------------------
 
     def _base_yield_snapshot(self) -> dict[str, Any]:
-        """Trailing APYs (24h, 7d, 30d) for the ONyc base token from SY exchange rate."""
+        """Day-snapped trailing APYs (24h, 7d, 30d) for ONyc base token from SY exchange rate."""
         def _load() -> dict[str, Any]:
             rows = self.sql.fetch_rows(
                 "WITH rates AS ( "
                 "    SELECT "
                 "        (SELECT sy_exchange_rate FROM exponent.cagg_sy_meta_account_5s "
-                "         WHERE meta_base_mint = %s ORDER BY bucket DESC LIMIT 1) AS rate_now, "
+                "         WHERE meta_base_mint = %s "
+                "           AND bucket <= date_trunc('day', NOW() - INTERVAL '2 hours') + INTERVAL '2 hours' "
+                "         ORDER BY bucket DESC LIMIT 1) AS rate_now, "
                 "        (SELECT sy_exchange_rate FROM exponent.cagg_sy_meta_account_5s "
-                "         WHERE meta_base_mint = %s AND bucket <= NOW() - INTERVAL '24 hours' "
+                "         WHERE meta_base_mint = %s "
+                "           AND bucket <= date_trunc('day', NOW() - INTERVAL '24 hours' - INTERVAL '2 hours') + INTERVAL '2 hours' "
                 "         ORDER BY bucket DESC LIMIT 1) AS rate_24h, "
                 "        (SELECT sy_exchange_rate FROM exponent.cagg_sy_meta_account_5s "
-                "         WHERE meta_base_mint = %s AND bucket <= NOW() - INTERVAL '7 days' "
+                "         WHERE meta_base_mint = %s "
+                "           AND bucket <= date_trunc('day', NOW() - INTERVAL '7 days' - INTERVAL '2 hours') + INTERVAL '2 hours' "
                 "         ORDER BY bucket DESC LIMIT 1) AS rate_7d, "
                 "        (SELECT sy_exchange_rate FROM exponent.cagg_sy_meta_account_5s "
-                "         WHERE meta_base_mint = %s AND bucket <= NOW() - INTERVAL '30 days' "
+                "         WHERE meta_base_mint = %s "
+                "           AND bucket <= date_trunc('day', NOW() - INTERVAL '30 days' - INTERVAL '2 hours') + INTERVAL '2 hours' "
                 "         ORDER BY bucket DESC LIMIT 1) AS rate_30d "
                 ") "
                 "SELECT "
@@ -353,7 +359,7 @@ class GlobalEcosystemPageService(BasePageService):
         return self._cached("ge::base_yield_snapshot", _load, ttl_seconds=self._ISSUANCE_TTL)
 
     def _base_yield_ts_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
-        """Timeseries of 7d trailing base token APY from SY exchange rate."""
+        """Day-snapped timeseries of 7d trailing base token APY from SY exchange rate."""
         last_window = str(params.get("last_window", "7d"))
         lookback = self._window_interval(last_window)
         bucket = self._bucket_interval(last_window)
@@ -372,20 +378,26 @@ class GlobalEcosystemPageService(BasePageService):
                 ") "
                 "SELECT "
                 "    rn.bt AS bucket_time, "
-                "    CASE WHEN r7d.rate > 0 "
-                "         THEN ROUND(((rn.rate / r7d.rate - 1) * (365.0/7) * 100)::NUMERIC, 2) "
+                "    CASE WHEN r7d_snap.rate > 0 AND rn_snap.rate IS NOT NULL "
+                "         THEN ROUND(((rn_snap.rate / r7d_snap.rate - 1) * (365.0/7) * 100)::NUMERIC, 2) "
                 "    END AS base_apy_7d_pct "
                 "FROM rate_buckets rn "
                 "LEFT JOIN LATERAL ( "
                 "    SELECT sy_exchange_rate AS rate "
                 "    FROM exponent.cagg_sy_meta_account_5s "
                 "    WHERE meta_base_mint = %s "
-                "      AND bucket <= rn.bt - INTERVAL '7 days' "
-                "    ORDER BY bucket DESC "
-                "    LIMIT 1 "
-                ") r7d ON TRUE "
+                "      AND bucket <= date_trunc('day', rn.bt - INTERVAL '2 hours') + INTERVAL '2 hours' "
+                "    ORDER BY bucket DESC LIMIT 1 "
+                ") rn_snap ON TRUE "
+                "LEFT JOIN LATERAL ( "
+                "    SELECT sy_exchange_rate AS rate "
+                "    FROM exponent.cagg_sy_meta_account_5s "
+                "    WHERE meta_base_mint = %s "
+                "      AND bucket <= date_trunc('day', rn.bt - INTERVAL '7 days' - INTERVAL '2 hours') + INTERVAL '2 hours' "
+                "    ORDER BY bucket DESC LIMIT 1 "
+                ") r7d_snap ON TRUE "
                 "ORDER BY rn.bt",
-                (bucket, _ONYC_MINT, lookback, _ONYC_MINT),
+                (bucket, _ONYC_MINT, lookback, _ONYC_MINT, _ONYC_MINT),
                 statement_timeout_ms=self._TS_TIMEOUT_MS,
             )
 
@@ -700,18 +712,22 @@ class GlobalEcosystemPageService(BasePageService):
         by = self._base_yield_snapshot()
         categories = [
             "ONyc 24h", "ONyc 7d", "ONyc 30d",
-            "Kamino Supply", "Exp. Implied",
+            "Borrow USDC", "Borrow USDG", "Borrow USDS",
+            "Exp. Implied",
         ]
         values = [
             self._fv(by.get("base_apy_24h_pct")),
             self._fv(by.get("base_apy_7d_pct")),
             self._fv(by.get("base_apy_30d_pct")),
-            self._fv(r.get("kam_onyc_supply_apy_pct")),
+            self._fv(r.get("kam_usdc_borrow_apy_pct")),
+            self._fv(r.get("kam_usdg_borrow_apy_pct")),
+            self._fv(r.get("kam_usds_borrow_apy_pct")),
             self._fv(r.get("exp_weighted_implied_apy_pct")),
         ]
         colors = [
             _COLORS["orange"], _COLORS["orange"], _COLORS["orange"],
-            _COLORS["green"], _COLORS["yellow"],
+            _COLORS["green"], _COLORS["teal"], _COLORS["blue"],
+            _COLORS["yellow"],
         ]
         return self._vbar(categories, values, colors, y_label="APY %", y_format="pct2")
 
@@ -733,7 +749,7 @@ class GlobalEcosystemPageService(BasePageService):
             "series": [
                 {"name": "ONyc Yield (7d trailing)", "type": "line", "color": _COLORS["orange"],
                  "data": [base_by_time.get(t) for t in x_times]},
-                {"name": "Kamino Supply APY", "type": "line", "color": _COLORS["green"],
+                {"name": "Kamino Borrow APY (wtd)", "type": "line", "color": _COLORS["green"],
                  "data": [row.get("kam_onyc_supply_apy") for row in rows]},
                 {"name": "Exponent Implied APY", "type": "line", "color": _COLORS["yellow"],
                  "data": [row.get("exp_weighted_implied_apy") for row in rows]},

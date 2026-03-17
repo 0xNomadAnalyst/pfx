@@ -260,7 +260,10 @@ BEGIN
                 SUM(t.amount_lp_tokens_in)                  AS lp_tokens_minted,
                 SUM(t.amount_lp_tokens_out)                 AS lp_tokens_burned
             FROM exponent.cagg_tx_events_5s t
-            WHERE t.vault_address = v_vault.vault_address
+            -- AMM trade + LP flows in cagg_tx_events_5s are partitioned by market_address.
+            -- Matching on vault_address drops rows where vault_address is NULL (common for trade_pt),
+            -- which zeroes swap/LP metrics in frontend timeseries.
+            WHERE t.market_address = v_vault.market_address
               AND t.bucket_time >= v_seed_from
             GROUP BY time_bucket('1 minute', t.bucket_time)
         ),

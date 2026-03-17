@@ -123,16 +123,36 @@ BEGIN
         GROUP BY d.bucket_time
     ),
 
-    -- ── KAMINO: ONyc reserve TVL + yield per 1-min bucket ──
+    -- ── KAMINO: ONyc TVL (from ONyc collateral reserve) ──
     kamino_tvl AS (
         SELECT
             r.bucket_time,
-            SUM(COALESCE(r.collateral_total_supply, 0)) AS onyc_in_kamino,
-            MAX(r.supply_apy) AS kam_supply_apy
+            SUM(COALESCE(r.collateral_total_supply, 0)) AS onyc_in_kamino
         FROM kamino_lend.mat_klend_reserve_ts_1m r
         JOIN kamino_lend.aux_market_reserve_tokens art
             ON r.reserve_address = art.reserve_address
         WHERE art.token_mint = v_onyc_mint
+          AND r.bucket_time >= v_refresh_from
+        GROUP BY r.bucket_time
+    ),
+
+    -- ── KAMINO: Weighted-avg borrow APY from borrow-type reserves (USDC/USDG/USDS) ──
+    kamino_yield AS (
+        SELECT
+            r.bucket_time,
+            CASE WHEN SUM(COALESCE(r.collateral_total_supply, 0)) > 0
+                 THEN SUM(COALESCE(r.borrow_apy, 0) * COALESCE(r.collateral_total_supply, 0))
+                      / SUM(COALESCE(r.collateral_total_supply, 0))
+                 ELSE NULL
+            END AS kam_supply_apy
+        FROM kamino_lend.mat_klend_reserve_ts_1m r
+        JOIN kamino_lend.aux_market_reserve_tokens art
+            ON r.reserve_address = art.reserve_address
+        WHERE art.market_address = (
+                SELECT market_address FROM kamino_lend.aux_market_reserve_tokens
+                WHERE token_mint = v_onyc_mint LIMIT 1
+              )
+          AND art.reserve_type = 'borrow'
           AND r.bucket_time >= v_refresh_from
         GROUP BY r.bucket_time
     ),
@@ -156,14 +176,23 @@ BEGIN
     ),
 
     -- ── EXPONENT: ONyc TVL via base_token_escrow CAGG (5s → 1min) ──
+    -- Take the latest 5-second balance per escrow account within each minute,
+    -- then sum across accounts (avoids double-counting when multiple readings exist).
     exp_tvl AS (
         SELECT
-            time_bucket('1 minute', e.bucket) AS bucket_time,
-            SUM(COALESCE(e.c_balance_readable_last, 0)) AS onyc_in_exponent
-        FROM exponent.cagg_base_token_escrow_5s e
-        WHERE e.mint = v_onyc_mint
-          AND e.bucket >= v_refresh_from
-        GROUP BY time_bucket('1 minute', e.bucket)
+            sub.bucket_time,
+            SUM(sub.latest_balance) AS onyc_in_exponent
+        FROM (
+            SELECT
+                time_bucket('1 minute', e.bucket) AS bucket_time,
+                e.escrow_address,
+                LAST(e.c_balance_readable_last, e.bucket) AS latest_balance
+            FROM exponent.cagg_base_token_escrow_5s e
+            WHERE e.mint = v_onyc_mint
+              AND e.bucket >= v_refresh_from
+            GROUP BY time_bucket('1 minute', e.bucket), e.escrow_address
+        ) sub
+        GROUP BY sub.bucket_time
     ),
 
     -- ── EXPONENT: activity + yield per 1-min bucket (across all vaults) ──
@@ -175,21 +204,22 @@ BEGIN
                 COALESCE(m.lp_pt_in, 0) + COALESCE(m.lp_pt_out, 0)
                 + COALESCE(m.lp_sy_in, 0) + COALESCE(m.lp_sy_out, 0)
             ) AS lp_vol,
-            -- Depth-weighted average implied APY (only active, non-expired markets)
+            -- Depth-weighted average implied APY (exclude expired vaults via mat_exp_last)
             CASE
                 WHEN SUM(COALESCE(m.pool_depth_in_sy, 0))
-                        FILTER (WHERE NOT COALESCE(m.is_expired, FALSE)
-                                  AND m.c_market_implied_apy IS NOT NULL) > 0
+                        FILTER (WHERE m.c_market_implied_apy IS NOT NULL) > 0
                 THEN SUM(m.c_market_implied_apy * COALESCE(m.pool_depth_in_sy, 0))
-                        FILTER (WHERE NOT COALESCE(m.is_expired, FALSE)
-                                  AND m.c_market_implied_apy IS NOT NULL)
+                        FILTER (WHERE m.c_market_implied_apy IS NOT NULL)
                      / SUM(COALESCE(m.pool_depth_in_sy, 0))
-                        FILTER (WHERE NOT COALESCE(m.is_expired, FALSE)
-                                  AND m.c_market_implied_apy IS NOT NULL)
+                        FILTER (WHERE m.c_market_implied_apy IS NOT NULL)
                 ELSE NULL
             END AS weighted_implied_apy
         FROM exponent.mat_exp_timeseries_1m m
         WHERE m.bucket_time >= v_refresh_from
+          AND m.vault_address NOT IN (
+              SELECT vault_address FROM exponent.mat_exp_last
+              WHERE COALESCE(is_expired, FALSE)
+          )
         GROUP BY m.bucket_time
     ),
 
@@ -218,14 +248,15 @@ BEGIN
             COALESCE(ka.liquidate_vol, 0)     AS kam_liquidate_volume,
             COALESCE(ea.pt_trade_vol, 0)      AS exp_pt_trade_volume,
             COALESCE(ea.lp_vol, 0)            AS exp_lp_volume,
-            kt.kam_supply_apy,
+            ky.kam_supply_apy,
             ea.weighted_implied_apy
         FROM spine s
-        LEFT JOIN dex_agg     dx ON s.bucket_time = dx.bucket_time
-        LEFT JOIN kamino_tvl  kt ON s.bucket_time = kt.bucket_time
-        LEFT JOIN kamino_act  ka ON s.bucket_time = ka.bucket_time
-        LEFT JOIN exp_tvl     et ON s.bucket_time = et.bucket_time
-        LEFT JOIN exp_act     ea ON s.bucket_time = ea.bucket_time
+        LEFT JOIN dex_agg      dx ON s.bucket_time = dx.bucket_time
+        LEFT JOIN kamino_tvl   kt ON s.bucket_time = kt.bucket_time
+        LEFT JOIN kamino_yield ky ON s.bucket_time = ky.bucket_time
+        LEFT JOIN kamino_act   ka ON s.bucket_time = ka.bucket_time
+        LEFT JOIN exp_tvl      et ON s.bucket_time = et.bucket_time
+        LEFT JOIN exp_act      ea ON s.bucket_time = ea.bucket_time
     )
     SELECT
         c.bucket_time,

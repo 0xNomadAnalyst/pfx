@@ -62,8 +62,8 @@ PAGE_CONFIG = PageConfig(
             "panel panel-large ge-slot-left-2",
             expandable=False,
             tooltip="Current annualized yields: ONyc base token trailing rates "
-            "(24h, 7d, 30d), Kamino ONyc supply APY, and Exponent depth-weighted "
-            "implied APY.",
+            "(24h, 7d, 30d), Kamino borrow APYs for each stablecoin that ONyc "
+            "collateral backs, and Exponent depth-weighted implied APY.",
         ),
         WidgetConfig(
             "ge-yields-vs-time",
@@ -71,8 +71,8 @@ PAGE_CONFIG = PageConfig(
             "chart",
             "panel panel-large ge-slot-right-2",
             expandable=True,
-            tooltip="Time series of ONyc base token trailing yield, Kamino supply APY, "
-            "and Exponent implied APY.",
+            tooltip="Time series of ONyc base token trailing yield, Kamino weighted "
+            "borrow APY, and Exponent implied APY.",
         ),
 
         # ═══════════════════════════════════════════════════════

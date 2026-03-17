@@ -32,6 +32,18 @@ DEFAULT_PIPELINE = os.getenv("DEFAULT_PIPELINE", "")
 SHOW_PRICE_BASIS = os.getenv("SHOW_PRICE_BASIS", "1") == "1"
 DEFAULT_PRICE_BASIS = os.getenv("DEFAULT_PRICE_BASIS", "default")
 SHOW_ASSET_FILTER = os.getenv("SHOW_ASSET_FILTER", "1") == "1"
+SHOW_REFRESH_BUTTON = os.getenv("SHOW_REFRESH_BUTTON", "1") == "1"
+
+ALL_LAST_WINDOW_OPTIONS = ["1h", "4h", "6h", "24h", "7d", "30d", "90d"]
+_lw_raw = os.getenv("LAST_WINDOW_OPTIONS", "")
+LAST_WINDOW_OPTIONS: list[str] = (
+    [v.strip() for v in _lw_raw.split(",") if v.strip() in ALL_LAST_WINDOW_OPTIONS]
+    if _lw_raw.strip()
+    else list(ALL_LAST_WINDOW_OPTIONS)
+)
+DEFAULT_LAST_WINDOW = os.getenv("DEFAULT_LAST_WINDOW", "7d")
+if DEFAULT_LAST_WINDOW not in LAST_WINDOW_OPTIONS:
+    DEFAULT_LAST_WINDOW = LAST_WINDOW_OPTIONS[0]
 PIPELINE_DEFAULTS: dict[str, dict[str, str]] = {
     "solstice": {"protocol": "raydium", "pair": "USX-USDC", "asset": "USX"},
     "onyc":     {"protocol": "orca",    "pair": "ONyc-USDC", "asset": "ONyc"},
@@ -523,7 +535,8 @@ def render_page(request: Request, page: PageConfig):
             "protocol": protocol,
             "pair": pair,
             "asset": asset,
-            "last_window": "7d",
+            "last_window": DEFAULT_LAST_WINDOW,
+            "last_window_options": LAST_WINDOW_OPTIONS,
             "api_base_url": BROWSER_API_BASE_URL,
             "show_pipeline_switcher": show_pipeline,
             "pipeline_info": pipeline_info,
@@ -532,6 +545,7 @@ def render_page(request: Request, page: PageConfig):
             "show_price_basis_filter": page.show_price_basis_filter and SHOW_PRICE_BASIS,
             "default_price_basis": DEFAULT_PRICE_BASIS,
             "content_template": page.content_template or "",
+            "show_refresh_button": SHOW_REFRESH_BUTTON,
             "warmup_manifest": warmup_manifest,
             "cache_config": _CACHE_CONFIG,
         },

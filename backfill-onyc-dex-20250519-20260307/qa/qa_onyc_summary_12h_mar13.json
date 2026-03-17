@@ -1,0 +1,144 @@
+{
+  "report_title": "ONyc Dexes QA - 12h Window (Mar 12-13, 2026)",
+  "generated_at": "2026-03-13T03:22:41.957094Z",
+  "pools": {
+    "orca_whirlpool_onyc_usdc": "7jhhyxPUKpu42hPGSYwgMXbR2dtVJHKhs8DW3sAAgAvX",
+    "raydium_clmm_usdg_onyc": "A9RdNEf4T9x1eNPnEHFX1ABHS7J4e9kxBm43S3o5r9Kw"
+  },
+  "tokens": {
+    "ONyc": {
+      "mint": "5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5",
+      "decimals": 9
+    },
+    "USDC": {
+      "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "decimals": 6
+    },
+    "USDG": {
+      "mint": "2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH",
+      "decimals": 6
+    }
+  },
+  "check_1_tx_events_vs_solscan": {
+    "window": {
+      "start": "2026-03-12 00:04:52+00:00",
+      "end": "2026-03-13 03:08:57+00:00"
+    },
+    "transactions": {
+      "solscan_unique_sigs": 803,
+      "db_unique_sigs": 4898,
+      "signature_overlap": 6,
+      "solscan_rows": 803,
+      "db_rows": 4898
+    },
+    "events": {
+      "solscan_unique_sigs": 802,
+      "db_unique_sigs": 4898,
+      "signature_overlap": 6,
+      "solscan_rows": 1264,
+      "db_rows": 5111,
+      "db_event_types": {
+        "swap": 5040,
+        "liquidity_increase": 32,
+        "fee_collect_lp": 16,
+        "position_open": 7,
+        "liquidity_decrease": 7,
+        "position_close": 7,
+        "fee_collect_protocol": 2
+      },
+      "solscan_event_types": {
+        "swap": 1155,
+        "liquidity_decrease": 34,
+        "position_close": 30,
+        "fee_collect_lp": 20,
+        "liquidity_increase": 12,
+        "position_open": 9,
+        "fee_collect_protocol": 1
+      }
+    },
+    "assessment": "CONCERN - Only 6 signature overlap out of 803 (Solscan) vs 4898 (DB). Solscan DeFi activities API appears to not fully index ONyc pools. DB gRPC ingestion captures far more transactions."
+  },
+  "check_2_balance_vs_solscan_reconstruction": {
+    "window": {
+      "start": "2026-03-12",
+      "end": "2026-03-13"
+    },
+    "mode": "solscan",
+    "overall_pass_rate": 0.0173,
+    "forward_pass_rate": 0.0254,
+    "backward_pass_rate": 0.0092,
+    "per_pool_forward": [
+      {
+        "name": "orca_whirlpool_onyc_usdc",
+        "polls_checked": 9565,
+        "polls_passed": 254,
+        "pass_rate": 0.026555148980658652,
+        "events_replayed": 0
+      },
+      {
+        "name": "raydium_clmm_usdg_onyc",
+        "polls_checked": 9565,
+        "polls_passed": 232,
+        "pass_rate": 0.024255096706743334,
+        "events_replayed": 0
+      }
+    ],
+    "assessment": "FAIL - 1.73% pass rate. Solscan events replayed = 0 for all pools, meaning pool_address in decoded Solscan events does not match DB pool addresses. Solscan-collected events are ineffective for reconstruction of these ONyc pools."
+  },
+  "check_3_balance_vs_db_reconstruction": {
+    "window": {
+      "start": "2026-03-12T15:00:00Z",
+      "end": "2026-03-13T03:00:00Z"
+    },
+    "mode": "db",
+    "overall_pass_rate": 0.9998,
+    "forward_pass_rate": 0.9998,
+    "backward_pass_rate": 0.9998,
+    "directional_bias": "symmetric",
+    "per_pool_forward": [
+      {
+        "name": "orca_whirlpool_onyc_usdc",
+        "polls_checked": 4203,
+        "polls_passed": 4202,
+        "pass_rate": 0.999762,
+        "events_replayed": 2094,
+        "max_token0_abs_err": 10013948919460.0,
+        "max_token0_rel_err": 0.021182,
+        "mean_token0_rel_err": 1.1472399470137963e-05,
+        "max_token1_abs_err": 10839752359.0,
+        "max_token1_rel_err": 0.002456,
+        "mean_token1_rel_err": 1.2847521349854442e-06
+      },
+      {
+        "name": "raydium_clmm_usdg_onyc",
+        "polls_checked": 4203,
+        "polls_passed": 4202,
+        "pass_rate": 0.999762,
+        "events_replayed": 626,
+        "max_token0_abs_err": 10784061603.0,
+        "max_token0_rel_err": 0.004313,
+        "mean_token0_rel_err": 2.2505999390374164e-06,
+        "max_token1_abs_err": 9961093554555.0,
+        "max_token1_rel_err": 0.021454,
+        "mean_token1_rel_err": 1.14249710233779e-05
+      }
+    ],
+    "per_pool_backward": [
+      {
+        "name": "orca_whirlpool_onyc_usdc",
+        "polls_checked": 4203,
+        "polls_passed": 4202,
+        "pass_rate": 0.999762,
+        "events_replayed": 2094
+      },
+      {
+        "name": "raydium_clmm_usdg_onyc",
+        "polls_checked": 4203,
+        "polls_passed": 4202,
+        "pass_rate": 0.999762,
+        "events_replayed": 627
+      }
+    ],
+    "assessment": "PASS - 99.98% overall pass rate. Both pools pass 4202/4203 polls in both directions. DB event data accurately reconstructs vault balances with symmetric forward/backward behavior. Single outlier poll has ~2.1% relative error on ONyc token (9 decimals), likely a timing artifact between polled snapshot and event processing."
+  }
+}
