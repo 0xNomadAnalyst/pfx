@@ -46,6 +46,7 @@
     const raw = parseFloat(document.body?.dataset?.adaptiveDialdownHitThreshold || "0");
     return Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0;
   })();
+  const WARMUP_RETURN_PAYLOADS = readRuntimeBool("warmupReturnPayloads", false);
   const PERSIST_CACHE_ENABLED = readRuntimeBool("persistCacheEnabled", false);
   const PERSIST_CACHE_KEY_PREFIX = "riskdash:pcache:";
   const PERSIST_CACHE_VERSION_KEY = "riskdash:pcache:version";
@@ -5424,17 +5425,33 @@
       _warmupInFlight = true;
       try {
         const defaults = warmupDefaults();
-        await fetch(`${getApiBaseUrl()}/api/v1/warmup`, {
+        const warmupBody = {
+          targets,
+          base_params: buildWarmupBaseParams(),
+          budget_seconds: defaults.budget_seconds,
+          max_jobs: defaults.max_jobs,
+          concurrency: defaults.concurrency,
+        };
+        if (WARMUP_RETURN_PAYLOADS) {
+          warmupBody.include_payloads = true;
+        }
+        const resp = await fetch(`${getApiBaseUrl()}/api/v1/warmup`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            targets,
-            base_params: buildWarmupBaseParams(),
-            budget_seconds: defaults.budget_seconds,
-            max_jobs: defaults.max_jobs,
-            concurrency: defaults.concurrency,
-          }),
+          body: JSON.stringify(warmupBody),
         });
+        if (WARMUP_RETURN_PAYLOADS && resp.ok) {
+          try {
+            const data = await resp.json();
+            if (Array.isArray(data.payloads)) {
+              for (const entry of data.payloads) {
+                if (entry.cache_key && entry.response) {
+                  setLruCacheEntry(widgetResponseCache, WIDGET_RESPONSE_CACHE_MAX_ENTRIES, entry.cache_key, entry.response);
+                }
+              }
+            }
+          } catch (_ignore) { /* best-effort parse */ }
+        }
         if (!_adaptiveDialdownTriggered) {
           setTimeout(() => {
             void prefetchWarmupShells(manifest);
@@ -5477,17 +5494,33 @@
       _warmupInFlight = true;
       try {
         const defaults = warmupDefaults();
-        await fetch(`${getApiBaseUrl()}/api/v1/warmup`, {
+        const rewarmBody = {
+          targets,
+          base_params: buildWarmupBaseParams(),
+          budget_seconds: defaults.budget_seconds,
+          max_jobs: defaults.max_jobs,
+          concurrency: defaults.concurrency,
+        };
+        if (WARMUP_RETURN_PAYLOADS) {
+          rewarmBody.include_payloads = true;
+        }
+        const resp = await fetch(`${getApiBaseUrl()}/api/v1/warmup`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            targets,
-            base_params: buildWarmupBaseParams(),
-            budget_seconds: defaults.budget_seconds,
-            max_jobs: defaults.max_jobs,
-            concurrency: defaults.concurrency,
-          }),
+          body: JSON.stringify(rewarmBody),
         });
+        if (WARMUP_RETURN_PAYLOADS && resp.ok) {
+          try {
+            const data = await resp.json();
+            if (Array.isArray(data.payloads)) {
+              for (const entry of data.payloads) {
+                if (entry.cache_key && entry.response) {
+                  setLruCacheEntry(widgetResponseCache, WIDGET_RESPONSE_CACHE_MAX_ENTRIES, entry.cache_key, entry.response);
+                }
+              }
+            }
+          } catch (_ignore) { /* best-effort parse */ }
+        }
         setTimeout(() => {
           void prefetchWarmupShells(manifest);
         }, 1200);

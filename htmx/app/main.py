@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.gzip import GZipMiddleware
 from dotenv import load_dotenv
 
 from app.pages.common import PageConfig, build_widget_endpoint
@@ -55,6 +56,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "warmup_max_jobs": 20,
         "warmup_concurrency": 3,
         "warmup_widgets_per_page": 8,
+        "warmup_return_payloads": False,
         "critical_cache_max_age_ms": 15_000,
         "default_cache_max_age_ms": 30_000,
         "soft_nav_shell_refresh_delay_ms": 500,
@@ -86,6 +88,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "warmup_max_jobs": 20,
         "warmup_concurrency": 3,
         "warmup_widgets_per_page": 8,
+        "warmup_return_payloads": False,
         "critical_cache_max_age_ms": 60_000,
         "default_cache_max_age_ms": 300_000,
         "soft_nav_shell_refresh_delay_ms": 3_000,
@@ -117,6 +120,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "warmup_max_jobs": 40,
         "warmup_concurrency": 5,
         "warmup_widgets_per_page": 14,
+        "warmup_return_payloads": True,
         "critical_cache_max_age_ms": 120_000,
         "default_cache_max_age_ms": 600_000,
         "soft_nav_shell_refresh_delay_ms": 5_000,
@@ -150,6 +154,7 @@ _CACHE_ENV_MAP: dict[str, tuple[str, type]] = {
     "warmup_max_jobs": ("HTMX_WARMUP_MAX_JOBS", int),
     "warmup_concurrency": ("HTMX_WARMUP_CONCURRENCY", int),
     "warmup_widgets_per_page": ("HTMX_WARMUP_WIDGETS_PER_PAGE", int),
+    "warmup_return_payloads": ("HTMX_WARMUP_RETURN_PAYLOADS", bool),
     "critical_cache_max_age_ms": ("HTMX_CRITICAL_CACHE_MAX_AGE_MS", int),
     "default_cache_max_age_ms": ("HTMX_DEFAULT_CACHE_MAX_AGE_MS", int),
     "soft_nav_shell_refresh_delay_ms": ("HTMX_SOFT_NAV_SHELL_REFRESH_DELAY_MS", int),
@@ -239,6 +244,7 @@ app = FastAPI(
     description="Server-rendered dashboard using HTMX + ECharts.",
     version="0.1.0",
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 

@@ -6,6 +6,8 @@ from typing import Any
 
 from app.services.pages.base import BasePageService
 
+_PIPELINE_LOCKED = os.getenv("API_PIPELINE_LOCKED", "0") == "1"
+
 
 class ExponentPageService(BasePageService):
     page_id = "exponent"
@@ -105,6 +107,8 @@ class ExponentPageService(BasePageService):
     @staticmethod
     def _pl(params: dict[str, Any] | None) -> str:
         """Pipeline tag for cache-key namespacing."""
+        if _PIPELINE_LOCKED:
+            return ""
         return str((params or {}).get("_pipeline") or "")
 
     def _v_last_row(self, params: dict[str, Any] | None = None) -> dict[str, Any]:

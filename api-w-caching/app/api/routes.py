@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import threading
 from typing import Annotated
 
@@ -7,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from app.api.schemas import WidgetResponse
+from app.services.cache_config import API_CACHE_CONFIG
 from app.services.data_service import DataService
 from app.services import pipeline_config
 from app.services.sql_adapter import SqlAdapter
@@ -14,6 +16,9 @@ from app.services.sql_adapter import SqlAdapter
 router = APIRouter()
 _service = DataService(SqlAdapter())
 _pipeline_switch_lock = threading.Lock()
+
+_raw_stats = os.getenv("API_CACHE_STATS_ENABLED")
+_CACHE_STATS_ENABLED = (_raw_stats == "1") if _raw_stats is not None else bool(API_CACHE_CONFIG.get("API_CACHE_STATS_ENABLED", True))
 
 
 def get_data_service() -> DataService:
@@ -44,6 +49,13 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@router.get("/api/v1/cache-stats")
+def cache_stats(svc: DataService = Depends(get_data_service)) -> dict[str, object]:
+    if not _CACHE_STATS_ENABLED:
+        raise HTTPException(status_code=404, detail="Cache stats endpoint is disabled")
+    return svc.get_cache_stats()
+
+
 # ── Pipeline switcher (dev only, gated by ENABLE_PIPELINE_SWITCHER=1) ────────
 
 class _SwitchRequest(BaseModel):
@@ -56,6 +68,9 @@ class _WarmupRequest(BaseModel):
     budget_seconds: float = 30.0
     max_jobs: int = 20
     concurrency: int = 3
+    include_payloads: bool = False
+    max_payload_bytes: int = 2_000_000
+    max_payload_count: int = 20
 
 @router.get("/api/v1/pipeline")
 def get_pipeline() -> dict[str, object]:
@@ -190,14 +205,17 @@ def get_widget(
 @router.post("/api/v1/warmup")
 def warmup_targets(body: _WarmupRequest, svc: DataService = Depends(get_data_service)) -> dict[str, object]:
     try:
-        stats = svc.warmup_targets(
+        result = svc.warmup_targets(
             targets=body.targets,
             base_params=body.base_params,
             budget_seconds=body.budget_seconds,
             max_jobs=body.max_jobs,
             concurrency=body.concurrency,
+            include_payloads=body.include_payloads,
+            max_payload_bytes=body.max_payload_bytes,
+            max_payload_count=body.max_payload_count,
         )
-        return {"status": "ok", "stats": stats}
+        return {"status": "ok", **result}
     except Exception as exc:
         short = str(exc)[:200]
         raise HTTPException(status_code=500, detail=f"Warmup failed: {short}") from exc

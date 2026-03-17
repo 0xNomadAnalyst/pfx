@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
@@ -8,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from typing import Any
 
+from app.services.cache_config import API_CACHE_CONFIG
 from app.services.pages.dex_liquidity import DexLiquidityPageService
 from app.services.pages.dex_swaps import DexSwapsPageService
 from app.services.pages.exponent import ExponentPageService
@@ -27,8 +29,10 @@ class DataService:
     def __init__(self, sql_adapter: SqlAdapter):
         self.sql = sql_adapter
         cache = QueryCache(
-            ttl_seconds=float(os.getenv("API_CACHE_TTL_SECONDS", "30")),
-            max_entries=int(os.getenv("API_CACHE_MAX_ENTRIES", "256")),
+            ttl_seconds=float(API_CACHE_CONFIG.get("API_CACHE_TTL_SECONDS", 30)),
+            max_entries=int(API_CACHE_CONFIG.get("API_CACHE_MAX_ENTRIES", 256)),
+            swr_workers=int(API_CACHE_CONFIG.get("API_CACHE_SWR_WORKERS", 4)),
+            jitter_pct=float(API_CACHE_CONFIG.get("API_CACHE_TTL_JITTER_PCT", 10)),
         )
         self._query_cache = cache
         liquidity = DexLiquidityPageService(sql_adapter, cache)
@@ -120,7 +124,14 @@ class DataService:
         self._health_status_expires_at = 0.0
 
     def close(self) -> None:
+        if hasattr(self, "_query_cache") and hasattr(self._query_cache, "close"):
+            self._query_cache.close()
         self.sql.close()
+
+    def get_cache_stats(self) -> dict[str, Any]:
+        if hasattr(self, "_query_cache") and hasattr(self._query_cache, "stats"):
+            return self._query_cache.stats()
+        return {}
 
     def warmup(self) -> None:
         """Prime expensive caches to reduce first-user cold latency."""
@@ -398,6 +409,11 @@ class DataService:
                 logger.warning("Slow widget %.2fms page=%s widget=%s", elapsed_ms, page, widget_id)
         return response
 
+    @staticmethod
+    def _build_cache_key(widget_id: str, params: dict[str, Any]) -> str:
+        sig = "&".join(f"{k}={params[k]}" for k in sorted(params.keys()))
+        return f"{widget_id}::{sig}"
+
     def warmup_targets(
         self,
         *,
@@ -406,6 +422,9 @@ class DataService:
         budget_seconds: float = 30.0,
         max_jobs: int = 20,
         concurrency: int = 3,
+        include_payloads: bool = False,
+        max_payload_bytes: int = 2_000_000,
+        max_payload_count: int = 20,
     ) -> dict[str, Any]:
         started = time.perf_counter()
         common_params = dict(base_params or {})
@@ -444,9 +463,32 @@ class DataService:
         budget = max(1.0, float(budget_seconds))
         worker_count = max(1, int(concurrency))
 
+        payloads_lock = threading.Lock()
+        payloads_list: list[dict[str, Any]] = []
+        payloads_bytes = 0
+
         def _run_job(job: tuple[str, str, dict[str, Any]]) -> bool:
+            nonlocal payloads_bytes
+            if time.perf_counter() - started >= budget:
+                return False
             page_id, widget_id, params = job
-            self.get_widget_data(page=page_id, widget_id=widget_id, params=params)
+            result = self.get_widget_data(page=page_id, widget_id=widget_id, params=params)
+            if include_payloads:
+                with payloads_lock:
+                    if len(payloads_list) >= max_payload_count:
+                        return True
+                    try:
+                        entry_size = len(json.dumps(result, default=str))
+                    except Exception:
+                        return True
+                    if payloads_bytes + entry_size <= max_payload_bytes:
+                        payloads_list.append({
+                            "cache_key": self._build_cache_key(widget_id, params),
+                            "page_id": page_id,
+                            "widget_id": widget_id,
+                            "response": result,
+                        })
+                        payloads_bytes += entry_size
             return True
 
         futures = []
@@ -464,11 +506,19 @@ class DataService:
                     skipped += 1
                     continue
                 try:
-                    future.result()
-                    completed += 1
+                    ok = future.result()
+                    if ok:
+                        completed += 1
+                    else:
+                        skipped += 1
                 except Exception as exc:
                     failed += 1
                     logger.warning("Warmup job failed: %s", exc)
+
+            for future in futures:
+                if not future.done():
+                    future.cancel()
+                    skipped += 1
 
         elapsed = time.perf_counter() - started
         logger.info(
@@ -480,11 +530,16 @@ class DataService:
             elapsed,
             budget,
         )
-        return {
-            "attempted": attempted,
-            "completed": completed,
-            "failed": failed,
-            "skipped": skipped,
-            "elapsed_seconds": round(elapsed, 3),
-            "budget_seconds": budget,
+        result: dict[str, Any] = {
+            "stats": {
+                "attempted": attempted,
+                "completed": completed,
+                "failed": failed,
+                "skipped": skipped,
+                "elapsed_seconds": round(elapsed, 3),
+                "budget_seconds": budget,
+            },
         }
+        if include_payloads:
+            result["payloads"] = payloads_list
+        return result

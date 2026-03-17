@@ -36,10 +36,41 @@ Useful options:
 - `--output-json reports/bench-2026-02-25.json` (persist run for diffing)
 - `--base-url http://127.0.0.1:8001` (target a different API instance)
 
+## Cache mode profiles
+
+Set `API_CACHE_MODE` to select a configuration baseline. Individual `API_*` env vars override profile defaults.
+
+| Setting | `fresh` | `balanced` (default) | `speed` |
+|---|---|---|---|
+| `API_CACHE_TTL_SECONDS` | 30 | 30 | 120 |
+| `API_CACHE_SWR_SECONDS` | 5 | 15 | 30 |
+| `API_CACHE_TTL_JITTER_PCT` | 0 | 10 | 15 |
+| `API_CACHE_SWR_WORKERS` | 2 | 4 | 6 |
+| `API_CACHE_MAX_ENTRIES` | 256 | 256 | 512 |
+| `API_CACHE_STATS_ENABLED` | 0 | 1 | 0 |
+
+### TTL alignment with client cache modes
+
+The server TTL should outlive the client's critical cache max-age so that re-warmup cycles hit server cache rather than cold DB queries:
+
+| HTMX client mode | Client critical max-age | Recommended API mode | Server TTL |
+|---|---|---|---|
+| `conservative` | 15 s | `fresh` | 30 s |
+| `balanced` | 30 s | `balanced` | 30 s |
+| `aggressive` | 120 s | `speed` | 120 s |
+
+If running `HTMX_CACHE_MODE=aggressive`, set `API_CACHE_MODE=speed` (or `API_CACHE_TTL_SECONDS=120`) to prevent premature server-side expiry.
+
 Cache tuning env vars (API process):
 
+- `API_CACHE_MODE` (default `balanced`, one of `fresh` / `balanced` / `speed`)
 - `API_CACHE_TTL_SECONDS` (default `30`)
+- `API_CACHE_SWR_SECONDS` (default `15`, stale-while-revalidate window)
+- `API_CACHE_TTL_JITTER_PCT` (default `10`, ±N% random jitter on TTL; floor 1s)
+- `API_CACHE_SWR_WORKERS` (default `4`, bounded thread pool for SWR refreshes)
 - `API_CACHE_MAX_ENTRIES` (default `256`)
+- `API_CACHE_STATS_ENABLED` (default per profile, exposes `GET /api/v1/cache-stats`)
+- `API_PIPELINE_LOCKED` (default `0`, set `1` to collapse pipeline-namespaced cache keys)
 - `DB_POOL_PREWARM` (default `1`, run `SELECT 1` during pool init)
 - `API_PREWARM_ENABLED` (default `1`, warms selected Kamino widgets on startup)
 - `API_PREWARM_WINDOWS` (default `1h,24h,7d`)

@@ -5,9 +5,11 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from dotenv import load_dotenv
 
 from app.api.routes import get_data_service, router
+from app.services.cache_config import API_CACHE_CONFIG
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
@@ -26,6 +28,8 @@ def _validate_env() -> None:
 async def lifespan(_: FastAPI):
     _validate_env()
     service = get_data_service()
+    mode = os.getenv("API_CACHE_MODE", "balanced")
+    logger.info("API_CACHE_MODE=%s resolved_config=%s", mode, API_CACHE_CONFIG)
     try:
         service.warmup()
     except Exception as exc:  # pragma: no cover - startup best effort
@@ -40,6 +44,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

@@ -19,6 +19,7 @@
   data-warmup-budget-seconds="{{ cache_config.warmup_budget_seconds if cache_config else 30 }}"
   data-warmup-max-jobs="{{ cache_config.warmup_max_jobs if cache_config else 20 }}"
   data-warmup-concurrency="{{ cache_config.warmup_concurrency if cache_config else 3 }}"
+  data-warmup-return-payloads="{{ '1' if cache_config and cache_config.warmup_return_payloads else '0' }}"
   data-soft-nav-shell-refresh-delay-ms="{{ cache_config.soft_nav_shell_refresh_delay_ms if cache_config else 3000 }}"
   data-soft-nav-shell-cache-ttl-ms="{{ cache_config.soft_nav_shell_cache_ttl_ms if cache_config else 600000 }}"
   data-viewport-poll-stale-ms="{{ cache_config.viewport_poll_stale_ms if cache_config else 45000 }}"

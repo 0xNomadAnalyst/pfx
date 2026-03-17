@@ -11,6 +11,7 @@ _CHART_TTL = float(os.getenv("HEALTH_CHART_TTL_SECONDS", "120"))
 _CHART_TIMEOUT_MS = 30_000
 _MASTER_TIMEOUT_MS = int(os.getenv("HEALTH_MASTER_TIMEOUT_MS", "60000"))
 _HEALTH_STATUS_TIMEOUT_MS = int(os.getenv("HEALTH_STATUS_TIMEOUT_MS", "2000"))
+_PIPELINE_LOCKED = os.getenv("API_PIPELINE_LOCKED", "0") == "1"
 
 QUEUE_COLORS = [
     "#4bb7ff", "#f8a94a", "#28c987", "#06b6d4", "#ae82ff",
@@ -269,6 +270,8 @@ class HealthPageService(BasePageService):
 
     @staticmethod
     def _pl(params: dict[str, Any] | None) -> str:
+        if _PIPELINE_LOCKED:
+            return ""
         return str((params or {}).get("_pipeline") or "")
 
     # ------------------------------------------------------------------
