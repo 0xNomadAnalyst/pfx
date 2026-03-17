@@ -30,7 +30,7 @@
   <h2 class="ge-section-title">ONyc Token Ecosystem</h2>
 </div>
 
-<div class="panel cv-slot-half-l">
+<div class="panel cv-slot-third-1">
   <div class="panel-header">
     <h3>What is Monitored</h3>
   </div>
@@ -42,16 +42,16 @@
       those venues in real time.
     </p>
     <ul>
-      <li>Token supply &amp; derivative issuance (SY, PT, YT)</li>
-      <li>Liquidity depth &amp; LP positions across DEX pools</li>
-      <li>Lending supply, borrow rates &amp; collateral utilisation</li>
-      <li>Yield curves: base token yield, implied APY, lending APY</li>
-      <li>Protocol-level TVL &amp; 24h activity volumes</li>
+      <li><strong>Token supply</strong> &amp; derivative issuance (SY, PT, YT)</li>
+      <li><strong>Liquidity depth</strong> &amp; LP positions across DEX pools</li>
+      <li><strong>Lending supply</strong>, borrow rates &amp; collateral utilisation</li>
+      <li><strong>Yield curves</strong> — base token yield, implied APY, lending APY</li>
+      <li><strong>Protocol-level TVL</strong> &amp; 24h activity volumes</li>
     </ul>
   </div>
 </div>
 
-<div class="panel cv-slot-half-r">
+<div class="panel cv-slot-third-2">
   <div class="panel-header">
     <h3>Key Interactions Tracked</h3>
   </div>
@@ -69,6 +69,24 @@
   </div>
 </div>
 
+<div class="panel cv-slot-third-3">
+  <div class="panel-header">
+    <h3>Cross-Protocol Analysis</h3>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      Beyond per-protocol metrics, the dashboard integrates data across all four venues
+      to surface ecosystem-level patterns and cross-protocol risks:
+    </p>
+    <ul>
+      <li><strong>Aggregate supply</strong> — token distribution across DEX pools, lending reserves and yield vaults</li>
+      <li><strong>Sell-impact estimates</strong> — combine liquidity depth with swap activity</li>
+      <li><strong>Yield curve comparison</strong> — lending APY, implied PT rates and base token yield</li>
+      <li><strong>Issuance flow</strong> — tracking from mint through DEX, lending and yield tokenisation</li>
+    </ul>
+  </div>
+</div>
+
 <!-- ── Protocols Monitored ─────────────────────────────────── -->
 <div class="ge-section-header cv-section-header cv-slot-full-1">
   <h2 class="ge-section-title">Protocols Monitored</h2>
@@ -77,9 +95,9 @@
 <div class="panel cv-slot-q1">
   <div class="panel-header">
     <h3>Orca Whirlpool</h3>
+    <span class="cv-tag">DEX</span>
   </div>
   <div class="panel-body cv-body">
-    <span class="cv-tag">DEX</span>
     <p>
       Concentrated-liquidity AMM. ONyc–USDC pool with tick-level depth monitoring,
       LP positions, and swap event capture.
@@ -90,9 +108,9 @@
 <div class="panel cv-slot-q2">
   <div class="panel-header">
     <h3>Raydium CLMM</h3>
+    <span class="cv-tag">DEX</span>
   </div>
   <div class="panel-body cv-body">
-    <span class="cv-tag">DEX</span>
     <p>
       Concentrated-liquidity AMM. USDG–ONyc pool with LP position and
       swap tracking across tick arrays.
@@ -103,9 +121,9 @@
 <div class="panel cv-slot-q3">
   <div class="panel-header">
     <h3>Kamino Lending</h3>
+    <span class="cv-tag">Lending</span>
   </div>
   <div class="panel-body cv-body">
-    <span class="cv-tag">Lending</span>
     <p>
       Reserve metrics, supply &amp; borrow APY, obligation positions, and liquidation risk
       indicators.
@@ -116,9 +134,9 @@
 <div class="panel cv-slot-q4">
   <div class="panel-header">
     <h3>Exponent Finance</h3>
+    <span class="cv-tag">Yield</span>
   </div>
   <div class="panel-body cv-body">
-    <span class="cv-tag">Yield</span>
     <p>
       PT/YT yield tokenisation. Implied APY, SY supply, escrow balances, and
       trade flow across maturity markets.
