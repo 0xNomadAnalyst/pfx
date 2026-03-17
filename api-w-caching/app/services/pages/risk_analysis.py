@@ -478,10 +478,10 @@ class RiskAnalysisPageService(BasePageService):
         return {
             "kind": "table-split",
             "columns": columns,
-            "left_title": f"Raydium {self._pair('raydium')}",
-            "left_rows": ray_rows,
-            "right_title": f"Orca {self._pair('orca')}",
-            "right_rows": orca_rows,
+            "left_title": f"Orca {self._pair('orca')}",
+            "left_rows": orca_rows,
+            "right_title": f"Raydium {self._pair('raydium')}",
+            "right_rows": ray_rows,
             "subtitle": subtitle,
             "window_label": "All Time",
         }

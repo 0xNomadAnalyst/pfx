@@ -715,25 +715,23 @@ class GlobalEcosystemPageService(BasePageService):
     def _current_yields(self, _: dict[str, Any]) -> dict[str, Any]:
         r = self._v_last()
         by = self._base_yield_snapshot()
-        categories = [
-            "ONyc 24h", "ONyc 7d", "ONyc 30d",
-            "Borrow USDC", "Borrow USDG", "Borrow USDS",
-            "Exp. Implied",
+
+        entries: list[tuple[str, float, str]] = [
+            ("ONyc 24h", self._fv(by.get("base_apy_24h_pct")), _COLORS["orange"]),
+            ("ONyc 7d",  self._fv(by.get("base_apy_7d_pct")),  _COLORS["orange"]),
         ]
-        values = [
-            self._fv(by.get("base_apy_24h_pct")),
-            self._fv(by.get("base_apy_7d_pct")),
-            self._fv(by.get("base_apy_30d_pct")),
-            self._fv(r.get("kam_usdc_borrow_apy_pct")),
-            self._fv(r.get("kam_usdg_borrow_apy_pct")),
-            self._fv(r.get("kam_usds_borrow_apy_pct")),
-            self._fv(r.get("exp_weighted_implied_apy_pct")),
+        if by.get("base_apy_30d_pct") is not None:
+            entries.append(("ONyc 30d", self._fv(by.get("base_apy_30d_pct")), _COLORS["orange"]))
+        entries += [
+            ("Borrow USDC",  self._fv(r.get("kam_usdc_borrow_apy_pct")),      _COLORS["green"]),
+            ("Borrow USDG",  self._fv(r.get("kam_usdg_borrow_apy_pct")),      _COLORS["teal"]),
+            ("Borrow USDS",  self._fv(r.get("kam_usds_borrow_apy_pct")),      _COLORS["blue"]),
+            ("Exp. Implied", self._fv(r.get("exp_weighted_implied_apy_pct")), _COLORS["yellow"]),
         ]
-        colors = [
-            _COLORS["orange"], _COLORS["orange"], _COLORS["orange"],
-            _COLORS["green"], _COLORS["teal"], _COLORS["blue"],
-            _COLORS["yellow"],
-        ]
+
+        categories = [e[0] for e in entries]
+        values = [e[1] for e in entries]
+        colors = [e[2] for e in entries]
         return self._vbar(categories, values, colors, y_label="APY %", y_format="pct2", x_label_rotate=25)
 
     # ------------------------------------------------------------------

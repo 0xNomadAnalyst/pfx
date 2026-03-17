@@ -208,7 +208,9 @@ class DexSwapsPageService(BasePageService):
             cols = """time, swap_t1_out, swap_t0_out, swap_t1_in, swap_t0_in,
                     swap_count, avg_est_swap_impact_bps_all,
                     min_est_swap_impact_bps_t0_sell, price_t1_per_t0,
-                    avg_vwap_spread_bps_w_last"""
+                    avg_vwap_spread_bps_w_last,
+                    last_vwap_spread_bps,
+                    last_vwap_buy_t0, last_vwap_sell_t0"""
             if p_invert:
                 query = f"""
                     SELECT {cols}
@@ -533,11 +535,23 @@ class DexSwapsPageService(BasePageService):
             ],
         }
 
+    @staticmethod
+    def _filter_impact_outliers(values: list[float | None], multiplier: float = 10.0) -> list[float | None]:
+        valid = [abs(v) for v in values if v is not None and math.isfinite(v)]
+        if len(valid) < 5:
+            return values
+        valid.sort()
+        p99_idx = int(len(valid) * 0.99)
+        p99 = valid[min(p99_idx, len(valid) - 1)]
+        threshold = max(p99 * multiplier, 10.0)
+        return [v if v is not None and abs(v) <= threshold else None for v in values]
+
     def _swaps_price_impacts(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._dex_timeseries_rows(params)
-        avg_impacts = [self._to_float_or_none(row.get("avg_est_swap_impact_bps_all")) for row in rows]
+        avg_impacts_raw = [self._to_float_or_none(row.get("avg_est_swap_impact_bps_all")) for row in rows]
         max_sell_impacts_raw = [self._to_float_or_none(row.get("min_est_swap_impact_bps_t0_sell")) for row in rows]
-        max_sell_impacts = self._forward_fill(max_sell_impacts_raw)
+        avg_impacts = self._filter_impact_outliers(avg_impacts_raw)
+        max_sell_impacts = self._forward_fill(self._filter_impact_outliers(max_sell_impacts_raw))
         return {
             "kind": "chart",
             "chart": "line",

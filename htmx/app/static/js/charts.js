@@ -1652,23 +1652,36 @@
       const isDark = document.documentElement.getAttribute("data-theme") !== "light";
       const labelBg = isDark ? "rgba(0,0,0,0.65)" : "rgba(255,255,255,0.85)";
       const xLen = xLabels.length;
+
+      const resolved = data.mark_lines.map((ml) => {
+        const closest = xLabels.reduce((best, lbl, idx) => {
+          const diff = Math.abs(parseFloat(lbl) - ml.value);
+          return diff < best.diff ? { idx, diff } : best;
+        }, { idx: 0, diff: Infinity });
+        return { ...ml, xIdx: closest.idx };
+      });
+
+      const sorted = [...resolved].sort((a, b) => a.xIdx - b.xIdx);
+      const stepPx = 18;
+      const rankByIdx = new Map();
+      sorted.forEach((item, rank) => rankByIdx.set(item, rank));
+
       option.series[0].markLine = {
         silent: true,
         symbol: "none",
-        data: data.mark_lines.map((ml) => {
-          const closest = xLabels.reduce((best, lbl, idx) => {
-            const diff = Math.abs(parseFloat(lbl) - ml.value);
-            return diff < best.diff ? { idx, diff } : best;
-          }, { idx: 0, diff: Infinity });
-          const nearRight = xLen > 0 && closest.idx > xLen * 0.8;
-          const nearLeft = xLen > 0 && closest.idx < xLen * 0.2;
+        data: resolved.map((ml) => {
+          const rank = rankByIdx.get(ml);
+          const yOff = -(sorted.length - 1 - rank) * stepPx;
+          const nearRight = xLen > 0 && ml.xIdx > xLen * 0.8;
+          const nearLeft = xLen > 0 && ml.xIdx < xLen * 0.2;
           return {
-            xAxis: closest.idx,
+            xAxis: ml.xIdx,
             lineStyle: { type: "dashed", color: ml.color || "#aaa", width: 2 },
             label: {
               show: true,
               formatter: ml.label,
               position: "end",
+              offset: [0, yOff],
               align: nearRight ? "right" : nearLeft ? "left" : "center",
               color: ml.color || "#aaa",
               fontSize: 12,
@@ -5062,6 +5075,14 @@
       } catch (_) {
         // keep default value
       }
+    } else {
+      try {
+        const plMeta = currentPipeline();
+        const metaQs = plMeta ? `?_pipeline=${encodeURIComponent(plMeta)}` : "";
+        const response = await fetch(`${getApiBaseUrl()}/api/v1/meta${metaQs}`, { cache: "no-store" });
+        const payload = await response.json();
+        protocolPairs = payload.protocol_pairs || [];
+      } catch (_) {}
     }
 
     applyGlobalFilters(selectedProtocol, selectedPair, selectedLastWindow, false);

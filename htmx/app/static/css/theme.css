@@ -36,6 +36,18 @@ html[data-theme="light"] {
   box-sizing: border-box;
 }
 
+body,
+.widget,
+.topbar,
+.ge-section-title,
+.ge-section-header::after,
+.theme-toggle,
+.action-button,
+.bottombar {
+  transition: background-color 0.35s ease, color 0.35s ease,
+              border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
 body {
   margin: 0;
   background: var(--bg);
