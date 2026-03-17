@@ -338,6 +338,8 @@ check_health() {
         SELECT 'xp_ts_1m',          MAX(refreshed_at), COUNT(*) FROM cross_protocol.mat_xp_ts_1m
         UNION ALL
         SELECT 'xp_last',           MAX(refreshed_at), COUNT(*) FROM cross_protocol.mat_xp_last
+        UNION ALL
+        SELECT 'risk_pvalues',      MAX(date),          COUNT(*) FROM ${DEX_SCHEMA}.risk_pvalues
         ORDER BY tbl;
     " 2>/dev/null || true
 }
