@@ -679,8 +679,9 @@ async def api_v1_proxy(path: str, request: Request):
 
     req = urllib.request.Request(target, data=body or None, method=method)
     req.add_header("Content-Type", request.headers.get("content-type", "application/json"))
+    proxy_timeout = float(os.getenv("HTMX_API_PROXY_TIMEOUT_SECONDS", "60"))
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=proxy_timeout) as resp:
             content = resp.read()
             ct = resp.headers.get("content-type", "application/json")
             if request.method.upper() == "GET" and path == "meta":

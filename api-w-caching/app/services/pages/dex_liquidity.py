@@ -17,6 +17,7 @@ class DexLiquidityPageService(BasePageService):
     _RANKED_LP_TTL_SECONDS = float(os.getenv("DEX_LIQUIDITY_RANKED_LP_TTL_SECONDS", "120"))
     _RANKED_LP_TIMEOUT_MS = int(os.getenv("DEX_LIQUIDITY_RANKED_LP_TIMEOUT_MS", "5000"))
     _DEX_LAST_TIMEOUT_MS = int(os.getenv("DEX_LIQUIDITY_DEX_LAST_TIMEOUT_MS", "8000"))
+    _TICK_DIST_TIMEOUT_MS = int(os.getenv("DEX_LIQUIDITY_TICK_DIST_TIMEOUT_MS", "25000"))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -68,30 +69,38 @@ class DexLiquidityPageService(BasePageService):
         pair = str(params.get("pair", "USX-USDC"))
         delta_time = str(params.get("tick_delta_time", "1 hour"))
         p_invert = self._should_invert(params, protocol)
+        timeout_ms = self._TICK_DIST_TIMEOUT_MS
 
-        def _run_query(active_delta_time: str) -> list[dict[str, Any]]:
+        def _run_query(active_delta_time: str, stmt_timeout_ms: int) -> list[dict[str, Any]]:
             if p_invert:
                 query = """
                     SELECT *
                     FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval, %s)
                     ORDER BY tick_price_t1_per_t0
                 """
-                return self.sql.fetch_rows(query, (protocol, pair, active_delta_time, True))
+                return self.sql.fetch_rows(
+                    query, (protocol, pair, active_delta_time, True),
+                    statement_timeout_ms=stmt_timeout_ms,
+                )
             query = """
                 SELECT *
                 FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval)
                 ORDER BY tick_price_t1_per_t0
             """
-            return self.sql.fetch_rows(query, (protocol, pair, active_delta_time))
+            return self.sql.fetch_rows(
+                query, (protocol, pair, active_delta_time),
+                statement_timeout_ms=stmt_timeout_ms,
+            )
 
         def _load_rows() -> list[dict[str, Any]]:
             try:
-                return _run_query(delta_time)
+                return _run_query(delta_time, timeout_ms)
             except Exception as exc:
                 is_timeout = "statement timeout" in str(exc).lower()
                 if not is_timeout or delta_time == "24 hours":
                     raise
-                return _run_query("24 hours")
+                fallback_timeout = max(5000, timeout_ms // 2)
+                return _run_query("24 hours", fallback_timeout)
 
         cache_key = f"tick_dist::{protocol}::{pair}::{delta_time}::{p_invert}"
         return self._cached(cache_key, _load_rows, ttl_seconds=self._TICK_DIST_TTL_SECONDS)
