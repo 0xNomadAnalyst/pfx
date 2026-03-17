@@ -563,6 +563,25 @@ class DexSwapsPageService(BasePageService):
             ],
         }
 
+    def _resolve_spread(self, row: dict[str, Any]) -> float | None:
+        spread = self._to_float_or_none(row.get("last_vwap_spread_bps"))
+        if spread is not None:
+            return spread
+        spread_w_last = self._to_float_or_none(row.get("avg_vwap_spread_bps_w_last"))
+        if spread_w_last is not None:
+            return spread_w_last
+        buy = self._to_float_or_none(row.get("last_vwap_buy_t0"))
+        sell = self._to_float_or_none(row.get("last_vwap_sell_t0"))
+        price = self._to_float_or_none(row.get("price_t1_per_t0"))
+        t0_in = self._to_float_or_none(row.get("swap_t0_in"))
+        t0_out = self._to_float_or_none(row.get("swap_t0_out"))
+        if (
+            buy is not None and sell is not None and price and price > 0
+            and t0_in and t0_in >= 1.0 and t0_out and t0_out >= 1.0
+        ):
+            return round((buy - sell) / price * 10_000, 2)
+        return None
+
     def _swaps_spread_volatility(self, params: dict[str, Any]) -> dict[str, Any]:
         rows = self._dex_timeseries_rows(params)
         prices = [float(row.get("price_t1_per_t0") or 0) if row.get("price_t1_per_t0") is not None else None for row in rows]
@@ -581,7 +600,7 @@ class DexSwapsPageService(BasePageService):
             "yAxisLabel": "bps (USDC/USX)",
             "yRightAxisLabel": "Std. Dev. (USDC/USX)",
             "series": [
-                {"name": "VWAP Spread", "type": "bar", "yAxisIndex": 0, "color": "#f8a94a", "data": [self._to_float_or_none(row.get("avg_vwap_spread_bps_w_last")) for row in rows]},
+                {"name": "VWAP Spread", "type": "bar", "yAxisIndex": 0, "color": "#f8a94a", "data": [self._resolve_spread(row) for row in rows]},
                 {"name": "Std. Dev.", "type": "line", "yAxisIndex": 1, "color": "#4bb7ff", "data": std_values},
             ],
         }

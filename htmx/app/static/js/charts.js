@@ -1221,6 +1221,12 @@
                   return `<td>${fmtVal}</td>`;
                 }
               }
+              if (column.format === "comma") {
+                const num = Number(raw);
+                if (Number.isFinite(num)) {
+                  return `<td>${num.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>`;
+                }
+              }
               if (column.key === "pct_reserve" || column.key === "% Reserve Now" || (column.label || "").toLowerCase().includes("% reserve")) {
                 const num = Number(raw);
                 if (Number.isFinite(num)) {

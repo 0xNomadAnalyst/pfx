@@ -470,8 +470,8 @@ class RiskAnalysisPageService(BasePageService):
 
         columns = [
             {"key": "stat_name", "label": "P Value"},
-            {"key": "value", "label": "Sell Amount"},
-            {"key": "event_count_at_or_above", "label": "Counts at or above"},
+            {"key": "value", "label": "Amount"},
+            {"key": "event_count_at_or_above", "label": "Counts at or above", "format": "comma"},
             {"key": "last_observed_at", "label": "Last observed"},
         ]
         subtitle = f"Refreshes Daily - Last Refresh at {refresh_date}" if refresh_date else ""

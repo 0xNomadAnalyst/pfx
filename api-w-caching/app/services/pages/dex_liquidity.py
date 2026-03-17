@@ -577,10 +577,20 @@ class DexLiquidityPageService(BasePageService):
         pair = str(params.get("pair", "USX-USDC"))
         rows = 10
         lookback = str(params.get("lookback", "1 day"))
-        last_window = str(params.get("last_window", "24h"))
+        last_window = str(params.get("last_window", "24h")).lower()
         lookback_from_window, _, _ = self._timeseries_window_config(last_window)
         lookback = lookback_from_window or lookback
         p_invert = self._should_invert(params, protocol)
+
+        timeout_ms = {
+            "1h": 15_000,
+            "4h": 20_000,
+            "6h": 25_000,
+            "24h": 35_000,
+            "7d": 60_000,
+            "30d": 120_000,
+            "90d": 180_000,
+        }.get(last_window, self._RANKED_LP_TIMEOUT_MS)
 
         def _run_ranked(direction: str, active_lookback: str) -> list[dict[str, Any]]:
             if p_invert:
@@ -601,11 +611,16 @@ class DexLiquidityPageService(BasePageService):
                 args = (protocol, pair, direction, rows, active_lookback)
             return self.sql.fetch_rows(
                 query, args,
-                statement_timeout_ms=self._RANKED_LP_TIMEOUT_MS,
+                statement_timeout_ms=timeout_ms,
             )
 
         def _load_ranked(direction: str) -> list[dict[str, Any]]:
-            return _run_ranked(direction, lookback)
+            try:
+                return _run_ranked(direction, lookback)
+            except Exception as exc:
+                if "statement timeout" in str(exc).lower():
+                    return []
+                raise
 
         top_in = self._cached(
             f"ranked_lp::{protocol}::{pair}::in::{rows}::{lookback}::{p_invert}",
@@ -625,10 +640,8 @@ class DexLiquidityPageService(BasePageService):
                 {"key": "primary_flow_reserve_pct_now", "label": "% Reserve Now"},
                 {"key": "signature", "label": "Tx Signature"},
             ],
-            # Match React split layout semantics: Removed on left, Added on right.
             "left_title": "Liquidity Removed",
             "right_title": "Liquidity Added",
-            # Hard-cap rows client-visible, even if SQL function returns extra.
             "left_rows": (top_out or [])[:rows],
             "right_rows": (top_in or [])[:rows],
         }
