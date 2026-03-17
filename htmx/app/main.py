@@ -529,6 +529,7 @@ def render_page(request: Request, page: PageConfig):
             "widgets": widget_bindings,
             "page_actions": page_action_bindings,
             "show_protocol_pair_filters": page.show_protocol_pair_filters,
+            "render_asset_select": page.show_asset_filter,
             "show_asset_filter": page.show_asset_filter and SHOW_ASSET_FILTER,
             "show_market_selectors": page.show_market_selectors,
             "api_page_id": page.api_page_id,

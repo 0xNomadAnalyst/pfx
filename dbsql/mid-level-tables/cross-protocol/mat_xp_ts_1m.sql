@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS cross_protocol.mat_xp_ts_1m (
 
     -- Yields
     kam_onyc_supply_apy         NUMERIC,
+    kam_usdc_borrow_apy         NUMERIC,
+    kam_usdg_borrow_apy         NUMERIC,
+    kam_usds_borrow_apy         NUMERIC,
     exp_weighted_implied_apy    NUMERIC,
 
     refreshed_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -83,7 +86,8 @@ BEGIN
         kam_repay_volume, kam_liquidate_volume, kam_total_volume,
         exp_pt_trade_volume, exp_lp_volume, exp_total_volume,
         all_protocol_volume, dex_volume_pct, kam_volume_pct, exp_volume_pct,
-        kam_onyc_supply_apy, exp_weighted_implied_apy,
+        kam_onyc_supply_apy, kam_usdc_borrow_apy, kam_usdg_borrow_apy, kam_usds_borrow_apy,
+        exp_weighted_implied_apy,
         refreshed_at
     )
     WITH
@@ -136,7 +140,7 @@ BEGIN
         GROUP BY r.bucket_time
     ),
 
-    -- ── KAMINO: Weighted-avg borrow APY from borrow-type reserves (USDC/USDG/USDS) ──
+    -- ── KAMINO: Weighted-avg borrow APY + per-asset borrow APYs ──
     kamino_yield AS (
         SELECT
             r.bucket_time,
@@ -144,7 +148,10 @@ BEGIN
                  THEN SUM(COALESCE(r.borrow_apy, 0) * COALESCE(r.collateral_total_supply, 0))
                       / SUM(COALESCE(r.collateral_total_supply, 0))
                  ELSE NULL
-            END AS kam_supply_apy
+            END AS kam_supply_apy,
+            MAX(r.borrow_apy) FILTER (WHERE art.token_symbol = 'USDC') AS kam_usdc_borrow_apy,
+            MAX(r.borrow_apy) FILTER (WHERE art.token_symbol = 'USDG') AS kam_usdg_borrow_apy,
+            MAX(r.borrow_apy) FILTER (WHERE art.token_symbol = 'USDS') AS kam_usds_borrow_apy
         FROM kamino_lend.mat_klend_reserve_ts_1m r
         JOIN kamino_lend.aux_market_reserve_tokens art
             ON r.reserve_address = art.reserve_address
@@ -249,6 +256,9 @@ BEGIN
             COALESCE(ea.pt_trade_vol, 0)      AS exp_pt_trade_volume,
             COALESCE(ea.lp_vol, 0)            AS exp_lp_volume,
             ky.kam_supply_apy,
+            ky.kam_usdc_borrow_apy,
+            ky.kam_usdg_borrow_apy,
+            ky.kam_usds_borrow_apy,
             ea.weighted_implied_apy
         FROM spine s
         LEFT JOIN dex_agg      dx ON s.bucket_time = dx.bucket_time

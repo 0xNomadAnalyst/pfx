@@ -465,6 +465,7 @@ class GlobalEcosystemPageService(BasePageService):
         colors: list[str],
         y_label: str = "",
         y_format: str = "compact",
+        x_label_rotate: int = 0,
     ) -> dict[str, Any]:
         data = [
             {"value": val, "itemStyle": {
@@ -474,7 +475,7 @@ class GlobalEcosystemPageService(BasePageService):
             }}
             for val, col in zip(values, colors)
         ]
-        return {
+        result: dict[str, Any] = {
             "kind": "chart",
             "chart": "line",
             "x": categories,
@@ -484,6 +485,9 @@ class GlobalEcosystemPageService(BasePageService):
                 {"name": "", "type": "bar", "barCategoryGap": "20%", "data": data},
             ],
         }
+        if x_label_rotate:
+            result["xAxisLabelRotate"] = x_label_rotate
+        return result
 
     # ------------------------------------------------------------------
     # Widget: Token Supply Outstanding (horizontal bar)
@@ -729,7 +733,7 @@ class GlobalEcosystemPageService(BasePageService):
             _COLORS["green"], _COLORS["teal"], _COLORS["blue"],
             _COLORS["yellow"],
         ]
-        return self._vbar(categories, values, colors, y_label="APY %", y_format="pct2")
+        return self._vbar(categories, values, colors, y_label="APY %", y_format="pct2", x_label_rotate=25)
 
     # ------------------------------------------------------------------
     # Widget: Yields Over Time (line)

@@ -127,10 +127,10 @@
           </select>
       </div>
       {% endif %}
-      {% if show_asset_filter %}
-      <div class="topbar-meta topbar-filters">
+      {% if render_asset_select %}
+      <div class="topbar-meta topbar-filters"{% if not show_asset_filter %} style="display:none"{% endif %}>
           <label class="filter-label" for="asset-select">Asset</label>
-          <select id="asset-select" class="filter-select" aria-label="Asset">
+          <select id="asset-select" class="filter-select" aria-label="Asset"{% if not show_asset_filter %} data-locked="true"{% endif %}>
             <option value="{{ asset }}">{{ asset }}</option>
           </select>
       </div>

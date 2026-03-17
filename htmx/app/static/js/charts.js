@@ -1555,7 +1555,8 @@
           fontSize: 11,
           margin: 14,
           formatter: xFmt || ((value) => formatPrice4dp(value)),
-          hideOverlap: true,
+          hideOverlap: data.xAxisLabelRotate ? false : true,
+          rotate: data.xAxisLabelRotate || 0,
         },
       },
       yAxis: hasDualAxis(data) ? [
