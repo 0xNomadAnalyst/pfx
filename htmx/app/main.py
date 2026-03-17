@@ -216,13 +216,13 @@ _meta_proxy_cache: dict[str, tuple[float, dict]] = {}
 _PAGE_MODULES: list[tuple[str, str, str]] = [
     ("PAGE_COVER",            "app.pages.cover",                   "0"),
     ("PAGE_GLOBAL_ECOSYSTEM", "app.pages.global",                   "1"),
-    ("PAGE_RISK_ANALYSIS",    "app.pages.risk_analysis",           "1"),
     ("PAGE_GLOBAL_SOLSTICE",  "app.pages.global_solstice_version", "0"),
     ("PAGE_DEX_LIQUIDITY",    "app.pages.dex_liquidity",           "0"),
     ("PAGE_DEX_SWAPS",        "app.pages.dex_swaps",               "0"),
     ("PAGE_DEXES",            "app.pages.dexes",                   "1"),
     ("PAGE_KAMINO",           "app.pages.kamino",                  "1"),
     ("PAGE_EXPONENT_YIELD",   "app.pages.exponent",                "1"),
+    ("PAGE_RISK_ANALYSIS",    "app.pages.risk_analysis",           "1"),
     ("PAGE_SYSTEM_HEALTH",    "app.pages.health",                  "1"),
 ]
 
