@@ -6321,6 +6321,19 @@
     "available", "borrowed", "total supply",
   ]);
 
+  const SOLANA_ADDR_KEYS = new Set([
+    "reserve_address", "token_mint", "vault", "market",
+    "mint_sy", "mint_pt", "mint_yt", "mint_lp",
+  ]);
+  const SOLANA_ADDR_LABELS = new Set([
+    "reserve address", "token mint", "vault", "market",
+    "mint sy", "mint pt", "mint yt", "mint lp",
+  ]);
+
+  function isSolanaAddrCol(key, label) {
+    return SOLANA_ADDR_KEYS.has(key) || SOLANA_ADDR_LABELS.has((label || "").toLowerCase());
+  }
+
   function formatPageActionCell(key, label, value) {
     if (value === null || value === undefined || value === "") return "";
     if (INTEGER_COMMA_COLUMNS.has(key) || INTEGER_COMMA_LABELS.has((label || "").toLowerCase())) {
@@ -6348,6 +6361,13 @@
         const display = val === null || val === undefined ? "" : formatPageActionCell(col.key, col.label, val);
         if (col.key === "term" && tip) {
           html += `<td><span class="row-tip-wrap">${escapeHtml(String(display))}<svg class="info-tip-icon" width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.3"/><text x="8" y="12" text-anchor="middle" fill="currentColor" font-size="11" font-weight="600">i</text></svg><span class="info-tip-card">${escapeHtml(tip)}</span></span></td>`;
+        } else if (isSolanaAddrCol(col.key, col.label) && display) {
+          const addr = String(display);
+          const short = addr.length > 12
+            ? addr.slice(0, 4) + " ...... " + addr.slice(-4)
+            : addr;
+          const href = `https://solscan.io/account/${encodeURIComponent(addr)}`;
+          html += `<td><a href="${href}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(addr)}">${short}</a></td>`;
         } else {
           html += `<td>${display}</td>`;
         }

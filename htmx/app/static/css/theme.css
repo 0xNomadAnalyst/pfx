@@ -1441,6 +1441,17 @@ td:first-child {
   line-height: 1.6;
   color: var(--text);
 }
+.page-action-modal-body a {
+  color: var(--table-link);
+  text-decoration: none;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  text-underline-offset: 2px;
+}
+.page-action-modal-body a:hover {
+  color: var(--table-link-hover);
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+}
 .page-action-modal-body h4 {
   margin: 20px 0 8px;
   font-size: 14px;
