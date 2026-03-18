@@ -1,6 +1,14 @@
--- get_view_exponent_timeseries: Re-bucketed read from mat_exp_timeseries_1m
+-- get_view_exponent_timeseries: Re-bucketed read from mat_exp_timeseries_1m with per-column LOCF
 -- Same signature and output schema as the original (exponent/dbsql/views/get_view_exponent_timeseries.sql)
--- Reads from pre-joined 1-minute materialized table instead of 5+ LATERAL joins at query time.
+--
+-- LOCF STRATEGY (uses TimescaleDB time_bucket_gapfill + locf):
+--   time_bucket_gapfill() creates a complete set of output buckets with no gaps.
+--   locf(LAST(...)) wraps every state column individually, so each column carries forward
+--   its own last non-null value even when the underlying sources (vault, market, SY) update
+--   at different cadences and a given row may only populate a subset of columns.
+--
+--   Event / flow metrics (AMM swap counts/volumes, LP deposit/withdraw flows) use SUM()
+--   without locf — empty buckets correctly render as 0 (genuine flows, not persistent state).
 
 CREATE OR REPLACE FUNCTION exponent.get_view_exponent_timeseries(
     market_selection TEXT DEFAULT 'mkt2',
@@ -114,7 +122,7 @@ BEGIN
         v_interval := INTERVAL '1 minute';
     END;
 
-    -- Market selection: mkt1/mkt2 by maturity recency, or explicit meta_pt_name
+    -- ── Market selection ──────────────────────────────────────────────────────────
     IF market_selection NOT IN ('mkt1', 'mkt2') THEN
         SELECT kr.vault_address INTO v_vault_address
         FROM exponent.aux_key_relations kr
@@ -139,7 +147,7 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Earliest exchange rate for vault-life / all-time APY baselines
+    -- ── Vault-life APY baselines ──────────────────────────────────────────────────
     SELECT m.bucket_time, m.sy_exchange_rate
     INTO v_ts_earliest, v_rate_earliest
     FROM exponent.mat_exp_timeseries_1m m
@@ -155,6 +163,7 @@ BEGIN
     ORDER BY m.bucket_time DESC
     LIMIT 1;
 
+    -- ── Main query ────────────────────────────────────────────────────────────────
     RETURN QUERY
     WITH
     rate_sparse AS (
@@ -164,107 +173,151 @@ BEGIN
           AND m.sy_exchange_rate IS NOT NULL
           AND m.bucket_time <= to_ts
     ),
+
+    -- time_bucket_gapfill produces a row for every output bucket.
+    -- locf(LAST(...)) carries forward the last non-null value per column independently.
+    -- SUM() for event columns: gaps = NULL → COALESCE to 0 downstream.
     rebucketed AS (
         SELECT
-            time_bucket(v_interval, m.bucket_time) AS bt,
-            -- State: LAST within rebucket
-            LAST(m.market_address, m.bucket_time) AS market_address,
-            LAST(m.mint_sy, m.bucket_time)     AS mint_sy,
-            LAST(m.mint_pt, m.bucket_time)     AS mint_pt,
-            LAST(m.mint_yt, m.bucket_time)     AS mint_yt,
-            LAST(m.start_ts, m.bucket_time)    AS start_ts,
-            LAST(m.duration, m.bucket_time)    AS duration,
-            LAST(m.maturity_ts, m.bucket_time) AS maturity_ts,
-            LAST(m.total_sy_in_escrow, m.bucket_time) AS total_sy_in_escrow,
-            LAST(m.sy_for_pt, m.bucket_time)   AS sy_for_pt,
-            LAST(m.pt_supply, m.bucket_time)   AS pt_supply,
-            LAST(m.treasury_sy, m.bucket_time) AS treasury_sy,
-            LAST(m.uncollected_sy, m.bucket_time) AS uncollected_sy,
-            LAST(m.sy_for_pt_pct_sy, m.bucket_time) AS sy_for_pt_pct_sy,
-            LAST(m.sy_yield_pool_pct, m.bucket_time) AS sy_yield_pool_pct,
-            LAST(m.sy_yield_utilization_pct, m.bucket_time) AS sy_yield_utilization_pct,
-            LAST(m.sy_cumulative_yield_pct, m.bucket_time) AS sy_cumulative_yield_pct,
-            LAST(m.sy_collateral_buffer_pct, m.bucket_time) AS sy_collateral_buffer_pct,
-            LAST(m.last_seen_sy_exchange_rate, m.bucket_time) AS last_seen_sy_exchange_rate,
-            LAST(m.all_time_high_sy_exchange_rate, m.bucket_time) AS ath_sy_exchange_rate,
-            LAST(m.final_sy_exchange_rate, m.bucket_time) AS final_sy_exchange_rate,
-            LAST(m.interest_bps_fee, m.bucket_time) AS interest_bps_fee,
-            LAST(m.min_op_size_strip, m.bucket_time) AS min_op_size_strip,
-            LAST(m.min_op_size_merge, m.bucket_time) AS min_op_size_merge,
-            LAST(m.status, m.bucket_time) AS status,
-            LAST(m.max_py_supply, m.bucket_time) AS max_py_supply,
-            LAST(m.c_vault_collateralization_ratio, m.bucket_time) AS c_vault_coll_ratio,
-            LAST(m.c_vault_uncollected_yield_ratio, m.bucket_time) AS c_vault_uncoll_yield,
-            LAST(m.c_vault_treasury_ratio, m.bucket_time) AS c_vault_treasury,
-            LAST(m.c_vault_available_liquidity, m.bucket_time) AS c_vault_avail_liq,
-            LAST(m.c_vault_yield_index_health, m.bucket_time) AS c_vault_yield_health,
-            LAST(m.pt_balance, m.bucket_time) AS pt_balance,
-            LAST(m.sy_balance, m.bucket_time) AS sy_balance,
-            LAST(m.ln_implied_rate, m.bucket_time) AS ln_implied_rate,
-            LAST(m.expiration_ts, m.bucket_time) AS expiration_ts,
-            LAST(m.ln_fee_rate_root, m.bucket_time) AS ln_fee_rate_root,
-            LAST(m.rate_scalar_root, m.bucket_time) AS rate_scalar_root,
-            LAST(m.fee_treasury_sy_bps, m.bucket_time) AS fee_treasury_sy_bps,
-            LAST(m.lp_escrow_amount, m.bucket_time) AS lp_escrow_amount,
-            LAST(m.max_lp_supply, m.bucket_time) AS max_lp_supply,
-            LAST(m.status_flags, m.bucket_time) AS status_flags,
-            LAST(m.c_market_implied_apy, m.bucket_time) AS c_market_implied_apy,
-            LAST(m.c_market_discount_rate, m.bucket_time) AS c_market_discount_rate,
-            LAST(m.pt_base_price, m.bucket_time) AS pt_base_price,
-            LAST(m.pool_depth_in_sy, m.bucket_time) AS pool_depth_in_sy,
-            LAST(m.pt_balance_in_sy, m.bucket_time) AS pt_balance_in_sy,
-            LAST(m.pool_depth_sy_pct, m.bucket_time) AS pool_depth_sy_pct,
-            LAST(m.pool_depth_pt_pct, m.bucket_time) AS pool_depth_pt_pct,
-            LAST(m.yt_escrow_balance, m.bucket_time) AS yt_escrow_balance,
-            LAST(m.sy_exchange_rate, m.bucket_time) AS sy_exchange_rate,
-            LAST(m.is_expired, m.bucket_time) AS is_expired,
-            LAST(m.slot, m.bucket_time) AS slot,
-            -- Events: SUM within rebucket
-            SUM(m.amm_pt_swap_count)::INTEGER AS amm_pt_swap_count,
-            SUM(m.amm_pt_in) AS amm_pt_in,
-            SUM(m.amm_pt_out) AS amm_pt_out,
-            SUM(m.amm_pt_volume) AS amm_pt_volume,
-            SUM(m.amm_pt_net_flow) AS amm_pt_net_flow,
-            SUM(m.lp_deposit_count)::INTEGER AS lp_deposit_count,
-            SUM(m.lp_withdraw_count)::INTEGER AS lp_withdraw_count,
-            SUM(m.lp_pt_in) AS lp_pt_in,
-            SUM(m.lp_pt_out) AS lp_pt_out,
-            SUM(m.lp_sy_in) AS lp_sy_in,
-            SUM(m.lp_sy_out) AS lp_sy_out,
-            SUM(m.lp_tokens_minted) AS lp_tokens_minted,
-            SUM(m.lp_tokens_burned) AS lp_tokens_burned
+            time_bucket_gapfill(v_interval, m.bucket_time, from_ts, to_ts) AS bt,
+
+            -- ── State columns: per-column LOCF ──────────────────────────────
+            locf(LAST(m.market_address, m.bucket_time), treat_null_as_missing => true)                 AS market_address,
+            locf(LAST(m.mint_sy, m.bucket_time), treat_null_as_missing => true)                        AS mint_sy,
+            locf(LAST(m.mint_pt, m.bucket_time), treat_null_as_missing => true)                        AS mint_pt,
+            locf(LAST(m.mint_yt, m.bucket_time), treat_null_as_missing => true)                        AS mint_yt,
+            locf(LAST(m.start_ts, m.bucket_time), treat_null_as_missing => true)                       AS start_ts,
+            locf(LAST(m.duration, m.bucket_time), treat_null_as_missing => true)                       AS duration,
+            locf(LAST(m.maturity_ts, m.bucket_time), treat_null_as_missing => true)                    AS maturity_ts,
+            locf(LAST(m.total_sy_in_escrow, m.bucket_time), treat_null_as_missing => true)             AS total_sy_in_escrow,
+            locf(LAST(m.sy_for_pt, m.bucket_time), treat_null_as_missing => true)                      AS sy_for_pt,
+            locf(LAST(m.pt_supply, m.bucket_time), treat_null_as_missing => true)                      AS pt_supply,
+            locf(LAST(m.treasury_sy, m.bucket_time), treat_null_as_missing => true)                    AS treasury_sy,
+            locf(LAST(m.uncollected_sy, m.bucket_time), treat_null_as_missing => true)                 AS uncollected_sy,
+            locf(LAST(m.sy_for_pt_pct_sy, m.bucket_time), treat_null_as_missing => true)               AS sy_for_pt_pct_sy,
+            locf(LAST(m.sy_yield_pool_pct, m.bucket_time), treat_null_as_missing => true)              AS sy_yield_pool_pct,
+            locf(LAST(m.sy_yield_utilization_pct, m.bucket_time), treat_null_as_missing => true)       AS sy_yield_utilization_pct,
+            locf(LAST(m.sy_cumulative_yield_pct, m.bucket_time), treat_null_as_missing => true)        AS sy_cumulative_yield_pct,
+            locf(LAST(m.sy_collateral_buffer_pct, m.bucket_time), treat_null_as_missing => true)       AS sy_collateral_buffer_pct,
+            locf(LAST(m.last_seen_sy_exchange_rate, m.bucket_time), treat_null_as_missing => true)     AS last_seen_sy_exchange_rate,
+            locf(LAST(m.all_time_high_sy_exchange_rate, m.bucket_time), treat_null_as_missing => true) AS ath_sy_exchange_rate,
+            locf(LAST(m.final_sy_exchange_rate, m.bucket_time), treat_null_as_missing => true)         AS final_sy_exchange_rate,
+            locf(LAST(m.interest_bps_fee, m.bucket_time), treat_null_as_missing => true)               AS interest_bps_fee,
+            locf(LAST(m.min_op_size_strip, m.bucket_time), treat_null_as_missing => true)              AS min_op_size_strip,
+            locf(LAST(m.min_op_size_merge, m.bucket_time), treat_null_as_missing => true)              AS min_op_size_merge,
+            locf(LAST(m.status, m.bucket_time), treat_null_as_missing => true)                         AS status,
+            locf(LAST(m.max_py_supply, m.bucket_time), treat_null_as_missing => true)                  AS max_py_supply,
+            locf(LAST(m.c_vault_collateralization_ratio, m.bucket_time), treat_null_as_missing => true) AS c_vault_coll_ratio,
+            locf(LAST(m.c_vault_uncollected_yield_ratio, m.bucket_time), treat_null_as_missing => true) AS c_vault_uncoll_yield,
+            locf(LAST(m.c_vault_treasury_ratio, m.bucket_time), treat_null_as_missing => true)          AS c_vault_treasury,
+            locf(LAST(m.c_vault_available_liquidity, m.bucket_time), treat_null_as_missing => true)     AS c_vault_avail_liq,
+            locf(LAST(m.c_vault_yield_index_health, m.bucket_time), treat_null_as_missing => true)      AS c_vault_yield_health,
+            locf(LAST(m.pt_balance, m.bucket_time), treat_null_as_missing => true)                     AS pt_balance,
+            locf(LAST(m.sy_balance, m.bucket_time), treat_null_as_missing => true)                     AS sy_balance,
+            locf(LAST(m.ln_implied_rate, m.bucket_time), treat_null_as_missing => true)                AS ln_implied_rate,
+            locf(LAST(m.expiration_ts, m.bucket_time), treat_null_as_missing => true)                  AS expiration_ts,
+            locf(LAST(m.ln_fee_rate_root, m.bucket_time), treat_null_as_missing => true)               AS ln_fee_rate_root,
+            locf(LAST(m.rate_scalar_root, m.bucket_time), treat_null_as_missing => true)               AS rate_scalar_root,
+            locf(LAST(m.fee_treasury_sy_bps, m.bucket_time), treat_null_as_missing => true)            AS fee_treasury_sy_bps,
+            locf(LAST(m.lp_escrow_amount, m.bucket_time), treat_null_as_missing => true)               AS lp_escrow_amount,
+            locf(LAST(m.max_lp_supply, m.bucket_time), treat_null_as_missing => true)                  AS max_lp_supply,
+            locf(LAST(m.status_flags, m.bucket_time), treat_null_as_missing => true)                   AS status_flags,
+            locf(LAST(m.c_market_implied_apy, m.bucket_time), treat_null_as_missing => true)           AS c_market_implied_apy,
+            locf(LAST(m.c_market_discount_rate, m.bucket_time), treat_null_as_missing => true)         AS c_market_discount_rate,
+            locf(LAST(m.pt_base_price, m.bucket_time), treat_null_as_missing => true)                  AS pt_base_price,
+            locf(LAST(m.pool_depth_in_sy, m.bucket_time), treat_null_as_missing => true)               AS pool_depth_in_sy,
+            locf(LAST(m.pt_balance_in_sy, m.bucket_time), treat_null_as_missing => true)               AS pt_balance_in_sy,
+            locf(LAST(m.pool_depth_sy_pct, m.bucket_time), treat_null_as_missing => true)              AS pool_depth_sy_pct,
+            locf(LAST(m.pool_depth_pt_pct, m.bucket_time), treat_null_as_missing => true)              AS pool_depth_pt_pct,
+            locf(LAST(m.yt_escrow_balance, m.bucket_time), treat_null_as_missing => true)              AS yt_escrow_balance,
+            locf(LAST(m.sy_exchange_rate, m.bucket_time), treat_null_as_missing => true)               AS sy_exchange_rate,
+            locf(LAST(m.is_expired, m.bucket_time), treat_null_as_missing => true)                     AS is_expired,
+            locf(LAST(m.slot, m.bucket_time), treat_null_as_missing => true)                           AS slot,
+
+            -- ── Event / flow columns: SUM only (no LOCF) ───────────────────
+            SUM(m.amm_pt_swap_count)::INTEGER   AS amm_pt_swap_count,
+            SUM(m.amm_pt_in)                    AS amm_pt_in,
+            SUM(m.amm_pt_out)                   AS amm_pt_out,
+            SUM(m.amm_pt_volume)                AS amm_pt_volume,
+            SUM(m.amm_pt_net_flow)              AS amm_pt_net_flow,
+            SUM(m.lp_deposit_count)::INTEGER    AS lp_deposit_count,
+            SUM(m.lp_withdraw_count)::INTEGER   AS lp_withdraw_count,
+            SUM(m.lp_pt_in)                     AS lp_pt_in,
+            SUM(m.lp_pt_out)                    AS lp_pt_out,
+            SUM(m.lp_sy_in)                     AS lp_sy_in,
+            SUM(m.lp_sy_out)                    AS lp_sy_out,
+            SUM(m.lp_tokens_minted)             AS lp_tokens_minted,
+            SUM(m.lp_tokens_burned)             AS lp_tokens_burned
         FROM exponent.mat_exp_timeseries_1m m
         WHERE m.vault_address = v_vault_address
           AND m.bucket_time >= from_ts
           AND m.bucket_time <= to_ts
-        GROUP BY time_bucket(v_interval, m.bucket_time)
+        GROUP BY time_bucket_gapfill(v_interval, m.bucket_time, from_ts, to_ts)
     ),
+
     with_deltas AS (
         SELECT
             r.*,
-            -- Pool depth delta
             r.pool_depth_in_sy - LAG(r.pool_depth_in_sy) OVER (ORDER BY r.bt) AS pool_depth_delta,
-            -- PT supply UI deltas
-            GREATEST(r.pt_supply - LAG(r.pt_supply) OVER (ORDER BY r.bt), 0) AS pt_supply_delta_pos,
-            LEAST(r.pt_supply - LAG(r.pt_supply) OVER (ORDER BY r.bt), 0) AS pt_supply_delta_neg,
-            -- YT metrics: escrow = staked (deposit_yt puts YT into escrow for yield)
-            -- Clamped to [0,100]; ratio can exceed 100% when PT redeemed but YT remains in escrow
+            GREATEST(r.pt_supply - LAG(r.pt_supply) OVER (ORDER BY r.bt), 0)  AS pt_supply_delta_pos,
+            LEAST(r.pt_supply - LAG(r.pt_supply) OVER (ORDER BY r.bt), 0)     AS pt_supply_delta_neg,
             CASE WHEN r.pt_supply > 0
                  THEN GREATEST(0, LEAST(100, ROUND((r.pt_supply - r.yt_escrow_balance) / r.pt_supply * 100, 2))) END AS yt_unstaked_pct,
             CASE WHEN r.pt_supply > 0
                  THEN GREATEST(0, LEAST(100, ROUND(r.yt_escrow_balance / r.pt_supply * 100, 2))) END AS yt_staked_pct,
-            -- SY claims composition (legacy)
             CASE WHEN r.total_sy_in_escrow > 0
                  THEN ROUND(r.sy_for_pt / r.total_sy_in_escrow * 100, 4) END AS sy_claims_pt_pct,
             CASE WHEN r.total_sy_in_escrow > 0
                  THEN ROUND(r.treasury_sy / r.total_sy_in_escrow * 100, 4) END AS sy_claims_treasury_pct,
             CASE WHEN r.total_sy_in_escrow > 0
                  THEN ROUND(r.uncollected_sy / r.total_sy_in_escrow * 100, 4) END AS sy_claims_uncollected_pct,
-            -- APY extremes
-            MAX(r.c_market_implied_apy) OVER () AS apy_ath,
-            MIN(r.c_market_implied_apy) OVER () AS apy_atl
+            -- Simple (linear) annualized implied APY from PT price, matching Exponent web convention
+            CASE
+                WHEN r.pt_base_price IS NOT NULL
+                     AND r.pt_base_price > 0
+                     AND r.pt_base_price < 1.0
+                     AND r.maturity_ts IS NOT NULL
+                     AND EXTRACT(EPOCH FROM r.bt)::INTEGER <= r.maturity_ts
+                THEN (1.0 / r.pt_base_price - 1.0) /
+                     GREATEST(
+                         (r.maturity_ts::NUMERIC - EXTRACT(EPOCH FROM r.bt)::NUMERIC) / 31536000.0,
+                         1.0 / 365.0
+                     )
+                ELSE NULL
+            END AS simple_apy,
+            MAX(
+                CASE
+                    WHEN r.pt_base_price IS NOT NULL
+                         AND r.pt_base_price > 0
+                         AND r.pt_base_price < 1.0
+                         AND r.maturity_ts IS NOT NULL
+                         AND EXTRACT(EPOCH FROM r.bt)::INTEGER <= r.maturity_ts
+                    THEN (1.0 / r.pt_base_price - 1.0) /
+                         GREATEST(
+                             (r.maturity_ts::NUMERIC - EXTRACT(EPOCH FROM r.bt)::NUMERIC) / 31536000.0,
+                             1.0 / 365.0
+                         )
+                    ELSE NULL
+                END
+            ) OVER () AS apy_ath,
+            MIN(
+                CASE
+                    WHEN r.pt_base_price IS NOT NULL
+                         AND r.pt_base_price > 0
+                         AND r.pt_base_price < 1.0
+                         AND r.maturity_ts IS NOT NULL
+                         AND EXTRACT(EPOCH FROM r.bt)::INTEGER <= r.maturity_ts
+                    THEN (1.0 / r.pt_base_price - 1.0) /
+                         GREATEST(
+                             (r.maturity_ts::NUMERIC - EXTRACT(EPOCH FROM r.bt)::NUMERIC) / 31536000.0,
+                             1.0 / 365.0
+                         )
+                    ELSE NULL
+                END
+            ) OVER () AS apy_atl
         FROM rebucketed r
     ),
+
     with_rates AS (
         SELECT
             d.*,
@@ -335,10 +388,10 @@ BEGIN
         ROUND(d.lp_escrow_amount, 4),
         ROUND(d.max_lp_supply, 4),
         d.status_flags,
-        ROUND(d.c_market_implied_apy * 100, 2),
+        ROUND(d.simple_apy * 100, 2),
         ROUND(d.c_market_discount_rate * 100, 4),
         ROUND(d.pt_base_price, 6),
-        ROUND(d.pt_base_price, 6),  -- pt_sy_price (deprecated, same as pt_base_price)
+        ROUND(d.pt_base_price, 6),  -- pt_sy_price (deprecated alias)
         ROUND(d.pool_depth_in_sy, 4),
         ROUND(d.pool_depth_delta, 4),
         ROUND(d.pt_balance_in_sy, 4),
@@ -350,7 +403,7 @@ BEGIN
         d.yt_unstaked_pct,
         d.yt_staked_pct,
         ROUND(d.sy_exchange_rate, 10),
-        -- Trailing APYs: annualised simple yield from exchange-rate lookback
+        -- Trailing APYs
         CASE WHEN d.sy_rate_locf IS NOT NULL AND d.rate_1h_ago IS NOT NULL AND d.rate_1h_ago > 0
              THEN ROUND(((d.sy_rate_locf / d.rate_1h_ago - 1.0) * 8766.0) * 100, 2) END,
         CASE WHEN d.rate_day_snap IS NOT NULL AND d.rate_day_snap_24h_ago IS NOT NULL AND d.rate_day_snap_24h_ago > 0
@@ -367,32 +420,33 @@ BEGIN
                   AND EXTRACT(EPOCH FROM d.bt - v_ts_earliest) > 86400
              THEN ROUND(((d.rate_day_snap / v_rate_earliest - 1.0) * 365.25
                    / GREATEST(FLOOR((EXTRACT(EPOCH FROM d.bt - v_ts_earliest) - 7200) / 86400.0), 1)) * 100, 2) END,
-        -- Yield divergence: fixed rate minus trailing variable rate
-        CASE WHEN d.c_market_implied_apy IS NOT NULL AND d.rate_day_snap IS NOT NULL
+        -- Yield divergence (using simple annualized APY to match Exponent web convention)
+        CASE WHEN d.simple_apy IS NOT NULL AND d.rate_day_snap IS NOT NULL
                   AND d.rate_day_snap_24h_ago IS NOT NULL AND d.rate_day_snap_24h_ago > 0
-             THEN ROUND(d.c_market_implied_apy * 100
+             THEN ROUND(d.simple_apy * 100
                   - ((d.rate_day_snap / d.rate_day_snap_24h_ago - 1.0) * 365.25) * 100, 2) END,
-        CASE WHEN d.c_market_implied_apy IS NOT NULL AND d.rate_day_snap IS NOT NULL
+        CASE WHEN d.simple_apy IS NOT NULL AND d.rate_day_snap IS NOT NULL
                   AND d.rate_day_snap_7d_ago IS NOT NULL AND d.rate_day_snap_7d_ago > 0
-             THEN ROUND(d.c_market_implied_apy * 100
+             THEN ROUND(d.simple_apy * 100
                   - ((d.rate_day_snap / d.rate_day_snap_7d_ago - 1.0) * 365.25 / 7.0) * 100, 2) END,
         ROUND(d.apy_ath * 100, 2),
         ROUND(d.apy_atl * 100, 2),
-        d.amm_pt_swap_count,
-        ROUND(d.amm_pt_in, 4),
-        ROUND(d.amm_pt_out, 4),
-        ROUND(d.amm_pt_volume, 4),
-        ROUND(d.amm_pt_net_flow, 4),
-        d.lp_deposit_count,
-        d.lp_withdraw_count,
-        ROUND(d.lp_pt_in, 4),
-        ROUND(d.lp_pt_out, 4),
-        ROUND(d.lp_sy_in, 4),
-        ROUND(d.lp_sy_out, 4),
-        ROUND(d.lp_tokens_minted, 4),
-        ROUND(d.lp_tokens_burned, 4),
-        ROUND(d.lp_pt_in - d.lp_pt_out, 4),
-        ROUND(d.lp_sy_in - d.lp_sy_out, 4),
+        -- Event / flow columns (genuine flows — not LOCF'd)
+        COALESCE(d.amm_pt_swap_count, 0),
+        ROUND(COALESCE(d.amm_pt_in, 0), 4),
+        ROUND(COALESCE(d.amm_pt_out, 0), 4),
+        ROUND(COALESCE(d.amm_pt_volume, 0), 4),
+        ROUND(COALESCE(d.amm_pt_net_flow, 0), 4),
+        COALESCE(d.lp_deposit_count, 0),
+        COALESCE(d.lp_withdraw_count, 0),
+        ROUND(COALESCE(d.lp_pt_in, 0), 4),
+        ROUND(COALESCE(d.lp_pt_out, 0), 4),
+        ROUND(COALESCE(d.lp_sy_in, 0), 4),
+        ROUND(COALESCE(d.lp_sy_out, 0), 4),
+        ROUND(COALESCE(d.lp_tokens_minted, 0), 4),
+        ROUND(COALESCE(d.lp_tokens_burned, 0), 4),
+        ROUND(COALESCE(d.lp_pt_in, 0) - COALESCE(d.lp_pt_out, 0), 4),
+        ROUND(COALESCE(d.lp_sy_in, 0) - COALESCE(d.lp_sy_out, 0), 4),
         d.is_expired,
         d.bt,
         d.slot
