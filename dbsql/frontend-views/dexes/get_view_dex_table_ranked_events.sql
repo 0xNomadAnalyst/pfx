@@ -264,7 +264,7 @@ BEGIN
                 WHEN '{{SORT_ASSET}}' = 't1' AND '{{FLOW_DIR}}' = 'in'  THEN CASE WHEN bal.token1_balance_at_tx > 0 THEN ROUND((t.token1_in  / bal.token1_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END
                 WHEN '{{SORT_ASSET}}' = 't1' AND '{{FLOW_DIR}}' = 'out' THEN CASE WHEN bal.token1_balance_at_tx > 0 THEN ROUND((t.token1_out / bal.token1_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END
                 ELSE NULL
-            END,
+            END AS primary_flow_reserve_pct_at_tx,
             -- Primary flow reserve pct now
             CASE
                 WHEN '{{SORT_ASSET}}' = 't0' AND '{{FLOW_DIR}}' = 'in'  THEN CASE WHEN cb.token0_balance_now > 0 THEN ROUND((t.token0_in  / cb.token0_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END
@@ -272,7 +272,7 @@ BEGIN
                 WHEN '{{SORT_ASSET}}' = 't1' AND '{{FLOW_DIR}}' = 'in'  THEN CASE WHEN cb.token1_balance_now > 0 THEN ROUND((t.token1_in  / cb.token1_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END
                 WHEN '{{SORT_ASSET}}' = 't1' AND '{{FLOW_DIR}}' = 'out' THEN CASE WHEN cb.token1_balance_now > 0 THEN ROUND((t.token1_out / cb.token1_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END
                 ELSE NULL
-            END,
+            END AS primary_flow_reserve_pct_now,
             -- Complement flow reserve pct at tx
             CASE
                 WHEN t.activity_type != 'swap' THEN NULL
@@ -281,7 +281,7 @@ BEGIN
                 WHEN '{{SORT_ASSET}}' = 't1' AND '{{FLOW_DIR}}' = 'in'  THEN CASE WHEN bal.token0_balance_at_tx > 0 THEN ROUND((t.token0_out / bal.token0_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END
                 WHEN '{{SORT_ASSET}}' = 't1' AND '{{FLOW_DIR}}' = 'out' THEN CASE WHEN bal.token0_balance_at_tx > 0 THEN ROUND((t.token0_in  / bal.token0_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END
                 ELSE NULL
-            END,
+            END AS complement_flow_reserve_pct_at_tx,
             -- Complement flow reserve pct now
             CASE
                 WHEN t.activity_type != 'swap' THEN NULL
@@ -290,27 +290,27 @@ BEGIN
                 WHEN '{{SORT_ASSET}}' = 't1' AND '{{FLOW_DIR}}' = 'in'  THEN CASE WHEN cb.token0_balance_now > 0 THEN ROUND((t.token0_out / cb.token0_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END
                 WHEN '{{SORT_ASSET}}' = 't1' AND '{{FLOW_DIR}}' = 'out' THEN CASE WHEN cb.token0_balance_now > 0 THEN ROUND((t.token0_in  / cb.token0_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END
                 ELSE NULL
-            END,
+            END AS complement_flow_reserve_pct_now,
 
             t.token0_mint, t.token1_mint, t.token0_symbol, t.token1_symbol,
             bal.token0_balance_at_tx, bal.token1_balance_at_tx,
             cb.token0_balance_now, cb.token1_balance_now,
 
             -- Individual reserve pct columns at tx
-            CASE WHEN bal.token0_balance_at_tx > 0 THEN ROUND((t.token0_in  / bal.token0_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END,
-            CASE WHEN bal.token0_balance_at_tx > 0 THEN ROUND((t.token0_out / bal.token0_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END,
-            CASE WHEN bal.token1_balance_at_tx > 0 THEN ROUND((t.token1_in  / bal.token1_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END,
-            CASE WHEN bal.token1_balance_at_tx > 0 THEN ROUND((t.token1_out / bal.token1_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END,
+            CASE WHEN bal.token0_balance_at_tx > 0 THEN ROUND((t.token0_in  / bal.token0_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END AS token0_in_pct_reserve_at_tx,
+            CASE WHEN bal.token0_balance_at_tx > 0 THEN ROUND((t.token0_out / bal.token0_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END AS token0_out_pct_reserve_at_tx,
+            CASE WHEN bal.token1_balance_at_tx > 0 THEN ROUND((t.token1_in  / bal.token1_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END AS token1_in_pct_reserve_at_tx,
+            CASE WHEN bal.token1_balance_at_tx > 0 THEN ROUND((t.token1_out / bal.token1_balance_at_tx * 100)::NUMERIC, 4)::DOUBLE PRECISION END AS token1_out_pct_reserve_at_tx,
             -- Individual reserve pct columns now
-            CASE WHEN cb.token0_balance_now > 0 THEN ROUND((t.token0_in  / cb.token0_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END,
-            CASE WHEN cb.token0_balance_now > 0 THEN ROUND((t.token0_out / cb.token0_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END,
-            CASE WHEN cb.token1_balance_now > 0 THEN ROUND((t.token1_in  / cb.token1_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END,
-            CASE WHEN cb.token1_balance_now > 0 THEN ROUND((t.token1_out / cb.token1_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END,
+            CASE WHEN cb.token0_balance_now > 0 THEN ROUND((t.token0_in  / cb.token0_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END AS token0_in_pct_reserve_now,
+            CASE WHEN cb.token0_balance_now > 0 THEN ROUND((t.token0_out / cb.token0_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END AS token0_out_pct_reserve_now,
+            CASE WHEN cb.token1_balance_now > 0 THEN ROUND((t.token1_in  / cb.token1_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END AS token1_in_pct_reserve_now,
+            CASE WHEN cb.token1_balance_now > 0 THEN ROUND((t.token1_out / cb.token1_balance_now * 100)::NUMERIC, 4)::DOUBLE PRECISION END AS token1_out_pct_reserve_now,
 
             -- Impact BPS at tx (pre-calculated)
             CASE WHEN t.activity_type = 'swap'
                  THEN ROUND(COALESCE(t.c_swap_est_impact_bps, 0)::NUMERIC, 4)::DOUBLE PRECISION
-                 ELSE NULL END,
+                 ELSE NULL END AS primary_flow_impact_bps_at_tx,
             -- Impact BPS now (live calculation, only p_rows calls)
             CASE
                 WHEN t.activity_type != 'swap' THEN NULL
@@ -326,15 +326,15 @@ BEGIN
                         ABS(CASE WHEN '{{SORT_ASSET}}' = 't0' THEN t.token1_out ELSE t.token0_out END)::DOUBLE PRECISION
                     )::NUMERIC, 4)::DOUBLE PRECISION
                 ELSE NULL
-            END,
+            END AS primary_flow_impact_bps_now,
 
-            t.activity_type,
+            t.activity_type AS activity_type_detail,
             t.platform,
             CASE
                 WHEN bal.token0_balance_at_tx IS NULL OR bal.token1_balance_at_tx IS NULL THEN 'missing_balance_context'
                 WHEN cb.token0_balance_now IS NULL OR cb.token1_balance_now IS NULL THEN 'missing_current_balance'
                 ELSE 'complete'
-            END
+            END AS data_quality
 
         FROM top_rows t
         LEFT JOIN balance_at_tx bal ON t.trans_id = bal.trans_id
