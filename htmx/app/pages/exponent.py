@@ -138,11 +138,11 @@ PAGE_CONFIG = PageConfig(
         _sub("exp-sub-left-5", "Market 1", "exp-sub-left-5 exp-sub-left", "mkt1"),
         _sub("exp-sub-right-5", "Market 2", "exp-sub-right-5 exp-sub-right", "mkt2"),
 
-        _kpi("kpi-amm-depth-mkt1", "AMM Market Depth (in SY)", "exp-s5-kpi-left-1",
-             tooltip="The total amount of PT and SY deployed as liquidity in the trading pool, valued in current SY units.",
+        _kpi("kpi-amm-depth-mkt1", "AMM Market Depth", "exp-s5-kpi-left-1",
+             tooltip="Total PT + SY deployed as AMM liquidity. Shown as SY units \u2215 base token equivalent (SY converted at current exchange rate).",
              source_widget_id="kpi-amm-depth"),
-        _kpi("kpi-amm-depth-mkt2", "AMM Market Depth (in SY)", "exp-s5-kpi-right-1",
-             tooltip="The total amount of PT and SY deployed as liquidity in the trading pool, valued in current SY units.",
+        _kpi("kpi-amm-depth-mkt2", "AMM Market Depth", "exp-s5-kpi-right-1",
+             tooltip="Total PT + SY deployed as AMM liquidity. Shown as SY units \u2215 base token equivalent (SY converted at current exchange rate).",
              source_widget_id="kpi-amm-depth"),
 
         _kpi("kpi-amm-deployment-ratio-mkt1", "AMM Deployment Ratio", "exp-s5-kpi-left-2",

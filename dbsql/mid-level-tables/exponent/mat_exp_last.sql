@@ -1,76 +1,61 @@
--- mat_exp_last: Pre-computed latest state per Exponent vault/market pair
--- Eliminates the expensive ~40 CTE + multi-source joins in get_view_exponent_last
--- One row per vault_address with latest metrics.
+-- mat_exp_last: Materialized per-market snapshot for get_view_exponent_last (PFX)
+--
+-- One row per vault/market pair. Populated by refresh_mat_exp_last() which reads
+-- src_vaults, src_market_twos, src_vault_yt_escrow, src_sy_meta_account, cagg_tx_events_5s.
+-- All numeric amounts are DECIMAL-ADJUSTED (divided by 10^decimals during refresh).
+--
+-- Consumers: pfx/dbsql/frontend-views/exponent/get_view_exponent_last.sql
 
 CREATE TABLE IF NOT EXISTS exponent.mat_exp_last (
-    vault_address                TEXT PRIMARY KEY,
-    market_address               TEXT,
-    mint_sy                      TEXT,
-    mint_pt                      TEXT,
-    mint_yt                      TEXT,
-    meta_pt_name                 TEXT,
-
-    -- Maturity
-    start_ts                     INTEGER,
-    duration                     INTEGER,
-    maturity_ts                  INTEGER,
-    is_expired                   BOOLEAN DEFAULT FALSE,
-
-    -- Vault state
-    total_sy_in_escrow           NUMERIC,
-    sy_for_pt                    NUMERIC,
-    pt_supply                    NUMERIC,
-    treasury_sy                  NUMERIC,
-    uncollected_sy               NUMERIC,
-
-    -- Exchange rates
-    last_seen_sy_exchange_rate   NUMERIC,
-    all_time_high_sy_exchange_rate NUMERIC,
-    final_sy_exchange_rate       NUMERIC,
-
-    -- Vault calculated
+    vault_address                   TEXT,
+    market_address                  TEXT,
+    mint_sy                         TEXT,
+    mint_pt                         TEXT,
+    mint_yt                         TEXT,
+    meta_pt_name                    TEXT,
+    start_ts                        INTEGER,
+    duration                        INTEGER,
+    maturity_ts                     INTEGER,
+    is_expired                      BOOLEAN,
+    total_sy_in_escrow              NUMERIC,
+    sy_for_pt                       NUMERIC,
+    pt_supply                       NUMERIC,
+    treasury_sy                     NUMERIC,
+    uncollected_sy                  NUMERIC,
+    last_seen_sy_exchange_rate      NUMERIC,
+    all_time_high_sy_exchange_rate  NUMERIC,
+    final_sy_exchange_rate          NUMERIC,
     c_vault_collateralization_ratio NUMERIC,
-    c_vault_yield_index_health   NUMERIC,
-    c_vault_available_liquidity  NUMERIC,
-
-    -- Market metrics
-    pt_balance                   NUMERIC,
-    sy_balance                   NUMERIC,
-    c_market_implied_apy         NUMERIC,
-    c_market_discount_rate       NUMERIC,
-    pt_base_price                NUMERIC,
-
-    -- Pool depth
-    pool_depth_in_sy             NUMERIC,
-    amm_share_sy_pct             NUMERIC,
-
-    -- YT
-    yt_escrow_balance            NUMERIC,
-    yt_staked_pct                NUMERIC,
-
-    -- SY exchange rate (live)
-    sy_exchange_rate             NUMERIC,
-
-    -- Trailing APY
-    sy_trailing_apy_1h           NUMERIC,
-    sy_trailing_apy_24h          NUMERIC,
-    sy_trailing_apy_7d           NUMERIC,
-    sy_trailing_apy_vault_life   NUMERIC,
-
-    -- AMM volume 24h
-    amm_pt_vol_24h               NUMERIC,
-
-    -- Metadata
-    last_updated                 TIMESTAMPTZ,
-    slot                         BIGINT,
-    refreshed_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    c_vault_yield_index_health      NUMERIC,
+    c_vault_available_liquidity     NUMERIC,
+    pt_balance                      NUMERIC,
+    sy_balance                      NUMERIC,
+    c_market_implied_apy            NUMERIC,
+    c_market_discount_rate          NUMERIC,
+    pt_base_price                   NUMERIC,   -- = c_implied_pt_price (in underlying/base terms)
+    pool_depth_in_sy                NUMERIC,   -- = (sy_balance + pt_balance * pt_price / sy_rate) / 10^d
+    amm_share_sy_pct                NUMERIC,
+    yt_escrow_balance               NUMERIC,
+    yt_staked_pct                   NUMERIC,   -- NOTE: actually (pt_supply - yt_escrow) / pt_supply * 100
+    sy_exchange_rate                NUMERIC,
+    sy_trailing_apy_1h              NUMERIC,   -- reserved, currently NULL
+    sy_trailing_apy_24h             NUMERIC,   -- reserved, currently NULL
+    sy_trailing_apy_7d              NUMERIC,   -- reserved, currently NULL
+    sy_trailing_apy_vault_life      NUMERIC,   -- reserved, currently NULL
+    amm_pt_vol_24h                  NUMERIC,
+    last_updated                    TIMESTAMPTZ,
+    slot                            BIGINT,
+    refreshed_at                    TIMESTAMPTZ
 );
 
--- ---------------------------------------------------------------------------
--- Refresh procedure: full recompute for all active vaults
--- ---------------------------------------------------------------------------
+-- ═══════════════════════════════════════════════════════════════════════════
+-- REFRESH PROCEDURE
+-- Called periodically to rebuild the table from source data.
+-- ═══════════════════════════════════════════════════════════════════════════
+
 CREATE OR REPLACE PROCEDURE exponent.refresh_mat_exp_last()
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+AS $procedure$
 DECLARE
     v_rec RECORD;
 BEGIN
@@ -192,4 +177,4 @@ BEGIN
         END;
     END LOOP;
 END;
-$$;
+$procedure$;

@@ -128,6 +128,7 @@ class ExponentPageService(BasePageService):
                     "  sy_coll_ratio_mkt1, sy_coll_ratio_mkt2, "
                     "  yt_staked_pct_mkt1, yt_staked_pct_mkt2, "
                     "  amm_depth_in_sy_mkt1, amm_depth_in_sy_mkt2, "
+                    "  amm_depth_in_base_mkt1, amm_depth_in_base_mkt2, "
                     "  market_pt_symbol_array, "
                     "  pt_base_price_mkt1, pt_base_price_mkt2, "
                     "  amm_impact_trade_size_pt, "
@@ -154,6 +155,7 @@ class ExponentPageService(BasePageService):
                     "  sy_coll_ratio_mkt1, sy_coll_ratio_mkt2, "
                     "  yt_staked_pct_mkt1, yt_staked_pct_mkt2, "
                     "  amm_depth_in_sy_mkt1, amm_depth_in_sy_mkt2, "
+                    "  amm_depth_in_base_mkt1, amm_depth_in_base_mkt2, "
                     "  market_pt_symbol_array, "
                     "  pt_base_price_mkt1, pt_base_price_mkt2, "
                     "  amm_impact_trade_size_pt, "
@@ -387,14 +389,22 @@ class ExponentPageService(BasePageService):
 
     def _kpi_amm_depth(self, params: dict[str, Any]) -> dict[str, Any]:
         row = self._v_last_row(params)
+
+        def _depth_pair(sy_val: Any, base_val: Any) -> str:
+            if sy_val is None:
+                return "--"
+            sy_str = f"{int(round(float(sy_val))):,}"
+            if base_val is None or float(base_val) == float(sy_val):
+                return sy_str
+            base_str = f"{int(round(float(base_val))):,}"
+            return f"{sy_str} \u2215 {base_str}"
+
+        v1 = _depth_pair(row.get("amm_depth_in_sy_mkt1"), row.get("amm_depth_in_base_mkt1"))
+        v2 = _depth_pair(row.get("amm_depth_in_sy_mkt2"), row.get("amm_depth_in_base_mkt2"))
         return {
             "kind": "kpi",
-            "primary": self._fmt_dual(
-                row.get("amm_depth_in_sy_mkt1"),
-                row.get("amm_depth_in_sy_mkt2"),
-                "int",
-            ),
-            "secondary": "Total SY + PT in trading pool",
+            "primary": f"{v1} / {v2}",
+            "secondary": "SY \u2215 base token in trading pool",
         }
 
     # ------------------------------------------------------------------
