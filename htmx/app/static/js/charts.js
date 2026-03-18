@@ -586,8 +586,8 @@
       return { start: 20, end: 80 };
     }
 
-    const lowerTarget = total * 0.02;
-    const upperTarget = total * 0.98;
+    const lowerTarget = total * 0.005;
+    const upperTarget = total * 0.995;
     let cumulative = 0;
     let lowIdx = 0;
     let highIdx = n - 1;
@@ -609,14 +609,14 @@
       }
     }
 
-    const indexPad = Math.max(2, Math.round(n * 0.04));
+    const indexPad = Math.max(4, Math.round(n * 0.10));
     lowIdx = Math.max(0, lowIdx - indexPad);
     highIdx = Math.min(n - 1, highIdx + indexPad);
 
     let start = (lowIdx / (n - 1)) * 100;
     let end = (highIdx / (n - 1)) * 100;
     const width = end - start;
-    const minWidth = 22;
+    const minWidth = 40;
     if (width < minWidth) {
       const extra = (minWidth - width) / 2;
       start = Math.max(0, start - extra);
@@ -3522,12 +3522,18 @@
           const span = hi - lo;
           const isLiqWidget = comparableLiquidityWidgets.has(swid);
           const pad = isLiqWidget
-            ? Math.max(span, 10)
+            ? Math.max(span * 2, Math.round(xData.length * 0.15), 25)
             : Math.max(span * 2, 30);
           const startIdx = Math.max(0, lo - pad);
           const endIdx = Math.min(xData.length - 1, hi + pad);
-          const startPct = (startIdx / (xData.length - 1)) * 100;
-          const endPct = (endIdx / (xData.length - 1)) * 100;
+          let startPct = (startIdx / (xData.length - 1)) * 100;
+          let endPct = (endIdx / (xData.length - 1)) * 100;
+          if (focusedTickZoom) {
+            startPct = Math.min(startPct, focusedTickZoom.start);
+            endPct = Math.max(endPct, focusedTickZoom.end);
+            focusedTickZoom.start = startPct;
+            focusedTickZoom.end = endPct;
+          }
           for (const dz of option.dataZoom) {
             dz.start = startPct;
             dz.end = endPct;
