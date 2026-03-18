@@ -1,0 +1,283 @@
+<!-- ── Welcome ──────────────────────────────────────────────── -->
+<div class="ge-section-header cv-section-header cv-slot-full-1">
+  <h2 class="ge-section-title">Welcome</h2>
+</div>
+
+<div class="panel cv-slot-full-1">
+  <div class="panel-header">
+    <h3 class="cv-welcome-title">Solana DeFi Ecosystem Dashboard</h3>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      This dashboard provides real-time monitoring of the <strong>ONyc</strong> token ecosystem
+      across four Solana DeFi protocols. Every chart is fed by a live data pipeline that ingests
+      on-chain transactions and account state changes, decodes them, and rolls them into
+      time-series views refreshing every few seconds.
+    </p>
+    <p>
+      Use the <strong>View</strong> selector in the header to navigate between pages.
+      Each page focuses on a different protocol or cross-protocol perspective.
+      The <strong>Last</strong> dropdown controls the lookback window for every chart on the
+      current page — from 1 hour to 90 days.
+      Most charts have an <strong>expand button</strong> (↗) in the lower-right corner for a
+      full-screen view.
+    </p>
+  </div>
+</div>
+
+<!-- ── ONyc Token Ecosystem ────────────────────────────────── -->
+<div class="ge-section-header cv-section-header cv-slot-full-1">
+  <h2 class="ge-section-title">ONyc Token Ecosystem</h2>
+</div>
+
+<div class="panel cv-slot-third-1">
+  <div class="panel-header">
+    <h3>What is Monitored</h3>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      <strong><a href="https://www.onre.finance/" target="_blank" rel="noopener noreferrer">ONyc</a></strong>
+      is a Solana SPL token whose DeFi footprint spans decentralised exchanges, lending markets,
+      and yield tokenisation protocols. This dashboard tracks every on-chain interaction across
+      those venues in real time.
+    </p>
+    <ul>
+      <li><strong>Token supply</strong> &amp; derivative issuance (SY, PT, YT)</li>
+      <li><strong>Liquidity depth</strong> &amp; LP positions across DEX pools</li>
+      <li><strong>Lending supply</strong>, borrow rates &amp; collateral utilisation</li>
+      <li><strong>Yield curves</strong> — base token yield, implied APY, lending APY</li>
+      <li><strong>Protocol-level TVL</strong> &amp; 24h activity volumes</li>
+    </ul>
+  </div>
+</div>
+
+<div class="panel cv-slot-third-2">
+  <div class="panel-header">
+    <h3>Key Interactions Tracked</h3>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      The pipeline captures four categories of on-chain events, decoded directly from
+      Solana transaction instructions:
+    </p>
+    <ul>
+      <li><strong>Swap events</strong> — buy / sell volumes on Orca &amp; Raydium</li>
+      <li><strong>Liquidity events</strong> — deposits, withdrawals, position changes</li>
+      <li><strong>Lending events</strong> — supply, borrow, repay, liquidation</li>
+      <li><strong>Yield events</strong> — PT/YT mints, redeems, and trades on Exponent</li>
+    </ul>
+  </div>
+</div>
+
+<div class="panel cv-slot-third-3">
+  <div class="panel-header">
+    <h3>Cross-Protocol Analysis</h3>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      Beyond per-protocol metrics, the dashboard integrates data across all four venues
+      to surface ecosystem-level patterns and cross-protocol risks:
+    </p>
+    <ul>
+      <li><strong>Aggregate supply</strong> — token distribution across DEX pools, lending reserves and yield vaults</li>
+      <li><strong>Sell-impact estimates</strong> — combine liquidity depth with swap activity</li>
+      <li><strong>Yield curve comparison</strong> — lending APY, implied PT rates and base token yield</li>
+      <li><strong>Issuance flow</strong> — tracking from mint through DEX, lending and yield tokenisation</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ── Protocols Monitored ─────────────────────────────────── -->
+<div class="ge-section-header cv-section-header cv-slot-full-1">
+  <h2 class="ge-section-title">Protocols Monitored</h2>
+</div>
+
+<div class="panel cv-slot-q1">
+  <div class="panel-header">
+    <h3>Orca Whirlpool</h3>
+    <span class="cv-tag">DEX</span>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      Concentrated-liquidity AMM. ONyc–USDC pool with tick-level depth monitoring,
+      LP positions, and swap event capture.
+    </p>
+  </div>
+</div>
+
+<div class="panel cv-slot-q2">
+  <div class="panel-header">
+    <h3>Raydium CLMM</h3>
+    <span class="cv-tag">DEX</span>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      Concentrated-liquidity AMM. USDG–ONyc pool with LP position and
+      swap tracking across tick arrays.
+    </p>
+  </div>
+</div>
+
+<div class="panel cv-slot-q3">
+  <div class="panel-header">
+    <h3>Kamino Lending</h3>
+    <span class="cv-tag">Lending</span>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      Reserve metrics, supply &amp; borrow APY, obligation positions, and liquidation risk
+      indicators.
+    </p>
+  </div>
+</div>
+
+<div class="panel cv-slot-q4">
+  <div class="panel-header">
+    <h3>Exponent Finance</h3>
+    <span class="cv-tag">Yield</span>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      PT/YT yield tokenisation. Implied APY, SY supply, escrow balances, and
+      trade flow across maturity markets.
+    </p>
+  </div>
+</div>
+
+<!-- ── Dashboard Pages ─────────────────────────────────────── -->
+<div class="ge-section-header cv-section-header cv-slot-full-1">
+  <h2 class="ge-section-title">Dashboard Pages</h2>
+</div>
+
+{% set page_desc = {
+  "global-ecosystem": "Cross-protocol view of ONyc issuance breakdown, yield comparisons, supply distribution by availability tier, and TVL / activity across all monitored venues.",
+  "dexes": "Pool-level liquidity depth, LP position heatmaps, tick-array concentration, and fee metrics for Orca and Raydium pools.",
+  "dex-liquidity": "Detailed liquidity analysis for individual DEX pools — TVL, sell impact, reserve balances and depth profiles.",
+  "dex-swaps": "Trade flow analysis: swap volumes, OHLCV, sell-side pressure, net flows, and trade-impact sensitivity charts.",
+  "kamino": "Lending market KPIs, reserve utilisation time series, obligation watchlist, and position-level risk indicators.",
+  "exponent-yield": "PT/YT market comparison: implied APY, trade volume, SY supply, and escrow evolution across maturity pairs.",
+  "risk-analysis": "Downside price-risk analytics — extreme sell events, liquidity depth profiles and move-probability estimates across DEX pools.",
+  "system-health": "Pipeline observability: write-queue throughput, CAGG freshness, trigger health, and data-gap detection per schema."
+} %}
+
+{% set _nav_idx = namespace(n=0) %}
+{% for option in page_options %}
+  {% if option.slug != "cover" %}
+    <a href="{{ option.path }}" class="panel cv-page-link cv-slot-third-{{ (_nav_idx.n % 3) + 1 }}">
+      <div class="panel-header">
+        <h3>{{ option.label }}</h3>
+      </div>
+      <div class="panel-body cv-body">
+        <p>{{ page_desc[option.slug] if option.slug in page_desc else "" }}</p>
+      </div>
+    </a>
+    {% set _nav_idx.n = _nav_idx.n + 1 %}
+  {% endif %}
+{% endfor %}
+
+<!-- ── Guides & Resources ──────────────────────────────────── -->
+<div class="ge-section-header cv-section-header cv-slot-full-1">
+  <h2 class="ge-section-title">Guides &amp; Resources</h2>
+</div>
+
+<div class="panel cv-slot-half-l">
+  <div class="panel-header">
+    <h3>Protocol Guides</h3>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      Several protocol pages include an in-page guide accessible from the header
+      bar. Look for the
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      button next to the <strong>View</strong> selector. These guides explain the
+      data model, key metrics, and how to interpret each chart.
+    </p>
+  </div>
+</div>
+
+<div class="panel cv-slot-half-r">
+  <div class="panel-header">
+    <h3>Video Walkthroughs</h3>
+  </div>
+  <div class="panel-body cv-body">
+    <p>
+      Short video walkthroughs are linked from the header bar
+      (<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:2px"><path d="M23.5 6.2a3.01 3.01 0 0 0-2.12-2.13C19.54 3.6 12 3.6 12 3.6s-7.54 0-9.38.47A3.01 3.01 0 0 0 .5 6.2 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.8 3.01 3.01 0 0 0 2.12 2.13C4.46 20.4 12 20.4 12 20.4s7.54 0 9.38-.47a3.01 3.01 0 0 0 2.12-2.13A31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.8zM9.75 15.52V8.48L15.86 12l-6.11 3.52z"/></svg><strong>Video Guide</strong>).
+      These cover dashboard navigation, reading the charts, and interpreting
+      key signals across protocol pages.
+    </p>
+  </div>
+</div>
+
+<!-- ── How It Works ────────────────────────────────────────── -->
+<div class="ge-section-header cv-section-header cv-slot-full-1">
+  <h2 class="ge-section-title">How It Works</h2>
+</div>
+
+<div class="panel cv-slot-full-1">
+  <div class="panel-header">
+    <h3>Pipeline Overview</h3>
+  </div>
+  <div class="panel-body">
+    <div class="cv-pipeline">
+      <div class="cv-pipeline-step">
+        <span class="cv-pipeline-num">1</span>
+        <div>
+          <h4>Ingest</h4>
+          <p>
+            Real-time Yellowstone gRPC streams plus periodic RPC snapshots capture every
+            relevant on-chain event and account state change.
+          </p>
+        </div>
+      </div>
+      <div class="cv-pipeline-step">
+        <span class="cv-pipeline-num">2</span>
+        <div>
+          <h4>Decode &amp; Enrich</h4>
+          <p>
+            Raw transactions are Borsh-decoded, matched against protocol discriminators,
+            and enriched with pool/market metadata.
+          </p>
+        </div>
+      </div>
+      <div class="cv-pipeline-step">
+        <span class="cv-pipeline-num">3</span>
+        <div>
+          <h4>Store &amp; Roll Up</h4>
+          <p>
+            Events land in TimescaleDB hypertables partitioned by time.
+            Continuous aggregates refresh every 5 seconds for sub-minute freshness.
+          </p>
+        </div>
+      </div>
+      <div class="cv-pipeline-step">
+        <span class="cv-pipeline-num">4</span>
+        <div>
+          <h4>Serve</h4>
+          <p>
+            Parameterised view functions feed a lightweight API. The dashboard fetches
+            each widget via HTMX with staggered loads and automatic refresh.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Data Notes ──────────────────────────────────────────── -->
+<div class="ge-section-header cv-section-header cv-slot-full-1">
+  <h2 class="ge-section-title">Data Notes</h2>
+</div>
+
+<div class="panel cv-slot-full-1">
+  <div class="panel-header">
+    <h3>Historical Coverage</h3>
+  </div>
+  <div class="panel-body cv-body">
+    <ul>
+      <li><strong>Real-time ingestion</strong> — continuous monitoring of on-chain events and account balances began on 16 March 2026. All data from this date forward is captured live via the streaming pipeline.</li>
+      <li><strong>Backfilled history</strong> — balances prior to 16 March have been reconstructed from transaction data sourced via the Solscan API. Reconstruction has been extensively validated, though minor drift remains possible. Production installs requiring deep historical coverage would typically source from long-running indexers such as Dune or Allium.</li>
+      <li><strong>Kamino obligation history</strong> — the backfill reconstruction does not extend to individual obligation balances on Kamino. Historical obligation-level data is available only from the live-ingestion start date onward.</li>
+    </ul>
+  </div>
+</div>
