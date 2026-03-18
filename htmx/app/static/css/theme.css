@@ -643,6 +643,8 @@ th .info-tip-icon {
 .km-s1-kpi-b { grid-column: 11 / 14; grid-row: 2 / 3; }
 .km-s1-kpi-c { grid-column: 8 / 11;  grid-row: 3 / 4; }
 .km-s1-kpi-d { grid-column: 11 / 14; grid-row: 3 / 4; }
+.km-s1-kpi-e { grid-column: 8 / 11;  grid-row: 4 / 5; }
+.km-s1-kpi-f { grid-column: 11 / 14; grid-row: 4 / 5; }
 
 /* Section 2: Utilization & APY — chart 54%, KPIs 46% */
 .km-s2-chart { grid-column: 1 / 8;   grid-row: 6 / 9;  min-height: 320px; }

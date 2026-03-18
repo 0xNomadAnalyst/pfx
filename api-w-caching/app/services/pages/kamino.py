@@ -28,6 +28,8 @@ class KaminoPageService(BasePageService):
             "kpi-collateral-value": self._kpi_collateral_value,
             "kpi-unhealthy-share": self._kpi_unhealthy_share,
             "kpi-share-collateral-asset": self._kpi_share_collateral_asset,
+            "kpi-collateral-qty": self._kpi_collateral_qty,
+            "kpi-borrow-qty": self._kpi_borrow_qty,
             # Group 2
             "kpi-zero-use-count": self._kpi_zero_use_count,
             "kpi-zero-use-capacity": self._kpi_zero_use_capacity,
@@ -372,6 +374,58 @@ class KaminoPageService(BasePageService):
             "kind": "kpi",
             "primary": self._fmt_array(row.get("reserve_coll_all_shares_pct_array"), "pct"),
             "secondary": self._symbols_note(row.get("reserve_coll_all_symbols_array")),
+        }
+
+    @staticmethod
+    def _fmt_m(value: Any) -> str:
+        """Format a number as M/K with 1 decimal place (e.g. 28_592_895 → '28.6M')."""
+        if value is None:
+            return "--"
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            return "--"
+        if abs(v) >= 1_000_000_000:
+            return f"{v / 1_000_000_000:.1f}B"
+        if abs(v) >= 1_000_000:
+            return f"{v / 1_000_000:.1f}M"
+        if abs(v) >= 1_000:
+            return f"{v / 1_000:.1f}K"
+        return f"{v:.1f}"
+
+    def _market_assets_qty_rows(self) -> list[dict[str, Any]]:
+        def _load() -> list[dict[str, Any]]:
+            return self.sql.fetch_rows(
+                "SELECT token_symbol, reserve_type, collateral_supply, borrowed_tokens "
+                "FROM kamino_lend.v_market_assets "
+                "ORDER BY CASE reserve_type WHEN 'borrow' THEN 0 WHEN 'collateral' THEN 1 ELSE 2 END, token_symbol"
+            )
+        return self._cached("kamino::market_assets_qty", _load, ttl_seconds=self._MARKET_ASSETS_TTL_SECONDS)
+
+    def _kpi_collateral_qty(self, _: dict[str, Any]) -> dict[str, Any]:
+        rows = self._market_assets_qty_rows()
+        parts, symbols = [], []
+        for r in rows:
+            if str(r.get("reserve_type") or "").lower() == "collateral":
+                parts.append(self._fmt_m(r.get("collateral_supply")))
+                symbols.append(str(r.get("token_symbol") or ""))
+        return {
+            "kind": "kpi",
+            "primary": " / ".join(parts) if parts else "--",
+            "secondary": ", ".join(symbols) if symbols else "",
+        }
+
+    def _kpi_borrow_qty(self, _: dict[str, Any]) -> dict[str, Any]:
+        rows = self._market_assets_qty_rows()
+        parts, symbols = [], []
+        for r in rows:
+            if str(r.get("reserve_type") or "").lower() == "borrow":
+                parts.append(self._fmt_m(r.get("borrowed_tokens")))
+                symbols.append(str(r.get("token_symbol") or ""))
+        return {
+            "kind": "kpi",
+            "primary": " / ".join(parts) if parts else "--",
+            "secondary": ", ".join(symbols) if symbols else "",
         }
 
     # --- Group 2 ---

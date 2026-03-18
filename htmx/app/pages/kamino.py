@@ -33,6 +33,10 @@ PAGE_CONFIG = PageConfig(
                      tooltip="Share of total collateral value represented by each collateral asset accepted in this market."),
         WidgetConfig("kpi-share-borrow-asset", "Share by Borrow Asset", "kpi", "panel panel-kpi km-s1-kpi-d",
                      tooltip="Share of total outstanding debt represented by each borrow asset in this market."),
+        WidgetConfig("kpi-collateral-qty", "Collateral Quantity by Asset", "kpi", "panel panel-kpi km-s1-kpi-e",
+                     tooltip="Total token quantity deposited as collateral for each accepted collateral asset, expressed in native token units (rounded to nearest thousand)."),
+        WidgetConfig("kpi-borrow-qty", "Borrow Quantity by Asset", "kpi", "panel panel-kpi km-s1-kpi-f",
+                     tooltip="Total token quantity outstanding as debt for each borrow asset, expressed in native token units (rounded to nearest thousand)."),
 
         # ═══════════════════════════════════════════════════════
         # Section 2: UTILIZATION & APY
