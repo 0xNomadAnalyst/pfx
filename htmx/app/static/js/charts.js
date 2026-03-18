@@ -4981,6 +4981,7 @@
     });
 
     updateOrReplaceNode(".topbar-right", nextDoc);
+    window.__syncThemeIcon?.();
     updateOrReplaceNode(".pipeline-switcher", nextDoc);
     updateOrReplaceNode("#topbar-view-select", nextDoc);
     updateOrReplaceNode(".topbar-page-actions", nextDoc);

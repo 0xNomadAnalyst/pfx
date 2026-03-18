@@ -27,15 +27,14 @@
     applyTheme(stored || "dark");
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    initTheme();
-    const button = toggleButton();
-    if (!button) {
-      return;
-    }
-    button.addEventListener("click", () => {
-      const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
-      applyTheme(next);
-    });
+  document.addEventListener("click", (e) => {
+    const button = e.target.closest("#theme-toggle");
+    if (!button) return;
+    const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    applyTheme(next);
   });
+
+  window.__syncThemeIcon = () => updateThemeIcon(root.getAttribute("data-theme") || "dark");
+
+  initTheme();
 })();
