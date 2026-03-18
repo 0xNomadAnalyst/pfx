@@ -3,43 +3,38 @@
 -- Queue health status with per-dimension severity (gap, util, failure)
 --
 -- OPTIMISED:
---   1. Loop-based dynamic SQL gathers current status per schema (resilient to
---      missing schemas via EXCEPTION WHEN undefined_table).
+--   1. Loop-based dynamic SQL gathers current status per schema with a
+--      time-bounded DISTINCT ON (avoids full-table scans into tiered storage).
 --   2. 7-day P95 benchmarks pre-computed in mat_health_queue_benchmarks,
---      refreshed by health.refresh_queue_benchmarks() (called by cronjob).
+--      refreshed by refresh_mat_health_queue_benchmarks() (called via cronjob
+--      as part of health.refresh_mat_health_all()).
 --   3. Thin VIEW wrapper preserves existing caller interface.
 -- =============================================================================
 
 CREATE SCHEMA IF NOT EXISTS health;
 
 -- ─── Materialized view: pre-computed 7-day P95 benchmarks ────────────────────
--- Refreshed by health.refresh_queue_benchmarks() which the cronjob calls.
+-- Created once; refreshed every ~30s by the cronjob via
+-- health.refresh_mat_health_queue_benchmarks().
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS health.mat_health_queue_benchmarks AS
-SELECT domain, queue_name, p95_staleness_7d, p95_utilization_pct_7d, p95_consecutive_failures_7d
-FROM (VALUES (NULL::text, NULL::text, NULL::float8, NULL::float8, NULL::float8)) AS seed(domain, queue_name, p95_staleness_7d, p95_utilization_pct_7d, p95_consecutive_failures_7d)
-WHERE false;
+CREATE TABLE IF NOT EXISTS health.mat_health_queue_benchmarks (
+    domain                       text    NOT NULL,
+    queue_name                   text    NOT NULL,
+    p95_staleness_7d             double precision,
+    p95_utilization_pct_7d       double precision,
+    p95_consecutive_failures_7d  double precision,
+    refreshed_at                 timestamptz DEFAULT NOW(),
+    PRIMARY KEY (domain, queue_name)
+);
 
-CREATE UNIQUE INDEX IF NOT EXISTS mat_health_queue_benchmarks_pk
-    ON health.mat_health_queue_benchmarks (domain, queue_name);
-
-
--- ─── Helper: refresh the benchmarks mat view ─────────────────────────────────
-CREATE OR REPLACE FUNCTION health.refresh_queue_benchmarks()
-RETURNS void
-LANGUAGE plpgsql VOLATILE
-AS $rfn$
+-- ─── Procedure: refresh the benchmarks (called by refresh_mat_health_all) ────
+CREATE OR REPLACE PROCEDURE health.refresh_mat_health_queue_benchmarks()
+LANGUAGE plpgsql
+AS $proc$
 DECLARE
     _schema RECORD;
 BEGIN
-    CREATE TEMP TABLE IF NOT EXISTS _bm_staging (
-        domain                       text,
-        queue_name                   text,
-        p95_staleness_7d             double precision,
-        p95_utilization_pct_7d       double precision,
-        p95_consecutive_failures_7d  double precision
-    ) ON COMMIT DROP;
-    TRUNCATE _bm_staging;
+    TRUNCATE health.mat_health_queue_benchmarks;
 
     FOR _schema IN
         SELECT * FROM (VALUES
@@ -48,11 +43,14 @@ BEGIN
     LOOP
         BEGIN
             EXECUTE format(
-                $q$INSERT INTO _bm_staging
+                $q$INSERT INTO health.mat_health_queue_benchmarks
+                   (domain, queue_name, p95_staleness_7d,
+                    p95_utilization_pct_7d, p95_consecutive_failures_7d, refreshed_at)
                  SELECT %L, queue_name,
                         PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY seconds_since_last_write),
                         PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY queue_utilization_pct),
-                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY consecutive_failures)
+                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY consecutive_failures),
+                        NOW()
                  FROM %I.queue_health
                  WHERE time > NOW() - INTERVAL '7 days'
                    AND seconds_since_last_write IS NOT NULL
@@ -63,13 +61,8 @@ BEGIN
             NULL;
         END;
     END LOOP;
-
-    -- Replace mat view contents atomically
-    DELETE FROM health.mat_health_queue_benchmarks;
-    INSERT INTO health.mat_health_queue_benchmarks
-        SELECT * FROM _bm_staging;
 END;
-$rfn$;
+$proc$;
 
 
 -- ─── Main function ───────────────────────────────────────────────────────────
@@ -108,6 +101,7 @@ DECLARE
     _schema RECORD;
 BEGIN
     -- ── Temp table for live current status ────────────────────────────────
+    -- Time-bounded DISTINCT ON avoids scanning into tiered/OSM storage.
     CREATE TEMP TABLE IF NOT EXISTS _qt_current (
         domain                  text,
         queue_name              text,
@@ -130,9 +124,15 @@ BEGIN
         BEGIN
             EXECUTE format(
                 $q$INSERT INTO _qt_current
-                 SELECT %L, queue_name, queue_size, max_queue_size, queue_utilization_pct,
-                        write_rate_per_min, seconds_since_last_write, consecutive_failures, warning_level, time
-                 FROM %I.queue_health_current$q$,
+                 SELECT %L, sub.queue_name, sub.queue_size, sub.max_queue_size, sub.queue_utilization_pct,
+                        sub.write_rate_per_min, sub.seconds_since_last_write, sub.consecutive_failures,
+                        sub.warning_level, sub.time
+                 FROM (
+                     SELECT DISTINCT ON (queue_name) *
+                     FROM %I.queue_health
+                     WHERE time > NOW() - INTERVAL '1 hour'
+                     ORDER BY queue_name, time DESC
+                 ) sub$q$,
                 _schema.name, _schema.name
             );
         EXCEPTION WHEN undefined_table THEN
