@@ -106,10 +106,10 @@ PAGE_CONFIG = PageConfig(
         _sub("exp-sub-right-4", "Market 2", "exp-sub-right-4 exp-sub-right", "mkt2"),
 
         _kpi("kpi-pt-base-price-mkt1", "PT / Base Price", "exp-s4-kpi-left-1",
-             tooltip="The spot price of PT in base token units. Mapping this price to a fixed yield requires accounting for time to maturity.",
+             tooltip="The spot price of PT in base token units. Approaches 1.0 at maturity. The discount (1 \u2212 ptPrice) represents the fixed yield earned if held to maturity.",
              source_widget_id="kpi-pt-base-price"),
         _kpi("kpi-pt-base-price-mkt2", "PT / Base Price", "exp-s4-kpi-right-1",
-             tooltip="The spot price of PT in base token units. Mapping this price to a fixed yield requires accounting for time to maturity.",
+             tooltip="The spot price of PT in base token units. Approaches 1.0 at maturity. The discount (1 \u2212 ptPrice) represents the fixed yield earned if held to maturity.",
              source_widget_id="kpi-pt-base-price"),
 
         _kpi("kpi-pt-vol-24h-mkt1", "PT Trading Volume last 24hrs", "exp-s4-kpi-left-2",
@@ -165,10 +165,10 @@ PAGE_CONFIG = PageConfig(
         _sub("exp-sub-right-6", "Market 2", "exp-sub-right-6 exp-sub-right", "mkt2"),
 
         _kpi("kpi-current-fixed-yield-mkt1", "Current Fixed Yield Price", "exp-s6-kpi-left-1",
-             tooltip="The spot annualized fixed yield priced by the market. Derived from the PT/SY price and the remaining time to maturity.",
+             tooltip="The spot annualized fixed yield priced by the market, using simple (linear) annualization: (1/ptPrice \u2212 1) / years_to_maturity. Matches the Exponent web UI convention.",
              source_widget_id="kpi-current-fixed-yield"),
         _kpi("kpi-current-fixed-yield-mkt2", "Current Fixed Yield Price", "exp-s6-kpi-right-1",
-             tooltip="The spot annualized fixed yield priced by the market. Derived from the PT/SY price and the remaining time to maturity.",
+             tooltip="The spot annualized fixed yield priced by the market, using simple (linear) annualization: (1/ptPrice \u2212 1) / years_to_maturity. Matches the Exponent web UI convention.",
              source_widget_id="kpi-current-fixed-yield"),
 
         _kpi("kpi-base-token-yield-mkt1", "Base Token Yield (rolling 7d basis)", "exp-s6-kpi-left-2",
@@ -179,10 +179,10 @@ PAGE_CONFIG = PageConfig(
              source_widget_id="kpi-base-token-yield"),
 
         _kpi("kpi-fixed-variable-spread-mkt1", "Fixed-Variable Rate Spread (vs. 7day rate)", "exp-s6-kpi-left-3",
-             tooltip="The difference between the spot annualized fixed yield and the underlying variable rate, annualized from yields over a trailing 7-day window.",
+             tooltip="The difference between the simple-annualized fixed yield and the underlying variable rate over a trailing 7-day window. Positive = fixed > variable (safety premium); negative = variable > fixed (yield speculation premium).",
              source_widget_id="kpi-fixed-variable-spread"),
         _kpi("kpi-fixed-variable-spread-mkt2", "Fixed-Variable Rate Spread (vs. 7day rate)", "exp-s6-kpi-right-3",
-             tooltip="The difference between the spot annualized fixed yield and the underlying variable rate, annualized from yields over a trailing 7-day window.",
+             tooltip="The difference between the simple-annualized fixed yield and the underlying variable rate over a trailing 7-day window. Positive = fixed > variable (safety premium); negative = variable > fixed (yield speculation premium).",
              source_widget_id="kpi-fixed-variable-spread"),
 
         WidgetConfig("exponent-realized-rates-mkt1", "Variable Yield On Underlying", "chart", "panel panel-large exp-slot-chart-left-6",
