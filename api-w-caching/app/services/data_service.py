@@ -234,6 +234,10 @@ class DataService:
                 warmup_jobs.append(("dex-swaps", "swaps-flows-toggle", {**params, "flow_mode": "usx"}))
                 warmup_jobs.append(("dex-swaps", "swaps-flows-toggle", {**params, "flow_mode": "usdc"}))
 
+                warmup_jobs.append(("dex-swaps", "swaps-distribution-toggle", {**params, "distribution_mode": "sell-order"}))
+                warmup_jobs.append(("dex-swaps", "swaps-spread-volatility", params))
+                warmup_jobs.append(("dex-swaps", "swaps-price-impacts", params))
+
         if os.getenv("API_PREWARM_EXPONENT_ENABLED", "1") == "1":
             exponent_windows = [
                 item.strip()
