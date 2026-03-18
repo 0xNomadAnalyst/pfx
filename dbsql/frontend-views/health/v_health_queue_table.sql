@@ -2,9 +2,11 @@
 -- health.v_health_queue_table
 -- Queue health status with per-dimension severity (gap, util, failure)
 --
--- OPTIMISED: 7-day P95 benchmarks read from mat_health_queue_benchmarks
--- instead of computing PERCENTILE_CONT per request. Current snapshot still
--- read live from queue_health_current (fast: DISTINCT ON with index).
+-- OPTIMISED:
+--   1. Converted from VIEW to function — benchmarks computed via loop-based
+--      dynamic SQL so each schema's PERCENTILE_CONT gets its own small plan
+--   2. Thin VIEW wrapper preserves existing caller interface
+--   3. No dependency on mat_health_queue_benchmarks materialized view
 -- =============================================================================
 
 CREATE SCHEMA IF NOT EXISTS health;
@@ -36,39 +38,86 @@ RETURNS TABLE (
     is_red                       boolean,
     snapshot_time                timestamptz
 )
-LANGUAGE plpgsql STABLE
+LANGUAGE plpgsql VOLATILE
 AS $fn$
+#variable_conflict use_column
+DECLARE
+    _schema RECORD;
 BEGIN
+    -- ── Temp tables ──────────────────────────────────────────────────────
+    CREATE TEMP TABLE IF NOT EXISTS _qt_current (
+        domain                  text,
+        queue_name              text,
+        queue_size              integer,
+        max_queue_size          integer,
+        queue_utilization_pct   double precision,
+        write_rate_per_min      double precision,
+        seconds_since_last_write double precision,
+        consecutive_failures    integer,
+        warning_level           text,
+        snapshot_time           timestamptz
+    ) ON COMMIT DROP;
+    TRUNCATE _qt_current;
+
+    CREATE TEMP TABLE IF NOT EXISTS _qt_benchmarks (
+        domain                       text,
+        queue_name                   text,
+        p95_staleness_7d             double precision,
+        p95_utilization_pct_7d       double precision,
+        p95_consecutive_failures_7d  double precision
+    ) ON COMMIT DROP;
+    TRUNCATE _qt_benchmarks;
+
+    -- ── Gather current status + 7d benchmarks per schema ─────────────────
+    FOR _schema IN
+        SELECT * FROM (VALUES
+            ('dexes'),
+            ('exponent'),
+            ('kamino_lend'),
+            ('solstice_proprietary')
+        ) AS s(name)
+    LOOP
+        BEGIN
+            EXECUTE format(
+                $q$INSERT INTO _qt_current
+                 SELECT %L, queue_name, queue_size, max_queue_size, queue_utilization_pct,
+                        write_rate_per_min, seconds_since_last_write, consecutive_failures, warning_level, time
+                 FROM %I.queue_health_current$q$,
+                _schema.name, _schema.name
+            );
+        EXCEPTION WHEN undefined_table THEN
+            NULL;
+        END;
+
+        BEGIN
+            EXECUTE format(
+                $q$INSERT INTO _qt_benchmarks
+                 SELECT %L, queue_name,
+                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY seconds_since_last_write),
+                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY queue_utilization_pct),
+                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY consecutive_failures)
+                 FROM %I.queue_health
+                 WHERE time > NOW() - INTERVAL '7 days'
+                   AND seconds_since_last_write IS NOT NULL
+                 GROUP BY queue_name$q$,
+                _schema.name, _schema.name
+            );
+        EXCEPTION WHEN undefined_table THEN
+            NULL;
+        END;
+    END LOOP;
+
+    -- ── Final result set with severity calculations ──────────────────────
     RETURN QUERY
-    WITH current_data AS (
-        SELECT 'dexes'::text AS _domain, qhc.queue_name::text, qhc.queue_size,
-               qhc.max_queue_size, qhc.queue_utilization_pct,
-               qhc.write_rate_per_min, qhc.seconds_since_last_write,
-               qhc.consecutive_failures, qhc.time AS snapshot_time
-        FROM dexes.queue_health_current qhc
-        UNION ALL
-        SELECT 'exponent', qhc.queue_name, qhc.queue_size,
-               qhc.max_queue_size, qhc.queue_utilization_pct,
-               qhc.write_rate_per_min, qhc.seconds_since_last_write,
-               qhc.consecutive_failures, qhc.time
-        FROM exponent.queue_health_current qhc
-        UNION ALL
-        SELECT 'kamino_lend', qhc.queue_name, qhc.queue_size,
-               qhc.max_queue_size, qhc.queue_utilization_pct,
-               qhc.write_rate_per_min, qhc.seconds_since_last_write,
-               qhc.consecutive_failures, qhc.time
-        FROM kamino_lend.queue_health_current qhc
-    ),
-    merged AS (
+    WITH merged AS (
         SELECT
             c.*,
             COALESCE(b.p95_staleness_7d, 0)             AS _p95_staleness_7d,
             COALESCE(b.p95_utilization_pct_7d, 0)       AS _p95_utilization_pct_7d,
             COALESCE(b.p95_consecutive_failures_7d, 0)  AS _p95_consecutive_failures_7d,
             c.seconds_since_last_write / NULLIF(b.p95_staleness_7d, 0) AS staleness_ratio
-        FROM current_data c
-        LEFT JOIN health.mat_health_queue_benchmarks b
-            ON c._domain = b.domain AND c.queue_name = b.queue_name
+        FROM _qt_current c
+        LEFT JOIN _qt_benchmarks b ON c.domain = b.domain AND c.queue_name = b.queue_name
     ),
     with_severity AS (
         SELECT *,
@@ -109,7 +158,7 @@ BEGIN
         FROM merged m
     )
     SELECT
-        ws._domain,
+        ws.domain,
         ws.queue_name,
         ws.queue_size,
         ws.max_queue_size,
@@ -133,9 +182,10 @@ BEGIN
         GREATEST(ws._gap_severity, ws._util_severity, ws._fail_severity) >= 3,
         ws.snapshot_time
     FROM with_severity ws
-    ORDER BY ws._domain, ws.queue_name;
+    ORDER BY ws.domain, ws.queue_name;
 END;
 $fn$;
 
+-- Thin wrapper VIEW so existing callers work unchanged
 CREATE OR REPLACE VIEW health.v_health_queue_table AS
 SELECT * FROM health._fn_queue_table();

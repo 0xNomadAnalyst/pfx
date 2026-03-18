@@ -577,6 +577,9 @@ th .info-tip-icon {
   min-height: 0;
   overflow: hidden;
 }
+.page-dexes .panel-kpi .panel-title-group {
+  flex-wrap: nowrap;
+}
 
 .page-dexes .panel-kpi .kpi-primary {
   font-size: clamp(16px, 12cqi, 28px);
@@ -604,6 +607,9 @@ th .info-tip-icon {
 .page-kamino .panel-kpi .panel-header {
   min-height: 0;
   overflow: hidden;
+}
+.page-kamino .panel-kpi .panel-title-group {
+  flex-wrap: nowrap;
 }
 
 .page-kamino .panel-kpi .kpi-primary {

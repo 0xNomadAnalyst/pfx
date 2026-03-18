@@ -1669,17 +1669,35 @@
 
       const sorted = [...resolved].sort((a, b) => a.xIdx - b.xIdx);
       const stepPx = 18;
+      const clusterThreshold = 8;
       const rankByIdx = new Map();
       sorted.forEach((item, rank) => rankByIdx.set(item, rank));
+
+      // Horizontal offsets keep labels at the line top (verticalAlign: "top")
+      // while spreading close labels left/right to prevent overlap.
+      const xOffsets = sorted.map(() => 0);
+      const xAligns = sorted.map(() => "center");
+      for (let i = 0; i < sorted.length; i++) {
+        const hasCloseLeft = i > 0 && (sorted[i].xIdx - sorted[i - 1].xIdx) <= clusterThreshold;
+        const hasCloseRight = i < sorted.length - 1 && (sorted[i + 1].xIdx - sorted[i].xIdx) <= clusterThreshold;
+        if (hasCloseRight && !hasCloseLeft) {
+          xOffsets[i] = -stepPx;
+          xAligns[i] = "right";
+        } else if (hasCloseLeft && !hasCloseRight) {
+          xOffsets[i] = stepPx;
+          xAligns[i] = "left";
+        }
+      }
 
       option.series[0].markLine = {
         silent: true,
         symbol: "none",
         data: resolved.map((ml) => {
           const rank = rankByIdx.get(ml);
-          const yOff = -(sorted.length - 1 - rank) * stepPx;
+          const xOff = xOffsets[rank];
           const nearRight = xLen > 0 && ml.xIdx > xLen * 0.8;
           const nearLeft = xLen > 0 && ml.xIdx < xLen * 0.2;
+          const align = xOff !== 0 ? xAligns[rank] : nearRight ? "right" : nearLeft ? "left" : "center";
           return {
             xAxis: ml.xIdx,
             lineStyle: { type: ml.lineStyle || "dashed", color: ml.color || "#aaa", width: 2 },
@@ -1687,8 +1705,9 @@
               show: true,
               formatter: ml.label,
               position: "end",
-              offset: [0, yOff],
-              align: nearRight ? "right" : nearLeft ? "left" : "center",
+              verticalAlign: "top",
+              offset: [xOff, 2],
+              align,
               color: ml.color || "#aaa",
               fontSize: 12,
               fontWeight: "bold",
@@ -1699,12 +1718,6 @@
           };
         }),
       };
-      const mlCount = resolved.length;
-      const neededTop = 22 + mlCount * stepPx;
-      const curTop = option.grid.top || 22;
-      if (neededTop > curTop) {
-        option.grid = { ...option.grid, top: neededTop };
-      }
     }
     return option;
   }
@@ -4934,6 +4947,10 @@
     initPageSelector();
     initPipelineSwitcher();
     await initFilters();
+    initRiskEventTypeToggle();
+    initRiskLiqSourceToggle();
+    initRiskStressAssetToggles();
+    initCascadePoolToggle();
     htmx.process(document.body);
     return true;
   }

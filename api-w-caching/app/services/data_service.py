@@ -23,6 +23,24 @@ from app.services.sql_adapter import SqlAdapter
 logger = logging.getLogger(__name__)
 
 
+class _DexesCompositeService:
+    """Routes widget requests to liquidity or swaps sub-service."""
+
+    def __init__(self, liquidity, swaps):
+        self._liquidity = liquidity
+        self._swaps = swaps
+        self.default_protocol = liquidity.default_protocol
+        self.default_pair = liquidity.default_pair
+
+    def get_widget_payload(self, widget_id: str, params: dict[str, Any]) -> dict[str, Any]:
+        if hasattr(self._swaps, "_handlers") and widget_id in self._swaps._handlers:
+            return self._swaps.get_widget_payload(widget_id, params)
+        return self._liquidity.get_widget_payload(widget_id, params)
+
+    def list_widgets(self) -> list[str]:
+        return self._liquidity.list_widgets() + self._swaps.list_widgets()
+
+
 class DataService:
     """Coordinator for page-specific data services."""
 
@@ -54,6 +72,7 @@ class DataService:
             "playbook-liquidity": liquidity,
             "dex-liquidity": liquidity,
             "dex-swaps": swaps,
+            "dexes": _DexesCompositeService(liquidity, swaps),
             "kamino": kamino,
             "exponent": exponent,
             "health": health,
@@ -82,10 +101,10 @@ class DataService:
             return
         strict = os.getenv("DBSQL_CONTRACT_CHECK_STRICT", "0") == "1"
         required = [
-            "dexes.get_view_dex_last(text,text,boolean)",
+            "dexes.get_view_dex_last(text,text,interval,boolean)",
             "dexes.get_view_dex_timeseries(text,text,text,integer,boolean)",
             "dexes.get_view_tick_dist_simple(text,text,interval,boolean)",
-            "dexes.get_view_dex_ohlcv(text,text,text,boolean)",
+            "dexes.get_view_dex_ohlcv(text,text,text,integer,boolean)",
             "dexes.get_view_liquidity_depth_table(text,text,boolean)",
             "dexes.get_view_dex_table_ranked_events(text,text,text,text,text,integer,text,boolean)",
             "dexes.get_view_sell_swaps_distribution(text,text,text,text,integer,boolean)",
