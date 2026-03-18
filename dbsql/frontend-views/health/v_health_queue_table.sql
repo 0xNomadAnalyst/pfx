@@ -3,13 +3,76 @@
 -- Queue health status with per-dimension severity (gap, util, failure)
 --
 -- OPTIMISED:
---   1. Converted from VIEW to function — benchmarks computed via loop-based
---      dynamic SQL so each schema's PERCENTILE_CONT gets its own small plan
---   2. Thin VIEW wrapper preserves existing caller interface
---   3. No dependency on mat_health_queue_benchmarks materialized view
+--   1. Loop-based dynamic SQL gathers current status per schema (resilient to
+--      missing schemas via EXCEPTION WHEN undefined_table).
+--   2. 7-day P95 benchmarks pre-computed in mat_health_queue_benchmarks,
+--      refreshed by health.refresh_queue_benchmarks() (called by cronjob).
+--   3. Thin VIEW wrapper preserves existing caller interface.
 -- =============================================================================
 
 CREATE SCHEMA IF NOT EXISTS health;
+
+-- ─── Materialized view: pre-computed 7-day P95 benchmarks ────────────────────
+-- Refreshed by health.refresh_queue_benchmarks() which the cronjob calls.
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS health.mat_health_queue_benchmarks AS
+SELECT domain, queue_name, p95_staleness_7d, p95_utilization_pct_7d, p95_consecutive_failures_7d
+FROM (VALUES (NULL::text, NULL::text, NULL::float8, NULL::float8, NULL::float8)) AS seed(domain, queue_name, p95_staleness_7d, p95_utilization_pct_7d, p95_consecutive_failures_7d)
+WHERE false;
+
+CREATE UNIQUE INDEX IF NOT EXISTS mat_health_queue_benchmarks_pk
+    ON health.mat_health_queue_benchmarks (domain, queue_name);
+
+
+-- ─── Helper: refresh the benchmarks mat view ─────────────────────────────────
+CREATE OR REPLACE FUNCTION health.refresh_queue_benchmarks()
+RETURNS void
+LANGUAGE plpgsql VOLATILE
+AS $rfn$
+DECLARE
+    _schema RECORD;
+BEGIN
+    CREATE TEMP TABLE IF NOT EXISTS _bm_staging (
+        domain                       text,
+        queue_name                   text,
+        p95_staleness_7d             double precision,
+        p95_utilization_pct_7d       double precision,
+        p95_consecutive_failures_7d  double precision
+    ) ON COMMIT DROP;
+    TRUNCATE _bm_staging;
+
+    FOR _schema IN
+        SELECT * FROM (VALUES
+            ('dexes'), ('exponent'), ('kamino_lend'), ('solstice_proprietary')
+        ) AS s(name)
+    LOOP
+        BEGIN
+            EXECUTE format(
+                $q$INSERT INTO _bm_staging
+                 SELECT %L, queue_name,
+                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY seconds_since_last_write),
+                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY queue_utilization_pct),
+                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY consecutive_failures)
+                 FROM %I.queue_health
+                 WHERE time > NOW() - INTERVAL '7 days'
+                   AND seconds_since_last_write IS NOT NULL
+                 GROUP BY queue_name$q$,
+                _schema.name, _schema.name
+            );
+        EXCEPTION WHEN undefined_table THEN
+            NULL;
+        END;
+    END LOOP;
+
+    -- Replace mat view contents atomically
+    DELETE FROM health.mat_health_queue_benchmarks;
+    INSERT INTO health.mat_health_queue_benchmarks
+        SELECT * FROM _bm_staging;
+END;
+$rfn$;
+
+
+-- ─── Main function ───────────────────────────────────────────────────────────
 
 DROP VIEW IF EXISTS health.v_health_queue_table CASCADE;
 DROP FUNCTION IF EXISTS health._fn_queue_table();
@@ -44,7 +107,7 @@ AS $fn$
 DECLARE
     _schema RECORD;
 BEGIN
-    -- ── Temp tables ──────────────────────────────────────────────────────
+    -- ── Temp table for live current status ────────────────────────────────
     CREATE TEMP TABLE IF NOT EXISTS _qt_current (
         domain                  text,
         queue_name              text,
@@ -59,22 +122,9 @@ BEGIN
     ) ON COMMIT DROP;
     TRUNCATE _qt_current;
 
-    CREATE TEMP TABLE IF NOT EXISTS _qt_benchmarks (
-        domain                       text,
-        queue_name                   text,
-        p95_staleness_7d             double precision,
-        p95_utilization_pct_7d       double precision,
-        p95_consecutive_failures_7d  double precision
-    ) ON COMMIT DROP;
-    TRUNCATE _qt_benchmarks;
-
-    -- ── Gather current status + 7d benchmarks per schema ─────────────────
     FOR _schema IN
         SELECT * FROM (VALUES
-            ('dexes'),
-            ('exponent'),
-            ('kamino_lend'),
-            ('solstice_proprietary')
+            ('dexes'), ('exponent'), ('kamino_lend'), ('solstice_proprietary')
         ) AS s(name)
     LOOP
         BEGIN
@@ -88,26 +138,9 @@ BEGIN
         EXCEPTION WHEN undefined_table THEN
             NULL;
         END;
-
-        BEGIN
-            EXECUTE format(
-                $q$INSERT INTO _qt_benchmarks
-                 SELECT %L, queue_name,
-                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY seconds_since_last_write),
-                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY queue_utilization_pct),
-                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY consecutive_failures)
-                 FROM %I.queue_health
-                 WHERE time > NOW() - INTERVAL '7 days'
-                   AND seconds_since_last_write IS NOT NULL
-                 GROUP BY queue_name$q$,
-                _schema.name, _schema.name
-            );
-        EXCEPTION WHEN undefined_table THEN
-            NULL;
-        END;
     END LOOP;
 
-    -- ── Final result set with severity calculations ──────────────────────
+    -- ── Final result: join live current with pre-computed benchmarks ──────
     RETURN QUERY
     WITH merged AS (
         SELECT
@@ -117,7 +150,8 @@ BEGIN
             COALESCE(b.p95_consecutive_failures_7d, 0)  AS _p95_consecutive_failures_7d,
             c.seconds_since_last_write / NULLIF(b.p95_staleness_7d, 0) AS staleness_ratio
         FROM _qt_current c
-        LEFT JOIN _qt_benchmarks b ON c.domain = b.domain AND c.queue_name = b.queue_name
+        LEFT JOIN health.mat_health_queue_benchmarks b
+            ON c.domain = b.domain AND c.queue_name = b.queue_name
     ),
     with_severity AS (
         SELECT *,

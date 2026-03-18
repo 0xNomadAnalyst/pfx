@@ -7,8 +7,11 @@ from typing import Any
 from app.services.pages.base import BasePageService
 
 _TABLE_TTL = float(os.getenv("HEALTH_TABLE_TTL_SECONDS", "60"))
+_TABLE_TTL_RED = float(os.getenv("HEALTH_TABLE_TTL_RED_SECONDS", "15"))
 _CHART_TTL = float(os.getenv("HEALTH_CHART_TTL_SECONDS", "120"))
+_CHART_TTL_RED = float(os.getenv("HEALTH_CHART_TTL_RED_SECONDS", "30"))
 _CHART_TIMEOUT_MS = 30_000
+_TABLE_TIMEOUT_MS = int(os.getenv("HEALTH_TABLE_TIMEOUT_MS", "20000"))
 _MASTER_TIMEOUT_MS = int(os.getenv("HEALTH_MASTER_TIMEOUT_MS", "60000"))
 _HEALTH_STATUS_TIMEOUT_MS = int(os.getenv("HEALTH_STATUS_TIMEOUT_MS", "2000"))
 _PIPELINE_LOCKED = os.getenv("API_PIPELINE_LOCKED", "0") == "1"
@@ -268,6 +271,18 @@ class HealthPageService(BasePageService):
             "health-cagg-table": self._health_cagg_table,
         }
 
+    @property
+    def _is_red(self) -> bool:
+        return self._last_master_status is False
+
+    @property
+    def _table_ttl(self) -> float:
+        return _TABLE_TTL_RED if self._is_red else _TABLE_TTL
+
+    @property
+    def _chart_ttl(self) -> float:
+        return _CHART_TTL_RED if self._is_red else _CHART_TTL
+
     @staticmethod
     def _pl(params: dict[str, Any] | None) -> str:
         if _PIPELINE_LOCKED:
@@ -300,7 +315,7 @@ class HealthPageService(BasePageService):
             return not any(_as_bool(r.get("is_red")) for r in rows)
 
         try:
-            status = self._cached(f"health:{self._pl(None)}:master_status", _load_status, ttl_seconds=_TABLE_TTL)
+            status = self._cached(f"health:{self._pl(None)}:master_status", _load_status, ttl_seconds=self._table_ttl)
             if status is not None:
                 self._last_master_status = status
             return status
@@ -332,7 +347,7 @@ class HealthPageService(BasePageService):
                 "FROM health.v_health_master_table",
                 statement_timeout_ms=_MASTER_TIMEOUT_MS,
             ),
-            ttl_seconds=_TABLE_TTL,
+            ttl_seconds=self._table_ttl,
         )
 
     def _fetch_queues(self, pl: str = "") -> list[dict[str, Any]]:
@@ -344,9 +359,10 @@ class HealthPageService(BasePageService):
                 "  queue_size, max_queue_size, queue_utilization_pct, util_status, "
                 "  write_rate_per_min, seconds_since_last_write, p95_staleness_7d, "
                 "  gap_status, consecutive_failures, fail_status, is_red "
-                "FROM health.v_health_queue_table"
+                "FROM health.v_health_queue_table",
+                statement_timeout_ms=_TABLE_TIMEOUT_MS,
             ),
-            ttl_seconds=_TABLE_TTL,
+            ttl_seconds=self._table_ttl,
         )
 
     def _fetch_triggers(self, pl: str = "") -> list[dict[str, Any]]:
@@ -357,9 +373,10 @@ class HealthPageService(BasePageService):
                 "  status, trigger_name, description, "
                 "  source_latest, derived_latest, lag_mins, "
                 "  source_rows_1h, derived_rows_1h, is_red "
-                "FROM health.v_health_trigger_table"
+                "FROM health.v_health_trigger_table",
+                statement_timeout_ms=_TABLE_TIMEOUT_MS,
             ),
-            ttl_seconds=_TABLE_TTL,
+            ttl_seconds=self._table_ttl,
         )
 
     def _fetch_base_tables(self, pl: str = "") -> list[dict[str, Any]]:
@@ -370,9 +387,10 @@ class HealthPageService(BasePageService):
                 "  status, schema_name, table_name, latest_time, "
                 "  minutes_since_latest, rows_last_hour, rows_last_24h, avg_rows_per_hour, "
                 "  is_red "
-                "FROM health.v_health_base_table"
+                "FROM health.v_health_base_table",
+                statement_timeout_ms=_TABLE_TIMEOUT_MS,
             ),
-            ttl_seconds=_TABLE_TTL,
+            ttl_seconds=self._table_ttl,
         )
 
     def _fetch_caggs(self, pl: str = "") -> list[dict[str, Any]]:
@@ -382,9 +400,10 @@ class HealthPageService(BasePageService):
                 "SELECT "
                 "  status, view_schema, view_name, source_table, "
                 "  cagg_latest, source_latest, refresh_lag_mins, is_red "
-                "FROM health.v_health_cagg_table"
+                "FROM health.v_health_cagg_table",
+                statement_timeout_ms=_TABLE_TIMEOUT_MS,
             ),
-            ttl_seconds=_TABLE_TTL,
+            ttl_seconds=self._table_ttl,
         )
 
     # ------------------------------------------------------------------
@@ -397,6 +416,7 @@ class HealthPageService(BasePageService):
         domain_rows = [r for r in rows if str(r.get("domain", "")).upper() != "MASTER"]
 
         is_green = bool(master_row) and not _as_bool(master_row.get("is_red"))
+        self._last_master_status = is_green
         title_emoji = "\U0001f7e2" if is_green else "\U0001f534"
         title_text = "ALL SYSTEMS NOMINAL" if is_green else "ACTION REQUIRED"
 
@@ -500,7 +520,7 @@ class HealthPageService(BasePageService):
                 statement_timeout_ms=_CHART_TIMEOUT_MS,
             )
 
-        raw = self._cached(cache_key, _load, ttl_seconds=_CHART_TTL)
+        raw = self._cached(cache_key, _load, ttl_seconds=self._chart_ttl)
 
         queue_names: list[str] = list(dict.fromkeys(r["queue_name"] for r in raw))
         bucket_map: dict[str, dict[str, Any]] = {}
@@ -633,7 +653,7 @@ class HealthPageService(BasePageService):
                 statement_timeout_ms=_CHART_TIMEOUT_MS,
             )
 
-        return self._cached(cache_key, _load, ttl_seconds=_CHART_TTL)
+        return self._cached(cache_key, _load, ttl_seconds=self._chart_ttl)
 
     def _build_base_chart(self, params: dict[str, Any], category: str) -> dict[str, Any]:
         raw = self._base_chart_data(params)
