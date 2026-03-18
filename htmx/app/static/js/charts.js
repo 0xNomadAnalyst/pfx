@@ -498,10 +498,10 @@
     }
     const absValue = Math.abs(numeric);
     if (absValue >= 1_000_000_000) {
-      return `${(numeric / 1_000_000_000).toFixed(1)}b`;
+      return `${(numeric / 1_000_000_000).toFixed(0)}b`;
     }
     if (absValue >= 1_000_000) {
-      return `${(numeric / 1_000_000).toFixed(1)}m`;
+      return `${(numeric / 1_000_000).toFixed(0)}m`;
     }
     if (absValue >= 1_000) {
       return `${(numeric / 1_000).toFixed(0)}k`;
