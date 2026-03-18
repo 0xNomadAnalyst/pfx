@@ -3,8 +3,8 @@
 -- Queue health status with per-dimension severity (gap, util, failure)
 --
 -- OPTIMISED:
---   1. Loop-based dynamic SQL gathers current status per schema using a
---      LATERAL join (index seek per queue, avoids full-table scans/sorts).
+--   1. Loop-based dynamic SQL gathers current status per schema with a
+--      time-bounded DISTINCT ON (avoids full-table scans into tiered storage).
 --   2. 7-day P95 benchmarks pre-computed in mat_health_queue_benchmarks,
 --      refreshed by refresh_mat_health_queue_benchmarks() (called via cronjob
 --      as part of health.refresh_mat_health_all()).
@@ -101,7 +101,7 @@ DECLARE
     _schema RECORD;
 BEGIN
     -- ── Temp table for live current status ────────────────────────────────
-    -- LATERAL join with 15-min window: index seek per queue, avoids sort.
+    -- Time-bounded DISTINCT ON avoids scanning into tiered/OSM storage.
     CREATE TEMP TABLE IF NOT EXISTS _qt_current (
         domain                  text,
         queue_name              text,
@@ -124,26 +124,18 @@ BEGIN
         BEGIN
             EXECUTE format(
                 $q$INSERT INTO _qt_current
-                 SELECT %L, lat.*
+                 SELECT %L, sub.queue_name, sub.queue_size, sub.max_queue_size, sub.queue_utilization_pct,
+                        sub.write_rate_per_min, sub.seconds_since_last_write, sub.consecutive_failures,
+                        sub.warning_level, sub.time
                  FROM (
-                     SELECT DISTINCT queue_name
+                     SELECT DISTINCT ON (queue_name) *
                      FROM %I.queue_health
-                     WHERE time > NOW() - INTERVAL '15 minutes'
-                 ) qn
-                 CROSS JOIN LATERAL (
-                     SELECT queue_name, queue_size, max_queue_size,
-                            queue_utilization_pct, write_rate_per_min,
-                            seconds_since_last_write, consecutive_failures,
-                            warning_level, time
-                     FROM %I.queue_health
-                     WHERE queue_name = qn.queue_name
-                       AND time > NOW() - INTERVAL '15 minutes'
-                     ORDER BY time DESC
-                     LIMIT 1
-                 ) lat$q$,
-                _schema.name, _schema.name, _schema.name
+                     WHERE time > NOW() - INTERVAL '1 hour'
+                     ORDER BY queue_name, time DESC
+                 ) sub$q$,
+                _schema.name, _schema.name
             );
-        EXCEPTION WHEN undefined_table OR query_canceled THEN
+        EXCEPTION WHEN undefined_table THEN
             NULL;
         END;
     END LOOP;

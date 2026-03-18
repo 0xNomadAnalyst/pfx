@@ -1,44 +1,68 @@
 -- =============================================================================
--- health.v_health_cagg_table
--- CAGG refresh health — compares CAGG bucket times to base table times
+-- health._fn_cagg_table  (onyc)
+-- Reads pre-materialised health.mat_health_cagg_status.
+-- No dynamic SQL / loop — pure SELECT from intermediate table.
 --
--- OPTIMISED: reads pre-computed stats from mat_health_cagg_status instead
--- of running 45 separate MAX()/COUNT(DISTINCT) queries per request.
--- Status/severity logic applied as a thin computation over the mat table.
+-- Depends on: health.mat_health_cagg_status
+--             (refreshed by health.refresh_mat_health_all)
 -- =============================================================================
 
 CREATE SCHEMA IF NOT EXISTS health;
 
-DROP VIEW IF EXISTS health.v_health_cagg_table CASCADE;
-DROP FUNCTION IF EXISTS health._fn_cagg_table() CASCADE;
+DROP VIEW  IF EXISTS health.v_health_cagg_table CASCADE;
+DROP FUNCTION IF EXISTS health._fn_cagg_table();
+
+CREATE OR REPLACE FUNCTION health._fn_cagg_table()
+RETURNS TABLE (
+    view_schema        text,
+    view_name          text,
+    source_table       text,
+    cagg_latest        timestamptz,
+    source_latest      timestamptz,
+    cagg_age_mins      double precision,
+    source_age_mins    double precision,
+    refresh_lag_mins   double precision,
+    expected_gap_mins  double precision,
+    status             text,
+    severity           integer,
+    is_red             boolean
+)
+LANGUAGE sql STABLE
+AS $fn$
+    SELECT
+        s.view_schema,
+        s.view_name,
+        s.source_table,
+        s.cagg_latest,
+        s.source_latest,
+        EXTRACT(EPOCH FROM (NOW() - s.cagg_latest))   / 60.0,
+        EXTRACT(EPOCH FROM (NOW() - s.source_latest))  / 60.0,
+        EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0,
+        s.expected_gap_mins,
+        CASE
+            WHEN s.cagg_latest IS NULL AND s.source_latest IS NULL THEN 'No data'
+            WHEN s.source_latest IS NULL
+                 OR (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 2.0
+                 THEN 'Source Stale'
+            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15 THEN 'Refresh Broken'
+            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 5  THEN 'Refresh Delayed'
+            ELSE 'Refresh OK'
+        END,
+        CASE
+            WHEN s.cagg_latest IS NULL AND s.source_latest IS NULL THEN -1
+            WHEN s.source_latest IS NULL
+                 OR (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 2.0
+                 THEN 1
+            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15 THEN 3
+            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 5  THEN 1
+            ELSE 0
+        END,
+        (s.source_latest IS NOT NULL
+            AND (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) <= s.expected_gap_mins * 2.0
+            AND (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15)
+    FROM health.mat_health_cagg_status s
+    ORDER BY s.view_schema, s.view_name;
+$fn$;
 
 CREATE OR REPLACE VIEW health.v_health_cagg_table AS
-SELECT
-    c.view_schema,
-    c.view_name,
-    c.source_table,
-    c.cagg_latest,
-    c.source_latest,
-    c.cagg_age_mins,
-    c.source_age_mins,
-    c.refresh_lag_mins,
-    c.expected_gap_mins,
-    CASE
-        WHEN c.cagg_age_mins IS NULL AND c.source_age_mins IS NULL THEN 'No data'
-        WHEN c.source_age_mins IS NULL OR c.source_age_mins > c.expected_gap_mins * 2.0 THEN 'Source Stale'
-        WHEN c.refresh_lag_mins IS NOT NULL AND c.refresh_lag_mins > 15 THEN 'Refresh Broken'
-        WHEN c.refresh_lag_mins IS NOT NULL AND c.refresh_lag_mins > 5  THEN 'Refresh Delayed'
-        ELSE 'Refresh OK'
-    END AS status,
-    CASE
-        WHEN c.cagg_age_mins IS NULL AND c.source_age_mins IS NULL THEN -1
-        WHEN c.source_age_mins IS NULL OR c.source_age_mins > c.expected_gap_mins * 2.0 THEN 1
-        WHEN c.refresh_lag_mins IS NOT NULL AND c.refresh_lag_mins > 15 THEN 3
-        WHEN c.refresh_lag_mins IS NOT NULL AND c.refresh_lag_mins > 5  THEN 1
-        ELSE 0
-    END AS severity,
-    (c.source_age_mins IS NOT NULL
-        AND c.source_age_mins <= c.expected_gap_mins * 2.0
-        AND c.refresh_lag_mins IS NOT NULL
-        AND c.refresh_lag_mins > 15) AS is_red
-FROM health.mat_health_cagg_status c;
+SELECT * FROM health._fn_cagg_table();
