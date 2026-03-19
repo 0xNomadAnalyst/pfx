@@ -8,8 +8,9 @@
 #   Tier 3 (every HEALTH_CHECK_MULT cycles): Health check + stats
 #   Daily (midnight UTC): Cleanup of old mat data beyond retention
 #
-# All mat tables refresh at a uniform cadence to ensure consistent
-# freshness across domains during market stress.
+# CAGGs and mat tables are refreshed in parallel by domain (3 concurrent
+# psql sessions) to keep cycle time under the target interval. Cross-
+# protocol mat tables run after domain tables complete (dependency).
 #
 # One-shot: run a single cycle then exit:
 #   ONYC_SINGLE_RUN=1 ./onyc_refresh.sh
@@ -93,56 +94,88 @@ if [ "$ONYC_SINGLE_RUN" = "1" ]; then
 fi
 
 # =====================================================
-# Tier 1: CAGG refresh (narrowed window)
+# Tier 1: CAGG refresh (narrowed window, parallel by domain)
 # =====================================================
+# Each domain runs in its own psql session so all 3 refresh concurrently.
+# Upper bound is 10s (not 1min) — 5s buckets are complete within 10s,
+# and this eliminates ~50s of unnecessary lag per cycle.
 refresh_caggs() {
-    psql "$DB_CONNECTION" <<EOF
--- DEX CAGGs
-CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_events_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_vaults_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_poolstate_5s',   NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_tickarrays_5s',  NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-
--- Kamino CAGGs
-CALL refresh_continuous_aggregate('${KAMINO_SCHEMA}.cagg_activities_5s',     NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${KAMINO_SCHEMA}.cagg_reserves_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${KAMINO_SCHEMA}.cagg_obligations_agg_5s', NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-
--- Exponent CAGGs
-CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_vaults_5s',              NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_market_twos_5s',         NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_sy_meta_account_5s',     NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_sy_token_account_5s',    NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_vault_yield_position_5s', NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_vault_yt_escrow_5s',     NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_base_token_escrow_5s',   NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
-CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_tx_events_5s',           NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '1 minute');
+    psql "$DB_CONNECTION" <<EOF &
+CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_events_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_vaults_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_poolstate_5s',   NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_tickarrays_5s',  NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
 EOF
+    local pid_dex=$!
+
+    psql "$DB_CONNECTION" <<EOF &
+CALL refresh_continuous_aggregate('${KAMINO_SCHEMA}.cagg_activities_5s',     NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${KAMINO_SCHEMA}.cagg_reserves_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${KAMINO_SCHEMA}.cagg_obligations_agg_5s', NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+EOF
+    local pid_kamino=$!
+
+    psql "$DB_CONNECTION" <<EOF &
+CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_vaults_5s',              NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_market_twos_5s',         NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_sy_meta_account_5s',     NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_sy_token_account_5s',    NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_vault_yield_position_5s', NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_vault_yt_escrow_5s',     NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_base_token_escrow_5s',   NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_tx_events_5s',           NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+EOF
+    local pid_exponent=$!
+
+    local fail=0
+    wait $pid_dex      || fail=1
+    wait $pid_kamino   || fail=1
+    wait $pid_exponent || fail=1
+    return $fail
 }
 
 # =====================================================
-# Tier 1: Mat table refresh (all hot-path, uniform)
+# Tier 1: Mat table refresh (parallel by domain)
 # =====================================================
+# Phase 1: domain + health tables refresh in parallel (4 sessions).
+# Phase 2: cross-protocol runs after all domain tables complete
+#           (it reads from domain mat tables).
 refresh_mat_tables() {
-    psql "$DB_CONNECTION" <<EOF
--- Dexes materialized tables
+    # --- Phase 1: parallel domain refreshes ---
+    psql "$DB_CONNECTION" <<EOF &
 CALL ${DEX_SCHEMA}.refresh_mat_dex_timeseries_1m();
 CALL ${DEX_SCHEMA}.refresh_mat_dex_ohlcv_1m();
 CALL ${DEX_SCHEMA}.refresh_mat_dex_last();
+EOF
+    local pid_dex=$!
 
--- Kamino materialized tables
+    psql "$DB_CONNECTION" <<EOF &
 CALL ${KAMINO_SCHEMA}.refresh_mat_klend_timeseries_1m();
 CALL ${KAMINO_SCHEMA}.refresh_mat_klend_last();
 CALL ${KAMINO_SCHEMA}.refresh_mat_klend_config();
+EOF
+    local pid_kamino=$!
 
--- Exponent materialized tables
+    psql "$DB_CONNECTION" <<EOF &
 CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_timeseries_1m();
 CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_last();
+EOF
+    local pid_exponent=$!
 
--- Health materialized tables
+    psql "$DB_CONNECTION" <<EOF &
 CALL health.refresh_mat_health_all();
+EOF
+    local pid_health=$!
 
--- Cross-protocol materialized tables (must run after domain mat refreshes)
+    local fail=0
+    wait $pid_dex      || fail=1
+    wait $pid_kamino   || fail=1
+    wait $pid_exponent || fail=1
+    wait $pid_health   || fail=1
+    [ $fail -ne 0 ] && return 1
+
+    # --- Phase 2: cross-protocol (depends on domain mat tables) ---
+    psql "$DB_CONNECTION" <<EOF
 CALL cross_protocol.refresh_mat_xp_all();
 EOF
 }
@@ -396,7 +429,7 @@ last_cleanup_date=""
 
 run_one_cycle() {
     cycle_count=$((cycle_count + 1))
-    cycle_start=$(date +%s%N)
+    cycle_start=$(date +%s)
     ts=$(date '+%Y-%m-%d %H:%M:%S')
 
     # --- Tier 2: Aux tables (every AUX_REFRESH_MULT cycles) ---
@@ -414,8 +447,8 @@ run_one_cycle() {
     # --- Tier 1: CAGGs + mat tables (every cycle) ---
     if refresh_caggs 2>&1 && refresh_mat_tables 2>&1; then
         failure_count=0
-        elapsed_ms=$(( ($(date +%s%N) - cycle_start) / 1000000 ))
-        echo "$LOG_PREFIX Cycle #${cycle_count} completed in ${elapsed_ms}ms"
+        elapsed_s=$(($(date +%s) - cycle_start))
+        echo "$LOG_PREFIX Cycle #${cycle_count} completed in ${elapsed_s}s"
     else
         failure_count=$((failure_count + 1))
         echo "$LOG_PREFIX Cycle #${cycle_count} FAILED (${failure_count}/${MAX_CONSECUTIVE_FAILURES})"
@@ -463,7 +496,7 @@ while true; do
     r=$?
     [ "$r" -eq 1 ] && exit 1
     # --- Sleep until next cycle (cycle_start was set at start of run_one_cycle) ---
-    elapsed_s=$(( ($(date +%s%N) - cycle_start) / 1000000000 ))
+    elapsed_s=$(($(date +%s) - cycle_start))
     sleep_time=$((MAT_REFRESH_INTERVAL_S - elapsed_s))
     if [ "$sleep_time" -gt 0 ]; then
         sleep "$sleep_time"
