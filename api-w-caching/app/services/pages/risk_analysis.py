@@ -50,30 +50,37 @@ class RiskAnalysisPageService(BasePageService):
     # Pool token reference lookup (per protocol)
     # ------------------------------------------------------------------
 
+    _EMPTY_POOL_REF: dict[str, str] = {"token_pair": "", "token0_symbol": "", "token1_symbol": ""}
+
     def _pool_ref(self, protocol: str) -> dict[str, str]:
         """Fetch token_pair, token0_symbol, token1_symbol from the pool
-        reference table for a given protocol.  Cached per protocol."""
+        reference table for a given protocol.  Cached per protocol.
+
+        Query failures raise so the cache layer does NOT persist empty
+        results for the full TTL — a transient DB hiccup would otherwise
+        poison all downstream queries for ``_POOL_REF_TTL_SECONDS``."""
         cache_key = f"ra::pool_ref::{protocol}"
 
         def _load() -> dict[str, str]:
-            try:
-                rows = self.sql.fetch_rows(
-                    "SELECT token_pair, token0_symbol, token1_symbol "
-                    "FROM dexes.pool_tokens_reference "
-                    "WHERE protocol = %s LIMIT 1",
-                    (protocol,),
-                )
-                if rows:
-                    return {
-                        "token_pair": str(rows[0].get("token_pair") or ""),
-                        "token0_symbol": str(rows[0].get("token0_symbol") or ""),
-                        "token1_symbol": str(rows[0].get("token1_symbol") or ""),
-                    }
-            except Exception as exc:
-                logger.warning("_pool_ref query failed for %s: %s", protocol, exc)
-            return {"token_pair": "", "token0_symbol": "", "token1_symbol": ""}
+            rows = self.sql.fetch_rows(
+                "SELECT token_pair, token0_symbol, token1_symbol "
+                "FROM dexes.pool_tokens_reference "
+                "WHERE protocol = %s LIMIT 1",
+                (protocol,),
+            )
+            if rows:
+                return {
+                    "token_pair": str(rows[0].get("token_pair") or ""),
+                    "token0_symbol": str(rows[0].get("token0_symbol") or ""),
+                    "token1_symbol": str(rows[0].get("token1_symbol") or ""),
+                }
+            return self._EMPTY_POOL_REF
 
-        return self._cached(cache_key, _load, ttl_seconds=self._POOL_REF_TTL_SECONDS)
+        try:
+            return self._cached(cache_key, _load, ttl_seconds=self._POOL_REF_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("_pool_ref query failed for %s: %s", protocol, exc)
+            return self._EMPTY_POOL_REF
 
     def _pair(self, protocol: str) -> str:
         return self._pool_ref(protocol).get("token_pair") or "ONyc-USDC"
@@ -107,72 +114,72 @@ class RiskAnalysisPageService(BasePageService):
         cache_key = f"ra::pvalues::{protocol}::{event_type}::{interval}"
 
         def _load() -> list[dict[str, Any]]:
-            try:
-                return self.sql.fetch_rows(
-                    "SELECT * FROM dexes.get_view_dex_risk_pvalues(%s, %s, %s, %s) "
-                    "ORDER BY stat_order",
-                    (protocol, self._pair_lower(protocol), event_type, interval),
-                )
-            except Exception as exc:
-                logger.warning("_pvalue_rows query failed (%s/%s/%s): %s", protocol, event_type, interval, exc)
-                return []
+            return self.sql.fetch_rows(
+                "SELECT * FROM dexes.get_view_dex_risk_pvalues(%s, %s, %s, %s) "
+                "ORDER BY stat_order",
+                (protocol, self._pair_lower(protocol), event_type, interval),
+            )
 
-        return self._cached(cache_key, _load, ttl_seconds=self._PVALUE_TTL_SECONDS)
+        try:
+            return self._cached(cache_key, _load, ttl_seconds=self._PVALUE_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("_pvalue_rows query failed (%s/%s/%s): %s", protocol, event_type, interval, exc)
+            return []
 
     def _tick_dist_rows(self, protocol: str, p_invert: bool = False) -> list[dict[str, Any]]:
         cache_key = f"ra::tick_dist::{protocol}::{p_invert}"
 
         def _load() -> list[dict[str, Any]]:
-            try:
-                if p_invert:
-                    return self.sql.fetch_rows(
-                        "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval, %s) "
-                        "ORDER BY tick_price_t1_per_t0",
-                        (protocol, self._pair(protocol), "1 hour", True),
-                    )
+            if p_invert:
                 return self.sql.fetch_rows(
-                    "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval) "
+                    "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval, %s) "
                     "ORDER BY tick_price_t1_per_t0",
-                    (protocol, self._pair(protocol), "1 hour"),
+                    (protocol, self._pair(protocol), "1 hour", True),
                 )
-            except Exception as exc:
-                logger.warning("_tick_dist_rows query failed (%s): %s", protocol, exc)
-                return []
+            return self.sql.fetch_rows(
+                "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval) "
+                "ORDER BY tick_price_t1_per_t0",
+                (protocol, self._pair(protocol), "1 hour"),
+            )
 
-        return self._cached(cache_key, _load, ttl_seconds=self._TICK_DIST_TTL_SECONDS)
+        try:
+            return self._cached(cache_key, _load, ttl_seconds=self._TICK_DIST_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("_tick_dist_rows query failed (%s): %s", protocol, exc)
+            return []
 
     def _xp_last(self) -> dict[str, Any]:
         def _load() -> dict[str, Any]:
-            try:
-                rows = self.sql.fetch_rows(
-                    "SELECT onyc_in_kamino, onyc_in_exponent, onyc_tracked_total, "
-                    "  onyc_in_kamino_pct, onyc_in_exponent_pct, refreshed_at "
-                    "FROM cross_protocol.v_xp_last LIMIT 1"
-                )
-                return rows[0] if rows else {}
-            except Exception as exc:
-                logger.warning("_xp_last query failed: %s", exc)
-                return {}
+            rows = self.sql.fetch_rows(
+                "SELECT onyc_in_kamino, onyc_in_exponent, onyc_tracked_total, "
+                "  onyc_in_kamino_pct, onyc_in_exponent_pct, refreshed_at "
+                "FROM cross_protocol.v_xp_last LIMIT 1"
+            )
+            return rows[0] if rows else {}
 
-        return self._cached("ra::xp_last", _load, ttl_seconds=self._XP_LAST_TTL_SECONDS)
+        try:
+            return self._cached("ra::xp_last", _load, ttl_seconds=self._XP_LAST_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("_xp_last query failed: %s", exc)
+            return {}
 
     def _kamino_v_last_row(self) -> dict[str, Any]:
         def _load() -> dict[str, Any]:
-            try:
-                rows = self.sql.fetch_rows(
-                    "SELECT "
-                    "  reserve_coll_all_symbols_array, reserve_brw_all_symbols_array, "
-                    "  reserve_coll_all_shares_pct_array, reserve_brw_all_shares_pct_array "
-                    "FROM kamino_lend.v_last LIMIT 1"
-                )
-                if rows and rows[0].get("reserve_coll_all_symbols_array"):
-                    return rows[0]
-            except Exception as exc:
-                logger.warning("_kamino_v_last_row v_last query failed: %s", exc)
-
+            rows = self.sql.fetch_rows(
+                "SELECT "
+                "  reserve_coll_all_symbols_array, reserve_brw_all_symbols_array, "
+                "  reserve_coll_all_shares_pct_array, reserve_brw_all_shares_pct_array "
+                "FROM kamino_lend.v_last LIMIT 1"
+            )
+            if rows and rows[0].get("reserve_coll_all_symbols_array"):
+                return rows[0]
             return self._reserve_symbols_fallback()
 
-        return self._cached("ra::kamino_v_last", _load, ttl_seconds=self._V_LAST_TTL_SECONDS)
+        try:
+            return self._cached("ra::kamino_v_last", _load, ttl_seconds=self._V_LAST_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("_kamino_v_last_row v_last query failed: %s", exc)
+            return self._reserve_symbols_fallback()
 
     def _reserve_symbols_fallback(self) -> dict[str, Any]:
         """Fallback: derive collateral/borrow symbol arrays + share percentages
@@ -245,26 +252,26 @@ class RiskAnalysisPageService(BasePageService):
         cache_key = f"ra::sensitivities::{coll_asset}::{debt_asset}"
 
         def _load() -> list[dict[str, Any]]:
-            try:
-                coll_param = [coll_asset] if coll_asset else None
-                debt_param = [debt_asset] if debt_asset else None
-                return self.sql.fetch_rows(
-                    "SELECT "
-                    "  step_number, pct_change, "
-                    "  total_borrows, total_deposits, "
-                    "  unhealthy_debt, bad_debt, total_liquidatable_value, "
-                    "  liquidation_distance_to_healthy, "
-                    "  unhealthy_debt_less_liquidatable_part, bad_debt_less_liquidatable_part "
-                    "FROM kamino_lend.get_view_klend_sensitivities("
-                    "  NULL, -100, 50, 100, 50, FALSE, %s, %s"
-                    ") ORDER BY step_number",
-                    (coll_param, debt_param),
-                )
-            except Exception as exc:
-                logger.warning("_sensitivity_rows query failed: %s", exc)
-                return []
+            coll_param = [coll_asset] if coll_asset else None
+            debt_param = [debt_asset] if debt_asset else None
+            return self.sql.fetch_rows(
+                "SELECT "
+                "  step_number, pct_change, "
+                "  total_borrows, total_deposits, "
+                "  unhealthy_debt, bad_debt, total_liquidatable_value, "
+                "  liquidation_distance_to_healthy, "
+                "  unhealthy_debt_less_liquidatable_part, bad_debt_less_liquidatable_part "
+                "FROM kamino_lend.get_view_klend_sensitivities("
+                "  NULL, -100, 50, 100, 50, FALSE, %s, %s"
+                ") ORDER BY step_number",
+                (coll_param, debt_param),
+            )
 
-        return self._cached(cache_key, _load, ttl_seconds=self._SENSITIVITY_TTL_SECONDS)
+        try:
+            return self._cached(cache_key, _load, ttl_seconds=self._SENSITIVITY_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("_sensitivity_rows query failed: %s", exc)
+            return []
 
     def _price_volatility_7d(self) -> dict[str, float]:
         def _load() -> dict[str, float]:
@@ -957,19 +964,19 @@ class RiskAnalysisPageService(BasePageService):
         cache_key = f"ra::cascade_pools::{symbol}"
 
         def _load() -> list[dict[str, Any]]:
-            try:
-                return self.sql.fetch_rows(
-                    "SELECT pool_address, token0_symbol, token1_symbol, "
-                    "  CASE WHEN token0_symbol = %s THEN 't0' ELSE 't1' END AS token_side "
-                    "FROM dexes.pool_tokens_reference "
-                    "WHERE token0_symbol = %s OR token1_symbol = %s",
-                    (symbol, symbol, symbol),
-                )
-            except Exception as exc:
-                logger.warning("_tracked_pools_for_symbol failed for %s: %s", symbol, exc)
-                return []
+            return self.sql.fetch_rows(
+                "SELECT pool_address, token0_symbol, token1_symbol, "
+                "  CASE WHEN token0_symbol = %s THEN 't0' ELSE 't1' END AS token_side "
+                "FROM dexes.pool_tokens_reference "
+                "WHERE token0_symbol = %s OR token1_symbol = %s",
+                (symbol, symbol, symbol),
+            )
 
-        return self._cached(cache_key, _load, ttl_seconds=self._POOL_REF_TTL_SECONDS)
+        try:
+            return self._cached(cache_key, _load, ttl_seconds=self._POOL_REF_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("_tracked_pools_for_symbol failed for %s: %s", symbol, exc)
+            return []
 
     def _cascade_rows(
         self, coll_symbol: str, pool_mode: str,
@@ -978,30 +985,30 @@ class RiskAnalysisPageService(BasePageService):
         cache_key = f"ra::cascade::{coll_symbol}::{pool_mode}::{model_mode}::{bonus_mode}"
 
         def _load() -> list[dict[str, Any]]:
-            try:
-                return self.sql.fetch_rows(
-                    "SELECT initial_shock_pct, equilibrium_shock_pct, "
-                    "  amplification_factor, cascade_rounds, cascade_impact_pct, "
-                    "  total_liquidated_usd, induced_coll_decline_pct, "
-                    "  debt_triggered_liq_usd, cascade_triggered_liq_usd, "
-                    "  sell_qty_tokens, pool_depth_used_pct, liq_pct_of_deposits, "
-                    "  coll_tokens_deposited, "
-                    "  pool_address, pool_weight, counter_pair_symbol, pool_impact_pct, "
-                    "  effective_bonus_bps, liq_value_pre_bonus_usd, liq_value_post_bonus_usd "
-                    "FROM kamino_lend.simulate_cascade_amplification("
-                    "  NULL, -100, 50, 100, 50, FALSE, "
-                    "  ARRAY[%s], NULL, %s, %s, %s, %s"
-                    ") ORDER BY initial_shock_pct, pool_address",
-                    (coll_symbol, coll_symbol, pool_mode, bonus_mode, model_mode),
-                )
-            except Exception as exc:
-                logger.warning(
-                    "_cascade_rows query failed (%s/%s/%s/%s): %s",
-                    coll_symbol, pool_mode, model_mode, bonus_mode, exc,
-                )
-                return []
+            return self.sql.fetch_rows(
+                "SELECT initial_shock_pct, equilibrium_shock_pct, "
+                "  amplification_factor, cascade_rounds, cascade_impact_pct, "
+                "  total_liquidated_usd, induced_coll_decline_pct, "
+                "  debt_triggered_liq_usd, cascade_triggered_liq_usd, "
+                "  sell_qty_tokens, pool_depth_used_pct, liq_pct_of_deposits, "
+                "  coll_tokens_deposited, "
+                "  pool_address, pool_weight, counter_pair_symbol, pool_impact_pct, "
+                "  effective_bonus_bps, liq_value_pre_bonus_usd, liq_value_post_bonus_usd "
+                "FROM kamino_lend.simulate_cascade_amplification("
+                "  NULL, -100, 50, 100, 50, FALSE, "
+                "  ARRAY[%s], NULL, %s, %s, %s, %s"
+                ") ORDER BY initial_shock_pct, pool_address",
+                (coll_symbol, coll_symbol, pool_mode, bonus_mode, model_mode),
+            )
 
-        return self._cached(cache_key, _load, ttl_seconds=self._CASCADE_TTL_SECONDS)
+        try:
+            return self._cached(cache_key, _load, ttl_seconds=self._CASCADE_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning(
+                "_cascade_rows query failed (%s/%s/%s/%s): %s",
+                coll_symbol, pool_mode, model_mode, bonus_mode, exc,
+            )
+            return []
 
     _MODEL_MODE_OPTIONS = [
         {"value": "protocol", "label": "Protocol-faithful"},
