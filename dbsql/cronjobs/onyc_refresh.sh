@@ -348,6 +348,10 @@ check_health() {
     local ts=$(date -u '+%Y-%m-%d %H:%M:%S')
     echo "$LOG_PREFIX [$ts UTC] Health check"
 
+    # Recompute CAGG expected-gap benchmarks (slow: 3-day COUNT per source table).
+    # Only runs on this cadence, not every cycle.
+    psql "$DB_CONNECTION" -c "CALL health.refresh_mat_health_cagg_benchmarks();" 2>/dev/null || true
+
     psql "$DB_CONNECTION" -c "
         SELECT view_name, materialized_only, compression_enabled
         FROM timescaledb_information.continuous_aggregates
