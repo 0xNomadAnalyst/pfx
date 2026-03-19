@@ -18,6 +18,7 @@ PAGE_CONFIG = PageConfig(
     show_protocol_pair_filters=False,
     show_pipeline_switcher=False,
     show_price_basis_filter=True,
+    video_guide_youtube_id="ky5vsKgcEK0",
     widgets=[
         # ═══════════════════════════════════════════════════════
         # Section 1: DOWNSIDE PRICE RISK - DEX EVENTS

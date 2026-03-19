@@ -10,6 +10,7 @@ PAGE_CONFIG = PageConfig(
     show_protocol_pair_filters=True,
     default_protocol="raydium",
     default_pair="USX-USDC",
+    video_guide_youtube_id="ky5vsKgcEK0",
     widgets=[
         WidgetConfig("kpi-swap-volume-24h", "24h Swap Volume", "kpi", "panel panel-kpi swaps-slot-kpi-a1"),
         WidgetConfig("kpi-swap-count-24h", "24h Swap Count", "kpi", "panel panel-kpi swaps-slot-kpi-b1"),

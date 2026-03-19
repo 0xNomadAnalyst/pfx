@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ app_title }} - {{ page_title }}</title>
-  <link rel="stylesheet" href="/static/css/theme.css?v=40" />
+  <link rel="stylesheet" href="/static/css/theme.css?v=41" />
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <script>document.documentElement.style.setProperty('--half-screen', (screen.width / 2) + 'px');</script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
@@ -43,6 +44,7 @@
   data-adaptive-dialdown-enabled="{{ '1' if cache_config and cache_config.adaptive_dialdown_enabled else '0' }}"
   data-adaptive-dialdown-hit-threshold="{{ cache_config.adaptive_dialdown_hit_threshold if cache_config else 0 }}"
   data-persist-cache-enabled="{{ '1' if cache_config and cache_config.persist_cache_enabled else '0' }}"
+  data-video-guide-id="{{ video_guide_youtube_id }}"
 >
   <header class="topbar">
     <div class="topbar-left">
@@ -108,10 +110,10 @@
       {% endif %}
       <div class="topbar-video-guide">
         <span class="filter-label">Watch</span>
-        <a href="https://www.youtube.com" target="_blank" rel="noopener noreferrer" class="video-guide-link" aria-label="Video Guide">
+        <button type="button" class="video-guide-link" id="video-guide-btn" aria-label="Video Guide">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3.01 3.01 0 0 0-2.12-2.13C19.54 3.6 12 3.6 12 3.6s-7.54 0-9.38.47A3.01 3.01 0 0 0 .5 6.2 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.8 3.01 3.01 0 0 0 2.12 2.13C4.46 20.4 12 20.4 12 20.4s7.54 0 9.38-.47a3.01 3.01 0 0 0 2.12-2.13A31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.8zM9.75 15.52V8.48L15.86 12l-6.11 3.52z"/></svg>
           <span>Video Guide</span>
-        </a>
+        </button>
       </div>
     </div>
     <div class="topbar-right">
@@ -203,15 +205,23 @@
     </section>
   </div>
 
+  <div id="video-modal-backdrop" class="video-modal-backdrop" hidden>
+    <section class="video-modal" role="dialog" aria-modal="true" aria-label="Video Guide">
+      <div id="video-player-wrap" class="video-player-wrap">
+        <div id="yt-player"></div>
+      </div>
+    </section>
+  </div>
+
   <footer class="bottombar">
     <div class="bottombar-left">
       <span class="bottombar-label">Designed, Decoded &amp; Built by</span>
       <span class="bottombar-name">Roderick McKinley, CFA, FRM</span>
       <span class="bottombar-vline" aria-hidden="true"></span>
       <div class="bottombar-capabilities">
-        <span class="bottombar-label">Capabilities</span>
-        <a href="#" class="bottombar-social-link" aria-label="Download Capabilities Deck (PDF)" title="Capabilities Deck">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <a href="/static/downloads/doc1_placeholder.pdf" download class="bottombar-doc-link" aria-label="Download Capabilities Deck (PDF)" title="Capabilities Deck">
+          <span>Capabilities</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="2" y="3" width="20" height="14" rx="2"/>
             <polyline points="7 17 7 21"/>
             <polyline points="17 17 17 21"/>
@@ -233,11 +243,24 @@
     <div class="bottombar-right">
       <span class="bottombar-label">Powered by</span>
       <a href="https://shyft.to/" target="_blank" rel="noopener noreferrer" class="bottombar-partner" aria-label="Shyft">
-        <img class="bottombar-logo bottombar-logo--shyft" src="https://shyft.to/shyft_logo.svg" alt="Shyft" />
+        <img class="bottombar-logo bottombar-logo--shyft bottombar-logo--for-light" src="/static/images/shyft_logo_light.svg" alt="Shyft" />
+        <img class="bottombar-logo bottombar-logo--shyft bottombar-logo--for-dark" src="/static/images/shyft_logo_dark.svg" alt="" aria-hidden="true" />
       </a>
       <span class="bottombar-sep">|</span>
       <a href="https://www.tigerdata.com/" target="_blank" rel="noopener noreferrer" class="bottombar-partner" aria-label="Tiger Data">
-        <img class="bottombar-logo bottombar-logo--tigerdata" src="https://assets.tigerdata.com/timescale-web/brand/tiger-data/flat-logos/download/horizontal-yellow.png" alt="Tiger Data" />
+        <img class="bottombar-logo bottombar-logo--tigerdata bottombar-logo--for-light" src="/static/images/tigerdata_horizontal_black.png" alt="Tiger Data" />
+        <img class="bottombar-logo bottombar-logo--tigerdata bottombar-logo--for-dark" src="/static/images/tigerdata_horizontal_yellow.png" alt="" aria-hidden="true" />
+      </a>
+      <span class="bottombar-sep">|</span>
+      <a href="/static/downloads/doc2_placeholder.pdf" download class="bottombar-doc-link" aria-label="Download Platform Deck (PDF)" title="Platform Deck">
+        <span>Platform Deck</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <polyline points="7 17 7 21"/>
+          <polyline points="17 17 17 21"/>
+          <line x1="5" y1="21" x2="19" y2="21"/>
+          <polyline points="6 11 9 8 12 11 16 6"/>
+        </svg>
       </a>
     </div>
   </footer>
@@ -245,6 +268,108 @@
   <script src="/static/js/theme.js?v=2"></script>
   <script id="warmup-manifest" type="application/json">{{ warmup_manifest|tojson }}</script>
   <script src="/static/js/charts.js?v=73"></script>
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  <script>
+  (function() {
+    var btn = document.getElementById("video-guide-btn");
+    var backdrop = document.getElementById("video-modal-backdrop");
+    if (!btn || !backdrop) return;
+
+    var player = null;
+    var activeVideoId = "";
+
+    var captionsOn = false;
+
+    var plyrOpts = {
+      controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "settings", "fullscreen"],
+      settings: ["speed"],
+      youtube: { noCookie: true, rel: 0, showinfo: 0, iv_load_policy: 3, modestbranding: 1, cc_lang_pref: "en", end: 0 },
+      tooltips: { controls: false, seek: true },
+      keyboard: { focused: true, global: false }
+    };
+
+    function currentVideoId() {
+      return (document.body.dataset.videoGuideId || "").trim();
+    }
+
+    function injectCCButton() {
+      var controls = document.querySelector("#video-player-wrap .plyr__controls");
+      if (!controls || controls.querySelector(".plyr__cc-toggle")) return;
+      var fsBtn = controls.querySelector('[data-plyr="fullscreen"]');
+      var ccBtn = document.createElement("button");
+      ccBtn.type = "button";
+      ccBtn.className = "plyr__controls__item plyr__control plyr__cc-toggle";
+      ccBtn.setAttribute("aria-label", "Toggle captions");
+      ccBtn.innerHTML = '<svg viewBox="0 0 18 18" width="18" height="18"><path d="M1 3v12h16V3H1zm14.5 10.5h-13v-9h13v9zM5 8.5h1.5v1H5v-1zm0 2h4v1H5v-1zm5.5-2H13v1h-2.5v-1zm-1 2H13v1H9.5v-1z" fill="currentColor"/></svg>';
+      ccBtn.style.opacity = captionsOn ? "1" : "0.5";
+      if (fsBtn) {
+        controls.insertBefore(ccBtn, fsBtn);
+      } else {
+        controls.appendChild(ccBtn);
+      }
+      ccBtn.addEventListener("click", function() {
+        if (!player || !player.embed) return;
+        captionsOn = !captionsOn;
+        ccBtn.style.opacity = captionsOn ? "1" : "0.5";
+        try {
+          if (captionsOn) {
+            player.embed.loadModule("captions");
+            player.embed.setOption("captions", "track", { languageCode: "en" });
+          } else {
+            player.embed.unloadModule("captions");
+          }
+        } catch (_) {}
+      });
+    }
+
+    function ensurePlayer(videoId) {
+      if (player && activeVideoId === videoId) return;
+      if (player && activeVideoId !== videoId) {
+        player.source = {
+          type: "video",
+          sources: [{ src: videoId, provider: "youtube" }]
+        };
+        activeVideoId = videoId;
+        return;
+      }
+      var el = document.getElementById("yt-player");
+      el.setAttribute("data-plyr-provider", "youtube");
+      el.setAttribute("data-plyr-embed-id", videoId);
+      player = new Plyr(el, plyrOpts);
+      activeVideoId = videoId;
+      player.on("ended", function() {
+        player.currentTime = 0;
+        player.pause();
+      });
+      player.on("ready", function() {
+        injectCCButton();
+      });
+    }
+
+    function openVideoModal() {
+      var videoId = currentVideoId();
+      if (!videoId) return;
+      backdrop.hidden = false;
+      document.body.style.overflow = "hidden";
+      ensurePlayer(videoId);
+      setTimeout(function() { if (player) player.play(); }, 300);
+    }
+
+    function closeVideoModal() {
+      if (player) player.pause();
+      backdrop.hidden = true;
+      document.body.style.overflow = "";
+    }
+
+    btn.addEventListener("click", openVideoModal);
+    backdrop.addEventListener("click", function(e) {
+      if (e.target === backdrop) closeVideoModal();
+    });
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape" && !backdrop.hidden) closeVideoModal();
+    });
+  })();
+  </script>
   {% if show_pipeline_switcher %}
   <script>
   (function() {

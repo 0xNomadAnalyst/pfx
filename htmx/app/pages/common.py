@@ -44,6 +44,7 @@ class PageConfig:
     content_template: str = ""
     widget_filter_env_var: str = ""
     page_actions: list[PageAction] = field(default_factory=list)
+    video_guide_youtube_id: str = "ky5vsKgcEK0"
 
 
 def build_widget_endpoint(api_base_url: str, page_id: str, widget_id: str) -> str:

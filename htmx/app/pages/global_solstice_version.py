@@ -8,6 +8,7 @@ PAGE_CONFIG = PageConfig(
     label="Ecosystem",
     api_page_id="global-ecosystem",
     show_protocol_pair_filters=False,
+    video_guide_youtube_id="ky5vsKgcEK0",
     widgets=[
         # ── Row 1: Asset Issuance horizontal bar (full-width) ──
         WidgetConfig(

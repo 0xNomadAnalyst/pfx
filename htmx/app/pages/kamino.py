@@ -12,6 +12,7 @@ PAGE_CONFIG = PageConfig(
     label="Kamino Lend",
     api_page_id="kamino",
     show_protocol_pair_filters=False,
+    video_guide_youtube_id="ky5vsKgcEK0",
     page_actions=[
         PageAction("kamino-explainer", "Protocol Explainer", icon="book", modal_kind="html"),
         PageAction("kamino-market-assets", "Market Assets", icon="grid", modal_kind="table", endpoint="kamino-market-assets"),

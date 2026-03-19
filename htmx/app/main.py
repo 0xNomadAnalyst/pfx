@@ -546,6 +546,7 @@ def render_page(request: Request, page: PageConfig):
             "show_price_basis_filter": page.show_price_basis_filter and SHOW_PRICE_BASIS,
             "default_price_basis": DEFAULT_PRICE_BASIS,
             "content_template": page.content_template or "",
+            "video_guide_youtube_id": page.video_guide_youtube_id,
             "show_refresh_button": SHOW_REFRESH_BUTTON,
             "warmup_manifest": warmup_manifest,
             "cache_config": _CACHE_CONFIG,

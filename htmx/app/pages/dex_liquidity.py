@@ -10,6 +10,7 @@ PAGE_CONFIG = PageConfig(
     show_protocol_pair_filters=True,
     default_protocol="raydium",
     default_pair="USX-USDC",
+    video_guide_youtube_id="ky5vsKgcEK0",
     widgets=[
         WidgetConfig("kpi-tvl", "TVL in USDC units", "kpi", "panel panel-kpi slot-kpi-a1"),
         WidgetConfig("kpi-impact-500k", "500,000 USX Sell Impact", "kpi", "panel panel-kpi slot-kpi-b1"),

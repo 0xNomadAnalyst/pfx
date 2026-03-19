@@ -12,6 +12,7 @@ PAGE_CONFIG = PageConfig(
     label="System Health",
     api_page_id="health",
     show_protocol_pair_filters=False,
+    video_guide_youtube_id="ky5vsKgcEK0",
     widgets=[
         # ═══════════════════════════════════════════════════════
         # Section 1: MASTER HEALTH CHECKS
