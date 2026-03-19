@@ -49,7 +49,7 @@ _STATUS_EMOJI_MAP: dict[str, str] = {
     # CAGG Refresh Health
     "refresh ok":           _EMOJI_GREEN,
     "refresh delayed":      _EMOJI_YELLOW,
-    "source stale":         _EMOJI_YELLOW,
+    "source stale":         _EMOJI_ORANGE,
     "refresh broken":       _EMOJI_RED,
     # Base Table Activity
     "active":               _EMOJI_GREEN,
@@ -225,12 +225,14 @@ INFO_BASE_TABLE = (
     "<p><strong>Status Logic:</strong> Uses 7-day write frequency (hours with any data / 168 total hours) "
     "to derive an <em>expected gap</em> between writes. This naturally handles write-on-difference tables "
     "&mdash; if a table only writes a few times per week, gaps of hours or days are treated as normal.</p>"
+    "<p><strong>Immediate escalation:</strong> Tables normally receiving \u226510 rows/hour that drop to "
+    "zero rows in the last hour are flagged <strong>ANOMALY</strong> immediately (ingestion death detection).</p>"
     "<p><strong>Status Indicators</strong> (ratio = current gap / expected gap):</p>"
     "<ul>"
     "<li>\U0001f7e2 <strong>Active</strong>: \u2264 2x expected gap (normal)</li>"
-    "<li>\U0001f7e1 <strong>Check</strong>: 2-5x expected gap (worth monitoring)</li>"
-    "<li>\U0001f7e0 <strong>Stale</strong>: 5-10x expected gap (significant deviation)</li>"
-    "<li>\U0001f534 <strong>ANOMALY</strong>: &gt; 10x expected gap (extreme deviation)</li>"
+    "<li>\U0001f7e1 <strong>Check</strong>: 2-3x expected gap (worth monitoring)</li>"
+    "<li>\U0001f7e0 <strong>Stale</strong>: 3-5x expected gap (significant deviation)</li>"
+    "<li>\U0001f534 <strong>ANOMALY</strong>: &gt; 5x expected gap or zero rows on active table</li>"
     "</ul>"
 )
 
@@ -241,7 +243,8 @@ INFO_CAGG = (
     "<ul>"
     "<li>\U0001f7e2 <strong>Refresh OK</strong>: CAGG is within 5 minutes of source data &mdash; cronjob working correctly</li>"
     "<li>\U0001f7e1 <strong>Refresh Delayed</strong>: 5-15 minute lag &mdash; minor delay, monitor</li>"
-    "<li>\U0001f7e1 <strong>Source Stale</strong>: Base table exceeds 2x its expected write gap (frequency-based) &mdash; NOT a cronjob issue</li>"
+    "<li>\U0001f7e0 <strong>Source Stale</strong>: Base table exceeds 2x its expected write gap &mdash; NOT a cronjob issue, ingestion may be down</li>"
+    "<li>\U0001f534 <strong>Source Stale (critical)</strong>: Base table exceeds 5x its expected gap &mdash; ingestion is likely dead</li>"
     "<li>\U0001f534 <strong>Refresh Broken</strong>: CAGG &gt;15 minutes behind source &mdash; cronjob may have stopped</li>"
     "<li>\u26aa <strong>No data</strong>: Neither CAGG nor base table have any data</li>"
     "</ul>"

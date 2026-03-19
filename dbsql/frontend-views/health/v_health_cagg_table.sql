@@ -50,16 +50,20 @@ AS $fn$
         END,
         CASE
             WHEN s.cagg_latest IS NULL AND s.source_latest IS NULL THEN -1
-            WHEN s.source_latest IS NULL
-                 OR (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 2.0
-                 THEN 1
+            WHEN s.source_latest IS NULL THEN 3
+            WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 5.0 THEN 3
+            WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 2.0 THEN 2
             WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15 THEN 3
             WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 5  THEN 1
             ELSE 0
         END,
-        (s.source_latest IS NOT NULL
-            AND (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) <= s.expected_gap_mins * 2.0
-            AND (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15)
+        CASE
+            WHEN s.source_latest IS NULL THEN TRUE
+            WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 5.0 THEN TRUE
+            WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) <= s.expected_gap_mins * 2.0
+                 AND (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15 THEN TRUE
+            ELSE FALSE
+        END
     FROM health.mat_health_cagg_status s
     ORDER BY s.view_schema, s.view_name;
 $fn$;

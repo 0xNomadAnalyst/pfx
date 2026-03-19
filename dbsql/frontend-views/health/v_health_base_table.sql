@@ -78,22 +78,25 @@ AS $fn$
         e.egm,
         e.gr,
         CASE
+            WHEN e.rows_last_hour = 0 AND e.avg_rows_per_hour >= 10 THEN 3
             WHEN e.egm IS NOT NULL AND e.egm > 0 THEN
-                CASE WHEN e.gr <= 2.0 THEN 0 WHEN e.gr <= 5.0 THEN 1
-                     WHEN e.gr <= 10.0 THEN 2 ELSE 3 END
-            WHEN e.msl <= 1440 THEN 0 WHEN e.msl <= 4320 THEN 1
-            WHEN e.msl <= 10080 THEN 2 ELSE 3
+                CASE WHEN e.gr <= 2.0 THEN 0 WHEN e.gr <= 3.0 THEN 1
+                     WHEN e.gr <= 5.0 THEN 2 ELSE 3 END
+            WHEN e.msl <= 720 THEN 0 WHEN e.msl <= 1440 THEN 1
+            WHEN e.msl <= 4320 THEN 2 ELSE 3
         END,
         CASE
+            WHEN e.rows_last_hour = 0 AND e.avg_rows_per_hour >= 10 THEN 'ANOMALY'
             WHEN e.egm IS NOT NULL AND e.egm > 0 THEN
-                CASE WHEN e.gr <= 2.0 THEN 'Active' WHEN e.gr <= 5.0 THEN 'Check'
-                     WHEN e.gr <= 10.0 THEN 'Stale' ELSE 'ANOMALY' END
-            WHEN e.msl <= 1440 THEN 'Active' WHEN e.msl <= 4320 THEN 'Quiet'
-            WHEN e.msl <= 10080 THEN 'Check' ELSE 'Stale'
+                CASE WHEN e.gr <= 2.0 THEN 'Active' WHEN e.gr <= 3.0 THEN 'Check'
+                     WHEN e.gr <= 5.0 THEN 'Stale' ELSE 'ANOMALY' END
+            WHEN e.msl <= 720 THEN 'Active' WHEN e.msl <= 1440 THEN 'Quiet'
+            WHEN e.msl <= 4320 THEN 'Check' ELSE 'Stale'
         END,
         CASE
-            WHEN e.egm IS NOT NULL AND e.egm > 0 THEN e.gr > 10.0
-            ELSE e.msl > 10080
+            WHEN e.rows_last_hour = 0 AND e.avg_rows_per_hour >= 10 THEN TRUE
+            WHEN e.egm IS NOT NULL AND e.egm > 0 THEN e.gr > 5.0
+            ELSE e.msl > 4320
         END
     FROM enriched e
     ORDER BY e.schema_name, e.msl DESC;

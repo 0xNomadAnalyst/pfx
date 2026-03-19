@@ -140,6 +140,18 @@ BEGIN
         END;
     END LOOP;
 
+    -- ── Inject synthetic rows for known queues with no recent data ────────
+    -- If a process dies, it stops writing to queue_health entirely.
+    -- Benchmarks retain the historical queue list; any queue present there
+    -- but absent from _qt_current is likely a dead process.
+    INSERT INTO _qt_current (domain, queue_name, snapshot_time)
+    SELECT b.domain, b.queue_name, NULL
+    FROM health.mat_health_queue_benchmarks b
+    WHERE NOT EXISTS (
+        SELECT 1 FROM _qt_current c
+        WHERE c.domain = b.domain AND c.queue_name = b.queue_name
+    );
+
     -- ── Final result: join live current with pre-computed benchmarks ──────
     RETURN QUERY
     WITH merged AS (
@@ -156,6 +168,7 @@ BEGIN
     with_severity AS (
         SELECT *,
             CASE
+                WHEN m.snapshot_time IS NULL THEN 3
                 WHEN _p95_staleness_7d = 0 OR staleness_ratio IS NULL THEN 0
                 WHEN staleness_ratio <= 1.0  THEN 0
                 WHEN staleness_ratio <= 3.0  THEN 1
@@ -163,6 +176,7 @@ BEGIN
                 ELSE 3
             END AS _gap_severity,
             CASE
+                WHEN m.snapshot_time IS NULL THEN 3
                 WHEN COALESCE(m.queue_utilization_pct, 0) < 10 THEN 0
                 WHEN _p95_utilization_pct_7d > 0 THEN
                     CASE
@@ -177,6 +191,7 @@ BEGIN
                 ELSE 0
             END AS _util_severity,
             CASE
+                WHEN m.snapshot_time IS NULL THEN 3
                 WHEN COALESCE(m.consecutive_failures, 0) = 0 THEN 0
                 WHEN _p95_consecutive_failures_7d > 0 THEN
                     CASE
