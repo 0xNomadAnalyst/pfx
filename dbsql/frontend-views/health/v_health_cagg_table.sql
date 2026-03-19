@@ -44,8 +44,14 @@ AS $fn$
             WHEN s.source_latest IS NULL
                  OR (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 2.0
                  THEN 'Source Stale'
-            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15 THEN 'Refresh Broken'
-            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 5  THEN 'Refresh Delayed'
+            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15
+                 AND (s.expected_gap_mins IS NULL
+                      OR (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > s.expected_gap_mins)
+                 THEN 'Refresh Broken'
+            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 5
+                 AND (s.expected_gap_mins IS NULL
+                      OR (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > s.expected_gap_mins)
+                 THEN 'Refresh Delayed'
             ELSE 'Refresh OK'
         END,
         CASE
@@ -53,15 +59,24 @@ AS $fn$
             WHEN s.source_latest IS NULL THEN 3
             WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 5.0 THEN 3
             WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 2.0 THEN 2
-            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15 THEN 3
-            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 5  THEN 1
+            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15
+                 AND (s.expected_gap_mins IS NULL
+                      OR (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > s.expected_gap_mins)
+                 THEN 3
+            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 5
+                 AND (s.expected_gap_mins IS NULL
+                      OR (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > s.expected_gap_mins)
+                 THEN 1
             ELSE 0
         END,
         CASE
             WHEN s.source_latest IS NULL THEN TRUE
             WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 5.0 THEN TRUE
             WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) <= s.expected_gap_mins * 2.0
-                 AND (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15 THEN TRUE
+                 AND (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15
+                 AND (s.expected_gap_mins IS NULL
+                      OR (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > s.expected_gap_mins)
+                 THEN TRUE
             ELSE FALSE
         END
     FROM health.mat_health_cagg_status s
