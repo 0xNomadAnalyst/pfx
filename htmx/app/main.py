@@ -255,6 +255,10 @@ for _env_key, _mod_path, _default in _PAGE_MODULES:
 
 PAGES_BY_SLUG: dict[str, PageConfig] = {page.slug: page for page in PAGES}
 
+# Ensure shell cache can hold all page shells (they are embedded in the initial HTML).
+if _CACHE_CONFIG["soft_nav_shell_cache_max_entries"] < len(PAGES):
+    _CACHE_CONFIG["soft_nav_shell_cache_max_entries"] = len(PAGES)
+
 app = FastAPI(
     title="HTMX Risk Dashboard",
     description="Server-rendered dashboard using HTMX + ECharts.",
@@ -312,7 +316,14 @@ if "dex-liquidity" in PAGES_BY_SLUG:
         return RedirectResponse(url="/dex-liquidity")
 
 
-def render_page(request: Request, page: PageConfig):
+def _build_page_context(
+    page: PageConfig,
+    page_options: list,
+    current_pipeline: str,
+    pipeline_info: dict | None,
+) -> dict:
+    """Build template context for a page (shared between full render and shell embeds)."""
+
     def _is_secondary_lane(widget: object) -> bool:
         css = str(getattr(widget, "css_class", "") or "").lower()
         wid = str(getattr(widget, "id", "") or "").lower()
@@ -373,14 +384,11 @@ def render_page(request: Request, page: PageConfig):
         if page.slug in dual_pool_pages and widget.kind in {"kpi", "chart", "table", "table-split"}:
             lane_key = _lane_group_key(widget)
             if _is_secondary_lane(widget) and lane_key in lane_delay_by_group:
-                # Promote the second lane to load alongside its first-lane counterpart.
                 load_delay_seconds = lane_delay_by_group[lane_key]
             elif lane_key:
                 lane_delay_by_group[lane_key] = load_delay_seconds
 
         if page.slug == "system-health":
-            # Health is operational telemetry; prioritize visible first paint over
-            # broad staggering even when caches are warm.
             if widget.kind in {"table", "table-split"}:
                 health_delay = (
                     HTMX_HEALTH_TABLE_BASE_DELAY_SECONDS
@@ -427,7 +435,7 @@ def render_page(request: Request, page: PageConfig):
                 "protocol_override": widget.protocol_override,
             }
         )
-    page_options = [{"slug": cfg.slug, "label": cfg.label, "path": f"/{cfg.slug}"} for cfg in PAGES]
+
     current_index = next((idx for idx, cfg in enumerate(PAGES) if cfg.slug == page.slug), 0)
     warmup_pages = PAGES[current_index + 1 :] + PAGES[:current_index]
     warmup_manifest = []
@@ -453,7 +461,6 @@ def render_page(request: Request, page: PageConfig):
             target_payload: dict[str, object] = {"widget_id": endpoint_widget_id, "kind": widget.kind}
             if target_params:
                 target_payload["params"] = target_params
-            # Prefer operationally-critical tables/charts first on system-health.
             if cfg.slug == "system-health":
                 priority_map = {
                     "health-master": 0,
@@ -495,8 +502,8 @@ def render_page(request: Request, page: PageConfig):
         }
         for action in page.page_actions
     ]
+
     show_pipeline = ENABLE_PIPELINE_SWITCHER and page.show_pipeline_switcher
-    pipeline_info = _get_pipeline_info() if ENABLE_PIPELINE_SWITCHER else None
     protocol = page.default_protocol
     pair = page.default_pair
     if pipeline_info and pipeline_info.get("defaults"):
@@ -516,41 +523,59 @@ def render_page(request: Request, page: PageConfig):
     if page.show_asset_filter and DEFAULT_PIPELINE and DEFAULT_PIPELINE in PIPELINE_DEFAULTS:
         asset = PIPELINE_DEFAULTS[DEFAULT_PIPELINE].get("asset", asset)
 
+    return {
+        "app_title": APP_TITLE,
+        "page_title": page.label,
+        "page_options": page_options,
+        "current_page_slug": page.slug,
+        "widgets": widget_bindings,
+        "page_actions": page_action_bindings,
+        "show_protocol_pair_filters": page.show_protocol_pair_filters,
+        "render_asset_select": page.show_asset_filter,
+        "show_asset_filter": page.show_asset_filter and SHOW_ASSET_FILTER,
+        "show_market_selectors": page.show_market_selectors,
+        "api_page_id": page.api_page_id,
+        "protocol": protocol,
+        "pair": pair,
+        "asset": asset,
+        "last_window": DEFAULT_LAST_WINDOW,
+        "last_window_options": LAST_WINDOW_OPTIONS,
+        "api_base_url": BROWSER_API_BASE_URL,
+        "show_pipeline_switcher": show_pipeline,
+        "pipeline_info": pipeline_info,
+        "current_pipeline": current_pipeline,
+        "render_price_basis_select": page.show_price_basis_filter,
+        "show_price_basis_filter": page.show_price_basis_filter and SHOW_PRICE_BASIS,
+        "default_price_basis": DEFAULT_PRICE_BASIS,
+        "content_template": page.content_template or "",
+        "video_guide_youtube_id": page.video_guide_youtube_id,
+        "show_refresh_button": SHOW_REFRESH_BUTTON,
+        "warmup_manifest": warmup_manifest,
+        "cache_config": _CACHE_CONFIG,
+    }
+
+
+def render_page(request: Request, page: PageConfig):
+    page_options = [{"slug": cfg.slug, "label": cfg.label, "path": f"/{cfg.slug}"} for cfg in PAGES]
+    pipeline_info = _get_pipeline_info() if ENABLE_PIPELINE_SWITCHER else None
     current_pipeline = pipeline_info.get("current", "") if isinstance(pipeline_info, dict) else DEFAULT_PIPELINE
+
+    ctx = _build_page_context(page, page_options, current_pipeline, pipeline_info)
+
+    shell_tpl = templates.env.get_template("partials/shell_embed.html")
+    shell_map: dict[str, str] = {}
+    for other_page in PAGES:
+        if other_page.slug == page.slug:
+            continue
+        other_ctx = _build_page_context(other_page, page_options, current_pipeline, pipeline_info)
+        shell_map[f"/{other_page.slug}"] = shell_tpl.render(other_ctx)
+
+    ctx["embedded_shells_json"] = json.dumps(shell_map).replace("</", "<\\/")
 
     return templates.TemplateResponse(
         request=request,
         name="base.html",
-        context={
-            "app_title": APP_TITLE,
-            "page_title": page.label,
-            "page_options": page_options,
-            "current_page_slug": page.slug,
-            "widgets": widget_bindings,
-            "page_actions": page_action_bindings,
-            "show_protocol_pair_filters": page.show_protocol_pair_filters,
-            "render_asset_select": page.show_asset_filter,
-            "show_asset_filter": page.show_asset_filter and SHOW_ASSET_FILTER,
-            "show_market_selectors": page.show_market_selectors,
-            "api_page_id": page.api_page_id,
-            "protocol": protocol,
-            "pair": pair,
-            "asset": asset,
-            "last_window": DEFAULT_LAST_WINDOW,
-            "last_window_options": LAST_WINDOW_OPTIONS,
-            "api_base_url": BROWSER_API_BASE_URL,
-            "show_pipeline_switcher": show_pipeline,
-            "pipeline_info": pipeline_info,
-            "current_pipeline": current_pipeline,
-            "render_price_basis_select": page.show_price_basis_filter,
-            "show_price_basis_filter": page.show_price_basis_filter and SHOW_PRICE_BASIS,
-            "default_price_basis": DEFAULT_PRICE_BASIS,
-            "content_template": page.content_template or "",
-            "video_guide_youtube_id": page.video_guide_youtube_id,
-            "show_refresh_button": SHOW_REFRESH_BUTTON,
-            "warmup_manifest": warmup_manifest,
-            "cache_config": _CACHE_CONFIG,
-        },
+        context={**ctx, "request": request},
     )
 
 

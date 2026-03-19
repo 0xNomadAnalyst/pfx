@@ -4547,6 +4547,20 @@
     });
   }
 
+  function hydratePrefetchedShells() {
+    const el = document.getElementById("prefetched-shells");
+    if (!el) return;
+    try {
+      const shellMap = JSON.parse(el.textContent);
+      for (const [path, html] of Object.entries(shellMap)) {
+        if (html && !getSoftNavShellCache(path)) {
+          setSoftNavShellCache(path, html);
+        }
+      }
+    } catch (_) {}
+    el.remove();
+  }
+
   function getSoftNavShellCache(path) {
     const cached = softNavShellCache.get(path);
     if (!cached) return null;
@@ -6887,6 +6901,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     persistCacheHydrate();
+    hydratePrefetchedShells();
     initPageSelector();
     initPipelineSwitcher();
     initFilters();

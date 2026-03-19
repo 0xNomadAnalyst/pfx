@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><title>{{ app_title }} - {{ page_title }}</title></head>
+<body
+  data-api-base-url="{{ api_base_url }}"
+  data-current-page-slug="{{ current_page_slug }}"
+  data-current-pipeline="{{ current_pipeline }}"
+  data-default-protocol="{{ protocol }}"
+  data-default-pair="{{ pair }}"
+  data-warmup-budget-seconds="{{ cache_config.warmup_budget_seconds if cache_config else 30 }}"
+  data-warmup-max-jobs="{{ cache_config.warmup_max_jobs if cache_config else 20 }}"
+  data-warmup-concurrency="{{ cache_config.warmup_concurrency if cache_config else 3 }}"
+  data-video-guide-id="{{ video_guide_youtube_id }}"
+>
+  <header class="topbar">
+    <div class="topbar-left">
+      {% if show_pipeline_switcher %}
+      <div class="topbar-meta topbar-filters pipeline-switcher">
+        <label class="filter-label" for="pipeline-select">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10M4.22 4.22l4.24 4.24m7.08 7.08l4.24 4.24M1 12h6m6 0h10M4.22 19.78l4.24-4.24m7.08-7.08l4.24-4.24"/></svg>
+          DB
+        </label>
+        <select id="pipeline-select" class="filter-select" aria-label="Database pipeline">
+          {% if pipeline_info and pipeline_info.available %}
+            {% for p in pipeline_info.available %}
+              <option value="{{ p.id }}" {% if p.current %}selected{% endif %}>{{ p.label }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="solstice">Solstice</option>
+            <option value="onyc">ONyc</option>
+          {% endif %}
+        </select>
+      </div>
+      {% endif %}
+      <div id="topbar-view-select" class="topbar-meta topbar-filters">
+        <label class="filter-label" for="page-select">View</label>
+        <select id="page-select" class="filter-select" aria-label="Page">
+          {% for option in page_options %}
+            <option value="{{ option.path }}" {% if option.slug == current_page_slug %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if page_actions %}
+      <div class="topbar-page-actions">
+        {% for action in page_actions %}
+          <button class="page-action-btn" type="button"
+            data-action-id="{{ action.id }}"
+            data-modal-kind="{{ action.modal_kind }}"
+            {% if action.endpoint %}data-endpoint="{{ action.endpoint }}"{% endif %}
+            aria-label="{{ action.label }}">
+            {% if action.icon == "book" %}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            {% elif action.icon == "grid" %}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            {% elif action.icon == "settings" %}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            {% endif %}
+            <span>{{ action.label }}</span>
+          </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="topbar-right">
+      {% if show_protocol_pair_filters %}
+      <div class="topbar-meta topbar-filters">
+          <label class="filter-label" for="protocol-select">Protocol</label>
+          <select id="protocol-select" class="filter-select" aria-label="Protocol">
+            <option value="{{ protocol }}">{{ protocol }}</option>
+          </select>
+          <label class="filter-label" for="pair-select">Pair</label>
+          <select id="pair-select" class="filter-select" aria-label="Pair">
+            <option value="{{ pair }}">{{ pair }}</option>
+          </select>
+      </div>
+      {% endif %}
+      {% if render_asset_select %}
+      <div class="topbar-meta topbar-filters"{% if not show_asset_filter %} style="display:none"{% endif %}>
+          <label class="filter-label" for="asset-select">Asset</label>
+          <select id="asset-select" class="filter-select" aria-label="Asset"{% if not show_asset_filter %} data-locked="true"{% endif %}>
+            <option value="{{ asset }}">{{ asset }}</option>
+          </select>
+      </div>
+      {% endif %}
+      {% if show_market_selectors %}
+      <div class="topbar-meta topbar-filters" id="market-selectors" data-api-page-id="{{ api_page_id }}">
+          <label class="filter-label" for="mkt1-select">Market 1</label>
+          <select id="mkt1-select" class="filter-select" aria-label="Market 1">
+            <option value="">Loading…</option>
+          </select>
+          <label class="filter-label" for="mkt2-select">Market 2</label>
+          <select id="mkt2-select" class="filter-select" aria-label="Market 2">
+            <option value="">Loading…</option>
+          </select>
+      </div>
+      {% endif %}
+      {% if render_price_basis_select %}
+      <div class="topbar-meta topbar-filters"{% if not show_price_basis_filter %} style="display:none"{% endif %}>
+        <label class="filter-label" for="price-basis-select">Price Basis</label>
+        <select id="price-basis-select" class="filter-select" aria-label="Price basis"{% if not show_price_basis_filter %} data-locked="true"{% endif %}>
+          <option value="default"{% if default_price_basis == "default" %} selected{% endif %}>Default</option>
+          <option value="invert-orca"{% if default_price_basis == "invert-orca" %} selected{% endif %}>Invert Orca</option>
+          <option value="invert-ray"{% if default_price_basis == "invert-ray" %} selected{% endif %}>Invert Raydium</option>
+          <option value="invert-both"{% if default_price_basis == "invert-both" %} selected{% endif %}>Invert Both</option>
+        </select>
+      </div>
+      {% endif %}
+      <div class="topbar-meta topbar-filters">
+        <label class="filter-label" for="last-window-select">Last</label>
+        <select id="last-window-select" class="filter-select" aria-label="Last window">
+          {% for opt in last_window_options %}
+          <option value="{{ opt }}" {% if last_window == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="topbar-actions">
+        {% if show_refresh_button %}
+        <button id="refresh-dashboard" class="action-button" type="button" aria-label="Refresh dashboard">Refresh</button>
+        {% endif %}
+        <button id="theme-toggle" class="theme-toggle icon-button" type="button" aria-label="Toggle theme">
+          <span id="theme-icon" class="theme-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-grid page-{{ current_page_slug }}">
+    {% include content_template|default("partials/dashboard.html", true) %}
+  </main>
+
+  <script id="warmup-manifest" type="application/json">{{ warmup_manifest|tojson }}</script>
+</body>
+</html>
