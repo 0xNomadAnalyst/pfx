@@ -10,6 +10,10 @@
 #
 # All mat tables refresh at a uniform cadence to ensure consistent
 # freshness across domains during market stress.
+#
+# One-shot: run a single cycle then exit:
+#   ONYC_SINGLE_RUN=1 ./onyc_refresh.sh
+#   ./onyc_refresh.sh --once
 # =====================================================
 
 set -euo pipefail
@@ -38,6 +42,13 @@ MAT_RETENTION_DAYS="${MAT_RETENTION_DAYS:-100}"
 
 # Max consecutive failures before exit
 MAX_CONSECUTIVE_FAILURES="${MAX_CONSECUTIVE_FAILURES:-10}"
+
+# One-shot mode: run one full cycle (aux + CAGGs + mat + risk + health) then exit.
+# Set ONYC_SINGLE_RUN=1 or pass --once
+if [ "${1:-}" = "--once" ]; then
+    export ONYC_SINGLE_RUN=1
+fi
+ONYC_SINGLE_RUN="${ONYC_SINGLE_RUN:-0}"
 
 # =====================================================
 # Database connection
@@ -75,6 +86,10 @@ if psql "$DB_CONNECTION" -c "SELECT 1;" > /dev/null 2>&1; then
 else
     echo "$LOG_PREFIX Database connection failed"
     exit 1
+fi
+
+if [ "$ONYC_SINGLE_RUN" = "1" ]; then
+    echo "$LOG_PREFIX Single-run mode: one full cycle then exit"
 fi
 
 # =====================================================
@@ -373,15 +388,13 @@ EOF
 }
 
 # =====================================================
-# Main loop
+# Main loop (or single run)
 # =====================================================
 cycle_count=0
 failure_count=0
 last_cleanup_date=""
 
-echo "$LOG_PREFIX Entering main loop..."
-
-while true; do
+run_one_cycle() {
     cycle_count=$((cycle_count + 1))
     cycle_start=$(date +%s%N)
     ts=$(date '+%Y-%m-%d %H:%M:%S')
@@ -408,8 +421,9 @@ while true; do
         echo "$LOG_PREFIX Cycle #${cycle_count} FAILED (${failure_count}/${MAX_CONSECUTIVE_FAILURES})"
         if [ "$failure_count" -ge "$MAX_CONSECUTIVE_FAILURES" ]; then
             echo "$LOG_PREFIX Too many consecutive failures — exiting"
-            exit 1
+            return 1
         fi
+        return 2
     fi
 
     # --- Risk analytics (pvalues) ---
@@ -433,8 +447,22 @@ while true; do
         cleanup_old_data
         last_cleanup_date="$current_utc_date"
     fi
+    return 0
+}
 
-    # --- Sleep until next cycle ---
+if [ "$ONYC_SINGLE_RUN" = "1" ]; then
+    # Single run: one full cycle (aux + CAGGs + mat; risk/health only if cycle would include them)
+    run_one_cycle
+    exit $?
+fi
+
+echo "$LOG_PREFIX Entering main loop..."
+
+while true; do
+    run_one_cycle
+    r=$?
+    [ "$r" -eq 1 ] && exit 1
+    # --- Sleep until next cycle (cycle_start was set at start of run_one_cycle) ---
     elapsed_s=$(( ($(date +%s%N) - cycle_start) / 1000000000 ))
     sleep_time=$((MAT_REFRESH_INTERVAL_S - elapsed_s))
     if [ "$sleep_time" -gt 0 ]; then
