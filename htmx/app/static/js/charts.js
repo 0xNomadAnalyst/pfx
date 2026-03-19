@@ -2739,9 +2739,9 @@
       yAxes.push({
         type: "value", gridIndex: 0, name: "Liq. Value ($M)",
         nameLocation: "middle", nameGap: 60,
-        nameTextStyle: { color: "#e8a838", fontSize: 10 },
-        axisLine: { lineStyle: { color: "#e8a838" } },
-        axisLabel: { color: "#e8a838", fontSize: 10,
+        nameTextStyle: { color: "#76b7ff", fontSize: 10 },
+        axisLine: { lineStyle: { color: "#76b7ff" } },
+        axisLabel: { color: "#76b7ff", fontSize: 10,
           formatter: (v) => "$" + (v / 1e6).toFixed(1) + "M" },
         splitLine: { lineStyle: { color: chartGridColor(), opacity: 0.2 } },
       });
@@ -2779,32 +2779,45 @@
       series.push({
         name: "Liquidated Value", type: "line", xAxisIndex: 0, yAxisIndex: 0,
         data: baseLiq, areaStyle: { opacity: 0.25 },
-        lineStyle: { color: "#e8a838", width: 1.5 },
-        itemStyle: { color: "#e8a838" }, symbol: "none",
+        lineStyle: { color: "#76b7ff", width: 1.8 },
+        itemStyle: { color: "#76b7ff" }, symbol: "none",
       });
       series.push({
         name: "Liq. Bonus", type: "line", xAxisIndex: 0, yAxisIndex: 0,
         data: bonusLineData,
-        areaStyle: { opacity: 0.15, color: "#d4764e" },
-        lineStyle: { color: "#d4764e", width: 1, type: "dashed" },
-        itemStyle: { color: "#d4764e" }, symbol: "none",
+        lineStyle: { color: "#b38cff", width: 1.7, type: "dashed" },
+        itemStyle: { color: "#b38cff" }, symbol: "none",
       });
       series.push({
         name: "Cascade Add'l", type: "line", xAxisIndex: 0, yAxisIndex: 0,
         data: baseLiq.map((b, i) => b + (cascLiq[i] || 0)),
-        areaStyle: { opacity: 0.35 },
-        lineStyle: { color: "#5599dd", width: 1 },
-        itemStyle: { color: "#5599dd" }, symbol: "none",
+        lineStyle: { color: "#4dd5c2", width: 1.5 },
+        itemStyle: { color: "#4dd5c2" }, symbol: "none",
       });
-      pools.forEach((pool, pi) => {
-        const col = cascColors[pi % cascColors.length];
-        const lbl = `${chartData.coll_symbol}/${pool.counter_pair} (${(pool.weight * 100).toFixed(0)}%)`;
-        series.push({
-          name: `Depth: ${lbl}`,
-          type: "line", xAxisIndex: 0, yAxisIndex: 1,
-          data: pool.depth_used_pct, lineStyle: { color: col, width: 1.2, opacity: 0.6 },
-          itemStyle: { color: col }, symbol: "none",
+      // Keep top panel uncluttered: show a single weighted depth trace (right axis)
+      // instead of one depth line per pool.
+      const weightedDepthData = cx.map((_, i) => {
+        let weightedSum = 0;
+        let weightTotal = 0;
+        pools.forEach((pool) => {
+          const w = Number(pool?.weight);
+          const d = Number((pool?.depth_used_pct || [])[i]);
+          if (Number.isFinite(w) && Number.isFinite(d)) {
+            weightedSum += w * d;
+            weightTotal += w;
+          }
         });
+        return weightTotal > 0 ? weightedSum / weightTotal : null;
+      });
+      series.push({
+        name: "Depth (weighted)", type: "line", xAxisIndex: 0, yAxisIndex: 1,
+        data: weightedDepthData,
+        // Invisible anchor series: preserves right-axis scaling context for
+        // the 100% reference line without adding chart clutter.
+        lineStyle: { color: "#9aa6b2", width: 1, type: "dashed", opacity: 0 },
+        itemStyle: { color: "#9aa6b2", opacity: 0 }, symbol: "none",
+        silent: true,
+        tooltip: { show: false },
       });
       series.push({
         name: "100% depth ref", type: "line", xAxisIndex: 0, yAxisIndex: 1,
@@ -2914,6 +2927,9 @@
         });
       });
       const cascTc = chartTextColor();
+      const cascadeLegendData = series
+        .map((s) => s?.name)
+        .filter((n) => n && n !== "Depth (weighted)");
       const modeLabel = (chartData.model_mode || "heuristic") === "protocol" ? "Protocol" : "Heuristic";
       const cascGraphic = [
         {
@@ -2946,6 +2962,7 @@
           textStyle: { color: chartTextColor(), fontSize: 10 },
           type: "scroll",
           padding: [4, 8],
+          data: cascadeLegendData,
         },
         tooltip: {
           trigger: "axis",
