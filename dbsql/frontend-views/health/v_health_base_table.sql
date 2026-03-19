@@ -78,7 +78,8 @@ AS $fn$
         e.egm,
         e.gr,
         CASE
-            WHEN e.rows_last_hour = 0 AND e.avg_rows_per_hour >= 10 THEN 3
+            WHEN e.rows_last_hour = 0 AND e.avg_rows_per_hour >= 10
+                 AND (e.egm IS NULL OR e.egm < 60) THEN 3
             WHEN e.egm IS NOT NULL AND e.egm > 0 THEN
                 CASE WHEN e.gr <= 2.0 THEN 0 WHEN e.gr <= 3.0 THEN 1
                      WHEN e.gr <= 5.0 THEN 2 ELSE 3 END
@@ -86,7 +87,8 @@ AS $fn$
             WHEN e.msl <= 4320 THEN 2 ELSE 3
         END,
         CASE
-            WHEN e.rows_last_hour = 0 AND e.avg_rows_per_hour >= 10 THEN 'ANOMALY'
+            WHEN e.rows_last_hour = 0 AND e.avg_rows_per_hour >= 10
+                 AND (e.egm IS NULL OR e.egm < 60) THEN 'ANOMALY'
             WHEN e.egm IS NOT NULL AND e.egm > 0 THEN
                 CASE WHEN e.gr <= 2.0 THEN 'Active' WHEN e.gr <= 3.0 THEN 'Check'
                      WHEN e.gr <= 5.0 THEN 'Stale' ELSE 'ANOMALY' END
@@ -94,7 +96,8 @@ AS $fn$
             WHEN e.msl <= 4320 THEN 'Check' ELSE 'Stale'
         END,
         CASE
-            WHEN e.rows_last_hour = 0 AND e.avg_rows_per_hour >= 10 THEN TRUE
+            WHEN e.rows_last_hour = 0 AND e.avg_rows_per_hour >= 10
+                 AND (e.egm IS NULL OR e.egm < 60) THEN TRUE
             WHEN e.egm IS NOT NULL AND e.egm > 0 THEN e.gr > 5.0
             ELSE e.msl > 4320
         END
