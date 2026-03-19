@@ -22,7 +22,7 @@ PAGE_CONFIG = PageConfig(
     api_page_id="exponent",
     show_protocol_pair_filters=False,
     show_market_selectors=True,
-    video_guide_youtube_id="ky5vsKgcEK0",
+    video_guide_youtube_id="Bjf98CbpM1g",
     page_actions=[
         PageAction("exponent-explainer", "Protocol Explainer", icon="book", modal_kind="html"),
         PageAction("exponent-market-assets", "Market Assets", icon="grid", modal_kind="table", endpoint="exponent-market-assets"),

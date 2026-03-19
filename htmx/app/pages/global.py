@@ -8,7 +8,7 @@ PAGE_CONFIG = PageConfig(
     label="Ecosystem",
     api_page_id="global-ecosystem",
     show_protocol_pair_filters=False,
-    video_guide_youtube_id="ky5vsKgcEK0",
+    video_guide_youtube_id="Ktk99W77UWk",
     widgets=[
         # ═══════════════════════════════════════════════════════
         # Section: ISSUANCE

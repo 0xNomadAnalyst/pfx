@@ -4826,6 +4826,7 @@
       "warmupBudgetSeconds",
       "warmupMaxJobs",
       "warmupConcurrency",
+      "videoGuideId",
     ].forEach((key) => {
       const attr = incomingBody.dataset[key];
       if (attr != null) {
