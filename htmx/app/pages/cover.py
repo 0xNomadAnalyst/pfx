@@ -7,5 +7,5 @@ PAGE_CONFIG = PageConfig(
     widgets=[],
     show_pipeline_switcher=False,
     content_template="partials/cover.html",
-    video_guide_youtube_id="Ktk99W77UWk",
+    video_guide_youtube_id="0wgPh78PwAs",
 )
