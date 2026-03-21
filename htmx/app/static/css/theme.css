@@ -6,6 +6,11 @@
   --chrome-edge: rgba(255, 255, 255, 0.06);
   --chrome-edge-soft: rgba(255, 255, 255, 0.025);
   --chrome-feather: rgba(255, 255, 255, 0.04);
+  --ambient-glow-a: rgba(56, 130, 200, 0.015);
+  --ambient-glow-b: rgba(56, 130, 200, 0.009);
+  --panel-sheen-top: rgba(255, 255, 255, 0.0075);
+  --panel-sheen-bottom: rgba(255, 255, 255, 0);
+  --panel-edge-ring: rgba(255, 255, 255, 0.009);
   --text: #d7def0;
   --muted: #8ea1c7;
   --border: rgba(255, 255, 255, 0.06);
@@ -27,6 +32,11 @@ html[data-theme="light"] {
   --chrome-edge: #d7e0ef;
   --chrome-edge-soft: rgba(17, 32, 58, 0.03);
   --chrome-feather: rgba(17, 32, 58, 0.06);
+  --ambient-glow-a: rgba(10, 120, 240, 0.0065);
+  --ambient-glow-b: rgba(10, 120, 240, 0.004);
+  --panel-sheen-top: rgba(17, 32, 58, 0.005);
+  --panel-sheen-bottom: rgba(17, 32, 58, 0);
+  --panel-edge-ring: rgba(17, 32, 58, 0.01);
   --text: #11203a;
   --muted: #5f7396;
   --border: #d7e0ef;
@@ -303,11 +313,32 @@ body {
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 12px;
   padding: 12px;
+  position: relative;
+  isolation: isolate;
+}
+
+.dashboard-grid::before {
+  content: "";
+  position: absolute;
+  inset: -24px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(85% 45% at 20% 12%, var(--ambient-glow-a), transparent 70%),
+    radial-gradient(70% 38% at 82% 18%, var(--ambient-glow-b), transparent 72%);
+}
+
+.dashboard-grid > * {
+  position: relative;
+  z-index: 1;
 }
 
 .panel {
-  background: var(--panel);
+  background:
+    linear-gradient(to bottom, var(--panel-sheen-top), var(--panel-sheen-bottom)),
+    var(--panel);
   border: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 var(--panel-edge-ring);
   border-radius: 8px;
   overflow: hidden;
   display: flex;
