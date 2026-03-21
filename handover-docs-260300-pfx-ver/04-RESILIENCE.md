@@ -1,6 +1,6 @@
 # Resilience, Recovery, and Monitoring
 
-This document covers the platform's approach to failure recovery, health monitoring, and operational visibility. The architecture follows a deliberate philosophy: **in-service recovery is short-lived and time-bounded; persistent failures are handed off to the container orchestrator (Kubernetes) via a failed health check**.
+This document covers the platform's approach to failure recovery, health monitoring, and operational visibility. The architecture follows a deliberate philosophy: **in-service recovery is short-lived and time-bounded; persistent failures are handed off to the hosting platform via failed health checks (Kubernetes probes where available, or a self-exit watchdog on platforms without continuous probes)**.
 
 Related companion documents:
 
@@ -25,12 +25,12 @@ Tier 2: Automatic Thread Restart (minutes)
   Up to 5 restarts with 60s cooldown between attempts
           │
           ▼  (fails, or GRPC_MAX_RECOVERY_TIME_S exceeded)
-Tier 3: Container Restart via Kubernetes
-  /health returns 503 → liveness probe fails → pod restart
+Tier 3: Platform Restart (Kubernetes probe or self-exit watchdog)
+  /health returns 503 â†’ liveness probe fails â†’ pod restart
   Clean restart with fresh connections and state
 ```
 
-The total recovery time budget defaults to **300 seconds** (5 minutes) from the last successful data callback (`GRPC_MAX_RECOVERY_TIME_S`). Once exceeded, the service reports unhealthy regardless of whether internal recovery is still attempting, ensuring Kubernetes intervenes promptly.
+The total recovery time budget defaults to **300 seconds** (5 minutes) from the last successful data callback (`GRPC_MAX_RECOVERY_TIME_S`). Once exceeded, the service reports unhealthy regardless of whether internal recovery is still attempting, ensuring platform-level restart logic intervenes promptly.
 
 ---
 
@@ -90,7 +90,7 @@ The `monitor_txn_stream()` function (in `shared/healthcheck/common_checks.py`) i
 
 ---
 
-## Tier 3: Kubernetes Container Restart
+## Tier 3: Platform Restart (Kubernetes + non-K8s)
 
 ### Service Health Endpoint (`/health`)
 
@@ -179,6 +179,28 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 - **60s start period** -- allows time for service initialisation and market/reserve discovery.
 - **3 retries** -- prevents restart on transient health check failures.
 
+
+### Non-Kubernetes Hosting: Self-Exit Watchdog
+
+For environments that do not provide continuous liveness probing (for example Railway), `HealthCheckServer.start()` supports `enable_self_exit=True`.
+
+When enabled, a watchdog thread polls `get_health()` at a fixed interval. If health remains UNHEALTHY for N consecutive polls, it force-terminates the process with `os._exit(1)`. The hosting platform restart policy (`ON_FAILURE`) then restarts the service.
+
+This provides bounded recovery behavior in non-K8s hosting environments, aligning with the same restart intent used by Kubernetes liveness probes.
+
+| Environment variable | Default | Purpose |
+|---|---|---|
+| `HEALTHCHECK_SELF_EXIT` | `0` | Set `1` to enable watchdog self-exit behavior |
+| `HEALTHCHECK_SELF_EXIT_FAILURES` | `10` | Consecutive UNHEALTHY polls before `os._exit(1)` |
+| `HEALTHCHECK_SELF_EXIT_INTERVAL_S` | `30` | Watchdog poll interval in seconds |
+
+With defaults (`30s` interval, `10` failures), self-exit occurs after ~5 minutes of continuous unhealthy state.
+
+| Platform | Recommended setting |
+|---|---|
+| Kubernetes | `HEALTHCHECK_SELF_EXIT=0` (liveness probe handles restart) |
+| Railway / no continuous probes | `HEALTHCHECK_SELF_EXIT=1` with restart-on-failure policy |
+
 ### Kubernetes Deployment (Placeholder)
 
 > **Note for cloud engineer:** Kubernetes deployment configuration (liveness/readiness probes, restart policies, resource limits, replica counts, pod disruption budgets) should be documented here once the production cluster configuration is finalised.
@@ -225,8 +247,8 @@ The `health` PostgreSQL schema contains views and functions that monitor the ful
 | View / Function | What it monitors |
 |---|---|
 | `v_health_queue_table` | Per-queue health: size, utilization, write rate, staleness vs 7-day P95 baselines, consecutive failures. Severity levels: NORMAL / ELEVATED / HIGH / ANOMALY per dimension (gap, utilization, failures). Injects synthetic ANOMALY rows for historically known queues that are absent from recent data (dead process detection -- if a service dies, it stops writing to `queue_health` and the queue would otherwise silently disappear from the view). |
-| `v_health_base_table` | Source table activity: latest timestamp, row counts (1h, 24h), hourly averages, frequency-based staleness detection. Gap ratio determines severity: Active (≤2x), Check (2-3x), Stale (3-5x), ANOMALY (>5x). Also triggers immediate ANOMALY if `rows_last_hour = 0` for a table that normally averages ≥10 rows/hour. |
-| `v_health_cagg_table` | CAGG refresh health: compares CAGG bucket times to source table times across all 21 CAGGs. Statuses: Refresh OK (≤5 min lag), Refresh Delayed (5-15 min), Source Stale (source age >2x expected gap), Refresh Broken (>15 min behind a fresh source). Fires `is_red` when source is critically stale (>5x expected gap or NULL), not only when refresh lags behind a fresh source. |
+| `v_health_base_table` | Source table activity: latest timestamp, row counts (1h, 24h), hourly averages, frequency-based staleness detection. Gap ratio determines severity: Active (â‰¤2x), Check (2-3x), Stale (3-5x), ANOMALY (>5x). Also triggers immediate ANOMALY if `rows_last_hour = 0` for a table that normally averages â‰¥10 rows/hour. |
+| `v_health_cagg_table` | CAGG refresh health: compares CAGG bucket times to source table times across all 21 CAGGs. Statuses: Refresh OK (â‰¤5 min lag), Refresh Delayed (5-15 min), Source Stale (source age >2x expected gap), Refresh Broken (>15 min behind a fresh source). Fires `is_red` when source is critically stale (>5x expected gap or NULL), not only when refresh lags behind a fresh source. |
 | `v_health_trigger_table` | Trigger function health (DEXes only): checks whether `trg_fill_raydium_pre_price` and `trg_calculate_swap_impact` are populating derived columns. Compares trigger-populated row counts against all-swap row counts. |
 | `v_health_master_table` | Binary summary: one row per domain + one MASTER row. RED if any critical indicator in any section; GREEN otherwise (tolerates ELEVATED and HIGH). |
 | `v_health_base_chart()` | Parameterised function: time-bucketed row counts for source tables by domain, lookback, and interval. Categories: Transaction Events vs Account Updates. |
@@ -321,6 +343,9 @@ Continuous aggregates (CAGGs) automatically pick up backfilled data on their nex
 | `@with_reconnect max_retries` | 3 | `TimescaleDBClient` | DB operation retry count |
 | `HEALTHCHECK_ENABLED` | `true` | env var | Enable/disable health check server |
 | `HEALTHCHECK_PORT` | `8080` | env var | Health check HTTP port |
+| `HEALTHCHECK_SELF_EXIT` | `0` | env var | Enable process self-exit watchdog for non-K8s hosting |
+| `HEALTHCHECK_SELF_EXIT_FAILURES` | `10` | env var | Consecutive unhealthy checks before `os._exit(1)` |
+| `HEALTHCHECK_SELF_EXIT_INTERVAL_S` | `30` | env var | Seconds between self-exit watchdog health polls |
 
 ---
 
@@ -334,3 +359,5 @@ Continuous aggregates (CAGGs) automatically pick up backfilled data on their nex
 - **`shared/timescaledb_client/`** -- database client with connection pooling and reconnect.
 - **01-INGESTION.md** -- shared service architecture and module reference.
 - **05-DEPENDENCIES.md** -- external service dependencies and hosting platform details.
+
+
