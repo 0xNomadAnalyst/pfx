@@ -66,26 +66,31 @@ Gap severity is not pure P95 anymore. It is now the maximum of:
 
 #### Dynamic baseline
 
-`staleness_ratio = seconds_since_last_write / min(p95_staleness_7d, 3600s)`
+`staleness_ratio = seconds_since_last_write / min(p95_staleness_7d, cap)`
+
+`cap` is queue-type aware:
+
+- event/txn/CriticalQueue patterns: `86400s` (24h)
+- all other queues: `3600s` (1h)
 
 Dynamic levels:
 
-- `<= 1.0`: severity `0`
+- `<= 1.25`: severity `0` (deadband to avoid edge jitter)
 - `<= 3.0`: severity `1`
 - `<= 10.0`: severity `2`
 - `> 10.0`: severity `3`
 
-The denominator cap (`3600s`) prevents very large historical P95 values from permanently reducing sensitivity.
+Queue-specific caps prevent very large historical P95 values from permanently reducing sensitivity.
 
 #### Absolute thresholds
 
 Absolute thresholds enforce floor sensitivity even when historical baseline is noisy.
 
-For `EventsQueue`:
+For event/txn/CriticalQueue patterns:
 
-- warn: `>= 1800s` (30m) -> severity `1`
-- high: `>= 7200s` (2h) -> severity `2`
-- anomaly: `>= 21600s` (6h) -> severity `3`
+- warn: `>= 86400s` (1d) -> severity `1`
+- high: `>= 172800s` (2d) -> severity `2`
+- anomaly: `>= 345600s` (4d) -> severity `3`
 
 For all other queues:
 
@@ -97,10 +102,22 @@ For all other queues:
 
 Queue warning levels also contribute directly:
 
-- `warning` -> severity `1`
+- `warning` -> severity `1` (except idle stale-warning suppression, see below)
 - `degraded` -> severity `2`
 - `critical` -> severity `3`
 - `ok`/null -> severity `0`
+
+#### Idle-safe suppression
+
+For write-on-difference queues, gap severity is forced to `NORMAL` when all are true:
+
+- `queue_size = 0`
+- `consecutive_failures = 0`
+- queue is **not** event/txn/CriticalQueue pattern
+- warning is absent/non-critical, or it's the specific stale message pattern:
+  `No writes for ... - queue may be stalled` with `write_rate_per_min = 0`
+
+This avoids false positives from idle workers while preserving event-driven sensitivity.
 
 ### Why warnings can still be GREEN
 
@@ -163,6 +180,8 @@ ORDER BY queue_name;
 
 As of 2026-03-22, queue gap logic was hardened to avoid P95 drift desensitization by:
 
-- capping dynamic baseline denominator to 1 hour,
-- adding queue-specific absolute thresholds,
-- and including raw `warning_level` passthrough.
+- queue-type-aware dynamic caps (1h for state/write-on-diff, 24h for event/txn/Critical),
+- deadband at 1.25x baseline,
+- wider absolute thresholds for sparse event/txn queues (1d/2d/4d),
+- idle-safe suppression for write-on-difference queues,
+- and warning passthrough with stale-warning suppression for zero-backlog idle rows.

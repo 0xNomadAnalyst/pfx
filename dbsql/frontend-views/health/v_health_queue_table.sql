@@ -116,6 +116,7 @@ BEGIN
         seconds_since_last_write double precision,
         consecutive_failures    integer,
         warning_level           text,
+        warning_message         text,
         snapshot_time           timestamptz
     ) ON COMMIT DROP;
     TRUNCATE _qt_current;
@@ -130,7 +131,7 @@ BEGIN
                 $q$INSERT INTO _qt_current
                  SELECT %L, sub.queue_name, sub.queue_size, sub.max_queue_size, sub.queue_utilization_pct,
                         sub.write_rate_per_min, sub.seconds_since_last_write, sub.consecutive_failures,
-                        sub.warning_level, sub.time
+                        sub.warning_level, sub.warning_message, sub.time
                  FROM (
                      SELECT DISTINCT ON (queue_name) *
                      FROM %I.queue_health
@@ -165,7 +166,20 @@ BEGIN
             COALESCE(b.p95_utilization_pct_7d, 0)       AS _p95_utilization_pct_7d,
             COALESCE(b.p95_consecutive_failures_7d, 0)  AS _p95_consecutive_failures_7d,
             c.seconds_since_last_write
-                / NULLIF(LEAST(COALESCE(b.p95_staleness_7d, 0), 3600.0), 0) AS staleness_ratio
+                / NULLIF(
+                    LEAST(
+                        COALESCE(b.p95_staleness_7d, 0),
+                        CASE
+                            WHEN LOWER(COALESCE(c.queue_name, '')) LIKE '%event%'
+                                 OR LOWER(COALESCE(c.queue_name, '')) LIKE '%txn%'
+                                 OR LOWER(COALESCE(c.queue_name, '')) LIKE '%transaction%'
+                                 OR COALESCE(c.queue_name, '') = 'CriticalQueue'
+                            THEN 86400.0  -- 24h cap for sparse event-driven queues
+                            ELSE 3600.0   -- 1h cap for state/write-on-difference queues
+                        END
+                    ),
+                    0
+                ) AS staleness_ratio
         FROM _qt_current c
         LEFT JOIN health.mat_health_queue_benchmarks b
             ON c.domain = b.domain AND c.queue_name = b.queue_name
@@ -187,11 +201,32 @@ BEGIN
             END AS _abs_gap_anomaly_s,
             CASE
                 WHEN m.snapshot_time IS NULL THEN 3
+                -- Idle-safe mode:
+                -- For write-on-difference pipelines, long periods with no writes
+                -- are normal when queues are empty and there are no failures.
+                -- Event/txn queues intentionally do not use this bypass.
+                WHEN COALESCE(m.queue_size, 0) = 0
+                     AND COALESCE(m.consecutive_failures, 0) = 0
+                     AND NOT (
+                         LOWER(COALESCE(m.queue_name, '')) LIKE '%event%'
+                         OR LOWER(COALESCE(m.queue_name, '')) LIKE '%txn%'
+                         OR LOWER(COALESCE(m.queue_name, '')) LIKE '%transaction%'
+                         OR COALESCE(m.queue_name, '') = 'CriticalQueue'
+                     )
+                     AND (
+                         LOWER(COALESCE(m.warning_level, 'ok')) NOT IN ('degraded', 'critical', 'error')
+                         OR (
+                             LOWER(COALESCE(m.warning_level, 'ok')) = 'warning'
+                             AND COALESCE(m.write_rate_per_min, 0) = 0
+                             AND COALESCE(m.warning_message, '') ILIKE 'No writes for %'
+                         )
+                     )
+                THEN 0
                 ELSE GREATEST(
-                    -- Dynamic baseline signal (cap P95 at 1h to avoid desensitisation)
+                    -- Dynamic baseline signal (queue-type cap to avoid desensitisation)
                     CASE
-                        WHEN LEAST(_p95_staleness_7d, 3600.0) = 0 OR staleness_ratio IS NULL THEN 0
-                        WHEN staleness_ratio <= 1.0  THEN 0
+                        WHEN staleness_ratio IS NULL THEN 0
+                        WHEN staleness_ratio <= 1.25 THEN 0
                         WHEN staleness_ratio <= 3.0  THEN 1
                         WHEN staleness_ratio <= 10.0 THEN 2
                         ELSE 3
@@ -199,18 +234,42 @@ BEGIN
                     -- Absolute wall-clock guardrails (queue-specific)
                     CASE
                         WHEN COALESCE(m.seconds_since_last_write, 0) >=
-                             CASE WHEN m.queue_name = 'EventsQueue' THEN 21600.0 ELSE 3600.0 END THEN 3
+                             CASE
+                                 WHEN LOWER(COALESCE(m.queue_name, '')) LIKE '%event%'
+                                      OR LOWER(COALESCE(m.queue_name, '')) LIKE '%txn%'
+                                      OR LOWER(COALESCE(m.queue_name, '')) LIKE '%transaction%'
+                                      OR COALESCE(m.queue_name, '') = 'CriticalQueue'
+                                 THEN 345600.0 ELSE 3600.0 END THEN 3
                         WHEN COALESCE(m.seconds_since_last_write, 0) >=
-                             CASE WHEN m.queue_name = 'EventsQueue' THEN 7200.0 ELSE 900.0 END THEN 2
+                             CASE
+                                 WHEN LOWER(COALESCE(m.queue_name, '')) LIKE '%event%'
+                                      OR LOWER(COALESCE(m.queue_name, '')) LIKE '%txn%'
+                                      OR LOWER(COALESCE(m.queue_name, '')) LIKE '%transaction%'
+                                      OR COALESCE(m.queue_name, '') = 'CriticalQueue'
+                                 THEN 172800.0 ELSE 900.0 END THEN 2
                         WHEN COALESCE(m.seconds_since_last_write, 0) >=
-                             CASE WHEN m.queue_name = 'EventsQueue' THEN 1800.0 ELSE 300.0 END THEN 1
+                             CASE
+                                 WHEN LOWER(COALESCE(m.queue_name, '')) LIKE '%event%'
+                                      OR LOWER(COALESCE(m.queue_name, '')) LIKE '%txn%'
+                                      OR LOWER(COALESCE(m.queue_name, '')) LIKE '%transaction%'
+                                      OR COALESCE(m.queue_name, '') = 'CriticalQueue'
+                                 THEN 86400.0 ELSE 300.0 END THEN 1
                         ELSE 0
                     END,
                     -- Raw queue warning passthrough
                     CASE LOWER(COALESCE(m.warning_level, 'ok'))
+                        WHEN 'warning' THEN
+                            CASE
+                                WHEN COALESCE(m.queue_size, 0) = 0
+                                     AND COALESCE(m.consecutive_failures, 0) = 0
+                                     AND COALESCE(m.write_rate_per_min, 0) = 0
+                                     AND COALESCE(m.warning_message, '') ILIKE 'No writes for %'
+                                THEN 0
+                                ELSE 1
+                            END
                         WHEN 'critical' THEN 3
+                        WHEN 'error'    THEN 3
                         WHEN 'degraded' THEN 2
-                        WHEN 'warning'  THEN 1
                         ELSE 0
                     END
                 )
