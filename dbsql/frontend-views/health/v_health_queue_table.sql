@@ -2,13 +2,17 @@
 -- health.v_health_queue_table
 -- Queue health status with per-dimension severity (gap, util, failure)
 --
--- OPTIMISED:
+-- OPTIMISED + HARDENED:
 --   1. Loop-based dynamic SQL gathers current status per schema with a
 --      time-bounded DISTINCT ON (avoids full-table scans into tiered storage).
 --   2. 7-day P95 benchmarks pre-computed in mat_health_queue_benchmarks,
 --      refreshed by refresh_mat_health_queue_benchmarks() (called via cronjob
 --      as part of health.refresh_mat_health_all()).
---   3. Thin VIEW wrapper preserves existing caller interface.
+--   3. Gap severity uses HYBRID scoring:
+--      - capped dynamic baseline (prevents "P95 drift" after long incidents),
+--      - absolute gap thresholds (queue-specific floors),
+--      - passthrough from raw warning_level (warning/degraded/critical).
+--   4. Thin VIEW wrapper preserves existing caller interface.
 -- =============================================================================
 
 CREATE SCHEMA IF NOT EXISTS health;
@@ -160,20 +164,56 @@ BEGIN
             COALESCE(b.p95_staleness_7d, 0)             AS _p95_staleness_7d,
             COALESCE(b.p95_utilization_pct_7d, 0)       AS _p95_utilization_pct_7d,
             COALESCE(b.p95_consecutive_failures_7d, 0)  AS _p95_consecutive_failures_7d,
-            c.seconds_since_last_write / NULLIF(b.p95_staleness_7d, 0) AS staleness_ratio
+            c.seconds_since_last_write
+                / NULLIF(LEAST(COALESCE(b.p95_staleness_7d, 0), 3600.0), 0) AS staleness_ratio
         FROM _qt_current c
         LEFT JOIN health.mat_health_queue_benchmarks b
             ON c.domain = b.domain AND c.queue_name = b.queue_name
     ),
     with_severity AS (
         SELECT *,
+            -- Queue-specific absolute gap thresholds (seconds)
+            CASE
+                WHEN m.queue_name = 'EventsQueue' THEN 1800.0   -- 30 min
+                ELSE 300.0                                      -- 5 min
+            END AS _abs_gap_warn_s,
+            CASE
+                WHEN m.queue_name = 'EventsQueue' THEN 7200.0   -- 2 hours
+                ELSE 900.0                                      -- 15 min
+            END AS _abs_gap_high_s,
+            CASE
+                WHEN m.queue_name = 'EventsQueue' THEN 21600.0  -- 6 hours
+                ELSE 3600.0                                     -- 1 hour
+            END AS _abs_gap_anomaly_s,
             CASE
                 WHEN m.snapshot_time IS NULL THEN 3
-                WHEN _p95_staleness_7d = 0 OR staleness_ratio IS NULL THEN 0
-                WHEN staleness_ratio <= 1.0  THEN 0
-                WHEN staleness_ratio <= 3.0  THEN 1
-                WHEN staleness_ratio <= 10.0 THEN 2
-                ELSE 3
+                ELSE GREATEST(
+                    -- Dynamic baseline signal (cap P95 at 1h to avoid desensitisation)
+                    CASE
+                        WHEN LEAST(_p95_staleness_7d, 3600.0) = 0 OR staleness_ratio IS NULL THEN 0
+                        WHEN staleness_ratio <= 1.0  THEN 0
+                        WHEN staleness_ratio <= 3.0  THEN 1
+                        WHEN staleness_ratio <= 10.0 THEN 2
+                        ELSE 3
+                    END,
+                    -- Absolute wall-clock guardrails (queue-specific)
+                    CASE
+                        WHEN COALESCE(m.seconds_since_last_write, 0) >=
+                             CASE WHEN m.queue_name = 'EventsQueue' THEN 21600.0 ELSE 3600.0 END THEN 3
+                        WHEN COALESCE(m.seconds_since_last_write, 0) >=
+                             CASE WHEN m.queue_name = 'EventsQueue' THEN 7200.0 ELSE 900.0 END THEN 2
+                        WHEN COALESCE(m.seconds_since_last_write, 0) >=
+                             CASE WHEN m.queue_name = 'EventsQueue' THEN 1800.0 ELSE 300.0 END THEN 1
+                        ELSE 0
+                    END,
+                    -- Raw queue warning passthrough
+                    CASE LOWER(COALESCE(m.warning_level, 'ok'))
+                        WHEN 'critical' THEN 3
+                        WHEN 'degraded' THEN 2
+                        WHEN 'warning'  THEN 1
+                        ELSE 0
+                    END
+                )
             END AS _gap_severity,
             CASE
                 WHEN m.snapshot_time IS NULL THEN 3
