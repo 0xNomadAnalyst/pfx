@@ -3,6 +3,7 @@
   --panel: #0f1a2d;
   --panel-2: #101f35;
   --text: #fdfefe;
+  --chart-text: #ffffff;
   --muted: #8ea1c7;
   --border: #20314d;
   --accent: #4bb7ff;
@@ -34,6 +35,7 @@ html[data-theme="light"] {
   --panel: #ffffff;
   --panel-2: #f8fbff;
   --text: #11203a;
+  --chart-text: #11203a;
   --muted: #5f7396;
   --border: #d7e0ef;
   --accent: #0a78f0;

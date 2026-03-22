@@ -226,7 +226,12 @@
   }
 
   function chartTextColor() {
-    return getComputedStyle(document.documentElement).getPropertyValue("--text").trim() || "#d7def0";
+    const styles = getComputedStyle(document.documentElement);
+    return (
+      styles.getPropertyValue("--chart-text").trim()
+      || styles.getPropertyValue("--text").trim()
+      || "#d7def0"
+    );
   }
 
   function chartGridColor() {
