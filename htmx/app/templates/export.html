@@ -387,6 +387,9 @@
         ensureMarketMeta();
       }
       for (var j = 0; j < perWidget.length; j++) perWidget[j].hidden = false;
+      if (perWidget.indexOf(ctxFlow) !== -1) {
+        ensureProtocolPairMeta().then(updateFlowModeLabels);
+      }
 
       var anyVisible = showPP || showMkt || perWidget.length > 0;
       ctxBar.hidden = !anyVisible;
@@ -432,6 +435,12 @@
         .map(function (item) { return item.pair; });
     }
 
+    function normalizeProtocol(protocol) {
+      var p = String(protocol || "").toLowerCase();
+      if (p === "ray") return "raydium";
+      return p;
+    }
+
     var protocolSelect = document.getElementById("protocol-select");
     var pairSelect     = document.getElementById("pair-select");
 
@@ -461,8 +470,22 @@
         .catch(function () {});
     }
 
-    function updateFlowModeLabels() {
+    function resolveFlowPair() {
       var pair = pairSelect.value || "";
+      if (pair) return pair;
+
+      var proto = normalizeProtocol(widget.dataset.protocolOverride || protocolSelect.value || "");
+      if (!proto && protocolPairsList.length > 0) {
+        proto = normalizeProtocol(protocolPairsList[0].protocol);
+      }
+      if (!proto) return "";
+      var pairs = pairsForProtocol(proto);
+      return pairs.length > 0 ? pairs[0] : "";
+    }
+
+    function updateFlowModeLabels() {
+      var pair = resolveFlowPair();
+      if (!pair || pair.indexOf("-") === -1) return;
       var parts = pair.split("-");
       var t0 = (parts[0] || "T0").trim();
       var t1 = (parts[1] || "T1").trim();
