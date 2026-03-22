@@ -91,11 +91,31 @@ BEGIN
              NOW())
         ON CONFLICT (view_schema, view_name) DO UPDATE SET
             source_table      = EXCLUDED.source_table,
-            cagg_latest       = EXCLUDED.cagg_latest,
-            source_latest     = EXCLUDED.source_latest,
-            cagg_age_mins     = EXCLUDED.cagg_age_mins,
-            source_age_mins   = EXCLUDED.source_age_mins,
-            refresh_lag_mins  = EXCLUDED.refresh_lag_mins,
+            cagg_latest       = COALESCE(EXCLUDED.cagg_latest, health.mat_health_cagg_status.cagg_latest),
+            source_latest     = COALESCE(EXCLUDED.source_latest, health.mat_health_cagg_status.source_latest),
+            cagg_age_mins     = CASE
+                                    WHEN COALESCE(EXCLUDED.cagg_latest, health.mat_health_cagg_status.cagg_latest) IS NULL
+                                    THEN NULL
+                                    ELSE EXTRACT(EPOCH FROM (
+                                        NOW() - COALESCE(EXCLUDED.cagg_latest, health.mat_health_cagg_status.cagg_latest)
+                                    )) / 60.0
+                                END,
+            source_age_mins   = CASE
+                                    WHEN COALESCE(EXCLUDED.source_latest, health.mat_health_cagg_status.source_latest) IS NULL
+                                    THEN NULL
+                                    ELSE EXTRACT(EPOCH FROM (
+                                        NOW() - COALESCE(EXCLUDED.source_latest, health.mat_health_cagg_status.source_latest)
+                                    )) / 60.0
+                                END,
+            refresh_lag_mins  = CASE
+                                    WHEN COALESCE(EXCLUDED.source_latest, health.mat_health_cagg_status.source_latest) IS NULL
+                                         OR COALESCE(EXCLUDED.cagg_latest, health.mat_health_cagg_status.cagg_latest) IS NULL
+                                    THEN NULL
+                                    ELSE EXTRACT(EPOCH FROM (
+                                        COALESCE(EXCLUDED.source_latest, health.mat_health_cagg_status.source_latest)
+                                        - COALESCE(EXCLUDED.cagg_latest, health.mat_health_cagg_status.cagg_latest)
+                                    )) / 60.0
+                                END,
             refreshed_at      = NOW();
     END LOOP;
 END;

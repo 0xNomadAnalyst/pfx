@@ -169,12 +169,28 @@ SELECT queue_name, time, seconds_since_last_write, queue_utilization_pct,
 FROM (
     SELECT *,
            ROW_NUMBER() OVER (PARTITION BY queue_name ORDER BY time DESC) AS rn
-    FROM dexes.queue_health
+FROM dexes.queue_health
     WHERE time > NOW() - INTERVAL '6 hours'
 ) t
 WHERE rn = 1
 ORDER BY queue_name;
 ```
+
+## CAGG Health Notes
+
+`v_health_cagg_table` now differentiates quiet streams from true missing-data cases:
+
+- `No data ever`: source and CAGG have no historical last-seen timestamps.
+- `Dormant (expected)`: no recent activity (>24h), but source and CAGG last-seen are aligned.
+- `Dormant (lagging)`: no recent activity and source is historically ahead of CAGG.
+
+Red behavior:
+
+- `Dormant (expected)` is non-red.
+- `Dormant (lagging)` is red.
+- `No data ever` is non-red (informational).
+
+This avoids false positives for low-activity pipelines while preserving lag detection.
 
 ## Change Log Notes
 

@@ -29,58 +29,96 @@ RETURNS TABLE (
 )
 LANGUAGE sql STABLE
 AS $fn$
+    WITH base AS (
+        SELECT
+            s.view_schema,
+            s.view_name,
+            s.source_table,
+            s.cagg_latest,
+            s.source_latest,
+            EXTRACT(EPOCH FROM (NOW() - s.cagg_latest))   / 60.0 AS cagg_age_mins,
+            EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0 AS source_age_mins,
+            EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0 AS refresh_lag_mins,
+            s.expected_gap_mins,
+            (
+                (s.cagg_latest IS NULL OR (EXTRACT(EPOCH FROM (NOW() - s.cagg_latest)) / 60.0) > 1440.0)
+                AND
+                (s.source_latest IS NULL OR (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > 1440.0)
+            ) AS no_recent,
+            GREATEST(COALESCE(s.expected_gap_mins, 120.0), 15.0) AS dormancy_lag_thresh
+        FROM health.mat_health_cagg_status s
+    )
     SELECT
-        s.view_schema,
-        s.view_name,
-        s.source_table,
-        s.cagg_latest,
-        s.source_latest,
-        EXTRACT(EPOCH FROM (NOW() - s.cagg_latest))   / 60.0,
-        EXTRACT(EPOCH FROM (NOW() - s.source_latest))  / 60.0,
-        EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0,
-        s.expected_gap_mins,
+        b.view_schema,
+        b.view_name,
+        b.source_table,
+        b.cagg_latest,
+        b.source_latest,
+        b.cagg_age_mins,
+        b.source_age_mins,
+        b.refresh_lag_mins,
+        b.expected_gap_mins,
         CASE
-            WHEN s.cagg_latest IS NULL AND s.source_latest IS NULL THEN 'No data'
-            WHEN s.source_latest IS NULL
-                 OR (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 2.0
+            WHEN b.cagg_latest IS NULL AND b.source_latest IS NULL THEN 'No data ever'
+            WHEN b.no_recent
+                 AND b.cagg_latest IS NOT NULL
+                 AND b.source_latest IS NOT NULL
+                 AND COALESCE(b.refresh_lag_mins, 0) <= b.dormancy_lag_thresh
+                 THEN 'Dormant (expected)'
+            WHEN b.no_recent THEN 'Dormant (lagging)'
+            WHEN b.source_latest IS NULL THEN 'Source Stale'
+            WHEN b.source_age_mins > GREATEST(COALESCE(b.expected_gap_mins, 120.0) * 2.0, 120.0)
                  THEN 'Source Stale'
-            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15
-                 AND (s.expected_gap_mins IS NULL
-                      OR (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > s.expected_gap_mins)
+            WHEN b.refresh_lag_mins IS NOT NULL
+                 AND b.refresh_lag_mins > 15
+                 AND (b.expected_gap_mins IS NULL OR b.refresh_lag_mins > b.expected_gap_mins)
                  THEN 'Refresh Broken'
-            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 5
-                 AND (s.expected_gap_mins IS NULL
-                      OR (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > s.expected_gap_mins)
+            WHEN b.refresh_lag_mins IS NOT NULL
+                 AND b.refresh_lag_mins > 5
+                 AND (b.expected_gap_mins IS NULL OR b.refresh_lag_mins > b.expected_gap_mins)
                  THEN 'Refresh Delayed'
             ELSE 'Refresh OK'
-        END,
+        END AS status,
         CASE
-            WHEN s.cagg_latest IS NULL AND s.source_latest IS NULL THEN -1
-            WHEN s.source_latest IS NULL THEN 3
-            WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 5.0 THEN 3
-            WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 2.0 THEN 2
-            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15
-                 AND (s.expected_gap_mins IS NULL
-                      OR (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > s.expected_gap_mins)
+            WHEN b.cagg_latest IS NULL AND b.source_latest IS NULL THEN -1
+            WHEN b.no_recent
+                 AND b.cagg_latest IS NOT NULL
+                 AND b.source_latest IS NOT NULL
+                 AND COALESCE(b.refresh_lag_mins, 0) <= b.dormancy_lag_thresh
+                 THEN 0
+            WHEN b.no_recent THEN 3
+            WHEN b.source_latest IS NULL THEN 3
+            WHEN b.source_age_mins > GREATEST(COALESCE(b.expected_gap_mins, 120.0) * 5.0, 360.0) THEN 3
+            WHEN b.source_age_mins > GREATEST(COALESCE(b.expected_gap_mins, 120.0) * 2.0, 120.0) THEN 2
+            WHEN b.refresh_lag_mins IS NOT NULL
+                 AND b.refresh_lag_mins > 15
+                 AND (b.expected_gap_mins IS NULL OR b.refresh_lag_mins > b.expected_gap_mins)
                  THEN 3
-            WHEN (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 5
-                 AND (s.expected_gap_mins IS NULL
-                      OR (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > s.expected_gap_mins)
+            WHEN b.refresh_lag_mins IS NOT NULL
+                 AND b.refresh_lag_mins > 5
+                 AND (b.expected_gap_mins IS NULL OR b.refresh_lag_mins > b.expected_gap_mins)
                  THEN 1
             ELSE 0
-        END,
+        END AS severity,
         CASE
-            WHEN s.source_latest IS NULL THEN TRUE
-            WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) > s.expected_gap_mins * 5.0 THEN TRUE
-            WHEN (EXTRACT(EPOCH FROM (NOW() - s.source_latest)) / 60.0) <= s.expected_gap_mins * 2.0
-                 AND (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > 15
-                 AND (s.expected_gap_mins IS NULL
-                      OR (EXTRACT(EPOCH FROM (s.source_latest - s.cagg_latest)) / 60.0) > s.expected_gap_mins)
+            WHEN b.cagg_latest IS NULL AND b.source_latest IS NULL THEN FALSE
+            WHEN b.no_recent
+                 AND b.cagg_latest IS NOT NULL
+                 AND b.source_latest IS NOT NULL
+                 AND COALESCE(b.refresh_lag_mins, 0) <= b.dormancy_lag_thresh
+                 THEN FALSE
+            WHEN b.no_recent THEN TRUE
+            WHEN b.source_latest IS NULL THEN TRUE
+            WHEN b.source_age_mins > GREATEST(COALESCE(b.expected_gap_mins, 120.0) * 5.0, 360.0) THEN TRUE
+            WHEN b.source_age_mins <= GREATEST(COALESCE(b.expected_gap_mins, 120.0) * 2.0, 120.0)
+                 AND b.refresh_lag_mins IS NOT NULL
+                 AND b.refresh_lag_mins > 15
+                 AND (b.expected_gap_mins IS NULL OR b.refresh_lag_mins > b.expected_gap_mins)
                  THEN TRUE
             ELSE FALSE
-        END
-    FROM health.mat_health_cagg_status s
-    ORDER BY s.view_schema, s.view_name;
+        END AS is_red
+    FROM base b
+    ORDER BY b.view_schema, b.view_name;
 $fn$;
 
 CREATE OR REPLACE VIEW health.v_health_cagg_table AS
