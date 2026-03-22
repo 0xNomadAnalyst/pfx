@@ -4858,6 +4858,9 @@
       "warmupMaxJobs",
       "warmupConcurrency",
       "videoGuideId",
+      "coverVideoGuideId",
+      "minViewportWidth",
+      "requestMobile",
     ].forEach((key) => {
       const attr = incomingBody.dataset[key];
       if (attr != null) {

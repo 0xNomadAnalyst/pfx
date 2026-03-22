@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ app_title }} - {{ page_title }}</title>
-  <link rel="stylesheet" href="/static/css/theme.css?v=41" />
+  <link rel="stylesheet" href="/static/css/theme.css?v=50" />
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <script>document.documentElement.style.setProperty('--half-screen', (screen.width / 2) + 'px');</script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
@@ -45,6 +45,9 @@
   data-adaptive-dialdown-hit-threshold="{{ cache_config.adaptive_dialdown_hit_threshold if cache_config else 0 }}"
   data-persist-cache-enabled="{{ '1' if cache_config and cache_config.persist_cache_enabled else '0' }}"
   data-video-guide-id="{{ video_guide_youtube_id }}"
+  data-cover-video-guide-id="{{ cover_video_guide_youtube_id }}"
+  data-min-viewport-width="{{ min_supported_viewport_width }}"
+  data-request-mobile="{{ '1' if request_mobile else '0' }}"
 >
   <header class="topbar">
     <div class="topbar-left">
@@ -183,6 +186,67 @@
     {% include content_template|default("partials/dashboard.html", true) %}
   </main>
 
+  <div id="mobile-entry-overlay" class="device-gate-overlay mobile-entry-overlay" hidden>
+    <section class="device-gate-panel" role="dialog" aria-modal="true" aria-labelledby="mobile-entry-title">
+      <h2 id="mobile-entry-title">Desktop Dashboard Experience</h2>
+      <p>
+        This dashboard is optimized for desktop viewing. If you want a mobile preview,
+        enable desktop mode in your browser.
+      </p>
+      <p class="device-gate-muted">
+        Screens narrower than <strong><span id="mobile-entry-min-width">882</span>px</strong>
+        will not display dashboard content.
+      </p>
+      <div class="device-gate-actions">
+        <button type="button" id="mobile-entry-video-btn" class="desktop-cta-button">
+          View Intro Video
+        </button>
+        <div class="device-gate-links">
+          <a
+            href="/static/downloads/RMcKinley-FinancialSystemsAnalyst-Capabilities.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="device-gate-link"
+          >
+            View Capabilities Deck
+          </a>
+          <a
+            href="/static/downloads/RMcKinley-FinancialSystemsAnalyst-Platform.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="device-gate-link"
+          >
+            View Platform Deck
+          </a>
+        </div>
+        <button type="button" id="mobile-entry-continue-btn" class="desktop-cta-button desktop-cta-button--quiet">
+          Continue To Dashboard
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <div id="viewport-policy-overlay" class="device-gate-overlay viewport-policy-overlay" hidden>
+    <section class="device-gate-panel device-gate-panel--compact" role="alertdialog" aria-modal="true" aria-labelledby="viewport-policy-title">
+      <h2 id="viewport-policy-title">Viewport Too Narrow</h2>
+      <p>
+        The dashboard is hidden at this width to prevent layout breakage.
+      </p>
+      <p class="device-gate-muted">
+        Minimum width: <strong><span id="viewport-policy-min-width">882</span>px</strong>
+        &middot; Current width: <strong><span id="viewport-policy-current-width">0</span>px</strong>
+      </p>
+      <div class="viewport-policy-actions">
+        <p id="viewport-policy-desktop-hint" class="viewport-policy-hint viewport-policy-hint--strong" hidden>
+          Please widen your browser window to continue.
+        </p>
+        <button type="button" id="viewport-policy-mobile-link" class="device-gate-link-button" hidden>
+          Go To Mobile Landing Page
+        </button>
+      </div>
+    </section>
+  </div>
+
   <div id="chart-modal-backdrop" class="chart-modal-backdrop" hidden>
     <section class="chart-modal" role="dialog" aria-modal="true" aria-labelledby="chart-modal-title">
       <div class="chart-modal-header">
@@ -282,7 +346,7 @@
   <script src="/static/js/theme.js?v=2"></script>
   <script id="warmup-manifest" type="application/json">{{ warmup_manifest|tojson }}</script>
   {% if embedded_shells_json %}<script id="prefetched-shells" type="application/json">{{ embedded_shells_json|safe }}</script>{% endif %}
-  <script src="/static/js/charts.js?v=74"></script>
+  <script src="/static/js/charts.js?v=75"></script>
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
   (function() {
@@ -361,8 +425,8 @@
       });
     }
 
-    function openVideoModal() {
-      var videoId = currentVideoId();
+    function openVideoModal(overrideVideoId) {
+      var videoId = (overrideVideoId || currentVideoId() || "").trim();
       if (!videoId) return;
       backdrop.hidden = false;
       document.body.style.overflow = "hidden";
@@ -377,12 +441,142 @@
     }
 
     btn.addEventListener("click", openVideoModal);
+    window.__openVideoGuideModal = openVideoModal;
     backdrop.addEventListener("click", function(e) {
       if (e.target === backdrop) closeVideoModal();
     });
     document.addEventListener("keydown", function(e) {
       if (e.key === "Escape" && !backdrop.hidden) closeVideoModal();
     });
+  })();
+  </script>
+  <script>
+  (function() {
+    var mobileOverlay = document.getElementById("mobile-entry-overlay");
+    var viewportOverlay = document.getElementById("viewport-policy-overlay");
+    if (!mobileOverlay || !viewportOverlay) return;
+
+    var continueBtn = document.getElementById("mobile-entry-continue-btn");
+    var videoBtn = document.getElementById("mobile-entry-video-btn");
+    var minWidthEls = [
+      document.getElementById("mobile-entry-min-width"),
+      document.getElementById("viewport-policy-min-width")
+    ];
+    var currentWidthEl = document.getElementById("viewport-policy-current-width");
+    var viewportMobileLink = document.getElementById("viewport-policy-mobile-link");
+    var viewportDesktopHint = document.getElementById("viewport-policy-desktop-hint");
+
+    var MOBILE_ENTRY_ACK_KEY = "riskdash.mobileEntryAccepted.v1";
+    var minViewportWidth = Number(document.body.dataset.minViewportWidth || "882");
+    var serverMobile = document.body.dataset.requestMobile === "1";
+    if (!Number.isFinite(minViewportWidth) || minViewportWidth < 320) {
+      minViewportWidth = 882;
+    }
+    minViewportWidth = Math.round(minViewportWidth);
+
+    function isMobileDevice() {
+      if (serverMobile) {
+        if (window.matchMedia) {
+          var desktopPointer = window.matchMedia("(pointer: fine)").matches;
+          var desktopHover = window.matchMedia("(hover: hover)").matches;
+          if (desktopPointer && desktopHover) return false;
+        }
+        return true;
+      }
+      if (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean") {
+        if (navigator.userAgentData.mobile) return true;
+      }
+      var ua = navigator.userAgent || "";
+      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)) {
+        return true;
+      }
+      return false;
+    }
+
+    function hasMobileEntryAck() {
+      try {
+        return window.localStorage.getItem(MOBILE_ENTRY_ACK_KEY) === "1";
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function setMobileEntryAck() {
+      try {
+        window.localStorage.setItem(MOBILE_ENTRY_ACK_KEY, "1");
+      } catch (_) {}
+    }
+
+    function clearMobileEntryAck() {
+      try {
+        window.localStorage.removeItem(MOBILE_ENTRY_ACK_KEY);
+      } catch (_) {}
+    }
+
+    function setBodyGateState(active) {
+      document.body.classList.toggle("device-gate-active", active);
+    }
+
+    function effectiveViewportWidth() {
+      var layoutWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+      var visualWidth = window.visualViewport && Number(window.visualViewport.width);
+      if (Number.isFinite(visualWidth) && visualWidth > 0) {
+        return Math.round(Math.min(layoutWidth, visualWidth));
+      }
+      return Math.round(layoutWidth);
+    }
+
+    function refreshGateState() {
+      var currentWidth = effectiveViewportWidth();
+      var mobileUser = isMobileDevice();
+      var mobileSession = mobileUser;
+      var mobileGateVisible = mobileUser && !hasMobileEntryAck();
+      var viewportGateVisible = currentWidth < minViewportWidth && !mobileGateVisible;
+
+      mobileOverlay.hidden = !mobileGateVisible;
+      viewportOverlay.hidden = !viewportGateVisible;
+      setBodyGateState(mobileGateVisible || viewportGateVisible);
+
+      if (viewportMobileLink) viewportMobileLink.hidden = !(viewportGateVisible && mobileSession);
+      if (viewportDesktopHint) viewportDesktopHint.hidden = !(viewportGateVisible && !mobileSession);
+      if (currentWidthEl) currentWidthEl.textContent = String(currentWidth);
+    }
+
+    minWidthEls.forEach(function(el) {
+      if (el) el.textContent = String(minViewportWidth);
+    });
+
+    if (continueBtn) {
+      continueBtn.addEventListener("click", function() {
+        setMobileEntryAck();
+        refreshGateState();
+      });
+    }
+
+    if (videoBtn) {
+      videoBtn.addEventListener("click", function() {
+        var coverVideoId = (document.body.dataset.coverVideoGuideId || "").trim();
+        if (typeof window.__openVideoGuideModal === "function") {
+          window.__openVideoGuideModal(coverVideoId);
+        }
+      });
+    }
+
+    if (viewportMobileLink) {
+      viewportMobileLink.addEventListener("click", function() {
+        clearMobileEntryAck();
+        refreshGateState();
+      });
+    }
+
+    window.addEventListener("resize", refreshGateState);
+    window.addEventListener("orientationchange", refreshGateState);
+    if (window.visualViewport && window.visualViewport.addEventListener) {
+      window.visualViewport.addEventListener("resize", refreshGateState);
+    }
+
+    refreshGateState();
+    document.body.classList.add("device-gate-js-ready");
   })();
   </script>
   {% if show_pipeline_switcher %}

@@ -254,6 +254,13 @@ for _env_key, _mod_path, _default in _PAGE_MODULES:
         PAGES.append(_mod.PAGE_CONFIG)
 
 PAGES_BY_SLUG: dict[str, PageConfig] = {page.slug: page for page in PAGES}
+DEFAULT_COVER_VIDEO_GUIDE_ID = "0wgPh78PwAs"
+COVER_VIDEO_GUIDE_ID = (
+    PAGES_BY_SLUG["cover"].video_guide_youtube_id
+    if "cover" in PAGES_BY_SLUG
+    else DEFAULT_COVER_VIDEO_GUIDE_ID
+)
+MIN_SUPPORTED_VIEWPORT_WIDTH = 882
 
 # Ensure shell cache can hold all page shells (they are embedded in the initial HTML).
 if _CACHE_CONFIG["soft_nav_shell_cache_max_entries"] < len(PAGES):
@@ -321,6 +328,7 @@ def _build_page_context(
     page_options: list,
     current_pipeline: str,
     pipeline_info: dict | None,
+    request_mobile: bool = False,
 ) -> dict:
     """Build template context for a page (shared between full render and shell embeds)."""
 
@@ -549,25 +557,62 @@ def _build_page_context(
         "default_price_basis": DEFAULT_PRICE_BASIS,
         "content_template": page.content_template or "",
         "video_guide_youtube_id": page.video_guide_youtube_id,
+        "cover_video_guide_youtube_id": COVER_VIDEO_GUIDE_ID,
+        "min_supported_viewport_width": MIN_SUPPORTED_VIEWPORT_WIDTH,
+        "request_mobile": request_mobile,
         "show_refresh_button": SHOW_REFRESH_BUTTON,
         "warmup_manifest": warmup_manifest,
         "cache_config": _CACHE_CONFIG,
     }
 
 
+def _is_mobile_request(request: Request) -> bool:
+    ch_mobile = (request.headers.get("sec-ch-ua-mobile", "") or "").strip().lower()
+    if ch_mobile in {"?1", "1", "true"}:
+        return True
+    if ch_mobile in {"?0", "0", "false"}:
+        return False
+
+    ua = (request.headers.get("user-agent", "") or "").lower()
+    mobile_markers = (
+        "android",
+        "iphone",
+        "ipad",
+        "ipod",
+        "windows phone",
+        "blackberry",
+        "opera mini",
+        "mobile",
+    )
+    return any(marker in ua for marker in mobile_markers)
+
+
 def render_page(request: Request, page: PageConfig):
     page_options = [{"slug": cfg.slug, "label": cfg.label, "path": f"/{cfg.slug}"} for cfg in PAGES]
     pipeline_info = _get_pipeline_info() if ENABLE_PIPELINE_SWITCHER else None
     current_pipeline = pipeline_info.get("current", "") if isinstance(pipeline_info, dict) else DEFAULT_PIPELINE
+    request_mobile = _is_mobile_request(request)
 
-    ctx = _build_page_context(page, page_options, current_pipeline, pipeline_info)
+    ctx = _build_page_context(
+        page,
+        page_options,
+        current_pipeline,
+        pipeline_info,
+        request_mobile=request_mobile,
+    )
 
     shell_tpl = templates.env.get_template("partials/shell_embed.html")
     shell_map: dict[str, str] = {}
     for other_page in PAGES:
         if other_page.slug == page.slug:
             continue
-        other_ctx = _build_page_context(other_page, page_options, current_pipeline, pipeline_info)
+        other_ctx = _build_page_context(
+            other_page,
+            page_options,
+            current_pipeline,
+            pipeline_info,
+            request_mobile=request_mobile,
+        )
         shell_map[f"/{other_page.slug}"] = shell_tpl.render(other_ctx)
 
     ctx["embedded_shells_json"] = json.dumps(shell_map).replace("</", "<\\/")

@@ -11,6 +11,9 @@
   data-warmup-max-jobs="{{ cache_config.warmup_max_jobs if cache_config else 20 }}"
   data-warmup-concurrency="{{ cache_config.warmup_concurrency if cache_config else 3 }}"
   data-video-guide-id="{{ video_guide_youtube_id }}"
+  data-cover-video-guide-id="{{ cover_video_guide_youtube_id }}"
+  data-min-viewport-width="{{ min_supported_viewport_width }}"
+  data-request-mobile="{{ '1' if request_mobile else '0' }}"
 >
   <header class="topbar">
     <div class="topbar-left">

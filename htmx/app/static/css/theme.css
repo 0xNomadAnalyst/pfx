@@ -2025,6 +2025,245 @@ html[data-theme="light"] .ge-section-header::after {
 .dx-ray-dist-1   { grid-column: 7 / 13; grid-row: 49 / 51; min-height: 240px; }
 .dx-ray-dist-2   { grid-column: 7 / 13; grid-row: 51 / 56; min-height: 400px; }
 
+/* Device gates: mobile entry + min viewport notice */
+body.device-gate-active {
+  overflow: hidden;
+}
+
+body.device-gate-active .topbar,
+body.device-gate-active main,
+body.device-gate-active .bottombar {
+  display: none !important;
+}
+
+.device-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1085;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.device-gate-overlay[hidden] {
+  display: none !important;
+}
+
+.mobile-entry-overlay {
+  z-index: 1086;
+}
+
+.device-gate-panel {
+  width: 100%;
+  max-width: 700px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(to bottom, var(--panel-sheen-top), var(--panel-sheen-bottom)),
+    var(--panel);
+  box-shadow: inset 0 1px 0 var(--panel-edge-ring), 0 18px 42px rgba(0, 0, 0, 0.45);
+  padding: 22px 22px 20px;
+}
+
+.device-gate-panel--compact {
+  max-width: 560px;
+}
+
+.device-gate-panel h2 {
+  margin: 0 0 10px;
+  font-size: 21px;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.device-gate-panel p {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.device-gate-muted {
+  color: var(--muted) !important;
+  font-size: 13px !important;
+}
+
+.device-gate-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.device-gate-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.device-gate-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: rgba(248, 169, 74, 0.82);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  text-align: center;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.device-gate-link:hover {
+  color: rgba(248, 169, 74, 0.98);
+  border-color: rgba(248, 169, 74, 0.45);
+  background: rgba(240, 160, 32, 0.08);
+}
+
+.device-gate-link-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(248, 169, 74, 0.82);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.device-gate-link-button:hover {
+  color: rgba(248, 169, 74, 0.98);
+  border-color: rgba(248, 169, 74, 0.55);
+}
+
+.viewport-policy-actions {
+  margin-top: 10px;
+}
+
+.viewport-policy-hint {
+  margin: 0;
+}
+
+.viewport-policy-hint--strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.viewport-policy-hint--accent {
+  color: rgba(248, 169, 74, 0.82);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.device-gate-panel .viewport-policy-hint--accent {
+  color: rgba(248, 169, 74, 0.82);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.desktop-cta-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(240, 160, 32, 0.6);
+  background: rgba(240, 160, 32, 0.08);
+  color: rgba(248, 169, 74, 0.92);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.desktop-cta-button:hover {
+  border-color: rgba(240, 160, 32, 0.75);
+  background: rgba(240, 160, 32, 0.12);
+  color: rgba(248, 169, 74, 0.98);
+  box-shadow: 0 0 0 1px rgba(240, 160, 32, 0.12), 0 10px 24px rgba(240, 160, 32, 0.12);
+}
+
+.desktop-cta-button--quiet {
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.desktop-cta-button--quiet:hover {
+  border-color: rgba(75, 183, 255, 0.3);
+  background: rgba(75, 183, 255, 0.08);
+  color: var(--text);
+  box-shadow: none;
+}
+
+html[data-theme="light"] .desktop-cta-button {
+  border-color: rgba(232, 133, 61, 0.58);
+  background: rgba(232, 133, 61, 0.08);
+  color: rgba(188, 98, 27, 0.94);
+}
+
+html[data-theme="light"] .desktop-cta-button:hover {
+  border-color: rgba(232, 133, 61, 0.72);
+  background: rgba(232, 133, 61, 0.14);
+  color: rgba(188, 98, 27, 1);
+  box-shadow: 0 0 0 1px rgba(232, 133, 61, 0.15), 0 8px 20px rgba(232, 133, 61, 0.12);
+}
+
+html[data-theme="light"] .device-gate-link {
+  color: rgba(188, 98, 27, 0.82);
+}
+
+html[data-theme="light"] .device-gate-link:hover {
+  color: rgba(188, 98, 27, 1);
+  border-color: rgba(188, 98, 27, 0.42);
+  background: rgba(232, 133, 61, 0.1);
+}
+
+html[data-theme="light"] .device-gate-link-button {
+  color: rgba(188, 98, 27, 0.86);
+}
+
+html[data-theme="light"] .device-gate-link-button:hover {
+  color: rgba(188, 98, 27, 1);
+  border-color: rgba(188, 98, 27, 0.48);
+}
+
+html[data-theme="light"] .viewport-policy-hint--accent {
+  color: rgba(188, 98, 27, 0.86);
+}
+
+html[data-theme="light"] .device-gate-panel .viewport-policy-hint--accent {
+  color: rgba(188, 98, 27, 0.86);
+}
+
+/* Fail-safe: if gate JS does not run, enforce min-width policy visually */
+@media (max-width: 881px) {
+  body:not(.device-gate-js-ready) .topbar,
+  body:not(.device-gate-js-ready) main,
+  body:not(.device-gate-js-ready) .bottombar {
+    display: none !important;
+  }
+
+  body:not(.device-gate-js-ready) #viewport-policy-overlay[hidden] {
+    display: grid !important;
+  }
+
+  body:not(.device-gate-js-ready) {
+    overflow: hidden;
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
@@ -2033,6 +2272,22 @@ html[data-theme="light"] .ge-section-header::after {
   .dashboard-grid > .panel {
     grid-column: auto !important;
     grid-row: auto !important;
+  }
+
+  .device-gate-panel {
+    padding: 18px 16px 16px;
+  }
+
+  .device-gate-panel h2 {
+    font-size: 18px;
+  }
+
+  .desktop-cta-button {
+    width: 100%;
+  }
+
+  .device-gate-links {
+    grid-template-columns: 1fr;
   }
 }
 
