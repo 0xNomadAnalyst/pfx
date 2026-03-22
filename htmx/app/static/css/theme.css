@@ -2668,10 +2668,16 @@ body[data-current-page-slug="cover"] .bottombar-doc-link:hover {
   border-radius: 0;
 }
 
+.export-widget .panel-header,
+.export-widget .chart-subtitle {
+  display: none;
+}
+
 .export-widget .panel-body {
   flex: 1;
   min-height: 0;
   position: relative;
+  padding: 0;
 }
 
 .export-context-bar {
