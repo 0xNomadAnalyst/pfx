@@ -3568,7 +3568,30 @@
 
     if (option.legend) {
       const ls = option.legend.textStyle || (option.legend.textStyle = {});
+      ls.color = chartTextColor();
       if (!ls.fontSize || ls.fontSize > 10) ls.fontSize = 10;
+    }
+
+    // Final pass: keep axis/title text aligned with theme chart text token.
+    const forceAxisTextColor = (axis) => {
+      if (!axis || typeof axis !== "object") return;
+      axis.axisLabel = { ...(axis.axisLabel || {}), color: chartTextColor() };
+      if (axis.name || axis.nameTextStyle) {
+        axis.nameTextStyle = { ...(axis.nameTextStyle || {}), color: chartTextColor() };
+      }
+    };
+    if (Array.isArray(option.xAxis)) option.xAxis.forEach(forceAxisTextColor);
+    else forceAxisTextColor(option.xAxis);
+    if (Array.isArray(option.yAxis)) option.yAxis.forEach(forceAxisTextColor);
+    else forceAxisTextColor(option.yAxis);
+    if (option.title) {
+      const applyTitleColor = (title) => {
+        if (!title || typeof title !== "object") return;
+        title.textStyle = { ...(title.textStyle || {}), color: chartTextColor() };
+        title.subtextStyle = { ...(title.subtextStyle || {}), color: chartTextColor() };
+      };
+      if (Array.isArray(option.title)) option.title.forEach(applyTitleColor);
+      else applyTitleColor(option.title);
     }
 
     instance.setOption(option, true);
