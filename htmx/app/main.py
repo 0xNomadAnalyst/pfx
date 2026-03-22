@@ -639,16 +639,29 @@ for _page in PAGES:
 def chart_export(request: Request):
     """Private utility page for exporting charts as image assets."""
     chart_catalogue: list[dict] = []
+    protocol_labels = {
+        "orca": "Orca",
+        "ray": "Raydium",
+        "raydium": "Raydium",
+    }
     for page in PAGES:
         for widget in page.widgets:
             if widget.kind != "chart":
                 continue
+            endpoint_page = widget.source_page_id or page.api_page_id
+            endpoint_wid = widget.source_widget_id or widget.id
+            protocol_override = widget.protocol_override or ""
+            widget_title = widget.title
+            if protocol_override:
+                widget_title = f"{widget_title} ({protocol_labels.get(protocol_override, protocol_override)})"
             chart_catalogue.append({
                 "page_label": page.label,
                 "page_id": page.api_page_id,
                 "widget_id": widget.id,
-                "widget_title": widget.title,
-                "endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, page.api_page_id, widget.id),
+                "source_widget_id": endpoint_wid,
+                "protocol_override": protocol_override,
+                "widget_title": widget_title,
+                "endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, endpoint_page, endpoint_wid),
                 "show_protocol_pair": page.show_protocol_pair_filters,
                 "show_markets": page.show_market_selectors,
             })

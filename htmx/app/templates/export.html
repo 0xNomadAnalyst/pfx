@@ -50,6 +50,8 @@
               value="{{ chart.widget_id }}"
               data-endpoint="{{ chart.endpoint }}"
               data-page-id="{{ chart.page_id }}"
+              data-source-widget-id="{{ chart.source_widget_id }}"
+              data-protocol-override="{{ chart.protocol_override }}"
               data-show-pp="{{ 'true' if chart.show_protocol_pair else 'false' }}"
               data-show-mkt="{{ 'true' if chart.show_markets else 'false' }}"
             >{{ chart.widget_title }}</option>
@@ -299,6 +301,8 @@
       if (!opt || !opt.value) return;
 
       var widgetId = opt.value;
+      var sourceWidgetId = opt.dataset.sourceWidgetId || widgetId;
+      var protocolOverride = opt.dataset.protocolOverride || "";
       var endpoint = opt.dataset.endpoint;
       var chartTitle = opt.textContent.trim();
 
@@ -306,6 +310,12 @@
 
       activeWidgetId = widgetId;
       widget.dataset.widgetId = widgetId;
+      widget.dataset.sourceWidgetId = sourceWidgetId;
+      if (protocolOverride) {
+        widget.dataset.protocolOverride = protocolOverride;
+      } else {
+        delete widget.dataset.protocolOverride;
+      }
       widget.id = "widget-" + widgetId;
       chartCanvas.id = "chart-" + widgetId;
       updatedEl.id = "updated-" + widgetId;
@@ -361,7 +371,7 @@
     };
 
     function updateContextFilters(opt) {
-      var wid = opt.value;
+      var wid = opt.dataset.sourceWidgetId || opt.value;
       var showPP  = opt.dataset.showPp === "true";
       var showMkt = opt.dataset.showMkt === "true";
       var perWidget = WIDGET_FILTER_MAP[wid] || [];
