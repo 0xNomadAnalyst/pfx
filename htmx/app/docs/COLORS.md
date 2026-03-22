@@ -9,12 +9,12 @@ Defined in `static/css/theme.css` via CSS custom properties.
 
 | Variable | Hex / value | Usage |
 |----------|-------------|--------|
-| `--bg` | `#0B1220` | Page background |
-| `--panel` | `#172033` | Cards, panels, inputs |
-| `--panel-2` | `#111C34` | Topbar, bottombar, secondary surfaces |
+| `--bg` | `#0a1020` | Page background |
+| `--panel` | `#0f1a2d` | Cards, panels, inputs |
+| `--panel-2` | `#101f35` | Topbar, bottombar, secondary surfaces |
 | `--text` | `#d7def0` | Primary text |
 | `--muted` | `#8ea1c7` | Secondary text, labels, placeholders |
-| `--border` | `rgba(255, 255, 255, 0.06)` | Borders, dividers |
+| `--border` | `#20314d` | Borders, dividers |
 | `--accent` | `#4bb7ff` | Links, buttons, focus, highlights |
 | `--good` | `#36c96a` | Success, positive states |
 | `--bad` | `#f65f74` | Error, negative states |
@@ -97,7 +97,7 @@ Used for section titles and welcome panel on the cover page (`body[data-current-
 ## Summary swatches
 
 **Dark mode:**  
-`#0B1220` · `#172033` · `#111C34` · `#d7def0` · `#8ea1c7` · `rgba(255, 255, 255, 0.06)` · `#4bb7ff` · `#36c96a` · `#f65f74`
+`#0a1020` · `#0f1a2d` · `#101f35` · `#d7def0` · `#8ea1c7` · `#20314d` · `#4bb7ff` · `#36c96a` · `#f65f74`
 
 **Light mode:**  
 `#eef2f9` · `#ffffff` · `#f8fbff` · `#11203a` · `#5f7396` · `#d7e0ef` · `#0a78f0` · `#1f9d52` · `#d83455`

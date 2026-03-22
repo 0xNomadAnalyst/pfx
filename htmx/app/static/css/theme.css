@@ -1,11 +1,7 @@
 :root {
-  --bg: #0B1220;
-  --panel: #172033;
-  --panel-2: #111C34;
-  --chrome-bar: #0F172A;
-  --chrome-edge: rgba(255, 255, 255, 0.06);
-  --chrome-edge-soft: rgba(255, 255, 255, 0.025);
-  --chrome-feather: rgba(255, 255, 255, 0.04);
+  --bg: #0a1020;
+  --panel: #0f1a2d;
+  --panel-2: #101f35;
   --ambient-glow-a: rgba(56, 130, 200, 0.015);
   --ambient-glow-b: rgba(56, 130, 200, 0.009);
   --panel-sheen-top: rgba(255, 255, 255, 0.0075);
@@ -13,7 +9,7 @@
   --panel-edge-ring: rgba(255, 255, 255, 0.009);
   --text: #d7def0;
   --muted: #8ea1c7;
-  --border: rgba(255, 255, 255, 0.06);
+  --border: #20314d;
   --accent: #4bb7ff;
   --good: #36c96a;
   --bad: #f65f74;
@@ -28,10 +24,6 @@ html[data-theme="light"] {
   --bg: #eef2f9;
   --panel: #ffffff;
   --panel-2: #f8fbff;
-  --chrome-bar: #f8fbff;
-  --chrome-edge: #d7e0ef;
-  --chrome-edge-soft: rgba(17, 32, 58, 0.03);
-  --chrome-feather: rgba(17, 32, 58, 0.06);
   --ambient-glow-a: rgba(10, 120, 240, 0.0065);
   --ambient-glow-b: rgba(10, 120, 240, 0.004);
   --panel-sheen-top: rgba(17, 32, 58, 0.005);
@@ -105,28 +97,11 @@ body {
   gap: 12px;
   align-items: center;
   padding: 12px 18px;
-  border-bottom: 1px solid var(--chrome-edge);
-  background: var(--chrome-bar);
-  box-shadow: inset 0 -1px 0 var(--chrome-edge-soft);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-2);
   position: sticky;
   top: 0;
   z-index: 20;
-  overflow: visible;
-}
-
-.topbar::after {
-  content: "";
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: -10px;
-  height: 10px;
-  pointer-events: none;
-  background: radial-gradient(
-    140% 100% at 50% 0%,
-    var(--chrome-feather) 0%,
-    transparent 72%
-  );
 }
 
 .topbar-left {
@@ -2315,27 +2290,10 @@ html[data-theme="light"] .device-gate-panel .viewport-policy-hint--accent {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: var(--chrome-bar);
-  border-top: 1px solid var(--chrome-edge);
-  box-shadow: inset 0 1px 0 var(--chrome-edge-soft);
+  background: var(--panel-2);
+  border-top: 1px solid var(--border);
   z-index: 20;
   gap: 20px;
-  overflow: visible;
-}
-
-.bottombar::before {
-  content: "";
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  top: -10px;
-  height: 10px;
-  pointer-events: none;
-  background: radial-gradient(
-    140% 100% at 50% 100%,
-    var(--chrome-feather) 0%,
-    transparent 72%
-  );
 }
 
 .bottombar-left,
