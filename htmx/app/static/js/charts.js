@@ -2655,13 +2655,15 @@
         option.graphic = [
           {
             type: "text",
-            left: "center",
-            bottom: 30,
+            left: 10,
+            top: 6,
             style: {
               text: chartData.title_extra,
               fill: chartTextColor(),
               fontSize: 11,
               opacity: 0.7,
+              textAlign: "left",
+              textVerticalAlign: "top",
             },
           },
         ];
