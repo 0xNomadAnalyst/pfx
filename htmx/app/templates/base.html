@@ -467,6 +467,7 @@
     var viewportDesktopHint = document.getElementById("viewport-policy-desktop-hint");
 
     var MOBILE_ENTRY_ACK_KEY = "riskdash.mobileEntryAccepted.v1";
+    var FORCE_MOBILE_LANDING_KEY = "riskdash.forceMobileLanding.v1";
     var minViewportWidth = Number(document.body.dataset.minViewportWidth || "882");
     var serverMobile = document.body.dataset.requestMobile === "1";
     if (!Number.isFinite(minViewportWidth) || minViewportWidth < 320) {
@@ -513,6 +514,26 @@
       } catch (_) {}
     }
 
+    function hasForcedMobileLanding() {
+      try {
+        return window.localStorage.getItem(FORCE_MOBILE_LANDING_KEY) === "1";
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function setForcedMobileLanding() {
+      try {
+        window.localStorage.setItem(FORCE_MOBILE_LANDING_KEY, "1");
+      } catch (_) {}
+    }
+
+    function clearForcedMobileLanding() {
+      try {
+        window.localStorage.removeItem(FORCE_MOBILE_LANDING_KEY);
+      } catch (_) {}
+    }
+
     function setBodyGateState(active) {
       document.body.classList.toggle("device-gate-active", active);
     }
@@ -529,16 +550,16 @@
     function refreshGateState() {
       var currentWidth = effectiveViewportWidth();
       var mobileUser = isMobileDevice();
-      var mobileSession = mobileUser;
-      var mobileGateVisible = mobileUser && !hasMobileEntryAck();
+      var forceMobileLanding = hasForcedMobileLanding();
+      var mobileGateVisible = (mobileUser || forceMobileLanding) && !hasMobileEntryAck();
       var viewportGateVisible = currentWidth < minViewportWidth && !mobileGateVisible;
 
       mobileOverlay.hidden = !mobileGateVisible;
       viewportOverlay.hidden = !viewportGateVisible;
       setBodyGateState(mobileGateVisible || viewportGateVisible);
 
-      if (viewportMobileLink) viewportMobileLink.hidden = !(viewportGateVisible && mobileSession);
-      if (viewportDesktopHint) viewportDesktopHint.hidden = !(viewportGateVisible && !mobileSession);
+      if (viewportMobileLink) viewportMobileLink.hidden = !viewportGateVisible;
+      if (viewportDesktopHint) viewportDesktopHint.hidden = !viewportGateVisible;
       if (currentWidthEl) currentWidthEl.textContent = String(currentWidth);
     }
 
@@ -549,6 +570,7 @@
     if (continueBtn) {
       continueBtn.addEventListener("click", function() {
         setMobileEntryAck();
+        clearForcedMobileLanding();
         refreshGateState();
       });
     }
@@ -564,6 +586,7 @@
 
     if (viewportMobileLink) {
       viewportMobileLink.addEventListener("click", function() {
+        setForcedMobileLanding();
         clearMobileEntryAck();
         refreshGateState();
       });
