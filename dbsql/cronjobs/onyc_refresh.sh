@@ -371,30 +371,6 @@ check_health() {
     # Only runs on this cadence, not every cycle.
     psql "$DB_CONNECTION" -c "CALL health.refresh_mat_health_cagg_benchmarks();" 2>/dev/null || true
 
-    # Catch-up refresh for sparse event-driven caggs.
-    # cagg_events_5s only writes when real DEX transactions occur, so quiet periods
-    # (no activity for > 30 min) leave the tail of the last active burst permanently
-    # outside the rolling 30-min window. This targeted back-fill runs from the cagg's
-    # current max bucket up to the present, only when a gap exists.
-    psql "$DB_CONNECTION" <<'EOF' 2>/dev/null || true
-DO $$
-DECLARE
-    _cagg_latest  timestamptz;
-    _source_latest timestamptz;
-BEGIN
-    SELECT MAX(bucket_time)    INTO _cagg_latest   FROM dexes.cagg_events_5s    WHERE bucket_time    > NOW() - INTERVAL '2 hours';
-    SELECT MAX(meta_block_time) INTO _source_latest FROM dexes.src_tx_events WHERE meta_block_time > NOW() - INTERVAL '2 hours';
-    -- Only back-fill if the cagg is behind source AND the gap is older than the rolling window
-    IF _cagg_latest IS NOT NULL
-       AND _source_latest IS NOT NULL
-       AND _source_latest > _cagg_latest
-       AND _cagg_latest < NOW() - INTERVAL '30 minutes'
-    THEN
-        CALL refresh_continuous_aggregate('dexes.cagg_events_5s', _cagg_latest, NOW() - INTERVAL '10 seconds');
-    END IF;
-END $$;
-EOF
-
     psql "$DB_CONNECTION" -c "
         SELECT view_name, materialized_only, compression_enabled
         FROM timescaledb_information.continuous_aggregates
