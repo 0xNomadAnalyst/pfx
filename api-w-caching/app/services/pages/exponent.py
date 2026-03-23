@@ -691,7 +691,7 @@ class ExponentPageService(BasePageService):
             "x": [row["bucket_time"] for row in rows],
             "yAxisLabel": "%",
             "yAxisFormat": "pct0",
-            "yAxisMin": 0,
+            "yAxisScale": True,
             "yAxisMax": 100,
             "yRightAxisLabel": "SY",
             "yRightAxisFormat": "compact",
@@ -753,6 +753,7 @@ class ExponentPageService(BasePageService):
             "x": [row["bucket_time"] for row in rows],
             "yAxisLabel": "APY %",
             "yAxisFormat": "pct2",
+            "yAxisScale": True,
             "series": [
                 {"name": "24h", "type": "line", "color": "#4bb7ff",
                  "data": [row.get("sy_trailing_apy_24h") for row in rows]},
@@ -794,6 +795,7 @@ class ExponentPageService(BasePageService):
             "x": [row["bucket_time"] for row in rows],
             "yAxisLabel": "APY %",
             "yAxisFormat": "pct2",
+            "yAxisScale": True,
             "yRightAxisLabel": "Spread %",
             "yRightAxisFormat": "pct2",
             "series": [

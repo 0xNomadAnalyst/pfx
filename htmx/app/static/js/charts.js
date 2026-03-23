@@ -1653,10 +1653,11 @@
         return mapped;
       })
     };
-    if (data.yAxisMin !== undefined || data.yAxisMax !== undefined) {
+    if (data.yAxisMin !== undefined || data.yAxisMax !== undefined || data.yAxisScale) {
       const target = Array.isArray(option.yAxis) ? option.yAxis[0] : option.yAxis;
       if (data.yAxisMin !== undefined) target.min = data.yAxisMin;
       if (data.yAxisMax !== undefined) target.max = data.yAxisMax;
+      if (data.yAxisScale) target.scale = true;
     }
     if (Array.isArray(data.mark_lines) && data.mark_lines.length > 0 && option.series.length > 0) {
       const xLabels = (data.x || []).map(String);
