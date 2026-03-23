@@ -173,7 +173,6 @@ BEGIN
                             WHEN LOWER(COALESCE(c.queue_name, '')) LIKE '%event%'
                                  OR LOWER(COALESCE(c.queue_name, '')) LIKE '%txn%'
                                  OR LOWER(COALESCE(c.queue_name, '')) LIKE '%transaction%'
-                                 OR COALESCE(c.queue_name, '') = 'CriticalQueue'
                             THEN 86400.0  -- 24h cap for sparse event-driven queues
                             ELSE 3600.0   -- 1h cap for state/write-on-difference queues
                         END
@@ -186,19 +185,6 @@ BEGIN
     ),
     with_severity AS (
         SELECT *,
-            -- Queue-specific absolute gap thresholds (seconds)
-            CASE
-                WHEN m.queue_name = 'EventsQueue' THEN 1800.0   -- 30 min
-                ELSE 300.0                                      -- 5 min
-            END AS _abs_gap_warn_s,
-            CASE
-                WHEN m.queue_name = 'EventsQueue' THEN 7200.0   -- 2 hours
-                ELSE 900.0                                      -- 15 min
-            END AS _abs_gap_high_s,
-            CASE
-                WHEN m.queue_name = 'EventsQueue' THEN 21600.0  -- 6 hours
-                ELSE 3600.0                                     -- 1 hour
-            END AS _abs_gap_anomaly_s,
             CASE
                 WHEN m.snapshot_time IS NULL THEN 3
                 -- Idle-safe mode:
@@ -211,7 +197,6 @@ BEGIN
                          LOWER(COALESCE(m.queue_name, '')) LIKE '%event%'
                          OR LOWER(COALESCE(m.queue_name, '')) LIKE '%txn%'
                          OR LOWER(COALESCE(m.queue_name, '')) LIKE '%transaction%'
-                         OR COALESCE(m.queue_name, '') = 'CriticalQueue'
                      )
                      AND (
                          LOWER(COALESCE(m.warning_level, 'ok')) NOT IN ('degraded', 'critical', 'error')
@@ -238,21 +223,18 @@ BEGIN
                                  WHEN LOWER(COALESCE(m.queue_name, '')) LIKE '%event%'
                                       OR LOWER(COALESCE(m.queue_name, '')) LIKE '%txn%'
                                       OR LOWER(COALESCE(m.queue_name, '')) LIKE '%transaction%'
-                                      OR COALESCE(m.queue_name, '') = 'CriticalQueue'
                                  THEN 345600.0 ELSE 3600.0 END THEN 3
                         WHEN COALESCE(m.seconds_since_last_write, 0) >=
                              CASE
                                  WHEN LOWER(COALESCE(m.queue_name, '')) LIKE '%event%'
                                       OR LOWER(COALESCE(m.queue_name, '')) LIKE '%txn%'
                                       OR LOWER(COALESCE(m.queue_name, '')) LIKE '%transaction%'
-                                      OR COALESCE(m.queue_name, '') = 'CriticalQueue'
                                  THEN 172800.0 ELSE 900.0 END THEN 2
                         WHEN COALESCE(m.seconds_since_last_write, 0) >=
                              CASE
                                  WHEN LOWER(COALESCE(m.queue_name, '')) LIKE '%event%'
                                       OR LOWER(COALESCE(m.queue_name, '')) LIKE '%txn%'
                                       OR LOWER(COALESCE(m.queue_name, '')) LIKE '%transaction%'
-                                      OR COALESCE(m.queue_name, '') = 'CriticalQueue'
                                  THEN 86400.0 ELSE 300.0 END THEN 1
                         ELSE 0
                     END,
