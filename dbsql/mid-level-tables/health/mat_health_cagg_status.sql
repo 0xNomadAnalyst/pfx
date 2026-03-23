@@ -43,7 +43,7 @@ DECLARE
 BEGIN
     FOR _c IN
         SELECT * FROM (VALUES
-            ('dexes','cagg_events_5s','src_tx_events','bucket_time','time'),
+            ('dexes','cagg_events_5s','src_tx_events','bucket_time','meta_block_time'),
             ('dexes','cagg_poolstate_5s','src_acct_pool','bucket_time','time'),
             ('dexes','cagg_vaults_5s','src_acct_vaults','bucket_time','time'),
             ('dexes','cagg_tickarrays_5s','src_acct_tickarray_queries','bucket','time'),
@@ -134,7 +134,7 @@ DECLARE
 BEGIN
     FOR _c IN
         SELECT DISTINCT ON (vs, st) * FROM (VALUES
-            ('dexes','src_tx_events','time'),
+            ('dexes','src_tx_events','meta_block_time'),
             ('dexes','src_acct_pool','time'),
             ('dexes','src_acct_vaults','time'),
             ('dexes','src_acct_tickarray_queries','time'),
