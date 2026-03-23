@@ -105,6 +105,25 @@ CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_events_5s',      NOW() - I
 CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_vaults_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
 CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_poolstate_5s',   NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
 CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_tickarrays_5s',  NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
+-- Tail-gap catch-up for cagg_events_5s.
+-- src_tx_events is event-driven (only writes on actual DEX transactions), so quiet
+-- periods >30 min leave the tail of the last burst outside the rolling window.
+-- This back-fill runs from cagg's current max to present, but only when a gap exists
+-- that the rolling window can no longer reach — no-op during normal active periods.
+DO \$\$
+DECLARE
+    _cl timestamptz;
+    _sl timestamptz;
+BEGIN
+    SELECT MAX(bucket_time)     INTO _cl FROM ${DEX_SCHEMA}.cagg_events_5s WHERE bucket_time     > NOW() - INTERVAL '2 hours';
+    SELECT MAX(meta_block_time) INTO _sl FROM ${DEX_SCHEMA}.src_tx_events   WHERE meta_block_time > NOW() - INTERVAL '2 hours';
+    IF _cl IS NOT NULL AND _sl IS NOT NULL
+       AND _sl > _cl
+       AND _cl < NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}'
+    THEN
+        CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_events_5s', _cl, NOW() - INTERVAL '10 seconds');
+    END IF;
+END \$\$;
 EOF
     local pid_dex=$!
 
