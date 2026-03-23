@@ -144,6 +144,10 @@
       "exponent-realized-rates-mkt2",
       "exponent-divergence-mkt2",
     ])],
+    ["linked-ts-health-queue", new Set([
+      "health-queue-chart",
+      "health-queue-chart-2",
+    ])],
     ["linked-ts-health-base", new Set([
       "health-base-chart-events",
       "health-base-chart-accounts",

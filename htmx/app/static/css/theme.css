@@ -893,8 +893,8 @@ th .info-tip-icon {
 
 .h-hdr-2                    { grid-row: 4  / 5;  }
 .health-slot-queue-table    { grid-column: 1 / 13; grid-row: 5  / 11; min-height: 280px; }
-.health-slot-queue-chart    { grid-column: 1 / 7;  grid-row: 11 / 14; min-height: 280px; }
-.health-slot-queue-chart-2  { grid-column: 7 / 13; grid-row: 11 / 14; min-height: 280px; }
+.health-slot-queue-chart    { grid-column: 1 / 7;  grid-row: 11 / 14; height: 310px; min-height: 310px; }
+.health-slot-queue-chart-2  { grid-column: 7 / 13; grid-row: 11 / 14; height: 310px; min-height: 310px; }
 
 .h-hdr-3                    { grid-row: 14 / 15; }
 .health-slot-trigger        { grid-column: 1 / 13; grid-row: 15 / 18; }
