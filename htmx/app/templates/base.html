@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ app_title }} - {{ page_title }}</title>
   <link rel="stylesheet" href="/static/css/theme.css?v=70" />
-  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <script>document.documentElement.style.setProperty('--half-screen', (screen.width / 2) + 'px');</script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
@@ -271,8 +270,9 @@
 
   <div id="video-modal-backdrop" class="video-modal-backdrop" hidden>
     <section class="video-modal" role="dialog" aria-modal="true" aria-label="Video Guide">
+      <button type="button" id="video-modal-close" class="video-modal-close" aria-label="Close video">Close</button>
       <div id="video-player-wrap" class="video-player-wrap">
-        <div id="yt-player"></div>
+        <iframe id="yt-iframe" class="yt-iframe" title="Video Guide" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
       </div>
     </section>
   </div>
@@ -347,100 +347,34 @@
   <script id="warmup-manifest" type="application/json">{{ warmup_manifest|tojson }}</script>
   {% if embedded_shells_json %}<script id="prefetched-shells" type="application/json">{{ embedded_shells_json|safe }}</script>{% endif %}
   <script src="/static/js/charts.js?v=78"></script>
-  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
   (function() {
     var btn = document.getElementById("video-guide-btn");
     var backdrop = document.getElementById("video-modal-backdrop");
-    if (!btn || !backdrop) return;
-
-    var player = null;
-    var activeVideoId = "";
-
-    var captionsOn = false;
-
-    var plyrOpts = {
-      controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "settings", "fullscreen"],
-      settings: ["speed"],
-      youtube: { noCookie: true, rel: 0, showinfo: 0, iv_load_policy: 3, modestbranding: 1, cc_lang_pref: "en", end: 0 },
-      tooltips: { controls: false, seek: true },
-      keyboard: { focused: true, global: false }
-    };
+    var closeBtn = document.getElementById("video-modal-close");
+    var iframe = document.getElementById("yt-iframe");
+    if (!btn || !backdrop || !iframe) return;
 
     function currentVideoId() {
       return (document.body.dataset.videoGuideId || "").trim();
     }
 
-    function injectCCButton() {
-      var controls = document.querySelector("#video-player-wrap .plyr__controls");
-      if (!controls || controls.querySelector(".plyr__cc-toggle")) return;
-      var fsBtn = controls.querySelector('[data-plyr="fullscreen"]');
-      var ccBtn = document.createElement("button");
-      ccBtn.type = "button";
-      ccBtn.className = "plyr__controls__item plyr__control plyr__cc-toggle";
-      ccBtn.setAttribute("aria-label", "Toggle captions");
-      ccBtn.innerHTML = '<svg viewBox="0 0 18 18" width="18" height="18"><path d="M1 3v12h16V3H1zm14.5 10.5h-13v-9h13v9zM5 8.5h1.5v1H5v-1zm0 2h4v1H5v-1zm5.5-2H13v1h-2.5v-1zm-1 2H13v1H9.5v-1z" fill="currentColor"/></svg>';
-      ccBtn.style.opacity = captionsOn ? "1" : "0.5";
-      if (fsBtn) {
-        controls.insertBefore(ccBtn, fsBtn);
-      } else {
-        controls.appendChild(ccBtn);
-      }
-      ccBtn.addEventListener("click", function() {
-        if (!player || !player.embed) return;
-        captionsOn = !captionsOn;
-        ccBtn.style.opacity = captionsOn ? "1" : "0.5";
-        try {
-          if (captionsOn) {
-            player.embed.loadModule("captions");
-            player.embed.setOption("captions", "track", { languageCode: "en" });
-          } else {
-            player.embed.unloadModule("captions");
-          }
-        } catch (_) {}
-      });
-    }
-
-    function ensurePlayer(videoId) {
-      if (player && activeVideoId === videoId) return;
-      if (player && activeVideoId !== videoId) {
-        player.source = {
-          type: "video",
-          sources: [{ src: videoId, provider: "youtube" }]
-        };
-        activeVideoId = videoId;
-        return;
-      }
-      var el = document.getElementById("yt-player");
-      el.setAttribute("data-plyr-provider", "youtube");
-      el.setAttribute("data-plyr-embed-id", videoId);
-      player = new Plyr(el, plyrOpts);
-      activeVideoId = videoId;
-      player.on("ended", function() {
-        player.currentTime = 0;
-        player.pause();
-      });
-      player.on("ready", function() {
-        injectCCButton();
-      });
-    }
-
     function openVideoModal(overrideVideoId) {
       var videoId = (overrideVideoId || currentVideoId() || "").trim();
       if (!videoId) return;
+      iframe.src = "https://www.youtube-nocookie.com/embed/" + videoId + "?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&vq=hd1080";
       backdrop.hidden = false;
       document.body.style.overflow = "hidden";
-      ensurePlayer(videoId);
-      setTimeout(function() { if (player) player.play(); }, 300);
     }
 
     function closeVideoModal() {
-      if (player) player.pause();
       backdrop.hidden = true;
       document.body.style.overflow = "";
+      iframe.src = "";
     }
 
-    btn.addEventListener("click", openVideoModal);
+    btn.addEventListener("click", function() { openVideoModal(); });
+    if (closeBtn) closeBtn.addEventListener("click", closeVideoModal);
     window.__openVideoGuideModal = openVideoModal;
     backdrop.addEventListener("click", function(e) {
       if (e.target === backdrop) closeVideoModal();

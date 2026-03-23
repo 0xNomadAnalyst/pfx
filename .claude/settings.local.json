@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r \"youtube\\\\|YouTube\\\\|iframe.*video\\\\|video.*iframe\" D:devmywebopus --include=*.tsx --include=*.jsx --include=*.ts --include=*.js --include=*.css --include=*.html)",
+      "Read(//d/dev/myweb/opus/components/**)",
+      "Read(//d/dev/myweb/opus/components/sections/**)",
+      "Bash(grep -rn \"youtube_id\\\\|video_guide\" D:devmanorisk_dashpfxhtmxapp --include=*.py)",
+      "Read(//d/dev/myweb/opus/**)"
+    ]
+  }
+}
