@@ -29,8 +29,7 @@ BEGIN
         SELECT * FROM (VALUES
             ('dexes'),
             ('exponent'),
-            ('kamino_lend'),
-            ('solstice_proprietary')
+            ('kamino_lend')
         ) AS s(name)
     LOOP
         BEGIN

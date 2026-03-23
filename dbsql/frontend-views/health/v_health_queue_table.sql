@@ -42,7 +42,7 @@ BEGIN
 
     FOR _schema IN
         SELECT * FROM (VALUES
-            ('dexes'), ('exponent'), ('kamino_lend'), ('solstice_proprietary')
+            ('dexes'), ('exponent'), ('kamino_lend')
         ) AS s(name)
     LOOP
         BEGIN
@@ -123,7 +123,7 @@ BEGIN
 
     FOR _schema IN
         SELECT * FROM (VALUES
-            ('dexes'), ('exponent'), ('kamino_lend'), ('solstice_proprietary')
+            ('dexes'), ('exponent'), ('kamino_lend')
         ) AS s(name)
     LOOP
         BEGIN
