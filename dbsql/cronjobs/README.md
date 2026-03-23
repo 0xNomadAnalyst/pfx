@@ -11,8 +11,8 @@ TimescaleDB instance.
 ## Tiered Refresh Model
 
 | Tier | Cadence | What it refreshes |
-|---|---|---|
-| **Tier 1** | Every cycle (default 30s) | 3 parallel domain tracks (CAGGs → mat tables in sequence per domain), then health + cross-protocol |
+| --- | --- | --- |
+| **Tier 1** | Every cycle (default 30s) | Phase 1: all CAGGs parallel; Phase 2: all domain mat tables + health parallel; then cross-protocol |
 | **Tier 2** | Every 10 cycles (~5 min) | Auxiliary/discovery tables (Kamino `aux_market_reserve_tokens`, Exponent `aux_key_relations`, Dexes `pool_tokens_reference`) |
 | **Tier 3** | Every 60 cycles (~30 min) | Health check (CAGG status, mat table freshness) |
 | **Risk** | Every 60 cycles (~30 min) | `risk_pvalues` refresh |
@@ -20,36 +20,42 @@ TimescaleDB instance.
 
 ## Parallel Execution
 
-Each domain runs as a single sequential `psql` session: CAGGs first, then mat
-tables. All three domain sessions run concurrently. Health and cross-protocol
-run after all domain tracks complete since they read across domains.
+Tier 1 runs in two sequential phases. Within each phase, all sessions run
+concurrently.
 
+```text
+Phase 1 — CAGGs (parallel):
+
+  Session 1 (dexes):    cagg_events_5s, cagg_vaults_5s,
+                        cagg_poolstate_5s, cagg_tickarrays_5s          ─┐
+  Session 2 (kamino):   cagg_activities_5s, cagg_reserves_5s,           │
+                        cagg_obligations_agg_5s                         ─┼─ wait all
+  Session 3 (exponent): cagg_vaults_5s, cagg_market_twos_5s,            │
+                        cagg_sy_meta_account_5s, cagg_sy_token_account_5s│
+                        cagg_vault_yield_position_5s, cagg_vault_yt_escrow_5s,
+                        cagg_base_token_escrow_5s, cagg_tx_events_5s   ─┘
+                                                                         │
+                                                                         ▼
+Phase 2 — Mat tables + health (parallel):
+
+  Session 1 (dexes):    mat_dex_timeseries_1m, mat_dex_ohlcv_1m,
+                        mat_dex_last                                     ─┐
+  Session 2 (kamino):   mat_klend_timeseries_1m, mat_klend_last,          │
+                        mat_klend_config                                  ─┼─ wait all
+  Session 3 (exponent): mat_exp_timeseries_1m, mat_exp_last              ─┤
+  Session 4 (health):   refresh_mat_health_all()                         ─┘
+                                                                          │
+                                                                          ▼
+                                                   cross_protocol.refresh_mat_xp_all()
 ```
-Track 1 (dexes):    [cagg_events_5s, cagg_vaults_5s, cagg_poolstate_5s, cagg_tickarrays_5s]
-                    → [mat_dex_timeseries_1m, mat_dex_ohlcv_1m, mat_dex_last]          ─┐
-                                                                                          │
-Track 2 (kamino):   [cagg_activities_5s, cagg_reserves_5s, cagg_obligations_agg_5s]      │
-                    → [mat_klend_timeseries_1m, mat_klend_last, mat_klend_config]        ─┼─ wait all
-                                                                                          │
-Track 3 (exponent): [cagg_vaults_5s, cagg_market_twos_5s, cagg_sy_meta_account_5s,       │
-                     cagg_sy_token_account_5s, cagg_vault_yield_position_5s,             │
-                     cagg_vault_yt_escrow_5s, cagg_base_token_escrow_5s,                 │
-                     cagg_tx_events_5s]                                                   │
-                    → [mat_exp_timeseries_1m, mat_exp_last]                              ─┘
-                                                                                          │
-                                                                                          ▼
-                                                              health.refresh_mat_health_all()
-                                                                                          │
-                                                                                          ▼
-                                                           cross_protocol.refresh_mat_xp_all()
-```
 
-Within each track, mat tables run immediately after that domain's CAGGs finish —
-they do not wait for slower domains. Health reads from all domain CAGGs and mat
-tables, so it must follow all tracks. Cross-protocol reads from all domain mat
-tables, so it follows health.
-
-Wall-clock time per cycle = max(track durations) + health + cross-protocol.
+**Why health runs in Phase 2 (parallel with mat tables, not after):**
+`refresh_mat_health_all()` calls `refresh_mat_health_cagg_status()` first — by
+design — to capture the CAGG health snapshot as close as possible to the CAGG
+refresh. With Phase 2 starting immediately after Phase 1, the snapshot window
+is ~10s (just the CAGG upper bound). If health ran after mat tables it would
+see source data ~90s ahead of the CAGG latest, inflating displayed lag to ~1.6 min
+even when the CAGGs are perfectly fresh.
 
 ## CAGG Refresh Window
 
@@ -84,7 +90,7 @@ lookback — the lookback determines which older buckets get re-checked, while
 the upper bound determines freshness of the newest bucket.
 
 | Upper bound | Latest CAGG bucket age | Trade-off |
-|---|---|---|
+| --- | --- | --- |
 | 1 minute | ~60s behind source | Conservative; guaranteed no partial-bucket edge cases |
 | 10 seconds | ~10s behind source | Fresher data; safe for 5s buckets since 10s > bucket width |
 
@@ -93,7 +99,7 @@ the upper bound determines freshness of the newest bucket.
 All parameters are overridable via environment variables.
 
 | Variable | Default | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | `MAT_REFRESH_INTERVAL_S` | `30` | Seconds between cycles |
 | `CAGG_REFRESH_WINDOW` | `30 minutes` | CAGG lookback window |
 | `AUX_REFRESH_MULT` | `10` | Aux table sync every N cycles |
@@ -154,7 +160,7 @@ next cycle starts immediately (no sleep). Cycle duration is logged as
 ### Tier 1: CAGGs (21 total)
 
 | Domain | CAGGs |
-|---|---|
+| --- | --- |
 | Dexes (4) | `cagg_events_5s`, `cagg_vaults_5s`, `cagg_poolstate_5s`, `cagg_tickarrays_5s` |
 | Kamino (3) | `cagg_activities_5s`, `cagg_reserves_5s`, `cagg_obligations_agg_5s` |
 | Exponent (8) | `cagg_vaults_5s`, `cagg_market_twos_5s`, `cagg_sy_meta_account_5s`, `cagg_sy_token_account_5s`, `cagg_vault_yield_position_5s`, `cagg_vault_yt_escrow_5s`, `cagg_base_token_escrow_5s`, `cagg_tx_events_5s` |
@@ -162,7 +168,7 @@ next cycle starts immediately (no sleep). Cycle duration is logged as
 ### Tier 1: Materialized Tables
 
 | Domain | Procedures |
-|---|---|
+| --- | --- |
 | Dexes | `refresh_mat_dex_timeseries_1m`, `refresh_mat_dex_ohlcv_1m`, `refresh_mat_dex_last` |
 | Kamino | `refresh_mat_klend_timeseries_1m`, `refresh_mat_klend_last`, `refresh_mat_klend_config` |
 | Exponent | `refresh_mat_exp_timeseries_1m`, `refresh_mat_exp_last` |

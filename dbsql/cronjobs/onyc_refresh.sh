@@ -3,16 +3,16 @@
 # ONyc Pipeline Refresh Script
 # =====================================================
 # Tiered refresh for ONyc mid-level ETL pipeline:
-#   Tier 1 (every cycle): per-domain tracks (CAGGs → mat tables in sequence,
-#                         3 tracks in parallel); health + cross-protocol after
+#   Tier 1 (every cycle): Phase 1 — all CAGGs parallel; Phase 2 — all domain
+#                         mat tables + health parallel; cross-protocol after
 #   Tier 2 (every AUX_REFRESH_MULT cycles): Aux/discovery table sync
 #   Tier 3 (every HEALTH_CHECK_MULT cycles): Health check + stats
 #   Daily (midnight UTC): Cleanup of old mat data beyond retention
 #
-# Each domain track runs its CAGGs then its own mat tables sequentially
-# so mat tables always read freshly-refreshed CAGGs. All 3 tracks run
-# concurrently. Health and cross-protocol run after all tracks complete
-# since they read across domains.
+# Two-phase structure keeps the CAGG health snapshot accurate: health runs
+# in parallel with mat tables (Phase 2), so refresh_mat_health_cagg_status()
+# fires immediately after CAGGs complete (~10s window) rather than after the
+# slower mat procedures finish (~90s window, which inflates displayed lag).
 #
 # One-shot: run a single cycle then exit:
 #   ONYC_SINGLE_RUN=1 ./onyc_refresh.sh
@@ -96,20 +96,12 @@ if [ "$ONYC_SINGLE_RUN" = "1" ]; then
 fi
 
 # =====================================================
-# Tier 1: Domain tracks (CAGGs → mat tables, parallel by domain)
+# Tier 1 — Phase 1: CAGG refresh (parallel by domain)
 # =====================================================
-# Each domain runs in a single psql session: CAGGs first, then mat tables.
-# This expresses the dependency correctly — mat tables read from the CAGGs
-# refreshed immediately above them in the same session — and allows each
-# domain to proceed independently without waiting for slower domains.
-#
-# Upper bound is 10s (not 1min) — 5s buckets are complete within 10s.
-#
-# After all domain tracks complete:
-#   health.refresh_mat_health_all() — reads across all domains
-#   cross_protocol.refresh_mat_xp_all() — reads from all domain mat tables
-refresh_domain_tracks() {
-    # --- Track 1: dexes ---
+# All domain CAGG sessions run concurrently. Upper bound is 10s (not 1min)
+# — 5s buckets are complete within 10s, eliminating ~50s of unnecessary lag.
+refresh_caggs() {
+    # --- Dexes ---
     psql "$DB_CONNECTION" <<EOF &
 CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_events_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
 CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_vaults_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
@@ -134,24 +126,18 @@ BEGIN
         CALL refresh_continuous_aggregate('${DEX_SCHEMA}.cagg_events_5s', _cl, NOW() - INTERVAL '10 seconds');
     END IF;
 END \$\$;
-CALL ${DEX_SCHEMA}.refresh_mat_dex_timeseries_1m();
-CALL ${DEX_SCHEMA}.refresh_mat_dex_ohlcv_1m();
-CALL ${DEX_SCHEMA}.refresh_mat_dex_last();
 EOF
     local pid_dex=$!
 
-    # --- Track 2: kamino ---
+    # --- Kamino ---
     psql "$DB_CONNECTION" <<EOF &
 CALL refresh_continuous_aggregate('${KAMINO_SCHEMA}.cagg_activities_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
 CALL refresh_continuous_aggregate('${KAMINO_SCHEMA}.cagg_reserves_5s',        NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
 CALL refresh_continuous_aggregate('${KAMINO_SCHEMA}.cagg_obligations_agg_5s', NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
-CALL ${KAMINO_SCHEMA}.refresh_mat_klend_timeseries_1m();
-CALL ${KAMINO_SCHEMA}.refresh_mat_klend_last();
-CALL ${KAMINO_SCHEMA}.refresh_mat_klend_config();
 EOF
     local pid_kamino=$!
 
-    # --- Track 3: exponent ---
+    # --- Exponent ---
     psql "$DB_CONNECTION" <<EOF &
 CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_vaults_5s',               NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
 CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_market_twos_5s',          NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
@@ -161,8 +147,6 @@ CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_vault_yield_position_
 CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_vault_yt_escrow_5s',      NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
 CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_base_token_escrow_5s',    NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
 CALL refresh_continuous_aggregate('${EXPONENT_SCHEMA}.cagg_tx_events_5s',            NOW() - INTERVAL '${CAGG_REFRESH_WINDOW}', NOW() - INTERVAL '10 seconds');
-CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_timeseries_1m();
-CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_last();
 EOF
     local pid_exponent=$!
 
@@ -170,11 +154,61 @@ EOF
     wait $pid_dex      || fail=1
     wait $pid_kamino   || fail=1
     wait $pid_exponent || fail=1
+    return $fail
+}
+
+# =====================================================
+# Tier 1 — Phase 2: Mat table + health refresh (parallel by domain)
+# =====================================================
+# Runs after refresh_caggs() completes. Domain mat tables and health run
+# concurrently:
+#   - Domain sessions read from the CAGGs that were just refreshed.
+#   - health.refresh_mat_health_all() calls refresh_mat_health_cagg_status()
+#     FIRST (by design in that procedure), capturing the CAGG health snapshot
+#     within ~10s of the CAGG refresh. Running health in parallel with mat
+#     tables (not after) is critical — if health ran after mat tables it would
+#     see source data ~90s ahead of the cagg, inflating displayed lag to ~1.6min.
+#
+# Cross-protocol runs after all domain mat tables and health complete
+# because it reads from domain mat tables.
+refresh_mat_tables() {
+    # --- Phase 2a: domain mat tables + health (parallel) ---
+    psql "$DB_CONNECTION" <<EOF &
+CALL ${DEX_SCHEMA}.refresh_mat_dex_timeseries_1m();
+CALL ${DEX_SCHEMA}.refresh_mat_dex_ohlcv_1m();
+CALL ${DEX_SCHEMA}.refresh_mat_dex_last();
+EOF
+    local pid_dex=$!
+
+    psql "$DB_CONNECTION" <<EOF &
+CALL ${KAMINO_SCHEMA}.refresh_mat_klend_timeseries_1m();
+CALL ${KAMINO_SCHEMA}.refresh_mat_klend_last();
+CALL ${KAMINO_SCHEMA}.refresh_mat_klend_config();
+EOF
+    local pid_kamino=$!
+
+    psql "$DB_CONNECTION" <<EOF &
+CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_timeseries_1m();
+CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_last();
+EOF
+    local pid_exponent=$!
+
+    psql "$DB_CONNECTION" <<EOF &
+CALL health.refresh_mat_health_all();
+EOF
+    local pid_health=$!
+
+    local fail=0
+    wait $pid_dex      || fail=1
+    wait $pid_kamino   || fail=1
+    wait $pid_exponent || fail=1
+    wait $pid_health   || fail=1
     [ $fail -ne 0 ] && return 1
 
-    # --- Post-track: cross-domain tables (require all domains complete) ---
-    psql "$DB_CONNECTION" -c "CALL health.refresh_mat_health_all();" || true
-    psql "$DB_CONNECTION" -c "CALL cross_protocol.refresh_mat_xp_all();"
+    # --- Phase 2b: cross-protocol (depends on domain mat tables) ---
+    psql "$DB_CONNECTION" <<EOF
+CALL cross_protocol.refresh_mat_xp_all();
+EOF
 }
 
 # =====================================================
@@ -445,8 +479,8 @@ run_one_cycle() {
         echo "$LOG_PREFIX [$ts] Cycle #${cycle_count} — CAGGs + mat tables"
     fi
 
-    # --- Tier 1: domain tracks (CAGGs → mat tables, every cycle) ---
-    if refresh_domain_tracks 2>&1; then
+    # --- Tier 1: CAGGs (Phase 1) then mat tables + health (Phase 2) ---
+    if refresh_caggs 2>&1 && refresh_mat_tables 2>&1; then
         failure_count=0
         elapsed_s=$(($(date +%s) - cycle_start))
         echo "$LOG_PREFIX Cycle #${cycle_count} completed in ${elapsed_s}s"
