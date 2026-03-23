@@ -16,5 +16,6 @@ BEGIN
     CALL health.refresh_mat_health_trigger_stats();
     CALL health.refresh_mat_health_base_activity();
     CALL health.refresh_mat_health_base_hourly();
+    CALL health.refresh_mat_health_insert_timing();
 END;
 $$;

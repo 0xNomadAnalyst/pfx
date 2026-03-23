@@ -126,6 +126,13 @@
             {% if not current_pipeline or current_pipeline == "onyc" %}<option value="cross_protocol">cross_protocol</option>{% endif %}
           </select>
         </span>
+      {% elif widget.id == "health-base-chart-insert-timing" %}
+        <span class="title-control-group">
+          <span class="title-separator">|</span>
+          <span class="title-inline-label">Select table:</span>
+          <select id="health-insert-table-select" class="filter-select chart-mode-select" aria-label="Table">
+          </select>
+        </span>
       {% elif widget.id == "health-queue-chart-2" %}
         <span class="title-control-group">
           <span class="title-separator">|</span>

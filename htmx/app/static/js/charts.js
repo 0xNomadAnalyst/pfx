@@ -151,6 +151,7 @@
     ["linked-ts-health-base", new Set([
       "health-base-chart-events",
       "health-base-chart-accounts",
+      "health-base-chart-insert-timing",
     ])],
     ["linked-ts-global", new Set([
       "ge-issuance-time",
@@ -3806,6 +3807,9 @@
     if (widgetId === "ra-cascade") {
       hydrateCascadePoolOptions(payload.data);
     }
+    if (widgetId === "health-base-chart-insert-timing") {
+      hydrateInsertTimingTableSelect(payload.data);
+    }
   }
 
   function updateTimestamp(widgetId, generatedAt, opts = {}) {
@@ -4493,7 +4497,7 @@
       params.health_schema = sourceEl.dataset.healthSchema || "dexes";
       params.health_attribute = sourceEl.dataset.healthAttribute || "Write Rate";
     }
-    if (sourceEl.dataset.widgetId === "health-base-chart-events" || sourceEl.dataset.widgetId === "health-base-chart-accounts") {
+    if (sourceEl.dataset.widgetId === "health-base-chart-events" || sourceEl.dataset.widgetId === "health-base-chart-accounts" || sourceEl.dataset.widgetId === "health-base-chart-insert-timing") {
       params.health_base_schema = sourceEl.dataset.healthBaseSchema || "dexes";
     }
 
@@ -5327,6 +5331,7 @@
     initHealthAttributeToggle();
     initHealthQueueChart2Toggle();
     initHealthBaseSchemaToggle();
+    initInsertTimingTableFilter();
   }
 
   function readWarmupManifest() {
@@ -5927,15 +5932,56 @@
     }
   }
 
+  function applyInsertTimingTableFilter(inst, allSeries, selectedName) {
+    const selected = {};
+    allSeries.forEach((s) => { selected[s.name] = (s.name === selectedName); });
+    inst.setOption({ legend: { selected, data: [selectedName] } });
+  }
+
+  function hydrateInsertTimingTableSelect(data) {
+    const sel = document.getElementById("health-insert-table-select");
+    if (!sel) return;
+    const names = (data?.series || []).map((s) => s.name).filter(Boolean);
+    sel.innerHTML = "";
+    names.forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      sel.appendChild(opt);
+    });
+    // Default to src_tx_events if present, otherwise first option
+    const preferred = names.includes("src_tx_events") ? "src_tx_events" : (names[0] || "");
+    sel.value = preferred;
+    // Apply filter to chart immediately after render
+    const state = chartState.get("health-base-chart-insert-timing");
+    if (state?.instance && preferred) {
+      applyInsertTimingTableFilter(state.instance, data.series || [], preferred);
+    }
+  }
+
+  function initInsertTimingTableFilter() {
+    const sel = document.getElementById("health-insert-table-select");
+    if (!sel) return;
+    sel.addEventListener("change", () => {
+      const val = sel.value;
+      const state = chartState.get("health-base-chart-insert-timing");
+      if (!state?.instance || !state?.data) return;
+      applyInsertTimingTableFilter(state.instance, state.data.series || [], val);
+    });
+  }
+
   function initHealthBaseSchemaToggle() {
     const selects = document.querySelectorAll(".health-base-schema-select");
     if (!selects.length) return;
-    const eventsWidget = document.getElementById("widget-health-base-chart-events");
+    const eventsWidget  = document.getElementById("widget-health-base-chart-events");
     const accountsWidget = document.getElementById("widget-health-base-chart-accounts");
+    const insertWidget  = document.getElementById("widget-health-base-chart-insert-timing");
     selects.forEach((sel) => {
       sel.addEventListener("change", () => {
         const val = sel.value || "dexes";
         selects.forEach((s) => { s.value = val; });
+        const insertSel = document.getElementById("health-insert-table-select");
+        if (insertSel) insertSel.value = "src_tx_events";
         if (eventsWidget) {
           eventsWidget.dataset.healthBaseSchema = val;
           resetWidgetView(eventsWidget);
@@ -5944,12 +5990,17 @@
           accountsWidget.dataset.healthBaseSchema = val;
           resetWidgetView(accountsWidget);
         }
+        if (insertWidget) {
+          insertWidget.dataset.healthBaseSchema = val;
+          resetWidgetView(insertWidget);
+        }
         markInteractiveRefreshWindow();
         htmx.trigger(document.body, "health-base-schema-change");
       });
     });
-    if (eventsWidget) eventsWidget.dataset.healthBaseSchema = selects[0].value || "dexes";
+    if (eventsWidget)  eventsWidget.dataset.healthBaseSchema  = selects[0].value || "dexes";
     if (accountsWidget) accountsWidget.dataset.healthBaseSchema = selects[0].value || "dexes";
+    if (insertWidget)  insertWidget.dataset.healthBaseSchema  = selects[0].value || "dexes";
   }
 
   document.body.addEventListener("htmx:beforeSend", (event) => {

@@ -188,22 +188,26 @@ INFO_MASTER = (
     "<ul>"
     "<li><strong>Queues</strong> &mdash; likely a service or ingestion issue (a queue writer may have stopped or fallen behind)</li>"
     "<li><strong>Triggers / CAGG Refresh</strong> &mdash; likely a database issue (a trigger function or refresh cronjob may have stopped)</li>"
-    "<li><strong>Base Tables</strong> &mdash; could indicate real anomalous activity or an underlying technical issue with data ingestion</li>"
+    "<li><strong>Base Tables</strong> &mdash; likely an ingestion anomaly or a write bottleneck (e.g. a slow trigger)</li>"
     "</ul>"
 )
 
 INFO_QUEUE = (
     "<p>Real-time status of database write queues across all protocol domains. "
     "Each queue represents an independent worker with its own database connection.</p>"
-    "<p><strong>Status Indicators:</strong></p>"
+    "<p><strong>Status Indicators</strong> (Gap dimension &mdash; ratio of current staleness to capped P95 baseline):</p>"
     "<ul>"
-    "<li>\U0001f7e2 <strong>NORMAL</strong>: Within historical norm (\u2264 2x P95)</li>"
-    "<li>\U0001f7e1 <strong>ELEVATED</strong>: Minor deviation (2-4x P95)</li>"
-    "<li>\U0001f7e0 <strong>HIGH</strong>: Notable deviation (4-8x P95)</li>"
-    "<li>\U0001f534 <strong>ANOMALY</strong>: Extreme deviation (&gt; 8x P95)</li>"
+    "<li>\U0001f7e2 <strong>NORMAL</strong>: \u2264 1.25\u00d7 capped P95 baseline (or queue idle with no failures)</li>"
+    "<li>\U0001f7e1 <strong>ELEVATED</strong>: 1.25\u20133\u00d7</li>"
+    "<li>\U0001f7e0 <strong>HIGH</strong>: 3\u201310\u00d7</li>"
+    "<li>\U0001f534 <strong>ANOMALY</strong>: &gt; 10\u00d7, or absolute wall-clock floor exceeded, or queue has stopped reporting</li>"
     "</ul>"
+    "<p>The P95 baseline is capped per queue type: 1 hour for state/write-on-difference queues; "
+    "24 hours for event and transaction queues. This prevents a slow-recovery incident from permanently "
+    "raising the baseline and masking future problems.</p>"
     "<p><strong>Summary</strong> (leftmost column) reflects the worst status across Gap, Util, and Failure dimensions. "
-    "Many queues use &ldquo;write on difference only&rdquo; mode &mdash; long periods without writes are normal when underlying data hasn&rsquo;t changed.</p>"
+    "Write-on-difference queues with an empty queue and zero failures bypass the staleness check &mdash; "
+    "long gaps without writes are normal when the underlying data hasn&rsquo;t changed.</p>"
 )
 
 INFO_TRIGGER = (
@@ -214,8 +218,9 @@ INFO_TRIGGER = (
     "<li>\U0001f7e2 <strong>Healthy</strong>: Trigger is firing and derived table is up to date</li>"
     "<li>\U0001f7e1 <strong>Lagging</strong>: Derived table is &gt;10 minutes behind source</li>"
     "<li>\U0001f7e0 <strong>Low coverage</strong>: Derived table has &lt;50% of source rows in the last hour</li>"
-    "<li>\U0001f534 <strong>Trigger not firing</strong>: Source has data but derived table has none</li>"
-    "<li>\u26aa <strong>No source data</strong>: Base table itself has no recent data</li>"
+    "<li>\U0001f534 <strong>Trigger not firing</strong>: Source has recent data but derived table has none &mdash; "
+    "this is the only status that triggers a master red alert</li>"
+    "<li>\u26aa <strong>No source data</strong>: Base table itself has no recent data (not a trigger issue)</li>"
     "</ul>"
 )
 
@@ -224,16 +229,31 @@ INFO_BASE_TABLE = (
     "Compares recent activity against historical benchmarks.</p>"
     "<p><strong>Status Logic:</strong> Uses 7-day write frequency (hours with any data / 168 total hours) "
     "to derive an <em>expected gap</em> between writes. This naturally handles write-on-difference tables "
-    "&mdash; if a table only writes a few times per week, gaps of hours or days are treated as normal.</p>"
+    "&mdash; if a table only writes a few times per week, gaps of hours or days are treated as normal. "
+    "For tables with no established history yet, a time-based fallback applies: "
+    "&le;12 h = Active, 12\u201324 h = Check, 24\u201372 h = Stale, &gt;72 h = ANOMALY.</p>"
     "<p><strong>Immediate escalation:</strong> Tables normally receiving \u226510 rows/hour that drop to "
     "zero rows in the last hour are flagged <strong>ANOMALY</strong> immediately (ingestion death detection).</p>"
-    "<p><strong>Status Indicators</strong> (ratio = current gap / expected gap):</p>"
+    "<p><strong>Two indicators per row, plus a Summary:</strong></p>"
     "<ul>"
-    "<li>\U0001f7e2 <strong>Active</strong>: \u2264 2x expected gap (normal)</li>"
-    "<li>\U0001f7e1 <strong>Check</strong>: 2-3x expected gap (worth monitoring)</li>"
-    "<li>\U0001f7e0 <strong>Stale</strong>: 3-5x expected gap (significant deviation)</li>"
-    "<li>\U0001f534 <strong>ANOMALY</strong>: &gt; 5x expected gap or zero rows on active table</li>"
+    "<li><strong>Activity</strong> \u2014 row count + gap logic:</li>"
+    "<ul>"
+    "<li>\U0001f7e2 <strong>Active</strong>: \u2264 2\u00d7 expected gap (normal)</li>"
+    "<li>\U0001f7e1 <strong>Check</strong>: 2\u20133\u00d7 expected gap (worth monitoring)</li>"
+    "<li>\U0001f7e0 <strong>Stale</strong>: 3\u20135\u00d7 expected gap (significant deviation)</li>"
+    "<li>\U0001f534 <strong>ANOMALY</strong>: &gt; 5\u00d7 expected gap or zero rows on active table</li>"
     "</ul>"
+    "<li><strong>Insert</strong> \u2014 mean INSERT time from pg_stat_statements (last ~30s window):</li>"
+    "<ul>"
+    "<li>\U0001f7e2 <strong>NORMAL</strong>: &lt; 50 ms (no bottleneck)</li>"
+    "<li>\U0001f7e1 <strong>ELEVATED</strong>: 50\u2013500 ms (watch for trend)</li>"
+    "<li>\U0001f7e0 <strong>HIGH</strong>: 500 ms\u20135 s (queue will back up)</li>"
+    "<li>\U0001f534 <strong>ANOMALY</strong>: \u2265 5 s (trigger S3-scan territory)</li>"
+    "<li>\u26aa <strong>\u2014</strong>: no recent insert activity recorded in this window</li>"
+    "</ul>"
+    "</ul>"
+    "<p><strong>Summary</strong> = worst of Activity and Insert. Drives the master health check. "
+    "A missing Insert reading (\u2014) never degrades the Summary.</p>"
 )
 
 INFO_CAGG = (
@@ -242,11 +262,16 @@ INFO_CAGG = (
     "<p><strong>Status Indicators:</strong></p>"
     "<ul>"
     "<li>\U0001f7e2 <strong>Refresh OK</strong>: CAGG is within 5 minutes of source data &mdash; cronjob working correctly</li>"
-    "<li>\U0001f7e1 <strong>Refresh Delayed</strong>: 5-15 minute lag &mdash; minor delay, monitor</li>"
-    "<li>\U0001f7e0 <strong>Source Stale</strong>: Base table exceeds 2x its expected write gap &mdash; NOT a cronjob issue, ingestion may be down</li>"
-    "<li>\U0001f534 <strong>Source Stale (critical)</strong>: Base table exceeds 5x its expected gap &mdash; ingestion is likely dead</li>"
-    "<li>\U0001f534 <strong>Refresh Broken</strong>: CAGG &gt;15 minutes behind source &mdash; cronjob may have stopped</li>"
-    "<li>\u26aa <strong>No data</strong>: Neither CAGG nor base table have any data</li>"
+    "<li>\U0001f7e2 <strong>Dormant (expected)</strong>: Both CAGG and source have no data in &gt;24 h, but CAGG is within its "
+    "expected lag threshold &mdash; system is dormant, not broken</li>"
+    "<li>\U0001f7e1 <strong>Refresh Delayed</strong>: 5\u201315 minute lag &mdash; minor delay, monitor</li>"
+    "<li>\U0001f7e0 <strong>Source Stale</strong>: Base table exceeds 2\u00d7 its expected write gap &mdash; "
+    "NOT a cronjob issue, ingestion may be down</li>"
+    "<li>\U0001f534 <strong>Source Stale</strong> (&gt;5\u00d7 expected gap): ingestion is likely dead</li>"
+    "<li>\U0001f534 <strong>Refresh Broken</strong>: CAGG &gt;15 minutes behind an active source &mdash; cronjob may have stopped</li>"
+    "<li>\U0001f534 <strong>Dormant (lagging)</strong>: Both CAGG and source inactive &gt;24 h, but CAGG is significantly "
+    "behind &mdash; refresh was not keeping up before the source went quiet</li>"
+    "<li>\u26aa <strong>No data ever</strong>: Neither CAGG nor base table have any data at all</li>"
     "</ul>"
     "<p><strong>Key Insight:</strong> &ldquo;Source Stale&rdquo; uses the same frequency-based expected gap as Base Table Activity. "
     "Write-on-difference tables (controllers, depositories) have long expected gaps and won&rsquo;t false-flag. "
@@ -271,6 +296,7 @@ class HealthPageService(BasePageService):
             "health-base-table": self._health_base_table,
             "health-base-chart-events": self._health_base_chart_events,
             "health-base-chart-accounts": self._health_base_chart_accounts,
+            "health-base-chart-insert-timing": self._health_base_chart_insert_timing,
             "health-cagg-table": self._health_cagg_table,
         }
 
@@ -387,9 +413,10 @@ class HealthPageService(BasePageService):
             f"health:{pl}:base_tables",
             lambda: self.sql.fetch_rows(
                 "SELECT "
-                "  status, schema_name, table_name, latest_time, "
+                "  schema_name, table_name, latest_time, "
                 "  minutes_since_latest, rows_last_hour, rows_last_24h, avg_rows_per_hour, "
-                "  is_red "
+                "  activity_status, insert_mean_ms, insert_status, "
+                "  summary_status, is_red "
                 "FROM health.v_health_base_table",
                 statement_timeout_ms=_TABLE_TIMEOUT_MS,
             ),
@@ -606,31 +633,47 @@ class HealthPageService(BasePageService):
         rows = self._fetch_base_tables(self._pl(params))
         formatted = []
         for r in rows:
-            status = r.get("status", "")
+            act    = r.get("activity_status", "")
+            ins    = r.get("insert_status") or ""
+            summ   = r.get("summary_status", "")
+            ins_ms = r.get("insert_mean_ms")
+            if ins_ms is None:
+                ins_ms_fmt = "\u2014"
+                ins_fmt    = "\u2014"
+            else:
+                ms = float(ins_ms)
+                ins_ms_fmt = f"{ms:.0f}ms" if ms >= 1 else f"{ms:.2f}ms"
+                ins_fmt    = f"{_status_emoji(ins)} {ins}"
             formatted.append({
-                "status": f"{_status_emoji(status)} {status}",
-                "schema_name": r.get("schema_name", ""),
-                "table_name": r.get("table_name", ""),
-                "latest_time": _fmt_ts(r.get("latest_time")),
-                "min_ago": _fmt_float(r.get("minutes_since_latest")),
-                "rows_1h": _fmt_int(r.get("rows_last_hour")),
-                "rows_24h": _fmt_int(r.get("rows_last_24h")),
+                "summary":      f"{_status_emoji(summ)} {summ}",
+                "schema_name":  r.get("schema_name", ""),
+                "table_name":   r.get("table_name", ""),
+                "latest_time":  _fmt_ts(r.get("latest_time")),
+                "min_ago":      _fmt_float(r.get("minutes_since_latest")),
+                "rows_1h":      _fmt_int(r.get("rows_last_hour")),
+                "rows_24h":     _fmt_int(r.get("rows_last_24h")),
                 "avg_per_hour": _fmt_int(r.get("avg_rows_per_hour")),
-                "is_red": r.get("is_red", False),
+                "activity":     f"{_status_emoji(act)} {act}",
+                "insert_ms":    ins_ms_fmt,
+                "insert":       ins_fmt,
+                "is_red":       r.get("is_red", False),
             })
 
         return {
             "kind": "table",
             "info": {"key": "health-base-table", "content": INFO_BASE_TABLE},
             "columns": [
-                {"key": "status", "label": "Status"},
-                {"key": "schema_name", "label": "Schema"},
-                {"key": "table_name", "label": "Table"},
-                {"key": "latest_time", "label": "Latest"},
-                {"key": "min_ago", "label": "Min Ago"},
-                {"key": "rows_1h", "label": "Rows 1h"},
-                {"key": "rows_24h", "label": "Rows 24h"},
+                {"key": "summary",      "label": "Summary"},
+                {"key": "schema_name",  "label": "Schema"},
+                {"key": "table_name",   "label": "Table"},
+                {"key": "latest_time",  "label": "Latest"},
+                {"key": "min_ago",      "label": "Min Ago"},
+                {"key": "rows_1h",      "label": "Rows 1h"},
+                {"key": "rows_24h",     "label": "Rows 24h"},
                 {"key": "avg_per_hour", "label": "Avg/Hour"},
+                {"key": "activity",     "label": "Activity"},
+                {"key": "insert_ms",    "label": "Insert ms"},
+                {"key": "insert",       "label": "Insert"},
             ],
             "rows": formatted,
         }
@@ -718,6 +761,58 @@ class HealthPageService(BasePageService):
 
     def _health_base_chart_accounts(self, params: dict[str, Any]) -> dict[str, Any]:
         return self._build_base_chart(params, "Account Updates")
+
+    def _health_base_chart_insert_timing(self, params: dict[str, Any]) -> dict[str, Any]:
+        schema = str(params.get("health_base_schema") or "dexes")
+        last_window = str(params.get("last_window") or "7d")
+        if schema not in VALID_SCHEMAS:
+            schema = "dexes"
+        lookback, interval = WINDOW_MAP.get(last_window, ("7 days", "3 hours"))
+        pl = self._pl(params)
+        cache_key = f"health:{pl}:insert_timing_chart::{schema}::{last_window}"
+
+        def _load() -> list[dict[str, Any]]:
+            return self.sql.fetch_rows(
+                "SELECT bucket, table_name, avg_value "
+                "FROM health.v_health_insert_timing_chart(%s, %s, %s, %s)",
+                (schema, "Mean Insert ms", lookback, interval),
+                statement_timeout_ms=_CHART_TIMEOUT_MS,
+            )
+
+        raw = self._cached(cache_key, _load, ttl_seconds=self._chart_ttl)
+
+        # Build aligned series — each table gets one value per bucket (None if absent)
+        lookup: dict[tuple[str, str], Any] = {}
+        all_tables: set[str] = set()
+        buckets: list[str] = []
+        seen_buckets: set[str] = set()
+        for r in sorted(raw, key=lambda r: str(r.get("bucket", ""))):
+            b = str(r["bucket"])
+            tbl = str(r.get("table_name", ""))
+            if b not in seen_buckets:
+                buckets.append(b)
+                seen_buckets.add(b)
+            all_tables.add(tbl)
+            lookup[(b, tbl)] = r.get("avg_value")
+
+        series = [
+            {
+                "name": tbl,
+                "type": "line",
+                "color": QUEUE_COLORS[i % len(QUEUE_COLORS)],
+                "data": [lookup.get((b, tbl)) for b in buckets],
+            }
+            for i, tbl in enumerate(sorted(all_tables))
+        ]
+
+        return {
+            "kind": "chart",
+            "chart": "line",
+            "x": buckets,
+            "yAxisLabel": "Mean Insert ms",
+            "yAxisFormat": "decimal",
+            "series": series,
+        }
 
     # ------------------------------------------------------------------
     # 8. CAGG Refresh Health table

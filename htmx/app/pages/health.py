@@ -55,22 +55,9 @@ PAGE_CONFIG = PageConfig(
         ),
 
         # ═══════════════════════════════════════════════════════
-        # Section 3: TRIGGER FUNCTION HEALTH
+        # Section 3: BASE TABLE HEALTH
         # ═══════════════════════════════════════════════════════
-        _hdr("h-hdr-3", "Trigger Function Health", "h-hdr-3 cv-section-header"),
-
-        WidgetConfig(
-            "health-trigger-table",
-            "Trigger Function Health",
-            "table",
-            "panel panel-wide-table health-slot-trigger",
-            expandable=False,
-        ),
-
-        # ═══════════════════════════════════════════════════════
-        # Section 4: BASE TABLE HEALTH
-        # ═══════════════════════════════════════════════════════
-        _hdr("h-hdr-4", "Base Table Health", "h-hdr-4 cv-section-header"),
+        _hdr("h-hdr-3", "Base Table Health", "h-hdr-3 cv-section-header"),
 
         WidgetConfig(
             "health-base-table",
@@ -92,6 +79,26 @@ PAGE_CONFIG = PageConfig(
             "chart",
             "panel panel-medium health-slot-base-accts",
             expandable=True,
+        ),
+        WidgetConfig(
+            "health-base-chart-insert-timing",
+            "Insert Timing",
+            "chart",
+            "panel panel-medium health-slot-base-insert",
+            expandable=True,
+        ),
+
+        # ═══════════════════════════════════════════════════════
+        # Section 4: TRIGGER FUNCTION HEALTH
+        # ═══════════════════════════════════════════════════════
+        _hdr("h-hdr-4", "Trigger Function Health", "h-hdr-4 cv-section-header"),
+
+        WidgetConfig(
+            "health-trigger-table",
+            "Trigger Function Health",
+            "table",
+            "panel panel-wide-table health-slot-trigger",
+            expandable=False,
         ),
 
         # ═══════════════════════════════════════════════════════
