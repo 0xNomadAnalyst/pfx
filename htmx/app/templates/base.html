@@ -270,8 +270,7 @@
 
   <div id="video-modal-backdrop" class="video-modal-backdrop" hidden>
     <section class="video-modal" role="dialog" aria-modal="true" aria-label="Video Guide">
-      <button type="button" id="video-modal-close" class="video-modal-close" aria-label="Close video">Close</button>
-      <div id="video-player-wrap" class="video-player-wrap">
+<div id="video-player-wrap" class="video-player-wrap">
         <iframe id="yt-iframe" class="yt-iframe" title="Video Guide" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
       </div>
     </section>
@@ -351,7 +350,6 @@
   (function() {
     var btn = document.getElementById("video-guide-btn");
     var backdrop = document.getElementById("video-modal-backdrop");
-    var closeBtn = document.getElementById("video-modal-close");
     var iframe = document.getElementById("yt-iframe");
     if (!btn || !backdrop || !iframe) return;
 
@@ -374,7 +372,6 @@
     }
 
     btn.addEventListener("click", function() { openVideoModal(); });
-    if (closeBtn) closeBtn.addEventListener("click", closeVideoModal);
     window.__openVideoGuideModal = openVideoModal;
     backdrop.addEventListener("click", function(e) {
       if (e.target === backdrop) closeVideoModal();
