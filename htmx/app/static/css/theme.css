@@ -2505,11 +2505,17 @@ html[data-theme="light"] .bottombar-logo--for-dark  { display: none; }
   align-items: center;
   color: var(--muted);
   text-decoration: none;
-  transition: color 0.7s ease-in-out;
+  transition: color 0.4s ease-in-out, filter 0.4s ease-in-out;
 }
 
 .bottombar-social-link:hover {
-  color: var(--accent);
+  color: rgba(75, 183, 255, 0.9);
+  filter: drop-shadow(0 0 5px rgba(75, 183, 255, 0.55)) drop-shadow(0 0 2px rgba(75, 183, 255, 0.35));
+}
+
+html[data-theme="light"] .bottombar-social-link:hover {
+  color: rgba(10, 120, 240, 0.9);
+  filter: drop-shadow(0 0 5px rgba(10, 120, 240, 0.45)) drop-shadow(0 0 2px rgba(10, 120, 240, 0.30));
 }
 
 /* Bottombar document download links */
