@@ -274,7 +274,7 @@
   <div id="video-modal-backdrop" class="video-modal-backdrop" hidden>
     <section class="video-modal" role="dialog" aria-modal="true" aria-label="Video Guide">
 <div id="video-player-wrap" class="video-player-wrap">
-        <iframe id="yt-iframe" class="yt-iframe" title="Video Guide" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <iframe id="yt-iframe" class="yt-iframe" title="Video Guide" allow="encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
       </div>
     </section>
   </div>
@@ -366,7 +366,7 @@
     function openVideoModal(overrideVideoId) {
       var videoId = (overrideVideoId || currentVideoId() || "").trim();
       if (!videoId) return;
-      iframe.src = "https://www.youtube-nocookie.com/embed/" + videoId + "?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&vq=hd1080";
+      iframe.src = "https://www.youtube-nocookie.com/embed/" + videoId + "?rel=0&modestbranding=1&iv_load_policy=3&vq=hd1080";
       backdrop.hidden = false;
       document.body.style.overflow = "hidden";
     }
