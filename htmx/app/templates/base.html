@@ -273,7 +273,12 @@
 
   <div id="video-modal-backdrop" class="video-modal-backdrop" hidden>
     <section class="video-modal" role="dialog" aria-modal="true" aria-label="Video Guide">
-<div id="video-player-wrap" class="video-player-wrap">
+      <div id="video-player-wrap" class="video-player-wrap">
+        <div id="yt-poster" class="yt-poster" aria-hidden="true">
+          <button id="yt-poster-play" class="yt-poster-play" aria-label="Play video">
+            <svg viewBox="0 0 68 48" width="68" height="48"><path d="M66.5 7.4C65.7 4.4 63.3 2 60.3 1.2 55 0 34 0 34 0S13 0 7.7 1.2C4.7 2 2.3 4.4 1.5 7.4 0 12.8 0 24 0 24s0 11.2 1.5 16.6c.8 3 3.2 5.4 6.2 6.2C13 48 34 48 34 48s21 0 26.3-1.2c3-.8 5.4-3.2 6.2-6.2C68 35.2 68 24 68 24s0-11.2-1.5-16.6z" fill="rgba(0,0,0,0.55)"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+          </button>
+        </div>
         <iframe id="yt-iframe" class="yt-iframe" title="Video Guide" allow="encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
       </div>
     </section>
@@ -357,7 +362,9 @@
     var btn = document.getElementById("video-guide-btn");
     var backdrop = document.getElementById("video-modal-backdrop");
     var iframe = document.getElementById("yt-iframe");
-    if (!btn || !backdrop || !iframe) return;
+    var poster = document.getElementById("yt-poster");
+    var posterPlay = document.getElementById("yt-poster-play");
+    if (!btn || !backdrop || !iframe || !poster) return;
 
     function currentVideoId() {
       return (document.body.dataset.videoGuideId || "").trim();
@@ -366,17 +373,35 @@
     function openVideoModal(overrideVideoId) {
       var videoId = (overrideVideoId || currentVideoId() || "").trim();
       if (!videoId) return;
-      iframe.src = "https://www.youtube-nocookie.com/embed/" + videoId + "?rel=0&modestbranding=1&iv_load_policy=3&vq=hd1080";
+      iframe.dataset.pendingVideoId = videoId;
+      iframe.src = "";
+      var hq = "https://img.youtube.com/vi/" + videoId + "/hqdefault.jpg";
+      var max = "https://img.youtube.com/vi/" + videoId + "/maxresdefault.jpg";
+      var img = new Image();
+      img.onload = function() { poster.style.backgroundImage = "url('" + max + "')"; };
+      img.onerror = function() { poster.style.backgroundImage = "url('" + hq + "')"; };
+      img.src = max;
+      poster.classList.remove("hidden");
       backdrop.hidden = false;
       document.body.style.overflow = "hidden";
+    }
+
+    function loadVideo() {
+      var videoId = iframe.dataset.pendingVideoId;
+      if (!videoId) return;
+      iframe.src = "https://www.youtube-nocookie.com/embed/" + videoId + "?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&vq=hd1080";
+      poster.classList.add("hidden");
     }
 
     function closeVideoModal() {
       backdrop.hidden = true;
       document.body.style.overflow = "";
       iframe.src = "";
+      poster.classList.remove("hidden");
     }
 
+    posterPlay.addEventListener("click", loadVideo);
+    poster.addEventListener("click", loadVideo);
     btn.addEventListener("click", function() { openVideoModal(); });
     window.__openVideoGuideModal = openVideoModal;
     backdrop.addEventListener("click", function(e) {
