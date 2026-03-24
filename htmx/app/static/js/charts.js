@@ -6393,6 +6393,11 @@
 
   const explainerCache = {};
 
+  // Preload static explainer JSON so it is instantly available on click
+  ["/static/data/kamino-explainer.json", "/static/data/exponent-explainer.json"].forEach(function(path) {
+    fetch(path).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) { if (data) explainerCache[path] = data; }).catch(function() {});
+  });
+
   async function buildExplainerFromJSON(jsonPath) {
     if (!explainerCache[jsonPath]) {
       const resp = await fetch(jsonPath);
