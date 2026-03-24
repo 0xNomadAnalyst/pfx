@@ -8,6 +8,13 @@
   <link rel="icon" href="/static/images/favicon-32x32.png" type="image/png" sizes="32x32" />
   <title>{{ app_title }} - {{ page_title }}</title>
   <link rel="stylesheet" href="/static/css/theme.css?v=70" />
+  <link rel="preload" as="image" href="/static/images/video-posters/0wgPh78PwAs.png" />
+  <link rel="preload" as="image" href="/static/images/video-posters/Ktk99W77UWk.png" />
+  <link rel="preload" as="image" href="/static/images/video-posters/5p5nsW3Vxtg.png" />
+  <link rel="preload" as="image" href="/static/images/video-posters/W0hpbYCwGmQ.png" />
+  <link rel="preload" as="image" href="/static/images/video-posters/Bjf98CbpM1g.png" />
+  <link rel="preload" as="image" href="/static/images/video-posters/gpwDZdXkIMY.png" />
+  <link rel="preload" as="image" href="/static/images/video-posters/tuuF4efh3NM.png" />
   <script>document.documentElement.style.setProperty('--half-screen', (screen.width / 2) + 'px');</script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
@@ -279,7 +286,7 @@
             <svg viewBox="0 0 68 48" width="68" height="48"><path d="M66.5 7.4C65.7 4.4 63.3 2 60.3 1.2 55 0 34 0 34 0S13 0 7.7 1.2C4.7 2 2.3 4.4 1.5 7.4 0 12.8 0 24 0 24s0 11.2 1.5 16.6c.8 3 3.2 5.4 6.2 6.2C13 48 34 48 34 48s21 0 26.3-1.2c3-.8 5.4-3.2 6.2-6.2C68 35.2 68 24 68 24s0-11.2-1.5-16.6z" fill="rgba(0,0,0,0.55)"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
           </button>
         </div>
-        <iframe id="yt-iframe" class="yt-iframe" title="Video Guide" allow="encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <iframe id="yt-iframe" class="yt-iframe" title="Video Guide" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
       </div>
     </section>
   </div>
@@ -375,12 +382,22 @@
       if (!videoId) return;
       iframe.dataset.pendingVideoId = videoId;
       iframe.src = "";
+      poster.style.backgroundImage = "";
+      var local = "/static/images/video-posters/" + videoId + ".png";
       var hq = "https://img.youtube.com/vi/" + videoId + "/hqdefault.jpg";
       var max = "https://img.youtube.com/vi/" + videoId + "/maxresdefault.jpg";
       var img = new Image();
-      img.onload = function() { poster.style.backgroundImage = "url('" + max + "')"; };
-      img.onerror = function() { poster.style.backgroundImage = "url('" + hq + "')"; };
-      img.src = max;
+      img.onload = function() { poster.style.backgroundImage = "url('" + local + "')"; };
+      img.onerror = function() {
+        var yt = new Image();
+        yt.onload = function() {
+          var url = yt.naturalWidth > 200 ? max : hq;
+          poster.style.backgroundImage = "url('" + url + "')";
+        };
+        yt.onerror = function() { poster.style.backgroundImage = "url('" + hq + "')"; };
+        yt.src = max;
+      };
+      img.src = local;
       poster.classList.remove("hidden");
       backdrop.hidden = false;
       document.body.style.overflow = "hidden";
@@ -389,7 +406,7 @@
     function loadVideo() {
       var videoId = iframe.dataset.pendingVideoId;
       if (!videoId) return;
-      iframe.src = "https://www.youtube-nocookie.com/embed/" + videoId + "?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&vq=hd1080";
+      iframe.src = "https://www.youtube-nocookie.com/embed/" + videoId + "?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&vq=hd1080&enablejsapi=1";
       poster.classList.add("hidden");
     }
 
@@ -399,6 +416,22 @@
       iframe.src = "";
       poster.classList.remove("hidden");
     }
+
+    window.addEventListener("message", function(e) {
+      if (e.origin !== "https://www.youtube-nocookie.com") return;
+      try {
+        var data = JSON.parse(e.data);
+        if (data.event === "onReady") {
+          iframe.contentWindow.postMessage(
+            JSON.stringify({ event: "command", func: "addEventListener", args: ["onStateChange"] }),
+            "https://www.youtube-nocookie.com"
+          );
+        } else if (data.event === "onStateChange" && data.info === 2 && !backdrop.hidden) {
+          iframe.src = "";
+          poster.classList.remove("hidden");
+        }
+      } catch (err) {}
+    });
 
     posterPlay.addEventListener("click", loadVideo);
     poster.addEventListener("click", loadVideo);
