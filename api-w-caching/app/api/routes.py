@@ -4,8 +4,12 @@ import os
 import threading
 from typing import Annotated
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 from app.api.schemas import WidgetResponse
 from app.services.cache_config import API_CACHE_CONFIG
@@ -18,7 +22,7 @@ _service = DataService(SqlAdapter())
 _pipeline_switch_lock = threading.Lock()
 
 _raw_stats = os.getenv("API_CACHE_STATS_ENABLED")
-_CACHE_STATS_ENABLED = (_raw_stats == "1") if _raw_stats is not None else bool(API_CACHE_CONFIG.get("API_CACHE_STATS_ENABLED", True))
+_CACHE_STATS_ENABLED = (_raw_stats == "1") if _raw_stats is not None else bool(API_CACHE_CONFIG.get("API_CACHE_STATS_ENABLED", False))
 
 
 def get_data_service() -> DataService:
@@ -65,12 +69,12 @@ class _SwitchRequest(BaseModel):
 class _WarmupRequest(BaseModel):
     targets: list[dict[str, object]] = []
     base_params: dict[str, object] = {}
-    budget_seconds: float = 30.0
-    max_jobs: int = 20
-    concurrency: int = 3
+    budget_seconds: float = Field(30.0, ge=1, le=60)
+    max_jobs: int = Field(20, ge=1, le=40)
+    concurrency: int = Field(3, ge=1, le=6)
     include_payloads: bool = False
-    max_payload_bytes: int = 2_000_000
-    max_payload_count: int = 20
+    max_payload_bytes: int = Field(2_000_000, ge=1, le=5_000_000)
+    max_payload_count: int = Field(20, ge=1, le=50)
 
 @router.get("/api/v1/pipeline")
 def get_pipeline() -> dict[str, object]:
@@ -125,7 +129,8 @@ def get_meta(
         _ensure_pipeline_for_request(_pipeline)
         return _service.get_meta()
     except Exception as exc:  # pragma: no cover - defensive path
-        raise HTTPException(status_code=500, detail=f"Meta query failed: {str(exc)[:200]}") from exc
+        logger.error("Meta query failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Meta query failed") from exc
 
 
 @router.get("/api/v1/{page}/{widget}", response_model=WidgetResponse)
@@ -196,10 +201,10 @@ def get_widget(
         payload = svc.get_widget_data(page=page, widget_id=widget, params=params)
         return WidgetResponse(**payload)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)[:200]) from exc
+        raise HTTPException(status_code=404, detail="Widget not found") from exc
     except Exception as exc:  # pragma: no cover - defensive path
-        short = str(exc)[:200]
-        raise HTTPException(status_code=500, detail=f"Widget query failed: {short}") from exc
+        logger.error("Widget query failed page=%s widget=%s: %s", page, widget, exc)
+        raise HTTPException(status_code=500, detail="Widget query failed") from exc
 
 
 @router.post("/api/v1/warmup")
@@ -217,5 +222,5 @@ def warmup_targets(body: _WarmupRequest, svc: DataService = Depends(get_data_ser
         )
         return {"status": "ok", **result}
     except Exception as exc:
-        short = str(exc)[:200]
-        raise HTTPException(status_code=500, detail=f"Warmup failed: {short}") from exc
+        logger.error("Warmup failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Warmup failed") from exc

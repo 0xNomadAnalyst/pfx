@@ -42,17 +42,23 @@ async def lifespan(_: FastAPI):
     service.close()
 
 
+_cors_raw = os.getenv("CORS_ALLOWED_ORIGINS", "")
+_cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()] if _cors_raw.strip() else []
+
 app = FastAPI(
     title="Dashboard Widget API",
     description="Frontend-agnostic widget API for the HTMX dashboard.",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=_cors_origins,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 app.include_router(router)

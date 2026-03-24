@@ -270,6 +270,9 @@ app = FastAPI(
     title="HTMX Risk Dashboard",
     description="Server-rendered dashboard using HTMX + ECharts.",
     version="0.1.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -731,12 +734,12 @@ def switch_pipeline_proxy(request: Request):
                 _meta_proxy_cache.clear()
             return JSONResponse(content=payload)
     except urllib.error.HTTPError as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=exc.code)
-    except Exception as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=502)
+        return JSONResponse(content={"error": "Pipeline switch failed"}, status_code=exc.code)
+    except Exception:
+        return JSONResponse(content={"error": "Pipeline switch unavailable"}, status_code=502)
 
 
-@app.api_route("/api/v1/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+@app.api_route("/api/v1/{path:path}", methods=["GET", "POST"])
 async def api_v1_proxy(path: str, request: Request):
     """Forward all /api/v1/* widget requests to the internal API server.
 
@@ -780,9 +783,9 @@ async def api_v1_proxy(path: str, request: Request):
                 headers={"Cache-Control": "no-store"},
             )
     except urllib.error.HTTPError as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=exc.code)
-    except Exception as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=502)
+        return JSONResponse(content={"error": "API request failed"}, status_code=exc.code)
+    except Exception:
+        return JSONResponse(content={"error": "API unavailable"}, status_code=502)
 
 
 @app.get("/api/health-status")
