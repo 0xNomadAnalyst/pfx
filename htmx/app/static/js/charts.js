@@ -4829,7 +4829,82 @@
     });
   }
 
+  function initSidebarNav() {
+    const sidebar = document.getElementById("sidebar-nav");
+    if (!sidebar) return;
+    if (sidebar.dataset.boundSidebarNav === "1") return;
+    sidebar.dataset.boundSidebarNav = "1";
+
+    const SIDEBAR_COLLAPSE_KEY = "riskdash.sidebarNavCollapsed.v1";
+    const toggleBtn = document.getElementById("sidebar-nav-toggle");
+    const toggleIcon = toggleBtn ? toggleBtn.querySelector(".sidebar-nav-toggle-icon") : null;
+    const links = Array.from(sidebar.querySelectorAll(".sidebar-nav-link[data-sidebar-path]"));
+
+    function setCollapsed(next, { persist = true } = {}) {
+      sidebar.classList.toggle("is-collapsed", next);
+      if (toggleBtn) {
+        toggleBtn.setAttribute("aria-expanded", next ? "false" : "true");
+        toggleBtn.setAttribute("aria-label", next ? "Expand navigation sidebar" : "Collapse navigation sidebar");
+      }
+      if (toggleIcon) {
+        toggleIcon.textContent = next ? "▶" : "◀";
+      }
+      if (persist) {
+        try {
+          window.localStorage.setItem(SIDEBAR_COLLAPSE_KEY, next ? "1" : "0");
+        } catch (_) {}
+      }
+    }
+
+    let initialCollapsed = false;
+    try {
+      initialCollapsed = window.localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === "1";
+    } catch (_) {}
+    setCollapsed(initialCollapsed, { persist: false });
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener("click", () => {
+        setCollapsed(!sidebar.classList.contains("is-collapsed"));
+      });
+    }
+
+    function highlightSidebarLink(targetPath) {
+      links.forEach((l) => {
+        const match = l.getAttribute("data-sidebar-path") === targetPath;
+        l.classList.toggle("is-active", match);
+        if (match) l.setAttribute("aria-current", "page");
+        else l.removeAttribute("aria-current");
+      });
+    }
+
+    links.forEach((link) => {
+      link.addEventListener("click", (e) => {
+        const path = link.getAttribute("data-sidebar-path");
+        if (!path) return;
+        e.preventDefault();
+        highlightSidebarLink(path);
+        if (path === `${window.location.pathname}${window.location.search || ""}`) return;
+        clearTimeout(_sidebarDebounceTimer);
+        _sidebarDebouncePath = path;
+        _sidebarDebounceTimer = setTimeout(() => {
+          const target = _sidebarDebouncePath;
+          _sidebarDebouncePath = "";
+          _sidebarDebounceTimer = 0;
+          if (target) {
+            softNavigateToPage(target, { pushHistory: true });
+          }
+        }, SIDEBAR_DEBOUNCE_MS);
+      });
+    });
+
+  }
+
   function teardownForSoftNavigation() {
+    if (_sidebarDebounceTimer) {
+      clearTimeout(_sidebarDebounceTimer);
+      _sidebarDebounceTimer = 0;
+      _sidebarDebouncePath = "";
+    }
     widgetElements().forEach((el) => {
       try { htmx.trigger(el, "htmx:abort"); } catch (_) {}
     });
@@ -4900,6 +4975,7 @@
       "coverVideoGuideId",
       "minViewportWidth",
       "requestMobile",
+      "navLayout",
     ].forEach((key) => {
       const attr = incomingBody.dataset[key];
       if (attr != null) {
@@ -4922,6 +4998,10 @@
 
   let _softNavInFlight = false;
   let _softNavController = null;
+  let _softNavQueuedPath = "";
+  let _sidebarDebounceTimer = 0;
+  let _sidebarDebouncePath = "";
+  const SIDEBAR_DEBOUNCE_MS = 180;
   let _interactiveRefreshUntil = 0;
   let _visibilityObserver = null;
 
@@ -5005,7 +5085,10 @@
     if (!main) return;
     ensureSoftNavPendingStyles();
     const pageSelect = document.getElementById("page-select");
-    const selectedLabel = pageSelect ? pageSelect.options[pageSelect.selectedIndex]?.textContent || "Selected view" : "Selected view";
+    const sidebarActive = document.querySelector("#sidebar-nav .sidebar-nav-link.is-active");
+    const selectedLabel = pageSelect
+      ? pageSelect.options[pageSelect.selectedIndex]?.textContent || "Selected view"
+      : (sidebarActive ? sidebarActive.textContent?.trim() || "Selected view" : "Selected view");
     main.innerHTML = `
       <section class="soft-nav-pending-head">
         <div>
@@ -5028,9 +5111,18 @@
 
   function setPageSelectorBusy(isBusy) {
     const pageSelect = document.getElementById("page-select");
-    if (!pageSelect) return;
-    pageSelect.disabled = isBusy;
-    pageSelect.dataset.loading = isBusy ? "1" : "0";
+    if (pageSelect) {
+      pageSelect.disabled = isBusy;
+      pageSelect.dataset.loading = isBusy ? "1" : "0";
+    }
+    document.querySelectorAll("#sidebar-nav .sidebar-nav-link[data-sidebar-path]").forEach((link) => {
+      if (isBusy) {
+        link.setAttribute("aria-disabled", "true");
+      } else {
+        link.removeAttribute("aria-disabled");
+      }
+      link.classList.toggle("is-busy", isBusy);
+    });
   }
 
   async function applySoftNavHtml(path, html, { pushHistory = true } = {}) {
@@ -5059,6 +5151,7 @@
     updateOrReplaceNode(".pipeline-switcher", nextDoc);
     updateOrReplaceNode("#topbar-view-select", nextDoc);
     updateOrReplaceNode(".topbar-page-actions", nextDoc);
+    updateOrReplaceNode("#sidebar-nav", nextDoc);
     updateBodyDataAttrsFromDoc(nextDoc);
     updateWarmupManifest(nextDoc);
 
@@ -5070,6 +5163,7 @@
     _warmupSchedulerStarted = false;
     _warmupInFlight = false;
     initPageSelector();
+    initSidebarNav();
     initPipelineSwitcher();
     await initFilters();
     initRiskEventTypeToggle();
@@ -5104,9 +5198,26 @@
     }
   }
 
+  function _finishSoftNav() {
+    _softNavInFlight = false;
+    setPageSelectorBusy(false);
+    _softNavController = null;
+    if (_softNavQueuedPath) {
+      const next = _softNavQueuedPath;
+      _softNavQueuedPath = "";
+      if (next !== `${window.location.pathname}${window.location.search || ""}`) {
+        setTimeout(() => softNavigateToPage(next, { pushHistory: true }), 0);
+      }
+    }
+  }
+
   async function softNavigateToPage(path, { pushHistory = true } = {}) {
     const navPath = normalizeSoftNavPath(path);
     if (!navPath || navPath === `${window.location.pathname}${window.location.search || ""}`) return;
+    if (_softNavInFlight) {
+      _softNavQueuedPath = navPath;
+      return;
+    }
     if (_softNavController) {
       try { _softNavController.abort(); } catch (_) {}
       _softNavController = null;
@@ -5134,10 +5245,8 @@
       setTimeout(() => {
         refreshCriticalWidgetsNow();
       }, 60);
-      setPageSelectorBusy(false);
       void refreshSoftNavShellCache(navPath, SOFT_NAV_SHELL_REFRESH_DELAY_MS);
-      _softNavInFlight = false;
-      _softNavController = null;
+      _finishSoftNav();
       return;
     }
 
@@ -5166,9 +5275,7 @@
       if (err && err.name === "AbortError") return;
       window.location.assign(navPath);
     } finally {
-      _softNavInFlight = false;
-      setPageSelectorBusy(false);
-      _softNavController = null;
+      _finishSoftNav();
     }
   }
 
@@ -6997,6 +7104,7 @@
     persistCacheHydrate();
     hydratePrefetchedShells();
     initPageSelector();
+    initSidebarNav();
     initPipelineSwitcher();
     initFilters();
     initHealthIndicator();

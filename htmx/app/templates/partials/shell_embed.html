@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head><title>{{ app_title }} - {{ page_title }}</title></head>
-<body
+<body class="{% if use_sidebar_nav %}sidebar-nav-mode{% endif %}"
   data-api-base-url="{{ api_base_url }}"
   data-current-page-slug="{{ current_page_slug }}"
   data-current-pipeline="{{ current_pipeline }}"
   data-default-protocol="{{ protocol }}"
   data-default-pair="{{ pair }}"
+  data-nav-layout="{{ 'sidebar' if use_sidebar_nav else 'topbar' }}"
   data-warmup-budget-seconds="{{ cache_config.warmup_budget_seconds if cache_config else 30 }}"
   data-warmup-max-jobs="{{ cache_config.warmup_max_jobs if cache_config else 20 }}"
   data-warmup-concurrency="{{ cache_config.warmup_concurrency if cache_config else 3 }}"
@@ -15,6 +16,32 @@
   data-min-viewport-width="{{ min_supported_viewport_width }}"
   data-request-mobile="{{ '1' if request_mobile else '0' }}"
 >
+  {% if use_sidebar_nav %}
+  <aside id="sidebar-nav" class="sidebar-nav" aria-label="Dashboard views">
+    <button id="sidebar-nav-toggle" class="sidebar-nav-toggle" type="button" aria-expanded="true" aria-label="Collapse navigation sidebar">
+      <span class="sidebar-nav-toggle-icon" aria-hidden="true">◀</span>
+    </button>
+    <section class="sidebar-nav-panel" aria-label="Available pages">
+      <h2 class="sidebar-nav-title">View</h2>
+      <ul class="sidebar-nav-list">
+        {% for option in page_options %}
+        <li>
+          <a
+            class="sidebar-nav-link{% if option.slug == current_page_slug %} is-active{% endif %}"
+            href="{{ option.path }}"
+            data-sidebar-path="{{ option.path }}"
+            data-sidebar-slug="{{ option.slug }}"
+            {% if option.slug == current_page_slug %}aria-current="page"{% endif %}
+          >
+            {{ option.label }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </aside>
+  {% endif %}
+
   <header class="topbar">
     <div class="topbar-left">
       {% if show_pipeline_switcher %}
@@ -35,6 +62,7 @@
         </select>
       </div>
       {% endif %}
+      {% if show_view_selector %}
       <div id="topbar-view-select" class="topbar-meta topbar-filters">
         <label class="filter-label" for="page-select">View</label>
         <select id="page-select" class="filter-select" aria-label="Page">
@@ -43,6 +71,7 @@
           {% endfor %}
         </select>
       </div>
+      {% endif %}
       <div class="topbar-video-guide">
         <span class="filter-label">Watch</span>
         <button type="button" class="video-guide-link" id="video-guide-btn" aria-label="Video Guide">

@@ -7,7 +7,7 @@
   <link rel="icon" href="/static/images/favicon-16x16.png" type="image/png" sizes="16x16" />
   <link rel="icon" href="/static/images/favicon-32x32.png" type="image/png" sizes="32x32" />
   <title>{{ app_title }} - {{ page_title }}</title>
-  <link rel="stylesheet" href="/static/css/theme.css?v=75" />
+  <link rel="stylesheet" href="/static/css/theme.css?v=85" />
   <link rel="preload" as="image" href="/static/images/video-posters/0wgPh78PwAs.png" />
   <link rel="preload" as="image" href="/static/images/video-posters/Ktk99W77UWk.png" />
   <link rel="preload" as="image" href="/static/images/video-posters/5p5nsW3Vxtg.png" />
@@ -20,12 +20,13 @@
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 </head>
-<body
+<body class="{% if use_sidebar_nav %}sidebar-nav-mode{% endif %}"
   data-api-base-url="{{ api_base_url }}"
   data-current-page-slug="{{ current_page_slug }}"
   data-current-pipeline="{{ current_pipeline }}"
   data-default-protocol="{{ protocol }}"
   data-default-pair="{{ pair }}"
+  data-nav-layout="{{ 'sidebar' if use_sidebar_nav else 'topbar' }}"
   data-cache-mode="{{ cache_config.cache_mode if cache_config else 'balanced' }}"
   data-warmup-enabled="{{ '1' if cache_config and cache_config.warmup_enabled else '0' }}"
   data-warmup-budget-seconds="{{ cache_config.warmup_budget_seconds if cache_config else 30 }}"
@@ -58,6 +59,32 @@
   data-min-viewport-width="{{ min_supported_viewport_width }}"
   data-request-mobile="{{ '1' if request_mobile else '0' }}"
 >
+  {% if use_sidebar_nav %}
+  <aside id="sidebar-nav" class="sidebar-nav" aria-label="Dashboard views">
+    <button id="sidebar-nav-toggle" class="sidebar-nav-toggle" type="button" aria-expanded="true" aria-label="Collapse navigation sidebar">
+      <span class="sidebar-nav-toggle-icon" aria-hidden="true">◀</span>
+    </button>
+    <section class="sidebar-nav-panel" aria-label="Available pages">
+      <h2 class="sidebar-nav-title">View</h2>
+      <ul class="sidebar-nav-list">
+        {% for option in page_options %}
+        <li>
+          <a
+            class="sidebar-nav-link{% if option.slug == current_page_slug %} is-active{% endif %}"
+            href="{{ option.path }}"
+            data-sidebar-path="{{ option.path }}"
+            data-sidebar-slug="{{ option.slug }}"
+            {% if option.slug == current_page_slug %}aria-current="page"{% endif %}
+          >
+            {{ option.label }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </aside>
+  {% endif %}
+
   <header class="topbar">
     <div class="topbar-left">
       <div class="topbar-title">
@@ -92,6 +119,7 @@
         </select>
       </div>
       {% endif %}
+      {% if show_view_selector %}
       <div id="topbar-view-select" class="topbar-meta topbar-filters">
         <label class="filter-label" for="page-select">View</label>
         <select id="page-select" class="filter-select" aria-label="Page">
@@ -100,6 +128,7 @@
           {% endfor %}
         </select>
       </div>
+      {% endif %}
       <div class="topbar-video-guide">
         <span class="filter-label">Watch</span>
         <button type="button" class="video-guide-link" id="video-guide-btn" aria-label="Video Guide">
@@ -264,14 +293,25 @@
 
   <div id="ecosystem-guide-overlay" class="ecosystem-guide-overlay" hidden aria-hidden="true">
     <div class="ecosystem-guide-shade"></div>
-    <div class="ecosystem-guide-focus" data-guide-focus="#topbar-view-select"></div>
+    <div class="ecosystem-guide-focus" data-guide-focus="{% if use_sidebar_nav %}#sidebar-nav{% else %}#topbar-view-select{% endif %}"></div>
     <div class="ecosystem-guide-focus" data-guide-focus="#video-guide-btn"></div>
     <div class="ecosystem-guide-focus" data-guide-focus="#last-window-select"></div>
     <div class="ecosystem-guide-focus" data-guide-focus="#health-indicator"></div>
 
-    <section class="ecosystem-guide-card" data-guide-card="#topbar-view-select" data-guide-placement="bottom">
-      <h3>View Selector</h3>
-      <p>Switch between ecosystem, protocol, and risk pages from one control.</p>
+    <section
+      class="ecosystem-guide-card"
+      data-guide-card="{% if use_sidebar_nav %}#sidebar-nav{% else %}#topbar-view-select{% endif %}"
+      data-guide-placement="{% if use_sidebar_nav %}right-mid{% else %}bottom{% endif %}"
+      {% if use_sidebar_nav %}data-guide-arrow="left"{% endif %}
+    >
+      <h3>{% if use_sidebar_nav %}Navigation Bar{% else %}View Selector{% endif %}</h3>
+      <p>
+        {% if use_sidebar_nav %}
+        Use the left navigation bar to switch between ecosystem, protocol, and risk pages.
+        {% else %}
+        Switch between ecosystem, protocol, and risk pages from one control.
+        {% endif %}
+      </p>
     </section>
     <section class="ecosystem-guide-card" data-guide-card="#video-guide-btn" data-guide-placement="bottom">
       <h3>Video Guide</h3>
@@ -430,7 +470,7 @@
   <script src="/static/js/theme.js?v=2"></script>
   <script id="warmup-manifest" type="application/json">{{ warmup_manifest|tojson }}</script>
   {% if embedded_shells_json %}<script id="prefetched-shells" type="application/json">{{ embedded_shells_json|safe }}</script>{% endif %}
-  <script src="/static/js/charts.js?v=78"></script>
+  <script src="/static/js/charts.js?v=82"></script>
   <script>
   (function() {
     var btn = document.getElementById("video-guide-btn");
@@ -879,6 +919,24 @@
           return;
         }
         cardEl.style.display = "block";
+        if (placement === "right-mid") {
+          cardEl.style.maxWidth = Math.max(150, Math.floor(window.innerWidth * 0.2)) + "px";
+          var rightCardWidth = cardEl.offsetWidth || 180;
+          var rightCardHeight = cardEl.offsetHeight || 90;
+          var rightLeft = clamp(
+            rect.right + CARD_OFFSET,
+            CARD_MARGIN,
+            Math.max(CARD_MARGIN, window.innerWidth - rightCardWidth - CARD_MARGIN)
+          );
+          var rightTop = clamp(
+            rect.top + (rect.height / 2) - (rightCardHeight / 2),
+            CARD_MARGIN,
+            Math.max(CARD_MARGIN, window.innerHeight - rightCardHeight - CARD_MARGIN)
+          );
+          cardEl.style.left = Math.round(rightLeft) + "px";
+          cardEl.style.top = Math.round(rightTop) + "px";
+          return;
+        }
         var layout = placeCard(cardEl, rect, placement);
         layout.el = cardEl;
         rowItems.push(layout);
