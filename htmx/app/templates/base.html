@@ -801,7 +801,22 @@
         return;
       }
 
+      // Preserve active playback across periodic UI refresh hooks while
+      // the guide is open (e.g. htmx settle events from background widgets).
+      var loadedVideoId = (introIframe.dataset.loadedVideoId || "").trim();
+      if (
+        loadedVideoId === videoId &&
+        introIframe.src &&
+        introIframe.src.indexOf("/embed/" + videoId) !== -1
+      ) {
+        introIframe.hidden = false;
+        introPoster.classList.add("hidden");
+        if (introEmpty) introEmpty.hidden = true;
+        return;
+      }
+
       introIframe.dataset.pendingVideoId = videoId;
+      introIframe.dataset.loadedVideoId = "";
       introIframe.src = "";
       introPoster.style.backgroundImage = "";
       var local = "/static/images/video-posters/" + videoId + ".png";
@@ -828,6 +843,7 @@
       if (!introIframe || !introPoster) return;
       var videoId = (introIframe.dataset.pendingVideoId || "").trim();
       if (!videoId) return;
+      introIframe.dataset.loadedVideoId = videoId;
       introIframe.src = "https://www.youtube-nocookie.com/embed/" + videoId + "?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&vq=hd1080";
       introPoster.classList.add("hidden");
     }
