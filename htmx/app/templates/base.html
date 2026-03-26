@@ -7,7 +7,7 @@
   <link rel="icon" href="/static/images/favicon-16x16.png" type="image/png" sizes="16x16" />
   <link rel="icon" href="/static/images/favicon-32x32.png" type="image/png" sizes="32x32" />
   <title>{{ app_title }} - {{ page_title }}</title>
-  <link rel="stylesheet" href="/static/css/theme.css?v=85" />
+  <link rel="stylesheet" href="/static/css/theme.css?v=87" />
   <link rel="preload" as="image" href="/static/images/video-posters/0wgPh78PwAs.png" />
   <link rel="preload" as="image" href="/static/images/video-posters/Ktk99W77UWk.png" />
   <link rel="preload" as="image" href="/static/images/video-posters/5p5nsW3Vxtg.png" />
@@ -328,14 +328,26 @@
 
     <section class="ecosystem-guide-center" role="dialog" aria-modal="false" aria-labelledby="ecosystem-guide-center-title">
       <h2 id="ecosystem-guide-center-title">ONyc Token DeFi Ecosystem Dashboard</h2>
-      <p class="ecosystem-guide-center-copy">
-        This dashboard tracks ONyc token activity across the core DeFi surface:
-      </p>
-      <ul class="ecosystem-guide-domain-list">
-        <li><strong>DEX Markets:</strong> Orca and Raydium</li>
-        <li><strong>Lending:</strong> Kamino</li>
-        <li><strong>Yield Trading:</strong> Exponent</li>
-      </ul>
+      <div class="ecosystem-guide-overview-grid" role="group" aria-label="Dashboard overview and common uses">
+        <section class="ecosystem-guide-overview-col">
+          <p class="ecosystem-guide-center-copy ecosystem-guide-center-copy-strong">
+            Tracks ONyc token activity across:
+          </p>
+          <ul class="ecosystem-guide-domain-list">
+            <li><strong>DEX Markets:</strong> Orca and Raydium</li>
+            <li><strong>Lending Markets:</strong> Kamino</li>
+            <li><strong>Yield Trading:</strong> Exponent</li>
+          </ul>
+        </section>
+        <section class="ecosystem-guide-overview-col ecosystem-guide-overview-col-right">
+          <p class="ecosystem-guide-center-copy"><strong>Common dashboard uses:</strong></p>
+          <ul class="ecosystem-guide-domain-list">
+            <li>Cross-protocol risk management</li>
+            <li>Market maker monitoring and accountability</li>
+            <li>Liquidity and execution quality governance</li>
+          </ul>
+        </section>
+      </div>
       <div class="ecosystem-guide-video-wrap">
         <div class="ecosystem-guide-video-shell">
           <div id="ecosystem-guide-poster" class="yt-poster" aria-hidden="true">
