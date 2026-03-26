@@ -18,7 +18,7 @@
   const PAGE_ACTION_CACHE_TTL_MS = 60_000;
   const DETAIL_TABLE_CACHE_MAX_ENTRIES = 40;
   const PAGE_ACTION_CACHE_MAX_ENTRIES = 40;
-  const SOFT_NAV_SHELL_CACHE_MAX_ENTRIES = readRuntimeInt("softNavShellCacheMaxEntries", 5, 1, 20);
+  const SOFT_NAV_SHELL_CACHE_MAX_ENTRIES = readRuntimeInt("softNavShellCacheMaxEntries", 5, 1, 40);
   const SOFT_NAV_SHELL_CACHE_TTL_MS = readRuntimeInt("softNavShellCacheTtlMs", 600_000, 10_000, 3_600_000);
   const SOFT_NAV_SHELL_REFRESH_DELAY_MS = readRuntimeInt("softNavShellRefreshDelayMs", 3000, 500, 20_000);
   const VIEWPORT_REFRESH_DEFER_MS = 280;
@@ -54,6 +54,9 @@
   const detailTableCache = new Map();
   const pageActionCache = new Map();
   const softNavShellCache = new Map();
+  const softNavShellFetchInFlight = new Map();
+  let softNavShellCacheCapacity = SOFT_NAV_SHELL_CACHE_MAX_ENTRIES;
+  const PINNED_SOFT_NAV_PATHS = new Set(["/global-ecosystem", "/cover"]);
   const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = readRuntimeInt("widgetResponseCacheMaxEntries", 100, 10, 500);
   const widgetResponseCache = new Map();
   const perfMetrics = {
@@ -4006,6 +4009,15 @@
     pageActionCache.clear();
     widgetResponseCache.clear();
     softNavShellCache.clear();
+    softNavShellFetchInFlight.clear();
+    softNavShellCacheCapacity = SOFT_NAV_SHELL_CACHE_MAX_ENTRIES;
+    _allShellPrefetchScheduled = false;
+    _allShellPrefetchCompleted = false;
+    _deferredSoftNavHydrationToken += 1;
+    if (_deferredSoftNavHydrationTimer) {
+      clearTimeout(_deferredSoftNavHydrationTimer);
+      _deferredSoftNavHydrationTimer = 0;
+    }
     protocolPairs = [];
     const mkt1 = document.getElementById("mkt1-select");
     const mkt2 = document.getElementById("mkt2-select");
@@ -4578,12 +4590,55 @@
     }
   }
 
-  function setSoftNavShellCache(path, html) {
-    if (!path || !html) return;
-    setLruCacheEntry(softNavShellCache, SOFT_NAV_SHELL_CACHE_MAX_ENTRIES, path, {
-      html,
-      expiresAt: Date.now() + SOFT_NAV_SHELL_CACHE_TTL_MS,
+  function ensureSoftNavShellCacheCapacity(minEntries = SOFT_NAV_SHELL_CACHE_MAX_ENTRIES) {
+    const nextCapacity = Math.max(SOFT_NAV_SHELL_CACHE_MAX_ENTRIES, Number(minEntries) || 0);
+    if (nextCapacity <= softNavShellCacheCapacity) return;
+    softNavShellCacheCapacity = nextCapacity;
+  }
+
+  function collectSoftNavPathsFromUi() {
+    const paths = [];
+    const pageSelect = document.getElementById("page-select");
+    if (pageSelect && pageSelect.options?.length) {
+      Array.from(pageSelect.options).forEach((opt) => {
+        const normalized = normalizeSoftNavPath(opt.value || "");
+        if (normalized && !paths.includes(normalized)) paths.push(normalized);
+      });
+    }
+    document.querySelectorAll("#sidebar-nav .sidebar-nav-link[data-sidebar-path]").forEach((link) => {
+      const normalized = normalizeSoftNavPath(link.getAttribute("data-sidebar-path") || "");
+      if (normalized && !paths.includes(normalized)) paths.push(normalized);
     });
+    return paths;
+  }
+
+  function isPinnedSoftNavPath(path) {
+    const normalized = normalizeSoftNavPath(path);
+    return !!normalized && PINNED_SOFT_NAV_PATHS.has(normalized);
+  }
+
+  function setSoftNavShellCache(path, html, { pinned = false } = {}) {
+    const normalizedPath = normalizeSoftNavPath(path);
+    if (!normalizedPath || !html) return;
+    const existing = softNavShellCache.get(normalizedPath);
+    const shouldPin = Boolean(pinned || existing?.pinned || isPinnedSoftNavPath(normalizedPath));
+    if (softNavShellCache.has(normalizedPath)) softNavShellCache.delete(normalizedPath);
+    softNavShellCache.set(normalizedPath, {
+      html,
+      pinned: shouldPin,
+      expiresAt: shouldPin ? Number.POSITIVE_INFINITY : Date.now() + SOFT_NAV_SHELL_CACHE_TTL_MS,
+    });
+
+    while (softNavShellCache.size > softNavShellCacheCapacity) {
+      let evicted = false;
+      for (const [cachePath, entry] of softNavShellCache.entries()) {
+        if (entry?.pinned) continue;
+        softNavShellCache.delete(cachePath);
+        evicted = true;
+        break;
+      }
+      if (!evicted) break;
+    }
   }
 
   function hydratePrefetchedShells() {
@@ -4591,6 +4646,7 @@
     if (!el) return;
     try {
       const shellMap = JSON.parse(el.textContent);
+      ensureSoftNavShellCacheCapacity(Object.keys(shellMap || {}).length + 2);
       for (const [path, html] of Object.entries(shellMap)) {
         if (html && !getSoftNavShellCache(path)) {
           setSoftNavShellCache(path, html);
@@ -4601,14 +4657,106 @@
   }
 
   function getSoftNavShellCache(path) {
-    const cached = softNavShellCache.get(path);
+    const normalizedPath = normalizeSoftNavPath(path);
+    if (!normalizedPath) return null;
+    const cached = softNavShellCache.get(normalizedPath);
     if (!cached) return null;
-    if (cached.expiresAt <= Date.now()) {
-      softNavShellCache.delete(path);
+    if (!cached.pinned && cached.expiresAt <= Date.now()) {
+      softNavShellCache.delete(normalizedPath);
       return null;
     }
-    setLruCacheEntry(softNavShellCache, SOFT_NAV_SHELL_CACHE_MAX_ENTRIES, path, cached);
+    setSoftNavShellCache(normalizedPath, cached.html, { pinned: cached.pinned });
     return cached.html;
+  }
+
+  function snapshotCurrentPageShellForSoftNavCache() {
+    const path = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
+    if (!path) return;
+    try {
+      const html = `<!DOCTYPE html>\n${document.documentElement.outerHTML}`;
+      setSoftNavShellCache(path, html, { pinned: isPinnedSoftNavPath(path) });
+    } catch (_) {
+      // Best-effort shell snapshot.
+    }
+  }
+
+  async function fetchAndCacheSoftNavShell(path) {
+    const normalizedPath = normalizeSoftNavPath(path);
+    if (!normalizedPath) return false;
+
+    const inFlight = softNavShellFetchInFlight.get(normalizedPath);
+    if (inFlight) return inFlight;
+
+    const req = (async () => {
+      const response = await fetch(normalizedPath, {
+        headers: { "X-Requested-With": "riskdash-soft-nav-refresh" },
+        cache: "no-store",
+      });
+      if (!response.ok) return false;
+      const html = await response.text();
+      setSoftNavShellCache(normalizedPath, html);
+      return true;
+    })();
+    softNavShellFetchInFlight.set(normalizedPath, req);
+    try {
+      return await req;
+    } finally {
+      if (softNavShellFetchInFlight.get(normalizedPath) === req) {
+        softNavShellFetchInFlight.delete(normalizedPath);
+      }
+    }
+  }
+
+  let _allShellPrefetchScheduled = false;
+  let _allShellPrefetchCompleted = false;
+  function scheduleAllShellPrefetch() {
+    if (_allShellPrefetchScheduled || _allShellPrefetchCompleted) return;
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const effectiveType = String(conn?.effectiveType || "").toLowerCase();
+    if (conn && (conn.saveData || effectiveType === "slow-2g" || effectiveType === "2g")) return;
+
+    const runPrefetch = async () => {
+      const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
+      const candidates = collectSoftNavPathsFromUi().filter((p) => p && p !== currentPath);
+      if (!candidates.length) {
+        _allShellPrefetchCompleted = true;
+        return;
+      }
+      ensureSoftNavShellCacheCapacity(candidates.length + 2);
+      const queue = candidates.filter((path) => !getSoftNavShellCache(path));
+      if (!queue.length) {
+        _allShellPrefetchCompleted = true;
+        return;
+      }
+
+      const concurrency = Math.max(1, Math.min(4, SHELL_PREFETCH_CONCURRENCY));
+      let idx = 0;
+      const workers = Array.from({ length: concurrency }, async () => {
+        while (idx < queue.length) {
+          const path = queue[idx++];
+          try {
+            await fetchAndCacheSoftNavShell(path);
+          } catch (_) {
+            // Best-effort prefetch.
+          }
+        }
+      });
+      await Promise.all(workers);
+      _allShellPrefetchCompleted = true;
+    };
+
+    _allShellPrefetchScheduled = true;
+    const kickoff = () => {
+      runPrefetch().finally(() => {
+        _allShellPrefetchScheduled = false;
+      });
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(kickoff, { timeout: 2000 });
+    } else {
+      setTimeout(kickoff, 800);
+    }
   }
 
   function setWidgetCachedPayload(widgetId, signature, payload) {
@@ -4790,6 +4938,8 @@
     if (!pageSelect) {
       return;
     }
+    ensureSoftNavShellCacheCapacity(collectSoftNavPathsFromUi().length + 2);
+    scheduleAllShellPrefetch();
     if (pageSelect.dataset.boundPageNav === "1") return;
     pageSelect.dataset.boundPageNav = "1";
 
@@ -4832,6 +4982,8 @@
   function initSidebarNav() {
     const sidebar = document.getElementById("sidebar-nav");
     if (!sidebar) return;
+    ensureSoftNavShellCacheCapacity(collectSoftNavPathsFromUi().length + 2);
+    scheduleAllShellPrefetch();
     if (sidebar.dataset.boundSidebarNav === "1") return;
     sidebar.dataset.boundSidebarNav = "1";
 
@@ -5182,7 +5334,63 @@
     });
   }
 
-  async function applySoftNavHtml(path, html, { pushHistory = true } = {}) {
+  async function hydrateSoftNavPage(path) {
+    const navPath = normalizeSoftNavPath(path);
+    const livePath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
+    if (!navPath || navPath !== livePath) return false;
+
+    if (hasSupersedingNav(path)) {
+      _softNavDebug.supersededHydrationSkips += 1;
+      _softNavDebugEvent("superseded_skip", { path, queuedPath: _softNavQueuedPath || "" });
+      return false;
+    }
+
+    if (SOFT_NAV_HYDRATION_GUARD_MS > 0) {
+      await new Promise((resolve) => setTimeout(resolve, SOFT_NAV_HYDRATION_GUARD_MS));
+      if (hasSupersedingNav(path)) {
+        _softNavDebug.supersededHydrationSkips += 1;
+        _softNavDebugEvent("superseded_skip_post_guard", { path, queuedPath: _softNavQueuedPath || "" });
+        return false;
+      }
+      const guardedLivePath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
+      if (!guardedLivePath || guardedLivePath !== navPath) return false;
+    }
+
+    _warmupSchedulerStarted = false;
+    _warmupInFlight = false;
+    initPageSelector();
+    initSidebarNav();
+    initPipelineSwitcher();
+    await initFilters();
+
+    const postFiltersPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
+    if (!postFiltersPath || postFiltersPath !== navPath) return false;
+
+    initRiskEventTypeToggle();
+    initRiskLiqSourceToggle();
+    initRiskStressAssetToggles();
+    initCascadePoolToggle();
+    htmx.process(document.body);
+    return true;
+  }
+
+  let _deferredSoftNavHydrationTimer = 0;
+  let _deferredSoftNavHydrationToken = 0;
+  function scheduleDeferredSoftNavHydration(path, delayMs = 90) {
+    _deferredSoftNavHydrationToken += 1;
+    const token = _deferredSoftNavHydrationToken;
+    if (_deferredSoftNavHydrationTimer) {
+      clearTimeout(_deferredSoftNavHydrationTimer);
+      _deferredSoftNavHydrationTimer = 0;
+    }
+    _deferredSoftNavHydrationTimer = setTimeout(() => {
+      _deferredSoftNavHydrationTimer = 0;
+      if (token !== _deferredSoftNavHydrationToken) return;
+      void hydrateSoftNavPage(path);
+    }, Math.max(0, delayMs));
+  }
+
+  async function applySoftNavHtml(path, html, { pushHistory = true, hydrate = true } = {}) {
     const parser = new DOMParser();
     const nextDoc = parser.parseFromString(html, "text/html");
     const nextMain = nextDoc.querySelector("main");
@@ -5226,27 +5434,9 @@
       _softNavDebugEvent("superseded_skip", { path, queuedPath: _softNavQueuedPath || "" });
       return true;
     }
-
-    if (SOFT_NAV_HYDRATION_GUARD_MS > 0) {
-      await new Promise((resolve) => setTimeout(resolve, SOFT_NAV_HYDRATION_GUARD_MS));
-      if (hasSupersedingNav(path)) {
-        _softNavDebug.supersededHydrationSkips += 1;
-        _softNavDebugEvent("superseded_skip_post_guard", { path, queuedPath: _softNavQueuedPath || "" });
-        return true;
-      }
+    if (hydrate) {
+      await hydrateSoftNavPage(path);
     }
-
-    _warmupSchedulerStarted = false;
-    _warmupInFlight = false;
-    initPageSelector();
-    initSidebarNav();
-    initPipelineSwitcher();
-    await initFilters();
-    initRiskEventTypeToggle();
-    initRiskLiqSourceToggle();
-    initRiskStressAssetToggles();
-    initCascadePoolToggle();
-    htmx.process(document.body);
     return true;
   }
 
@@ -5257,16 +5447,11 @@
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
     try {
-      const response = await fetch(normalizedPath, {
-        headers: { "X-Requested-With": "riskdash-soft-nav-refresh" },
-        cache: "no-store",
-      });
-      if (!response.ok) {
+      const ok = await fetchAndCacheSoftNavShell(normalizedPath);
+      if (!ok) {
         recordPerfMetric("softNavShellBackgroundRefreshFailed");
         return;
       }
-      const html = await response.text();
-      setSoftNavShellCache(normalizedPath, html);
       recordPerfMetric("softNavShellBackgroundRefreshSuccess");
     } catch (_) {
       // Best-effort background shell refresh.
@@ -5309,6 +5494,11 @@
   async function softNavigateToPage(path, { pushHistory = true } = {}) {
     const navPath = normalizeSoftNavPath(path);
     if (!navPath || navPath === `${window.location.pathname}${window.location.search || ""}`) return;
+    _deferredSoftNavHydrationToken += 1;
+    if (_deferredSoftNavHydrationTimer) {
+      clearTimeout(_deferredSoftNavHydrationTimer);
+      _deferredSoftNavHydrationTimer = 0;
+    }
     if (_softNavInFlight) {
       _softNavQueuedPath = navPath;
       _softNavDebug.queueEnqueues += 1;
@@ -5341,7 +5531,7 @@
       recordPerfMetric("softNavShellCacheHit");
       _adaptiveShellPrefetchUsed++;
       try {
-        shellAppliedFromCache = await applySoftNavHtml(navPath, cachedShell, { pushHistory });
+        shellAppliedFromCache = await applySoftNavHtml(navPath, cachedShell, { pushHistory, hydrate: false });
       } catch (_) {
         shellAppliedFromCache = false;
       }
@@ -5353,9 +5543,7 @@
       showSoftNavPending(navPath);
     } else {
       if (!hasSupersedingNav(navPath)) {
-        setTimeout(() => {
-          refreshCriticalWidgetsNow();
-        }, 60);
+        scheduleDeferredSoftNavHydration(navPath);
         void refreshSoftNavShellCache(navPath, SOFT_NAV_SHELL_REFRESH_DELAY_MS);
       }
       _finishSoftNav();
@@ -7219,6 +7407,7 @@
     };
     persistCacheHydrate();
     hydratePrefetchedShells();
+    snapshotCurrentPageShellForSoftNavCache();
     initPageSelector();
     initSidebarNav();
     initPipelineSwitcher();
