@@ -1788,6 +1788,274 @@ body[data-current-page-slug="cover"] .video-guide-link:hover {
   font-size: 12px;
 }
 
+/* First-session ecosystem guidance overlay */
+body.ecosystem-guide-active {
+  overflow: hidden;
+}
+
+.ecosystem-guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1070;
+  pointer-events: auto;
+}
+
+.ecosystem-guide-overlay[hidden] {
+  display: none !important;
+}
+
+.ecosystem-guide-shade {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 10, 18, 0.72);
+  backdrop-filter: blur(1.5px);
+}
+
+.ecosystem-guide-focus {
+  position: fixed;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 169, 74, 0.72);
+  box-shadow:
+    0 0 0 1px rgba(248, 169, 74, 0.2),
+    0 0 24px rgba(248, 169, 74, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  background: rgba(248, 169, 74, 0.06);
+  pointer-events: none;
+}
+
+.ecosystem-guide-card {
+  position: fixed;
+  width: clamp(150px, 18vw, 230px);
+  border-radius: 10px;
+  border: 1px solid rgba(248, 169, 74, 0.58);
+  background:
+    linear-gradient(to bottom, rgba(248, 169, 74, 0.08), rgba(248, 169, 74, 0.02)),
+    var(--surface-panel, var(--panel));
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 11px 12px 12px;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.ecosystem-guide-card::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: var(--guide-pointer-left, calc(50% - 6px));
+  width: 12px;
+  height: 12px;
+  border-top: 1px solid rgba(248, 169, 74, 0.62);
+  border-left: 1px solid rgba(248, 169, 74, 0.62);
+  background: color-mix(in srgb, var(--surface-panel, var(--panel)) 80%, rgba(248, 169, 74, 0.2));
+  transform: rotate(45deg);
+}
+
+.ecosystem-guide-card h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(248, 169, 74, 0.95);
+  letter-spacing: 0.01em;
+}
+
+.ecosystem-guide-card p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ecosystem-guide-card strong {
+  color: var(--text);
+}
+
+.ecosystem-guide-center {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(760px, calc(100vw - 64px));
+  border-radius: 14px;
+  border: 1px solid rgba(248, 169, 74, 0.56);
+  background:
+    linear-gradient(to bottom, rgba(248, 169, 74, 0.08), rgba(248, 169, 74, 0.02)),
+    var(--surface-panel, var(--panel));
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.52),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 18px 18px 14px;
+}
+
+.ecosystem-guide-center h2 {
+  margin: 0 0 8px;
+  font-size: clamp(17px, 1.4vw, 20px);
+  line-height: 1.3;
+  color: rgba(248, 169, 74, 0.98);
+  letter-spacing: 0.01em;
+}
+
+.ecosystem-guide-center-copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.ecosystem-guide-domain-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.ecosystem-guide-domain-list li {
+  margin: 0 0 4px;
+}
+
+.ecosystem-guide-domain-list li:last-child {
+  margin-bottom: 0;
+}
+
+.ecosystem-guide-center-subcopy {
+  margin: 8px 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ecosystem-guide-video-wrap {
+  margin-top: 20px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.ecosystem-guide-video-shell {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 0.5px solid rgba(200, 122, 26, 0.58);
+  background: #000;
+  box-shadow:
+    0 0 0 0.75px rgba(248, 169, 74, 0.32),
+    0 0 17px rgba(248, 169, 74, 0.25),
+    0 0 37px rgba(248, 169, 74, 0.14),
+    0 12px 48px rgba(0, 0, 0, 0.62);
+}
+
+.ecosystem-guide-intro-iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
+.ecosystem-guide-intro-empty {
+  margin: 0;
+  padding: 16px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--muted);
+  background: var(--surface-panel-2, var(--panel-2));
+}
+
+.ecosystem-guide-dismiss {
+  display: block;
+  margin: 12px auto 0;
+  min-height: 40px;
+  min-width: 160px;
+  border-radius: 8px;
+  border: 1px solid rgba(248, 169, 74, 0.72);
+  background: rgba(240, 160, 32, 0.1);
+  color: rgba(248, 169, 74, 0.98);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ecosystem-guide-dismiss:hover {
+  border-color: rgba(248, 169, 74, 0.88);
+  background: rgba(240, 160, 32, 0.16);
+  box-shadow: 0 0 0 1px rgba(240, 160, 32, 0.14), 0 8px 20px rgba(240, 160, 32, 0.16);
+}
+
+html[data-theme="light"] .ecosystem-guide-shade {
+  background: rgba(12, 24, 44, 0.56);
+}
+
+html[data-theme="light"] .ecosystem-guide-focus {
+  border-color: rgba(188, 98, 27, 0.68);
+  box-shadow:
+    0 0 0 1px rgba(188, 98, 27, 0.18),
+    0 0 20px rgba(188, 98, 27, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  background: rgba(188, 98, 27, 0.06);
+}
+
+html[data-theme="light"] .ecosystem-guide-card {
+  border-color: rgba(188, 98, 27, 0.58);
+  background:
+    linear-gradient(to bottom, rgba(188, 98, 27, 0.08), rgba(188, 98, 27, 0.02)),
+    var(--surface-panel, var(--panel));
+}
+
+html[data-theme="light"] .ecosystem-guide-card h3 {
+  color: rgba(188, 98, 27, 0.98);
+}
+
+html[data-theme="light"] .ecosystem-guide-center {
+  border-color: rgba(188, 98, 27, 0.56);
+  background:
+    linear-gradient(to bottom, rgba(188, 98, 27, 0.08), rgba(188, 98, 27, 0.02)),
+    var(--surface-panel, var(--panel));
+}
+
+html[data-theme="light"] .ecosystem-guide-center h2 {
+  color: rgba(188, 98, 27, 0.98);
+}
+
+html[data-theme="light"] .ecosystem-guide-video-shell {
+  border-color: rgba(188, 98, 27, 0.56);
+  box-shadow:
+    0 0 0 0.75px rgba(188, 98, 27, 0.28),
+    0 0 13px rgba(188, 98, 27, 0.2),
+    0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="light"] .ecosystem-guide-dismiss {
+  border-color: rgba(188, 98, 27, 0.72);
+  background: rgba(232, 133, 61, 0.12);
+  color: rgba(188, 98, 27, 0.98);
+}
+
+@media (max-width: 1200px) {
+  .ecosystem-guide-card {
+    width: clamp(150px, 20vw, 200px);
+  }
+}
+
+@media (max-width: 980px) {
+  .ecosystem-guide-center {
+    width: min(700px, calc(100vw - 32px));
+    top: 52%;
+    padding: 14px 14px 12px;
+  }
+
+  .ecosystem-guide-dismiss {
+    min-width: 180px;
+  }
+}
+
 /* ── Global Ecosystem page ── */
 
 /* Section header (thin full-width divider with title) */

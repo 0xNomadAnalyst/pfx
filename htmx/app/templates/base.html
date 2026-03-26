@@ -7,7 +7,7 @@
   <link rel="icon" href="/static/images/favicon-16x16.png" type="image/png" sizes="16x16" />
   <link rel="icon" href="/static/images/favicon-32x32.png" type="image/png" sizes="32x32" />
   <title>{{ app_title }} - {{ page_title }}</title>
-  <link rel="stylesheet" href="/static/css/theme.css?v=70" />
+  <link rel="stylesheet" href="/static/css/theme.css?v=74" />
   <link rel="preload" as="image" href="/static/images/video-posters/0wgPh78PwAs.png" />
   <link rel="preload" as="image" href="/static/images/video-posters/Ktk99W77UWk.png" />
   <link rel="preload" as="image" href="/static/images/video-posters/5p5nsW3Vxtg.png" />
@@ -259,6 +259,67 @@
           Go To Mobile Landing Page
         </button>
       </div>
+    </section>
+  </div>
+
+  <div id="ecosystem-guide-overlay" class="ecosystem-guide-overlay" hidden aria-hidden="true">
+    <div class="ecosystem-guide-shade"></div>
+    <div class="ecosystem-guide-focus" data-guide-focus="#topbar-view-select"></div>
+    <div class="ecosystem-guide-focus" data-guide-focus="#video-guide-btn"></div>
+    <div class="ecosystem-guide-focus" data-guide-focus="#last-window-select"></div>
+    <div class="ecosystem-guide-focus" data-guide-focus="#health-indicator"></div>
+
+    <section class="ecosystem-guide-card" data-guide-card="#topbar-view-select" data-guide-placement="bottom">
+      <h3>View Selector</h3>
+      <p>Switch between ecosystem, protocol, and risk pages from one control.</p>
+    </section>
+    <section class="ecosystem-guide-card" data-guide-card="#video-guide-btn" data-guide-placement="bottom">
+      <h3>Video Guide</h3>
+      <p>Open a page-specific walkthrough tied to the view you are currently in.</p>
+    </section>
+    <section class="ecosystem-guide-card" data-guide-card="#last-window-select" data-guide-placement="bottom">
+      <h3>Lookback Window</h3>
+      <p>Adjusts time horizon; shorter windows show finer granularity.</p>
+    </section>
+    <section class="ecosystem-guide-card" data-guide-card="#health-indicator" data-guide-placement="bottom-right">
+      <h3>Pipeline Health</h3>
+      <p>The status dot links to System Health for pipeline checks and diagnostics.</p>
+    </section>
+
+    <section class="ecosystem-guide-center" role="dialog" aria-modal="false" aria-labelledby="ecosystem-guide-center-title">
+      <h2 id="ecosystem-guide-center-title">ONyc Token DeFi Ecosystem Dashboard</h2>
+      <p class="ecosystem-guide-center-copy">
+        This dashboard tracks ONyc token activity across the core DeFi surface:
+      </p>
+      <ul class="ecosystem-guide-domain-list">
+        <li><strong>DEX Markets:</strong> Orca and Raydium</li>
+        <li><strong>Lending:</strong> Kamino</li>
+        <li><strong>Yield Trading:</strong> Exponent</li>
+      </ul>
+      <div class="ecosystem-guide-video-wrap">
+        <div class="ecosystem-guide-video-shell">
+          <div id="ecosystem-guide-poster" class="yt-poster" aria-hidden="true">
+            <button id="ecosystem-guide-poster-play" class="yt-poster-play" aria-label="Play intro video">
+              <svg viewBox="0 0 68 48" width="68" height="48"><path d="M66.5 7.4C65.7 4.4 63.3 2 60.3 1.2 55 0 34 0 34 0S13 0 7.7 1.2C4.7 2 2.3 4.4 1.5 7.4 0 12.8 0 24 0 24s0 11.2 1.5 16.6c.8 3 3.2 5.4 6.2 6.2C13 48 34 48 34 48s21 0 26.3-1.2c3-.8 5.4-3.2 6.2-6.2C68 35.2 68 24 68 24s0-11.2-1.5-16.6z" fill="rgba(0,0,0,0.55)"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+            </button>
+          </div>
+          <iframe
+            id="ecosystem-guide-intro-iframe"
+            class="yt-iframe"
+            title="Platform Intro Video"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            referrerpolicy="strict-origin-when-cross-origin"
+            loading="lazy"
+            allowfullscreen
+          ></iframe>
+        </div>
+        <p id="ecosystem-guide-intro-empty" class="ecosystem-guide-intro-empty" hidden>
+          Intro video is currently unavailable.
+        </p>
+      </div>
+      <button type="button" id="ecosystem-guide-dismiss" class="ecosystem-guide-dismiss" aria-label="Dismiss page guide">
+        Start Exploring
+      </button>
     </section>
   </div>
 
@@ -605,6 +666,303 @@
 
     refreshGateState();
     document.body.classList.add("device-gate-js-ready");
+  })();
+  </script>
+  <script>
+  (function() {
+    var overlay = document.getElementById("ecosystem-guide-overlay");
+    if (!overlay) return;
+
+    var TARGET_PAGE = "global-ecosystem";
+    var DISMISS_KEY = "riskdash.ecosystemGuideDismissed.session.v1";
+    var CARD_MARGIN = 14;
+    var CARD_GAP = 10;
+    var CARD_OFFSET = 14;
+    var FOCUS_PAD = 6;
+    var POINTER_HALF = 6;
+
+    var mobileOverlay = document.getElementById("mobile-entry-overlay");
+    var viewportOverlay = document.getElementById("viewport-policy-overlay");
+    var dismissBtn = document.getElementById("ecosystem-guide-dismiss");
+    var introIframe = document.getElementById("ecosystem-guide-intro-iframe");
+    var introPoster = document.getElementById("ecosystem-guide-poster");
+    var introPosterPlay = document.getElementById("ecosystem-guide-poster-play");
+    var introEmpty = document.getElementById("ecosystem-guide-intro-empty");
+    var focusEls = Array.prototype.slice.call(
+      overlay.querySelectorAll(".ecosystem-guide-focus[data-guide-focus]")
+    );
+    var cardEls = Array.prototype.slice.call(
+      overlay.querySelectorAll(".ecosystem-guide-card[data-guide-card]")
+    );
+    var rafHandle = 0;
+
+    function currentPageSlug() {
+      return (document.body.dataset.currentPageSlug || "").trim();
+    }
+
+    function hasDismissedGuide() {
+      try {
+        return window.sessionStorage.getItem(DISMISS_KEY) === "1";
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function dismissGuide() {
+      try {
+        window.sessionStorage.setItem(DISMISS_KEY, "1");
+      } catch (_) {}
+      if (introIframe) introIframe.src = "";
+      if (introPoster) introPoster.classList.remove("hidden");
+      overlay.hidden = true;
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("ecosystem-guide-active");
+    }
+
+    function isDeviceGateActive() {
+      if (document.body.classList.contains("device-gate-active")) return true;
+      if (mobileOverlay && !mobileOverlay.hidden) return true;
+      if (viewportOverlay && !viewportOverlay.hidden) return true;
+      return false;
+    }
+
+    function shouldShowGuide() {
+      if (currentPageSlug() !== TARGET_PAGE) return false;
+      if (hasDismissedGuide()) return false;
+      if (isDeviceGateActive()) return false;
+      return true;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function syncIntroVideo() {
+      if (!introIframe || !introPoster) return;
+      var videoId = (document.body.dataset.coverVideoGuideId || "").trim();
+      if (!videoId) {
+        introIframe.hidden = true;
+        introIframe.src = "";
+        introIframe.dataset.pendingVideoId = "";
+        introPoster.classList.add("hidden");
+        if (introEmpty) introEmpty.hidden = false;
+        return;
+      }
+
+      introIframe.dataset.pendingVideoId = videoId;
+      introIframe.src = "";
+      introPoster.style.backgroundImage = "";
+      var local = "/static/images/video-posters/" + videoId + ".png";
+      var hq = "https://img.youtube.com/vi/" + videoId + "/hqdefault.jpg";
+      var max = "https://img.youtube.com/vi/" + videoId + "/maxresdefault.jpg";
+      var img = new Image();
+      img.onload = function() { introPoster.style.backgroundImage = "url('" + local + "')"; };
+      img.onerror = function() {
+        var yt = new Image();
+        yt.onload = function() {
+          var url = yt.naturalWidth > 200 ? max : hq;
+          introPoster.style.backgroundImage = "url('" + url + "')";
+        };
+        yt.onerror = function() { introPoster.style.backgroundImage = "url('" + hq + "')"; };
+        yt.src = max;
+      };
+      img.src = local;
+      introPoster.classList.remove("hidden");
+      introIframe.hidden = false;
+      if (introEmpty) introEmpty.hidden = true;
+    }
+
+    function loadIntroVideo() {
+      if (!introIframe || !introPoster) return;
+      var videoId = (introIframe.dataset.pendingVideoId || "").trim();
+      if (!videoId) return;
+      introIframe.src = "https://www.youtube-nocookie.com/embed/" + videoId + "?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&vq=hd1080";
+      introPoster.classList.add("hidden");
+    }
+
+    function placeCard(cardEl, targetRect, placement) {
+      cardEl.style.maxWidth = Math.max(150, Math.floor(window.innerWidth * 0.2)) + "px";
+      var cardWidth = cardEl.offsetWidth || 180;
+      var cardHeight = cardEl.offsetHeight || 90;
+      var left = targetRect.left + (targetRect.width / 2) - (cardWidth / 2);
+      var top = targetRect.bottom + CARD_OFFSET;
+
+      if (placement === "bottom-right") {
+        left = targetRect.right - cardWidth;
+      } else if (placement === "bottom-left") {
+        left = targetRect.left;
+      }
+
+      left = clamp(left, CARD_MARGIN, Math.max(CARD_MARGIN, window.innerWidth - cardWidth - CARD_MARGIN));
+      top = clamp(top, CARD_MARGIN, Math.max(CARD_MARGIN, window.innerHeight - cardHeight - CARD_MARGIN));
+
+      return {
+        left: Math.round(left),
+        top: Math.round(top),
+        width: Math.round(cardWidth),
+        height: Math.round(cardHeight),
+        targetX: Math.round(targetRect.left + (targetRect.width / 2))
+      };
+    }
+
+    function resolveRowPositions(layoutItems) {
+      if (!layoutItems.length) return;
+      var minLeft = CARD_MARGIN;
+      var maxRight = Math.max(minLeft, window.innerWidth - CARD_MARGIN);
+
+      layoutItems.sort(function(a, b) { return a.left - b.left; });
+
+      var prevRight = minLeft - CARD_GAP;
+      layoutItems.forEach(function(item) {
+        var nextLeft = Math.max(item.left, prevRight + CARD_GAP);
+        var maxLeft = maxRight - item.width;
+        item.left = clamp(nextLeft, minLeft, Math.max(minLeft, maxLeft));
+        prevRight = item.left + item.width;
+      });
+
+      var overflow = prevRight - maxRight;
+      if (overflow > 0) {
+        for (var i = layoutItems.length - 1; i >= 0 && overflow > 0; i -= 1) {
+          var item = layoutItems[i];
+          var floor = i > 0 ? layoutItems[i - 1].left + layoutItems[i - 1].width + CARD_GAP : minLeft;
+          var movable = Math.max(0, item.left - floor);
+          var shift = Math.min(movable, overflow);
+          item.left -= shift;
+          overflow -= shift;
+        }
+      }
+
+      layoutItems.forEach(function(item) {
+        var pointerCenter = clamp(item.targetX - item.left, 14, item.width - 14);
+        item.pointerLeft = Math.round(pointerCenter - POINTER_HALF);
+      });
+    }
+
+    function updateOverlayLayout() {
+      if (overlay.hidden) return;
+
+      var rowItems = [];
+      var topbar = document.querySelector(".topbar");
+      var topbarBottom = topbar ? topbar.getBoundingClientRect().bottom : 0;
+      var rowTop = Math.round(topbarBottom + CARD_GAP);
+
+      focusEls.forEach(function(focusEl) {
+        var selector = focusEl.getAttribute("data-guide-focus");
+        var targetEl = selector ? document.querySelector(selector) : null;
+        if (!targetEl) {
+          focusEl.style.display = "none";
+          return;
+        }
+        var rect = targetEl.getBoundingClientRect();
+        if (!rect.width || !rect.height) {
+          focusEl.style.display = "none";
+          return;
+        }
+        focusEl.style.display = "block";
+        focusEl.style.left = Math.round(rect.left - FOCUS_PAD) + "px";
+        focusEl.style.top = Math.round(rect.top - FOCUS_PAD) + "px";
+        focusEl.style.width = Math.round(rect.width + (FOCUS_PAD * 2)) + "px";
+        focusEl.style.height = Math.round(rect.height + (FOCUS_PAD * 2)) + "px";
+      });
+
+      cardEls.forEach(function(cardEl) {
+        var selector = cardEl.getAttribute("data-guide-card");
+        var placement = cardEl.getAttribute("data-guide-placement") || "bottom";
+        var targetEl = selector ? document.querySelector(selector) : null;
+        if (!targetEl) {
+          cardEl.style.display = "none";
+          return;
+        }
+        var rect = targetEl.getBoundingClientRect();
+        if (!rect.width || !rect.height) {
+          cardEl.style.display = "none";
+          return;
+        }
+        cardEl.style.display = "block";
+        var layout = placeCard(cardEl, rect, placement);
+        layout.el = cardEl;
+        rowItems.push(layout);
+      });
+
+      resolveRowPositions(rowItems);
+      rowItems.forEach(function(item) {
+        item.el.style.left = item.left + "px";
+        item.el.style.top = rowTop + "px";
+        item.el.style.setProperty("--guide-pointer-left", item.pointerLeft + "px");
+      });
+    }
+
+    function requestLayoutUpdate() {
+      if (rafHandle) return;
+      rafHandle = window.requestAnimationFrame(function() {
+        rafHandle = 0;
+        updateOverlayLayout();
+      });
+    }
+
+    function refreshGuideState() {
+      if (!shouldShowGuide()) {
+        overlay.hidden = true;
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("ecosystem-guide-active");
+        return;
+      }
+      overlay.hidden = false;
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("ecosystem-guide-active");
+      syncIntroVideo();
+      requestLayoutUpdate();
+    }
+
+    if (dismissBtn) {
+      dismissBtn.addEventListener("click", dismissGuide);
+    }
+    if (introPosterPlay) {
+      introPosterPlay.addEventListener("click", loadIntroVideo);
+    }
+    if (introPoster) {
+      introPoster.addEventListener("click", loadIntroVideo);
+    }
+
+    overlay.addEventListener("click", function(e) {
+      if (e.target === overlay || e.target.classList.contains("ecosystem-guide-shade")) {
+        dismissGuide();
+      }
+    });
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape" && !overlay.hidden) {
+        dismissGuide();
+      }
+    });
+
+    window.addEventListener("resize", function() {
+      refreshGuideState();
+      requestLayoutUpdate();
+    });
+    window.addEventListener("orientationchange", function() {
+      refreshGuideState();
+      requestLayoutUpdate();
+    });
+    window.addEventListener("scroll", requestLayoutUpdate, true);
+    document.addEventListener("htmx:afterSwap", function() {
+      refreshGuideState();
+      requestLayoutUpdate();
+    });
+    document.addEventListener("htmx:afterSettle", function() {
+      refreshGuideState();
+      requestLayoutUpdate();
+    });
+
+    if (mobileOverlay && mobileOverlay.nodeType === 1) {
+      new MutationObserver(refreshGuideState).observe(mobileOverlay, { attributes: true, attributeFilter: ["hidden"] });
+    }
+    if (viewportOverlay && viewportOverlay.nodeType === 1) {
+      new MutationObserver(refreshGuideState).observe(viewportOverlay, { attributes: true, attributeFilter: ["hidden"] });
+    }
+
+    refreshGuideState();
+    requestLayoutUpdate();
   })();
   </script>
   {% if show_pipeline_switcher %}
