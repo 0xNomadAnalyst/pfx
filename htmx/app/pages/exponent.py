@@ -29,9 +29,9 @@ PAGE_CONFIG = PageConfig(
     ],
     widgets=[
         # ═══════════════════════════════════════════════════════
-        # Section 1: SUMMARY METRICS
+        # Section 1:MARKET COMPARISON SUMMARY
         # ═══════════════════════════════════════════════════════
-        _hdr("exp-hdr-1", "Summary Metrics", "exp-hdr-1 cv-section-header"),
+        _hdr("exp-hdr-1", "SUMMARY MARKET COMPARISON", "exp-hdr-1 cv-section-header"),
 
         WidgetConfig("exponent-pie-tvl", "Exponent TVL (Vault + AMM) by Market", "chart", "panel panel-large exp-slot-pie",
                      expandable=False),
@@ -41,6 +41,8 @@ PAGE_CONFIG = PageConfig(
 
         WidgetConfig("exponent-market-info-mkt1", "Market 1", "kpi", "panel panel-kpi exp-slot-info-mkt1"),
         WidgetConfig("exponent-market-info-mkt2", "Market 2", "kpi", "panel panel-kpi exp-slot-info-mkt2"),
+
+        _hdr("exp-hdr-1b", "MARKET DURATION DETAIL", "exp-hdr-1b cv-section-header"),
 
         # ═══════════════════════════════════════════════════════
         # Section 2: PROTOCOL CAPITAL FLOWS

@@ -5002,8 +5002,61 @@
   let _sidebarDebounceTimer = 0;
   let _sidebarDebouncePath = "";
   const SIDEBAR_DEBOUNCE_MS = 180;
+  let _softNavCurrentStartMs = 0;
+  const _softNavDebug = {
+    starts: 0,
+    finishes: 0,
+    queueEnqueues: 0,
+    queueDrains: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
+    pendingSkeletonShows: 0,
+    supersededHydrationSkips: 0,
+    maxInFlightMs: 0,
+    lastInFlightMs: 0,
+    lastRequestedPath: "",
+    lastFinishedPath: "",
+    events: [],
+  };
   let _interactiveRefreshUntil = 0;
   let _visibilityObserver = null;
+
+  function _softNavDebugEvent(type, details = {}) {
+    _softNavDebug.events.push({
+      t: Date.now(),
+      type,
+      details,
+    });
+    if (_softNavDebug.events.length > 120) {
+      _softNavDebug.events.splice(0, _softNavDebug.events.length - 120);
+    }
+  }
+
+  function _softNavDebugSnapshot() {
+    return {
+      ..._softNavDebug,
+      inFlight: _softNavInFlight,
+      queuedPath: _softNavQueuedPath || "",
+      currentPath: `${window.location.pathname}${window.location.search || ""}`,
+    };
+  }
+
+  function _softNavDebugReset() {
+    _softNavDebug.starts = 0;
+    _softNavDebug.finishes = 0;
+    _softNavDebug.queueEnqueues = 0;
+    _softNavDebug.queueDrains = 0;
+    _softNavDebug.cacheHits = 0;
+    _softNavDebug.cacheMisses = 0;
+    _softNavDebug.pendingSkeletonShows = 0;
+    _softNavDebug.supersededHydrationSkips = 0;
+    _softNavDebug.maxInFlightMs = 0;
+    _softNavDebug.lastInFlightMs = 0;
+    _softNavDebug.lastRequestedPath = "";
+    _softNavDebug.lastFinishedPath = "";
+    _softNavDebug.events = [];
+    _softNavCurrentStartMs = 0;
+  }
 
   function ensureSoftNavPendingStyles() {
     if (document.getElementById("soft-nav-pending-styles")) return;
@@ -5083,6 +5136,8 @@
   function showSoftNavPending(path) {
     const main = document.querySelector("main");
     if (!main) return;
+    _softNavDebug.pendingSkeletonShows += 1;
+    _softNavDebugEvent("pending_shown", { path });
     ensureSoftNavPendingStyles();
     const pageSelect = document.getElementById("page-select");
     const sidebarActive = document.querySelector("#sidebar-nav .sidebar-nav-link.is-active");
@@ -5155,9 +5210,19 @@
     updateBodyDataAttrsFromDoc(nextDoc);
     updateWarmupManifest(nextDoc);
 
+    const superseded = hasSupersedingNav(path);
+
     document.title = nextDoc.title || document.title;
-    if (pushHistory) {
+    if (pushHistory && !superseded) {
       window.history.pushState({ path }, "", path);
+    }
+
+    if (superseded) {
+      // A newer nav target is queued; skip heavy hydration for this
+      // intermediate page and hand off quickly.
+      _softNavDebug.supersededHydrationSkips += 1;
+      _softNavDebugEvent("superseded_skip", { path, queuedPath: _softNavQueuedPath || "" });
+      return true;
     }
 
     _warmupSchedulerStarted = false;
@@ -5199,16 +5264,34 @@
   }
 
   function _finishSoftNav() {
+    if (_softNavCurrentStartMs > 0) {
+      const elapsed = Math.max(0, performance.now() - _softNavCurrentStartMs);
+      _softNavDebug.lastInFlightMs = elapsed;
+      _softNavDebug.maxInFlightMs = Math.max(_softNavDebug.maxInFlightMs, elapsed);
+      _softNavCurrentStartMs = 0;
+    }
+    _softNavDebug.finishes += 1;
+    _softNavDebug.lastFinishedPath = `${window.location.pathname}${window.location.search || ""}`;
+    _softNavDebugEvent("finish", { path: _softNavDebug.lastFinishedPath, queuedPath: _softNavQueuedPath || "" });
     _softNavInFlight = false;
     setPageSelectorBusy(false);
     _softNavController = null;
     if (_softNavQueuedPath) {
       const next = _softNavQueuedPath;
       _softNavQueuedPath = "";
+      _softNavDebug.queueDrains += 1;
+      _softNavDebugEvent("queue_drain", { next });
       if (next !== `${window.location.pathname}${window.location.search || ""}`) {
         setTimeout(() => softNavigateToPage(next, { pushHistory: true }), 0);
       }
     }
+  }
+
+  function hasSupersedingNav(currentPath) {
+    if (!_softNavQueuedPath) return false;
+    const queued = normalizeSoftNavPath(_softNavQueuedPath);
+    const current = normalizeSoftNavPath(currentPath);
+    return !!queued && !!current && queued !== current;
   }
 
   async function softNavigateToPage(path, { pushHistory = true } = {}) {
@@ -5216,6 +5299,8 @@
     if (!navPath || navPath === `${window.location.pathname}${window.location.search || ""}`) return;
     if (_softNavInFlight) {
       _softNavQueuedPath = navPath;
+      _softNavDebug.queueEnqueues += 1;
+      _softNavDebugEvent("queue_enqueue", { path: navPath });
       return;
     }
     if (_softNavController) {
@@ -5225,10 +5310,15 @@
     _softNavController = new AbortController();
     const { signal } = _softNavController;
     _softNavInFlight = true;
+    _softNavCurrentStartMs = performance.now();
+    _softNavDebug.starts += 1;
+    _softNavDebug.lastRequestedPath = navPath;
+    _softNavDebugEvent("start", { path: navPath });
     setPageSelectorBusy(true);
     let shellAppliedFromCache = false;
     const cachedShell = getSoftNavShellCache(navPath);
     if (cachedShell) {
+      _softNavDebug.cacheHits += 1;
       recordPerfMetric("softNavShellCacheHit");
       _adaptiveShellPrefetchUsed++;
       try {
@@ -5237,15 +5327,18 @@
         shellAppliedFromCache = false;
       }
     } else {
+      _softNavDebug.cacheMisses += 1;
       recordPerfMetric("softNavShellCacheMiss");
     }
     if (!shellAppliedFromCache) {
       showSoftNavPending(navPath);
     } else {
-      setTimeout(() => {
-        refreshCriticalWidgetsNow();
-      }, 60);
-      void refreshSoftNavShellCache(navPath, SOFT_NAV_SHELL_REFRESH_DELAY_MS);
+      if (!hasSupersedingNav(navPath)) {
+        setTimeout(() => {
+          refreshCriticalWidgetsNow();
+        }, 60);
+        void refreshSoftNavShellCache(navPath, SOFT_NAV_SHELL_REFRESH_DELAY_MS);
+      }
       _finishSoftNav();
       return;
     }
@@ -7101,6 +7194,10 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    window.__softNavDebug = {
+      snapshot: _softNavDebugSnapshot,
+      reset: _softNavDebugReset,
+    };
     persistCacheHydrate();
     hydratePrefetchedShells();
     initPageSelector();
