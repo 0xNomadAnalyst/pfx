@@ -2032,7 +2032,8 @@ body.ecosystem-guide-active {
 }
 
 .ecosystem-guide-center h2 {
-  margin: 0 0 12px;
+  max-width: 560px;
+  margin: 0 auto 12px;
   font-size: clamp(17px, 1.4vw, 20px);
   line-height: 1.3;
   color: rgba(248, 169, 74, 0.98);
@@ -2049,9 +2050,10 @@ body.ecosystem-guide-active {
 .ecosystem-guide-overview-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  max-width: 560px;
   column-gap: 16px;
   align-items: start;
-  margin-bottom: 6px;
+  margin: 0 auto 8px;
 }
 
 .ecosystem-guide-overview-col-right {
