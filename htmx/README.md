@@ -18,3 +18,4 @@ Default URL: `http://localhost:8002/playbook-liquidity`
 - The UI does not query SQL directly.
 - Each widget pulls JSON from `/api/v1/playbook-liquidity/{widget}`.
 - Theme toggle is persisted in `localStorage`.
+- Soft-nav test and telemetry docs: `docs/soft-nav-testing-and-telemetry.md`.

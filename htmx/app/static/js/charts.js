@@ -4018,6 +4018,11 @@
       clearTimeout(_deferredSoftNavHydrationTimer);
       _deferredSoftNavHydrationTimer = 0;
     }
+    if (_activeHydrationTrace?.settleTimer) {
+      clearTimeout(_activeHydrationTrace.settleTimer);
+    }
+    _activeHydrationTrace = null;
+    _widgetRequestsInFlight = 0;
     protocolPairs = [];
     const mkt1 = document.getElementById("mkt1-select");
     const mkt2 = document.getElementById("mkt2-select");
@@ -5067,6 +5072,11 @@
     });
     chartState.clear();
     _pipelineSwitchInProgress = false;
+    if (_activeHydrationTrace?.settleTimer) {
+      clearTimeout(_activeHydrationTrace.settleTimer);
+    }
+    _activeHydrationTrace = null;
+    _widgetRequestsInFlight = 0;
   }
 
   function updateOrReplaceNode(currentSelector, incomingDoc, incomingSelector = currentSelector) {
@@ -5166,14 +5176,109 @@
     cacheMisses: 0,
     pendingSkeletonShows: 0,
     supersededHydrationSkips: 0,
+    shellVisibleCount: 0,
+    lastShellVisibleMs: 0,
+    maxShellVisibleMs: 0,
+    hydrationStarts: 0,
+    hydrationFinishes: 0,
+    hydrationSkips: 0,
+    lastHydrationMs: 0,
+    maxHydrationMs: 0,
+    lastWidgetSettleMs: 0,
+    maxWidgetSettleMs: 0,
+    widgetRequestsStarted: 0,
+    widgetRequestsCompleted: 0,
+    widgetRequestsAborted: 0,
+    widgetRequestErrors: 0,
+    widgetRequestTimeouts: 0,
     maxInFlightMs: 0,
     lastInFlightMs: 0,
     lastRequestedPath: "",
     lastFinishedPath: "",
     events: [],
   };
+  let _widgetRequestsInFlight = 0;
+  let _hydrationSerial = 0;
+  let _activeHydrationTrace = null;
   let _interactiveRefreshUntil = 0;
   let _visibilityObserver = null;
+
+  function _startHydrationTrace(path) {
+    const trace = {
+      id: ++_hydrationSerial,
+      path: normalizeSoftNavPath(path),
+      startedAtMs: performance.now(),
+      settledAtMs: 0,
+      finishedAtMs: 0,
+    };
+    _activeHydrationTrace = trace;
+    _softNavDebug.hydrationStarts += 1;
+    _softNavDebugEvent("hydrate_start", { path: trace.path || path });
+    return trace;
+  }
+
+  function _scheduleHydrationSettleCheck(trace) {
+    if (!trace || !_activeHydrationTrace || _activeHydrationTrace.id !== trace.id) return;
+    if (trace.settleTimer) {
+      clearTimeout(trace.settleTimer);
+      trace.settleTimer = 0;
+    }
+    trace.settleTimer = setTimeout(() => {
+      if (!_activeHydrationTrace || _activeHydrationTrace.id !== trace.id) return;
+      if (_widgetRequestsInFlight > 0) {
+        _scheduleHydrationSettleCheck(trace);
+        return;
+      }
+      if (trace.settledAtMs > 0) return;
+      trace.settledAtMs = performance.now();
+      const settleMs = Math.max(0, trace.settledAtMs - trace.startedAtMs);
+      _softNavDebug.lastWidgetSettleMs = settleMs;
+      _softNavDebug.maxWidgetSettleMs = Math.max(_softNavDebug.maxWidgetSettleMs, settleMs);
+      _softNavDebugEvent("hydrate_settled", {
+        path: trace.path || "",
+        settleMs,
+        widgetRequestsInFlight: _widgetRequestsInFlight,
+      });
+    }, 140);
+  }
+
+  function _finishHydrationTrace(trace, { skipped = false } = {}) {
+    if (!trace) return;
+    if (_activeHydrationTrace && _activeHydrationTrace.id === trace.id) {
+      if (trace.settleTimer) {
+        clearTimeout(trace.settleTimer);
+        trace.settleTimer = 0;
+      }
+      _activeHydrationTrace = null;
+    }
+    if (skipped) {
+      _softNavDebug.hydrationSkips += 1;
+      _softNavDebugEvent("hydrate_skip", { path: trace.path || "" });
+      return;
+    }
+    const finishedAtMs = performance.now();
+    trace.finishedAtMs = finishedAtMs;
+    const hydrationMs = Math.max(0, finishedAtMs - trace.startedAtMs);
+    _softNavDebug.hydrationFinishes += 1;
+    _softNavDebug.lastHydrationMs = hydrationMs;
+    _softNavDebug.maxHydrationMs = Math.max(_softNavDebug.maxHydrationMs, hydrationMs);
+    if (trace.settledAtMs <= 0 && _widgetRequestsInFlight <= 0) {
+      trace.settledAtMs = finishedAtMs;
+      _softNavDebug.lastWidgetSettleMs = hydrationMs;
+      _softNavDebug.maxWidgetSettleMs = Math.max(_softNavDebug.maxWidgetSettleMs, hydrationMs);
+      _softNavDebugEvent("hydrate_settled", { path: trace.path || "", settleMs: hydrationMs, widgetRequestsInFlight: 0 });
+    }
+    _softNavDebugEvent("hydrate_finish", { path: trace.path || "", hydrationMs });
+  }
+
+  function _recordShellVisible(path) {
+    if (_softNavCurrentStartMs <= 0) return;
+    const elapsed = Math.max(0, performance.now() - _softNavCurrentStartMs);
+    _softNavDebug.shellVisibleCount += 1;
+    _softNavDebug.lastShellVisibleMs = elapsed;
+    _softNavDebug.maxShellVisibleMs = Math.max(_softNavDebug.maxShellVisibleMs, elapsed);
+    _softNavDebugEvent("shell_visible", { path, elapsedMs: elapsed });
+  }
 
   function _softNavDebugEvent(type, details = {}) {
     _softNavDebug.events.push({
@@ -5191,6 +5296,11 @@
       ..._softNavDebug,
       inFlight: _softNavInFlight,
       queuedPath: _softNavQueuedPath || "",
+      widgetRequestsInFlight: _widgetRequestsInFlight,
+      shellCacheSize: softNavShellCache.size,
+      shellCacheCapacity: softNavShellCacheCapacity,
+      allShellPrefetchScheduled: _allShellPrefetchScheduled,
+      allShellPrefetchCompleted: _allShellPrefetchCompleted,
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     };
   }
@@ -5204,12 +5314,32 @@
     _softNavDebug.cacheMisses = 0;
     _softNavDebug.pendingSkeletonShows = 0;
     _softNavDebug.supersededHydrationSkips = 0;
+    _softNavDebug.shellVisibleCount = 0;
+    _softNavDebug.lastShellVisibleMs = 0;
+    _softNavDebug.maxShellVisibleMs = 0;
+    _softNavDebug.hydrationStarts = 0;
+    _softNavDebug.hydrationFinishes = 0;
+    _softNavDebug.hydrationSkips = 0;
+    _softNavDebug.lastHydrationMs = 0;
+    _softNavDebug.maxHydrationMs = 0;
+    _softNavDebug.lastWidgetSettleMs = 0;
+    _softNavDebug.maxWidgetSettleMs = 0;
+    _softNavDebug.widgetRequestsStarted = 0;
+    _softNavDebug.widgetRequestsCompleted = 0;
+    _softNavDebug.widgetRequestsAborted = 0;
+    _softNavDebug.widgetRequestErrors = 0;
+    _softNavDebug.widgetRequestTimeouts = 0;
     _softNavDebug.maxInFlightMs = 0;
     _softNavDebug.lastInFlightMs = 0;
     _softNavDebug.lastRequestedPath = "";
     _softNavDebug.lastFinishedPath = "";
     _softNavDebug.events = [];
     _softNavCurrentStartMs = 0;
+    _widgetRequestsInFlight = 0;
+    if (_activeHydrationTrace?.settleTimer) {
+      clearTimeout(_activeHydrationTrace.settleTimer);
+    }
+    _activeHydrationTrace = null;
   }
 
   function ensureSoftNavPendingStyles() {
@@ -5335,13 +5465,18 @@
   }
 
   async function hydrateSoftNavPage(path) {
+    const trace = _startHydrationTrace(path);
     const navPath = normalizeSoftNavPath(path);
     const livePath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
-    if (!navPath || navPath !== livePath) return false;
+    if (!navPath || navPath !== livePath) {
+      _finishHydrationTrace(trace, { skipped: true });
+      return false;
+    }
 
     if (hasSupersedingNav(path)) {
       _softNavDebug.supersededHydrationSkips += 1;
       _softNavDebugEvent("superseded_skip", { path, queuedPath: _softNavQueuedPath || "" });
+      _finishHydrationTrace(trace, { skipped: true });
       return false;
     }
 
@@ -5350,10 +5485,14 @@
       if (hasSupersedingNav(path)) {
         _softNavDebug.supersededHydrationSkips += 1;
         _softNavDebugEvent("superseded_skip_post_guard", { path, queuedPath: _softNavQueuedPath || "" });
+        _finishHydrationTrace(trace, { skipped: true });
         return false;
       }
       const guardedLivePath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
-      if (!guardedLivePath || guardedLivePath !== navPath) return false;
+      if (!guardedLivePath || guardedLivePath !== navPath) {
+        _finishHydrationTrace(trace, { skipped: true });
+        return false;
+      }
     }
 
     _warmupSchedulerStarted = false;
@@ -5364,13 +5503,18 @@
     await initFilters();
 
     const postFiltersPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
-    if (!postFiltersPath || postFiltersPath !== navPath) return false;
+    if (!postFiltersPath || postFiltersPath !== navPath) {
+      _finishHydrationTrace(trace, { skipped: true });
+      return false;
+    }
 
     initRiskEventTypeToggle();
     initRiskLiqSourceToggle();
     initRiskStressAssetToggles();
     initCascadePoolToggle();
     htmx.process(document.body);
+    _scheduleHydrationSettleCheck(trace);
+    _finishHydrationTrace(trace);
     return true;
   }
 
@@ -5532,6 +5676,9 @@
       _adaptiveShellPrefetchUsed++;
       try {
         shellAppliedFromCache = await applySoftNavHtml(navPath, cachedShell, { pushHistory, hydrate: false });
+        if (shellAppliedFromCache) {
+          _recordShellVisible(navPath);
+        }
       } catch (_) {
         shellAppliedFromCache = false;
       }
@@ -5570,6 +5717,7 @@
           window.location.assign(navPath);
           return;
         }
+        _recordShellVisible(navPath);
       }
     } catch (err) {
       if (err && err.name === "AbortError") return;
@@ -6413,6 +6561,9 @@
   document.body.addEventListener("htmx:beforeSend", (event) => {
     const el = event.detail.elt;
     if (!el || !el.classList.contains("widget-loader")) return;
+    _widgetRequestsInFlight += 1;
+    _softNavDebug.widgetRequestsStarted += 1;
+    if (_activeHydrationTrace) _scheduleHydrationSettleCheck(_activeHydrationTrace);
     if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
       _concurrencyInFlight++;
     }
@@ -6444,6 +6595,9 @@
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
+    _widgetRequestsInFlight = Math.max(0, _widgetRequestsInFlight - 1);
+    _softNavDebug.widgetRequestsCompleted += 1;
+    if (_activeHydrationTrace) _scheduleHydrationSettleCheck(_activeHydrationTrace);
     if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
       _concurrencyInFlight = Math.max(0, _concurrencyInFlight - 1);
       _drainConcurrencyQueue();
@@ -6579,6 +6733,7 @@
       return;
     }
     const xhr = event.detail.xhr;
+    _softNavDebug.widgetRequestErrors += 1;
     let detail = `HTTP ${xhr.status}`;
     try {
       const payload = JSON.parse(xhr.responseText);
@@ -6600,6 +6755,7 @@
     if (!widgetId) {
       return;
     }
+    _softNavDebug.widgetRequestErrors += 1;
     setWidgetError(widgetId, "cannot reach API");
   });
 
@@ -6612,6 +6768,7 @@
     if (!widgetId) {
       return;
     }
+    _softNavDebug.widgetRequestTimeouts += 1;
     setWidgetError(widgetId, "request timeout");
   });
 
@@ -6620,6 +6777,9 @@
     if (!sourceEl || !sourceEl.classList || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
+    _widgetRequestsInFlight = Math.max(0, _widgetRequestsInFlight - 1);
+    _softNavDebug.widgetRequestsAborted += 1;
+    if (_activeHydrationTrace) _scheduleHydrationSettleCheck(_activeHydrationTrace);
     if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
       _concurrencyInFlight = Math.max(0, _concurrencyInFlight - 1);
       _drainConcurrencyQueue();
