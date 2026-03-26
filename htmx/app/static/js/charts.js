@@ -4998,10 +4998,12 @@
 
   let _softNavInFlight = false;
   let _softNavController = null;
+  let _softNavCurrentPath = "";
   let _softNavQueuedPath = "";
   let _sidebarDebounceTimer = 0;
   let _sidebarDebouncePath = "";
   const SIDEBAR_DEBOUNCE_MS = 180;
+  const SOFT_NAV_HYDRATION_GUARD_MS = 120;
   let _softNavCurrentStartMs = 0;
   const _softNavDebug = {
     starts: 0,
@@ -5225,6 +5227,15 @@
       return true;
     }
 
+    if (SOFT_NAV_HYDRATION_GUARD_MS > 0) {
+      await new Promise((resolve) => setTimeout(resolve, SOFT_NAV_HYDRATION_GUARD_MS));
+      if (hasSupersedingNav(path)) {
+        _softNavDebug.supersededHydrationSkips += 1;
+        _softNavDebugEvent("superseded_skip_post_guard", { path, queuedPath: _softNavQueuedPath || "" });
+        return true;
+      }
+    }
+
     _warmupSchedulerStarted = false;
     _warmupInFlight = false;
     initPageSelector();
@@ -5276,6 +5287,7 @@
     _softNavInFlight = false;
     setPageSelectorBusy(false);
     _softNavController = null;
+    _softNavCurrentPath = "";
     if (_softNavQueuedPath) {
       const next = _softNavQueuedPath;
       _softNavQueuedPath = "";
@@ -5301,6 +5313,12 @@
       _softNavQueuedPath = navPath;
       _softNavDebug.queueEnqueues += 1;
       _softNavDebugEvent("queue_enqueue", { path: navPath });
+      if (_softNavController && _softNavCurrentPath && normalizeSoftNavPath(_softNavCurrentPath) !== navPath) {
+        try {
+          _softNavController.abort();
+          _softNavDebugEvent("abort_stale_inflight", { stalePath: _softNavCurrentPath, nextPath: navPath });
+        } catch (_) {}
+      }
       return;
     }
     if (_softNavController) {
@@ -5310,6 +5328,7 @@
     _softNavController = new AbortController();
     const { signal } = _softNavController;
     _softNavInFlight = true;
+    _softNavCurrentPath = navPath;
     _softNavCurrentStartMs = performance.now();
     _softNavDebug.starts += 1;
     _softNavDebug.lastRequestedPath = navPath;

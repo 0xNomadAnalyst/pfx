@@ -49,6 +49,7 @@ async def run() -> None:
     parser.add_argument("--clicks-per-burst", type=int, default=30)
     parser.add_argument("--interval-ms", type=int, default=35)
     parser.add_argument("--settle-timeout-s", type=float, default=45.0)
+    parser.add_argument("--goto-timeout-ms", type=int, default=90000)
     parser.add_argument("--headless", action="store_true")
     args = parser.parse_args()
 
@@ -66,12 +67,14 @@ async def run() -> None:
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=args.headless)
         page = await browser.new_page(viewport={"width": 1600, "height": 900})
+        page.set_default_navigation_timeout(args.goto_timeout_ms)
+        page.set_default_timeout(args.goto_timeout_ms)
 
         page.on("pageerror", lambda err: print(f"[pageerror] {err}"))
         page.on("console", lambda msg: print(f"[console:{msg.type}] {msg.text}") if msg.type == "error" else None)
 
         print(f"Opening {args.url}")
-        await page.goto(args.url, wait_until="domcontentloaded")
+        await page.goto(args.url, wait_until="commit")
         await page.wait_for_selector("#sidebar-nav .sidebar-nav-link", timeout=15000)
 
         has_debug = await page.evaluate(
