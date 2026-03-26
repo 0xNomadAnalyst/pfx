@@ -29,7 +29,7 @@ set -euo pipefail
 MAT_REFRESH_INTERVAL_S="${MAT_REFRESH_INTERVAL_S:-30}"
 
 # CAGG refresh trailing window
-CAGG_REFRESH_WINDOW="${CAGG_REFRESH_WINDOW:-30 minutes}"
+CAGG_REFRESH_WINDOW="${CAGG_REFRESH_WINDOW:-10 minutes}"
 
 # Aux/discovery table sync: every N hot-path cycles
 AUX_REFRESH_MULT="${AUX_REFRESH_MULT:-10}"
