@@ -44,6 +44,8 @@ LAST_WINDOW_OPTIONS: list[str] = (
 DEFAULT_LAST_WINDOW = os.getenv("DEFAULT_LAST_WINDOW", "7d")
 if DEFAULT_LAST_WINDOW not in LAST_WINDOW_OPTIONS:
     DEFAULT_LAST_WINDOW = LAST_WINDOW_OPTIONS[0]
+# Root URL `/` redirects here (must match an enabled page slug, e.g. app.pages.global).
+DEFAULT_HOME_PAGE_SLUG = os.getenv("DEFAULT_HOME_PAGE_SLUG", "global-ecosystem")
 PIPELINE_DEFAULTS: dict[str, dict[str, str]] = {
     "solstice": {"protocol": "raydium", "pair": "USX-USDC", "asset": "USX"},
     "onyc":     {"protocol": "orca",    "pair": "ONyc-USDC", "asset": "ONyc"},
@@ -317,7 +319,10 @@ def favicon():
 
 @app.get("/", include_in_schema=False)
 def home() -> RedirectResponse:
-    return RedirectResponse(url=f"/{PAGES[0].slug}")
+    slug = DEFAULT_HOME_PAGE_SLUG
+    if slug not in PAGES_BY_SLUG:
+        slug = PAGES[0].slug
+    return RedirectResponse(url=f"/{slug}")
 
 
 if "dex-liquidity" in PAGES_BY_SLUG:
