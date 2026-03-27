@@ -4259,6 +4259,20 @@
     return rect.top < vh * 1.15 && rect.bottom > -40;
   }
 
+  function compareWidgetsByVisualPriority(a, b) {
+    const aVisible = isWidgetLikelyVisible(a) ? 0 : 1;
+    const bVisible = isWidgetLikelyVisible(b) ? 0 : 1;
+    if (aVisible !== bVisible) return aVisible - bVisible;
+    if (!a || !b || typeof a.getBoundingClientRect !== "function" || typeof b.getBoundingClientRect !== "function") {
+      return 0;
+    }
+    const rectA = a.getBoundingClientRect();
+    const rectB = b.getBoundingClientRect();
+    const topDelta = rectA.top - rectB.top;
+    if (Math.abs(topDelta) > 2) return topDelta;
+    return rectA.left - rectB.left;
+  }
+
   function requestWidgetNow(el) {
     if (!el || !el.classList.contains("widget-loader")) return;
     const endpoint = el.getAttribute("hx-get");
@@ -4346,6 +4360,10 @@
         deferredOther.push(el);
       }
     });
+    visibleCritical.sort(compareWidgetsByVisualPriority);
+    visibleOther.sort(compareWidgetsByVisualPriority);
+    deferredCritical.sort(compareWidgetsByVisualPriority);
+    deferredOther.sort(compareWidgetsByVisualPriority);
 
     if (BATCHED_REVEAL_ENABLED) {
       _batchedRevealBuffer.clear();
@@ -6384,6 +6402,45 @@
     return targets;
   }
 
+  async function orderWarmupTargetsByShell(entry, targets) {
+    const queue = Array.isArray(targets) ? targets.slice() : [];
+    if (!queue.length) return queue;
+    const navPath = warmupEntryNavPath(entry);
+    if (!navPath) return queue;
+    let shellHtml = getSoftNavShellCache(navPath);
+    if (!shellHtml) {
+      try {
+        await fetchAndCacheSoftNavShell(navPath, "warmup-ordering");
+      } catch (_) {
+        return queue;
+      }
+      shellHtml = getSoftNavShellCache(navPath);
+      if (!shellHtml) return queue;
+    }
+    try {
+      const doc = new DOMParser().parseFromString(shellHtml, "text/html");
+      const loaders = Array.from(doc.querySelectorAll(".widget-loader[data-widget-id], .widget-loader[data-source-widget-id]"));
+      if (!loaders.length) return queue;
+      const order = new Map();
+      loaders.forEach((el, idx) => {
+        const sourceId = String(el.getAttribute("data-source-widget-id") || "").trim();
+        const widgetId = String(el.getAttribute("data-widget-id") || "").trim();
+        if (sourceId && !order.has(sourceId)) order.set(sourceId, idx);
+        if (widgetId && !order.has(widgetId)) order.set(widgetId, idx);
+      });
+      return queue.sort((a, b) => {
+        const wa = String(a?.widget_id || "").trim();
+        const wb = String(b?.widget_id || "").trim();
+        const oa = order.has(wa) ? order.get(wa) : Number.MAX_SAFE_INTEGER;
+        const ob = order.has(wb) ? order.get(wb) : Number.MAX_SAFE_INTEGER;
+        if (oa !== ob) return oa - ob;
+        return wa.localeCompare(wb);
+      });
+    } catch (_) {
+      return queue;
+    }
+  }
+
   function warmupEntryNavPath(entry) {
     const slug = String(entry?.slug || "").trim();
     if (!slug) return "";
@@ -6416,11 +6473,7 @@
     if (!pageId) return null;
     const targets = [];
     const seen = new Set();
-    const visibleFirst = widgetElements().slice().sort((a, b) => {
-      const av = isWidgetLikelyVisible(a) ? 0 : 1;
-      const bv = isWidgetLikelyVisible(b) ? 0 : 1;
-      return av - bv;
-    });
+    const visibleFirst = widgetElements().slice().sort(compareWidgetsByVisualPriority);
     for (const el of visibleFirst) {
       const widgetId = resolveSourceWidgetId(el);
       if (!widgetId) continue;
@@ -6733,9 +6786,12 @@
 
     const runEntry = async (entry, idx) => {
       if (runId !== _perPageWarmupRunId) return;
-      const targets = entry?.is_active_page
+      const rawTargets = entry?.is_active_page
         ? (Array.isArray(entry.targets) ? entry.targets : [])
         : buildWarmupTargetsForEntry(entry);
+      const targets = entry?.is_active_page
+        ? rawTargets
+        : await orderWarmupTargetsByShell(entry, rawTargets);
       if (!targets.length) return;
 
       if (!entry?.is_active_page) {
