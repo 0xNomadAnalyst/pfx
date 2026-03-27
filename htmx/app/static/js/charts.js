@@ -5063,6 +5063,12 @@
         await Promise.all(workers);
         _softNavDebugEvent("route_widget_prefetch_done", { path: normalizedPath, attempted, successes });
         return true;
+      } catch (err) {
+        _softNavDebugEvent("route_widget_prefetch_failed", {
+          path: normalizedPath,
+          detail: String(err && err.message ? err.message : err || "unknown"),
+        });
+        return false;
       } finally {
         if (routeWidgetPrefetchInFlight.get(normalizedPath)?.token === token) {
           routeWidgetPrefetchInFlight.delete(normalizedPath);
@@ -6826,6 +6832,7 @@
   async function runPerPageWarmup(manifest, { includeActivePage = true, reason = "warmup" } = {}) {
     if (_warmupInFlight) return;
     const defaults = warmupDefaults();
+    const wantsPayloadWarmup = PERSIST_CACHE_ENABLED || WARMUP_RETURN_PAYLOADS;
     const entries = [];
     if (includeActivePage) {
       const activeEntry = buildActivePageWarmupEntry(Math.min(10, Math.max(4, defaults.max_jobs)));
@@ -6836,8 +6843,6 @@
 
     _warmupInFlight = true;
     const runId = ++_perPageWarmupRunId;
-    const maxPerPageBudget = Math.max(3, Math.floor(defaults.budget_seconds / Math.max(1, entries.length)));
-    const maxPerPageJobs = Math.max(1, Math.floor(defaults.max_jobs / Math.max(1, Math.min(3, entries.length))));
 
     const runEntry = async (entry, idx) => {
       if (runId !== _perPageWarmupRunId) return;
@@ -6858,11 +6863,11 @@
       const requestBody = {
         targets,
         base_params: buildWarmupBaseParams(),
-        budget_seconds: Math.max(2, maxPerPageBudget),
-        max_jobs: Math.max(1, Math.min(maxPerPageJobs, targets.length)),
-        concurrency: Math.max(1, Math.min(defaults.concurrency, 2)),
+        // Give each page enough budget/jobs to fully preload while the user dwells.
+        budget_seconds: Math.max(3, defaults.budget_seconds),
+        max_jobs: Math.max(1, Math.min(defaults.max_jobs, targets.length)),
+        concurrency: Math.max(1, defaults.concurrency),
       };
-      const wantsPayloadWarmup = PERSIST_CACHE_ENABLED || WARMUP_RETURN_PAYLOADS;
       if (wantsPayloadWarmup) {
         requestBody.include_payloads = true;
       }
@@ -6903,19 +6908,20 @@
     };
 
     try {
-      entries.forEach((entry, idx) => {
+      const scheduledRuns = entries.map((entry, idx) => new Promise((resolve) => {
         const delay = entry?.is_active_page ? 0 : (idx * 220);
-        setTimeout(() => { void runEntry(entry, idx); }, delay);
-      });
+        setTimeout(() => {
+          Promise.resolve(runEntry(entry, idx)).finally(resolve);
+        }, delay);
+      }));
+      await Promise.all(scheduledRuns);
     } finally {
-      setTimeout(() => {
-        if (runId === _perPageWarmupRunId) {
-          _warmupInFlight = false;
-          markWarmupRunThisSession();
-          evaluateAdaptiveDialdown();
-          scheduleRouteWidgetPayloadPrefetch();
-        }
-      }, Math.max(800, entries.length * 260));
+      if (runId === _perPageWarmupRunId) {
+        _warmupInFlight = false;
+        markWarmupRunThisSession();
+        evaluateAdaptiveDialdown();
+        scheduleRouteWidgetPayloadPrefetch();
+      }
     }
   }
 
@@ -6942,7 +6948,6 @@
     const attemptWarmup = async () => {
       if (_warmupInFlight || hasWarmupRunThisSession()) return;
       if (document.hidden || _pipelineSwitchInProgress) return;
-      if (!userInteracted && performance.now() < 8000) return;
       const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       const effectiveType = String(connection?.effectiveType || "").toLowerCase();
       const saveData = connection?.saveData === true;
