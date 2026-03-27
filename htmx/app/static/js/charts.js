@@ -6475,6 +6475,16 @@
     });
   }
 
+  function getLikelyNextNavPath(currentPath) {
+    const queued = normalizeSoftNavPath(_softNavQueuedPath || "");
+    if (queued && queued !== currentPath) return queued;
+    const navPaths = collectSoftNavPathsFromUi();
+    if (!navPaths.length) return "";
+    const idx = navPaths.indexOf(currentPath);
+    if (idx >= 0 && idx < navPaths.length - 1) return navPaths[idx + 1];
+    return navPaths.find((path) => path !== currentPath) || "";
+  }
+
   function buildActivePageWarmupEntry(maxWidgets = 10) {
     const pageId = String(document.body?.dataset?.apiPageId || "").trim();
     if (!pageId) return null;
@@ -6773,16 +6783,15 @@
     const wantsPayloadWarmup = PERSIST_CACHE_ENABLED || WARMUP_RETURN_PAYLOADS;
     const entries = [];
     const activePath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
+    const likelyNextPath = getLikelyNextNavPath(activePath);
     if (includeActivePage) {
-      const activeEntry = buildActivePageWarmupEntry(Math.min(10, Math.max(4, defaults.max_jobs)));
+      const activeEntry = buildActivePageWarmupEntry(Math.min(12, Math.max(6, defaults.max_jobs)));
       if (activeEntry) entries.push(activeEntry);
     }
     if (!activePageOnly) {
       const orderedManifest = orderWarmupManifestByNav(manifest);
       orderedManifest.forEach((entry) => {
         if (!entry) return;
-        const entryPath = warmupEntryNavPath(entry);
-        if (includeActivePage && activePath && entryPath && entryPath === activePath) return;
         entries.push(entry);
       });
     }
@@ -6790,15 +6799,87 @@
 
     _warmupInFlight = true;
     const runId = ++_perPageWarmupRunId;
+    const firstPassLimit = Math.max(4, Math.min(10, Math.ceil(defaults.max_jobs * 0.35)));
 
-    const runEntry = async (entry, idx) => {
+    const targetFingerprint = (target) => {
+      const widgetId = String(target?.widget_id || "");
+      const pageId = String(target?.page_id || "");
+      const params = target?.params && typeof target.params === "object" ? target.params : {};
+      const sig = Object.keys(params).sort().map((k) => `${k}=${String(params[k])}`).join("&");
+      return `${pageId}|${widgetId}|${sig}`;
+    };
+
+    const buildWorkPlan = async () => {
+      const firstPass = [];
+      const secondPassActive = [];
+      const secondPassLikely = [];
+      const secondPassOther = [];
+      const seenByPage = new Map();
+
+      for (const entry of entries) {
+        if (runId !== _perPageWarmupRunId) return [];
+        const rawTargets = entry?.is_active_page
+          ? (Array.isArray(entry.targets) ? entry.targets : [])
+          : buildWarmupTargetsForEntry(entry);
+        const orderedTargets = entry?.is_active_page
+          ? rawTargets
+          : await orderWarmupTargetsByShell(entry, rawTargets);
+        if (!orderedTargets.length) continue;
+
+        const pageId = String(entry?.page_id || orderedTargets[0]?.page_id || "").trim();
+        if (!pageId) continue;
+        const seen = seenByPage.get(pageId) || new Set();
+        const deduped = orderedTargets.filter((target) => {
+          const key = targetFingerprint(target);
+          if (seen.has(key)) return false;
+          return true;
+        });
+        if (!deduped.length) continue;
+
+        const entryPath = entry?.is_active_page
+          ? activePath
+          : warmupEntryNavPath(entry);
+        const primaryCount = (includeActivePage && !entry?.is_active_page && entryPath && entryPath === activePath)
+          ? 0
+          : firstPassLimit;
+        const firstTargets = deduped.slice(0, primaryCount);
+        const remainderTargets = deduped.slice(primaryCount);
+
+        if (firstTargets.length) {
+          firstTargets.forEach((target) => seen.add(targetFingerprint(target)));
+          seenByPage.set(pageId, seen);
+          firstPass.push({
+            entry,
+            targets: firstTargets,
+            phase: "pass1",
+            isActive: !!entry?.is_active_page || (!!entryPath && entryPath === activePath),
+            isLikelyNext: !!entryPath && !!likelyNextPath && entryPath === likelyNextPath,
+          });
+        } else {
+          seenByPage.set(pageId, seen);
+        }
+
+        if (remainderTargets.length) {
+          const work = {
+            entry,
+            targets: remainderTargets,
+            phase: "pass2",
+            isActive: !!entry?.is_active_page || (!!entryPath && entryPath === activePath),
+            isLikelyNext: !!entryPath && !!likelyNextPath && entryPath === likelyNextPath,
+          };
+          if (work.isActive) secondPassActive.push(work);
+          else if (work.isLikelyNext) secondPassLikely.push(work);
+          else secondPassOther.push(work);
+        }
+      }
+
+      return [...firstPass, ...secondPassActive, ...secondPassLikely, ...secondPassOther];
+    };
+
+    const runEntry = async (work, idx) => {
       if (runId !== _perPageWarmupRunId) return;
-      const rawTargets = entry?.is_active_page
-        ? (Array.isArray(entry.targets) ? entry.targets : [])
-        : buildWarmupTargetsForEntry(entry);
-      const targets = entry?.is_active_page
-        ? rawTargets
-        : await orderWarmupTargetsByShell(entry, rawTargets);
+      const entry = work?.entry || {};
+      const targets = Array.isArray(work?.targets) ? work.targets : [];
       if (!targets.length) return;
 
       if (!entry?.is_active_page) {
@@ -6810,12 +6891,18 @@
         }
       }
 
+      const isDepthBoosted = work?.phase === "pass2" && (work?.isActive || work?.isLikelyNext);
+      const budgetSeconds = isDepthBoosted
+        ? Math.min(defaults.budget_seconds + 6, Math.ceil(defaults.budget_seconds * 1.3))
+        : defaults.budget_seconds;
+      const maxJobs = isDepthBoosted
+        ? Math.min(defaults.max_jobs + 8, Math.ceil(defaults.max_jobs * 1.35))
+        : defaults.max_jobs;
       const requestBody = {
         targets,
         base_params: buildWarmupBaseParams(),
-        // Give each page enough budget/jobs to fully preload while the user dwells.
-        budget_seconds: Math.max(3, defaults.budget_seconds),
-        max_jobs: Math.max(1, Math.min(defaults.max_jobs, targets.length)),
+        budget_seconds: Math.max(3, budgetSeconds),
+        max_jobs: Math.max(1, Math.min(maxJobs, targets.length)),
         concurrency: Math.max(1, defaults.concurrency),
       };
       if (wantsPayloadWarmup) {
@@ -6849,17 +6936,20 @@
       }
       _softNavDebugEvent("warmup_route_complete", {
         reason,
+        phase: String(work?.phase || "pass1"),
         index: idx,
         slug: String(entry?.slug || ""),
         active: !!entry?.is_active_page,
+        likelyNext: !!work?.isLikelyNext,
         targets: targets.length,
       });
     };
 
     try {
-      for (let idx = 0; idx < entries.length; idx += 1) {
+      const workPlan = await buildWorkPlan();
+      for (let idx = 0; idx < workPlan.length; idx += 1) {
         if (runId !== _perPageWarmupRunId) return;
-        await runEntry(entries[idx], idx);
+        await runEntry(workPlan[idx], idx);
       }
     } finally {
       if (runId === _perPageWarmupRunId) {
