@@ -106,7 +106,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "warmup_budget_seconds": 30,
         "warmup_max_jobs": 20,
         "warmup_concurrency": 3,
-        "warmup_widgets_per_page": 8,
+        "warmup_widgets_per_page": 40,
         "warmup_return_payloads": True,
         "critical_cache_max_age_ms": 60_000,
         "default_cache_max_age_ms": 300_000,

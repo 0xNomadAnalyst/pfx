@@ -5011,12 +5011,15 @@
           if (!widgetId || !endpoint) return null;
           return { widgetId, sourceWidgetId, endpoint, params: buildPrefetchParamsForShellWidget(widgetEl) };
         }).filter(Boolean);
+        let attempted = 0;
+        let successes = 0;
 
         let index = 0;
         const workers = Array.from({ length: Math.max(1, ROUTE_WIDGET_PREFETCH_CONCURRENCY) }, async () => {
           while (index < queue.length) {
             if (document.hidden || _softNavInFlight) return;
             const job = queue[index++];
+            attempted += 1;
             try {
               const url = new URL(job.endpoint, window.location.origin);
               Object.entries(job.params || {}).forEach(([k, v]) => {
@@ -5030,6 +5033,7 @@
               if (!resp.ok) continue;
               const payload = await resp.json();
               if (!payload || payload.status !== "success") continue;
+              successes += 1;
               const signature = buildPrefetchSignature(job.params);
               setWidgetCachedPayload(job.widgetId, signature, payload);
               if (job.sourceWidgetId && job.sourceWidgetId !== job.widgetId) {
@@ -5041,6 +5045,7 @@
           }
         });
         await Promise.all(workers);
+        _softNavDebugEvent("route_widget_prefetch_done", { path: normalizedPath, attempted, successes });
         return true;
       } finally {
         if (routeWidgetPrefetchInFlight.get(normalizedPath)?.token === token) {
@@ -6865,6 +6870,7 @@
         : normalizeSoftNavPath(`/${String(entry?.slug || "").trim()}`);
       if (shellPath) {
         scheduleAllShellPrefetch([shellPath]);
+        void prefetchRouteWidgetPayloads(shellPath, ROUTE_WIDGET_PREFETCH_MAX_WIDGETS);
       }
       _softNavDebugEvent("warmup_route_complete", {
         reason,
@@ -6886,6 +6892,7 @@
           _warmupInFlight = false;
           markWarmupRunThisSession();
           evaluateAdaptiveDialdown();
+          scheduleRouteWidgetPayloadPrefetch();
         }
       }, Math.max(800, entries.length * 260));
     }
@@ -6945,7 +6952,7 @@
 
   function initNavigationReadinessScheduler() {
     if (_navigationReadinessTimer) return;
-    const cadenceMs = Math.max(15_000, DASH_REFRESH_INTERVAL_MS);
+    const cadenceMs = Math.max(8_000, Math.min(15_000, Math.floor(DASH_REFRESH_INTERVAL_MS / 2)));
     _navigationReadinessTimer = setInterval(() => {
       if (document.hidden || _softNavInFlight || _pipelineSwitchInProgress) return;
       const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
