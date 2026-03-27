@@ -4807,7 +4807,10 @@
       softNavShellCache.delete(normalizedPath);
       return null;
     }
-    setSoftNavShellCache(normalizedPath, cached.html, { pinned: cached.pinned });
+    setSoftNavShellCache(normalizedPath, cached.html, {
+      pinned: cached.pinned,
+      source: cached.source || "network",
+    });
     return cached.html;
   }
 
