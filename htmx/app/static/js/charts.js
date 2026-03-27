@@ -4840,6 +4840,8 @@
     try {
       renderPayload(widgetId, payload, srcId);
       updateTimestamp(widgetId, payload?.metadata?.generated_at, { stale: true });
+      sourceEl.dataset.lastRenderedSignature = signature;
+      sourceEl.dataset.lastRenderedGeneratedAt = String(payload?.metadata?.generated_at || "");
       sourceEl.dataset.hasLoadedOnce = "1";
       return true;
     } catch (_) {
@@ -6733,9 +6735,21 @@
 
     const doRender = () => {
       _skeletonShownAt.delete(widgetId);
-      renderPayload(widgetId, payload, srcId);
+      const signature = widgetFilterSignature(sourceEl);
+      const generatedAt = String(payload?.metadata?.generated_at || "");
+      const isIdenticalRefresh = (
+        sourceEl.dataset.hasLoadedOnce === "1"
+        && sourceEl.dataset.lastRenderedSignature === signature
+        && sourceEl.dataset.lastRenderedGeneratedAt === generatedAt
+      );
+      if (!isIdenticalRefresh) {
+        renderPayload(widgetId, payload, srcId);
+      }
       updateTimestamp(widgetId, payload?.metadata?.generated_at);
-      setWidgetCachedPayload(widgetId, widgetFilterSignature(sourceEl), payload);
+      setWidgetCachedPayload(widgetId, signature, payload);
+      sourceEl.dataset.lastRenderedSignature = signature;
+      sourceEl.dataset.lastRenderedGeneratedAt = generatedAt;
+      scheduleCurrentPageShellSnapshot(600);
       sourceEl.dataset.hasLoadedOnce = "1";
     };
 
