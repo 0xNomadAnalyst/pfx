@@ -4634,6 +4634,43 @@
     return entry;
   }
 
+  function getLatestWidgetCacheEntry(widgetId) {
+    if (!widgetId) return null;
+    const prefix = `${widgetId}::`;
+    let best = null;
+    let bestKey = "";
+    let bestTs = 0;
+    const now = Date.now();
+    for (const [key, entry] of widgetResponseCache.entries()) {
+      if (!key.startsWith(prefix)) continue;
+      if (!entry || !entry.payload) continue;
+      const expiresAtMs = Number(entry.expiresAtMs || 0);
+      if (expiresAtMs > 0 && now > expiresAtMs) {
+        widgetResponseCache.delete(key);
+        _softNavDebug.persistExpired += 1;
+        _softNavDebugEvent("persist_widget_expired", { widgetId, key });
+        continue;
+      }
+      const ts = Math.max(
+        Number(entry.lruAtMs || 0),
+        Number(entry.cachedAtMs || 0),
+        Number(Date.parse(entry.payload?.metadata?.generated_at || "")) || 0
+      );
+      if (ts >= bestTs) {
+        best = entry;
+        bestKey = key;
+        bestTs = ts;
+      }
+    }
+    if (!best) return null;
+    best.lruAtMs = now;
+    if (bestKey) {
+      widgetResponseCache.delete(bestKey);
+      widgetResponseCache.set(bestKey, best);
+    }
+    return best;
+  }
+
   function classifyWidgetCacheFreshness(widgetId, entry) {
     if (!entry || !entry.payload) return "miss";
     const now = Date.now();
@@ -4920,6 +4957,15 @@
       entry = getWidgetCacheEntry(sourceWidgetId, signature);
       if (entry?.payload) {
         // Mirror source-id payload under visible widget id for faster follow-up hits.
+        setWidgetCachedPayload(widgetId, signature, entry.payload);
+      }
+    }
+    if (!entry) {
+      entry = getLatestWidgetCacheEntry(widgetId);
+    }
+    if (!entry && sourceWidgetId && sourceWidgetId !== widgetId) {
+      entry = getLatestWidgetCacheEntry(sourceWidgetId);
+      if (entry?.payload) {
         setWidgetCachedPayload(widgetId, signature, entry.payload);
       }
     }

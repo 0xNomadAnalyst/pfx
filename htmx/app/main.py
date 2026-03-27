@@ -62,7 +62,7 @@ HTMX_HEALTH_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_STEP_D
 
 # ── Cache mode profiles ──────────────────────────────────────────────
 # conservative = freshness-first, no speculation (frequent refresh, no preload)
-# balanced     = today's exact behavior (default, strict no-op)
+# balanced     = default optimization profile (navigation-first)
 # aggressive   = speed-first, accept staleness (all new features enabled)
 #
 # HTMX_CACHE_MODE selects a profile.  Individual HTMX_* env vars override
@@ -107,7 +107,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "warmup_max_jobs": 20,
         "warmup_concurrency": 3,
         "warmup_widgets_per_page": 8,
-        "warmup_return_payloads": False,
+        "warmup_return_payloads": True,
         "critical_cache_max_age_ms": 60_000,
         "default_cache_max_age_ms": 300_000,
         "soft_nav_shell_refresh_delay_ms": 3_000,
@@ -122,7 +122,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "hover_prefetch_enabled": False,
         "parallel_shell_prefetch": False,
         "shell_prefetch_concurrency": 1,
-        "rewarmup_on_filter_change": False,
+        "rewarmup_on_filter_change": True,
         "rewarmup_idle_delay_ms": 0,
         "batched_reveal_enabled": False,
         "batched_reveal_timeout_ms": 0,
