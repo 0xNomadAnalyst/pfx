@@ -5282,27 +5282,13 @@
         e.preventDefault();
         highlightSidebarLink(path);
         if (path === `${window.location.pathname}${window.location.search || ""}`) return;
-        clearTimeout(_sidebarDebounceTimer);
-        _sidebarDebouncePath = path;
-        _sidebarDebounceTimer = setTimeout(() => {
-          const target = _sidebarDebouncePath;
-          _sidebarDebouncePath = "";
-          _sidebarDebounceTimer = 0;
-          if (target) {
-            softNavigateToPage(target, { pushHistory: true });
-          }
-        }, SIDEBAR_DEBOUNCE_MS);
+        softNavigateToPage(path, { pushHistory: true });
       });
     });
 
   }
 
   function teardownForSoftNavigation() {
-    if (_sidebarDebounceTimer) {
-      clearTimeout(_sidebarDebounceTimer);
-      _sidebarDebounceTimer = 0;
-      _sidebarDebouncePath = "";
-    }
     widgetElements().forEach((el) => {
       try { htmx.trigger(el, "htmx:abort"); } catch (_) {}
     });
@@ -5410,10 +5396,8 @@
   let _softNavTraceSeq = 0;
   let _softNavActiveTraceId = "";
   let _softNavLastCompletedTraceId = "";
-  let _sidebarDebounceTimer = 0;
-  let _sidebarDebouncePath = "";
-  const SIDEBAR_DEBOUNCE_MS = 180;
   const SOFT_NAV_HYDRATION_GUARD_MS = 120;
+  const GUIDE_OVERLAY_PREWARM_ROUTE_LIMIT = 2;
   let _softNavCurrentStartMs = 0;
   const _softNavDebug = {
     starts: 0,
@@ -5817,7 +5801,7 @@
   function setPageSelectorBusy(isBusy) {
     const pageSelect = document.getElementById("page-select");
     if (pageSelect) {
-      pageSelect.disabled = isBusy;
+      pageSelect.disabled = false;
       pageSelect.dataset.loading = isBusy ? "1" : "0";
     }
     // Keep sidebar links interactive even while a nav is in-flight so fast
@@ -6073,6 +6057,7 @@
           if (restoredHits <= 0) {
             schedulePriorityActiveWarmup("nav-cache-hit-without-payload");
           }
+          scheduleGuideOverlayWarmup("nav-cache-hit-overlay");
         }
       } catch (_) {
         shellAppliedFromCache = false;
@@ -6117,6 +6102,7 @@
         if (restoredDelta <= 0) {
           schedulePriorityActiveWarmup("nav-shell-miss");
         }
+        scheduleGuideOverlayWarmup("nav-shell-miss-overlay");
       }
     } catch (err) {
       if (err && err.name === "AbortError") return;
@@ -6274,6 +6260,8 @@
     // paint immediately and let the refresh request reconcile in background.
     hydrateWidgetsFromCache();
     initWidgetVisibilityTracking();
+    initGuideOverlayWarmupBridge();
+    scheduleGuideOverlayWarmup("filters-init-overlay");
     triggerDashboardRefresh({ prioritizeViewport: true });
     initWarmupScheduler();
     initNavigationReadinessScheduler();
@@ -6695,9 +6683,11 @@
   let _warmupInFlight = false;
   let _navigationReadinessTimer = null;
   let _rewarmupDebounceTimer = null;
+  let _guideOverlayWarmupObserver = null;
   let _perPageWarmupRunId = 0;
   let _lastPriorityWarmupPath = "";
   let _lastPriorityWarmupAtMs = 0;
+  let _lastGuideOverlayWarmupAtMs = 0;
   let _adaptiveShellPrefetchAttempted = 0;
   let _adaptiveShellPrefetchUsed = 0;
   let _adaptiveDialdownTriggered = false;
@@ -6830,6 +6820,47 @@
       preempt: true,
       reason,
     });
+  }
+
+  function isGuideOverlayActive() {
+    return document.body.classList.contains("ecosystem-guide-active");
+  }
+
+  function scheduleGuideOverlayWarmup(reason = "guide-overlay") {
+    if (!WARMUP_ENABLED) return;
+    if (!isGuideOverlayActive()) return;
+    const now = Date.now();
+    if ((now - _lastGuideOverlayWarmupAtMs) < 6_000) return;
+    _lastGuideOverlayWarmupAtMs = now;
+    const manifest = readWarmupManifest();
+    if (!manifest.length) return;
+    const ordered = orderWarmupManifestByNav(manifest);
+    const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
+    const subset = ordered
+      .filter((entry) => warmupEntryNavPath(entry) !== currentPath)
+      .slice(0, GUIDE_OVERLAY_PREWARM_ROUTE_LIMIT);
+    _softNavDebugEvent("warmup_overlay_trigger", {
+      reason,
+      currentPath,
+      prewarmRoutes: subset.map((entry) => warmupEntryNavPath(entry)),
+    });
+    void runPerPageWarmup(subset, {
+      includeActivePage: true,
+      preempt: true,
+      reason,
+    });
+  }
+
+  function initGuideOverlayWarmupBridge() {
+    if (_guideOverlayWarmupObserver || !document.body) return;
+    const onGuideStateChange = () => {
+      if (isGuideOverlayActive()) {
+        scheduleGuideOverlayWarmup("guide-overlay-open");
+      }
+    };
+    _guideOverlayWarmupObserver = new MutationObserver(onGuideStateChange);
+    _guideOverlayWarmupObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    onGuideStateChange();
   }
 
   function initWarmupScheduler() {
