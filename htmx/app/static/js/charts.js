@@ -4050,8 +4050,7 @@
     softNavShellCacheCapacity = SOFT_NAV_SHELL_CACHE_MAX_ENTRIES;
     _allShellPrefetchScheduled = false;
     _allShellPrefetchCompleted = false;
-    _routeShellRefreshTimers.forEach((timer) => clearTimeout(timer));
-    _routeShellRefreshTimers.clear();
+    _shellPrefetchRunId += 1;
     _deferredSoftNavHydrationToken += 1;
     if (_deferredSoftNavHydrationTimer) {
       clearTimeout(_deferredSoftNavHydrationTimer);
@@ -4879,7 +4878,7 @@
 
   let _allShellPrefetchScheduled = false;
   let _allShellPrefetchCompleted = false;
-  const _routeShellRefreshTimers = new Map();
+  let _shellPrefetchRunId = 0;
   function scheduleAllShellPrefetch(prioritizedPaths = []) {
     const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     const effectiveType = String(conn?.effectiveType || "").toLowerCase();
@@ -4914,28 +4913,35 @@
     ensureSoftNavShellCacheCapacity(queue.length + 2);
     _allShellPrefetchScheduled = true;
     _allShellPrefetchCompleted = false;
-    const baseDelay = 180;
-    queue.forEach((path, idx) => {
-      const prior = _routeShellRefreshTimers.get(path);
-      if (prior) {
-        clearTimeout(prior);
-      }
-      const delay = Math.max(0, idx * baseDelay);
-      const timer = setTimeout(async () => {
-        _routeShellRefreshTimers.delete(path);
-        try {
-          await fetchAndCacheSoftNavShell(path, "per-route-shell-refresh");
-        } catch (_) {
-          // Best effort prefetch.
-        } finally {
-          if (_routeShellRefreshTimers.size === 0) {
-            _allShellPrefetchCompleted = true;
-            _allShellPrefetchScheduled = false;
+    const runId = ++_shellPrefetchRunId;
+    void (async () => {
+      try {
+        for (const path of queue) {
+          if (runId !== _shellPrefetchRunId) return;
+          if (getSoftNavShellCache(path)) continue;
+          let retries = 0;
+          while (
+            retries < 20
+            && (document.hidden || _softNavInFlight || _pipelineSwitchInProgress || _widgetRequestsInFlight > 0)
+          ) {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            if (runId !== _shellPrefetchRunId) return;
+            retries += 1;
+          }
+          if (runId !== _shellPrefetchRunId) return;
+          try {
+            await fetchAndCacheSoftNavShell(path, "per-route-shell-refresh");
+          } catch (_) {
+            // Best effort prefetch.
           }
         }
-      }, delay);
-      _routeShellRefreshTimers.set(path, timer);
-    });
+      } finally {
+        if (runId === _shellPrefetchRunId) {
+          _allShellPrefetchCompleted = true;
+          _allShellPrefetchScheduled = false;
+        }
+      }
+    })();
   }
 
   function setWidgetCachedPayload(widgetId, signature, payload) {
@@ -6050,6 +6056,7 @@
     _softNavDebug.lastRequestedPath = navPath;
     _softNavDebugEvent("start", { path: navPath, navTraceId: _softNavActiveTraceId });
     setPageSelectorBusy(true);
+    const persistRestoreHitsBeforeNav = Number(_softNavDebug.persistRestoreHits || 0);
     let shellAppliedFromCache = false;
     const cachedShell = getSoftNavShellCache(navPath);
     if (cachedShell) {
@@ -6060,7 +6067,10 @@
         shellAppliedFromCache = await applySoftNavHtml(navPath, cachedShell, { pushHistory, hydrate: false });
         if (shellAppliedFromCache) {
           _recordShellVisible(navPath);
-          hydrateWidgetsFromCache();
+          const restoredHits = hydrateWidgetsFromCache();
+          if (restoredHits <= 0) {
+            schedulePriorityActiveWarmup("nav-cache-hit-without-payload");
+          }
         }
       } catch (_) {
         shellAppliedFromCache = false;
@@ -6101,6 +6111,10 @@
           return;
         }
         _recordShellVisible(navPath);
+        const restoredDelta = Number(_softNavDebug.persistRestoreHits || 0) - persistRestoreHitsBeforeNav;
+        if (restoredDelta <= 0) {
+          schedulePriorityActiveWarmup("nav-shell-miss");
+        }
       }
     } catch (err) {
       if (err && err.name === "AbortError") return;
@@ -6374,6 +6388,33 @@
       targets.push(params ? { page_id: pageId, widget_id: widgetId, params } : { page_id: pageId, widget_id: widgetId });
     });
     return targets;
+  }
+
+  function warmupEntryNavPath(entry) {
+    const slug = String(entry?.slug || "").trim();
+    if (!slug) return "";
+    return normalizeSoftNavPath(`/${slug}`) || "";
+  }
+
+  function orderWarmupManifestByNav(manifest) {
+    const entries = Array.isArray(manifest) ? manifest.slice() : [];
+    if (!entries.length) return entries;
+    const navPaths = collectSoftNavPathsFromUi();
+    const navOrder = new Map();
+    navPaths.forEach((path, idx) => {
+      const normalized = normalizeSoftNavPath(path);
+      if (normalized && !navOrder.has(normalized)) {
+        navOrder.set(normalized, idx);
+      }
+    });
+    return entries.sort((a, b) => {
+      const pathA = warmupEntryNavPath(a);
+      const pathB = warmupEntryNavPath(b);
+      const idxA = navOrder.has(pathA) ? navOrder.get(pathA) : Number.MAX_SAFE_INTEGER;
+      const idxB = navOrder.has(pathB) ? navOrder.get(pathB) : Number.MAX_SAFE_INTEGER;
+      if (idxA !== idxB) return idxA - idxB;
+      return String(a?.slug || "").localeCompare(String(b?.slug || ""));
+    });
   }
 
   function buildActivePageWarmupEntry(maxWidgets = 10) {
@@ -6653,6 +6694,8 @@
   let _navigationReadinessTimer = null;
   let _rewarmupDebounceTimer = null;
   let _perPageWarmupRunId = 0;
+  let _lastPriorityWarmupPath = "";
+  let _lastPriorityWarmupAtMs = 0;
   let _adaptiveShellPrefetchAttempted = 0;
   let _adaptiveShellPrefetchUsed = 0;
   let _adaptiveDialdownTriggered = false;
@@ -6662,16 +6705,31 @@
   let _batchedRevealTimer = null;
   const _skeletonShownAt = new Map();
 
-  async function runPerPageWarmup(manifest, { includeActivePage = true, reason = "warmup" } = {}) {
-    if (_warmupInFlight) return;
+  async function runPerPageWarmup(
+    manifest,
+    { includeActivePage = true, reason = "warmup", preempt = false, activePageOnly = false } = {},
+  ) {
+    if (_warmupInFlight && !preempt) return;
+    if (_warmupInFlight && preempt) {
+      _perPageWarmupRunId += 1;
+    }
     const defaults = warmupDefaults();
     const wantsPayloadWarmup = PERSIST_CACHE_ENABLED || WARMUP_RETURN_PAYLOADS;
     const entries = [];
+    const activePath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
     if (includeActivePage) {
       const activeEntry = buildActivePageWarmupEntry(Math.min(10, Math.max(4, defaults.max_jobs)));
       if (activeEntry) entries.push(activeEntry);
     }
-    (Array.isArray(manifest) ? manifest : []).forEach((entry) => entries.push(entry));
+    if (!activePageOnly) {
+      const orderedManifest = orderWarmupManifestByNav(manifest);
+      orderedManifest.forEach((entry) => {
+        if (!entry) return;
+        const entryPath = warmupEntryNavPath(entry);
+        if (includeActivePage && activePath && entryPath && entryPath === activePath) return;
+        entries.push(entry);
+      });
+    }
     if (!entries.length) return;
 
     _warmupInFlight = true;
@@ -6740,13 +6798,10 @@
     };
 
     try {
-      const scheduledRuns = entries.map((entry, idx) => new Promise((resolve) => {
-        const delay = entry?.is_active_page ? 0 : (idx * 220);
-        setTimeout(() => {
-          Promise.resolve(runEntry(entry, idx)).finally(resolve);
-        }, delay);
-      }));
-      await Promise.all(scheduledRuns);
+      for (let idx = 0; idx < entries.length; idx += 1) {
+        if (runId !== _perPageWarmupRunId) return;
+        await runEntry(entries[idx], idx);
+      }
     } finally {
       if (runId === _perPageWarmupRunId) {
         _warmupInFlight = false;
@@ -6754,6 +6809,25 @@
         evaluateAdaptiveDialdown();
       }
     }
+  }
+
+  function schedulePriorityActiveWarmup(reason = "nav-priority") {
+    if (!WARMUP_ENABLED) return;
+    const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
+    if (!currentPath) return;
+    const now = Date.now();
+    if (_lastPriorityWarmupPath === currentPath && (now - _lastPriorityWarmupAtMs) < 4_000) return;
+    _lastPriorityWarmupPath = currentPath;
+    _lastPriorityWarmupAtMs = now;
+    const manifest = readWarmupManifest();
+    if (!manifest.length) return;
+    _softNavDebugEvent("warmup_priority_trigger", { reason, path: currentPath });
+    void runPerPageWarmup(manifest, {
+      includeActivePage: true,
+      activePageOnly: true,
+      preempt: true,
+      reason,
+    });
   }
 
   function initWarmupScheduler() {
