@@ -5154,6 +5154,7 @@
     }
     if (!entry || !entry.payload) {
       _softNavDebug.persistRestoreMisses += 1;
+      _softNavDebugEvent("persist_restore_miss", { widgetId, sourceWidgetId });
       return false;
     }
     const freshness = classifyWidgetCacheFreshness(widgetId, entry);
@@ -6001,6 +6002,9 @@
 
     _warmupSchedulerStarted = false;
     _warmupInFlight = false;
+    // Paint any available widget payloads immediately before async filter/meta
+    // initialization to avoid "loading..." flashes on soft-nav.
+    hydrateWidgetsFromCache();
     initPageSelector();
     initSidebarNav();
     initPipelineSwitcher();
@@ -6202,6 +6206,7 @@
         shellAppliedFromCache = await applySoftNavHtml(navPath, cachedShell, { pushHistory, hydrate: false });
         if (shellAppliedFromCache) {
           _recordShellVisible(navPath);
+          hydrateWidgetsFromCache();
         }
       } catch (_) {
         shellAppliedFromCache = false;

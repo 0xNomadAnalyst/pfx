@@ -103,9 +103,9 @@ CACHE_PROFILES: dict[str, dict] = {
     },
     "balanced": {
         "warmup_enabled": True,
-        "warmup_budget_seconds": 30,
-        "warmup_max_jobs": 20,
-        "warmup_concurrency": 3,
+        "warmup_budget_seconds": 60,
+        "warmup_max_jobs": 120,
+        "warmup_concurrency": 5,
         "warmup_widgets_per_page": 40,
         "warmup_return_payloads": True,
         "critical_cache_max_age_ms": 60_000,
