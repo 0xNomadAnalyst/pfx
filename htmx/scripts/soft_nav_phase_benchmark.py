@@ -133,6 +133,11 @@ async def run() -> None:
         help="Allowed absolute delta for cadence compliance gate",
     )
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument(
+        "--json-out",
+        default="",
+        help="Optional path to write the benchmark summary JSON",
+    )
     args = parser.parse_args()
 
     try:
@@ -343,6 +348,9 @@ async def run() -> None:
 
         print("\n=== Soft-nav phase benchmark ===")
         print(json.dumps(summary, indent=2))
+        if args.json_out:
+            with open(args.json_out, "w", encoding="utf-8") as fh:
+                json.dump(summary, fh, indent=2)
 
         timeout_count = int(summary["aggregates"].get("timeout_count", 0))
         route_error_max = max((item.get("errors_total", 0) for item in route_error_summary.values()), default=0)

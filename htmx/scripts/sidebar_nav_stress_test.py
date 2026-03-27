@@ -83,6 +83,11 @@ async def run() -> None:
         help="Allowed absolute delta for cadence compliance gate",
     )
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument(
+        "--json-out",
+        default="",
+        help="Optional path to write the stress report JSON",
+    )
     args = parser.parse_args()
 
     try:
@@ -208,6 +213,9 @@ async def run() -> None:
         }
         print("\n=== Soft-nav stress report ===")
         print(json.dumps(report, indent=2))
+        if args.json_out:
+            with open(args.json_out, "w", encoding="utf-8") as fh:
+                json.dump(report, fh, indent=2)
 
         timeouts_total = sum(1 for item in burst_summaries if not item.get("settled"))
         hydration_starts = _safe_int(final_snapshot.get("hydrationStarts"))

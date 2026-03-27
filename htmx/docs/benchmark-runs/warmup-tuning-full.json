@@ -1,0 +1,105 @@
+{
+  "started_at": 1774590407,
+  "runs": [
+    {
+      "name": "baseline",
+      "port": 8012,
+      "env": {
+        "HTMX_WARMUP_BUDGET_SECONDS": "30",
+        "HTMX_WARMUP_MAX_JOBS": "30",
+        "HTMX_WARMUP_CONCURRENCY": "3",
+        "HTMX_WARMUP_WIDGETS_PER_PAGE": "10"
+      },
+      "ok": true,
+      "score": 381.874,
+      "passed": true,
+      "metrics": {
+        "widget_settle_ms_p95": 174.28,
+        "hydration_ms_p95": 174.28,
+        "shell_visible_ms_p95": 4.31,
+        "timeout_count": 0,
+        "route_error_max": 0,
+        "route_timeout_max": 0,
+        "route_abort_ratio_max": 0.8947,
+        "persist_restore_misses": 846
+      },
+      "error": "",
+      "details": ""
+    },
+    {
+      "name": "deeper-pass2-medium",
+      "port": 8013,
+      "env": {
+        "HTMX_WARMUP_BUDGET_SECONDS": "36",
+        "HTMX_WARMUP_MAX_JOBS": "38",
+        "HTMX_WARMUP_CONCURRENCY": "3",
+        "HTMX_WARMUP_WIDGETS_PER_PAGE": "12"
+      },
+      "ok": true,
+      "score": 386.695,
+      "passed": true,
+      "metrics": {
+        "widget_settle_ms_p95": 174.26,
+        "hydration_ms_p95": 174.26,
+        "shell_visible_ms_p95": 4.83,
+        "timeout_count": 0,
+        "route_error_max": 0,
+        "route_timeout_max": 0,
+        "route_abort_ratio_max": 0.9302,
+        "persist_restore_misses": 926
+      },
+      "error": "",
+      "details": ""
+    },
+    {
+      "name": "deeper-pass2-high",
+      "port": 8014,
+      "env": {
+        "HTMX_WARMUP_BUDGET_SECONDS": "45",
+        "HTMX_WARMUP_MAX_JOBS": "48",
+        "HTMX_WARMUP_CONCURRENCY": "4",
+        "HTMX_WARMUP_WIDGETS_PER_PAGE": "14"
+      },
+      "ok": true,
+      "score": 398.204,
+      "passed": true,
+      "metrics": {
+        "widget_settle_ms_p95": 184.13,
+        "hydration_ms_p95": 184.13,
+        "shell_visible_ms_p95": 3.11,
+        "timeout_count": 0,
+        "route_error_max": 0,
+        "route_timeout_max": 0,
+        "route_abort_ratio_max": 0.8947,
+        "persist_restore_misses": 900
+      },
+      "error": "",
+      "details": ""
+    }
+  ],
+  "best": {
+    "name": "baseline",
+    "port": 8012,
+    "env": {
+      "HTMX_WARMUP_BUDGET_SECONDS": "30",
+      "HTMX_WARMUP_MAX_JOBS": "30",
+      "HTMX_WARMUP_CONCURRENCY": "3",
+      "HTMX_WARMUP_WIDGETS_PER_PAGE": "10"
+    },
+    "ok": true,
+    "score": 381.874,
+    "passed": true,
+    "metrics": {
+      "widget_settle_ms_p95": 174.28,
+      "hydration_ms_p95": 174.28,
+      "shell_visible_ms_p95": 4.31,
+      "timeout_count": 0,
+      "route_error_max": 0,
+      "route_timeout_max": 0,
+      "route_abort_ratio_max": 0.8947,
+      "persist_restore_misses": 846
+    },
+    "error": "",
+    "details": ""
+  }
+}

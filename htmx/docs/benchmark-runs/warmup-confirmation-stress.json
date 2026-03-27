@@ -1,0 +1,1152 @@
+{
+  "elapsed_seconds": 4.437,
+  "bursts": 2,
+  "clicks_per_burst": 30,
+  "interval_ms": 35,
+  "burst_summaries": [
+    {
+      "burst_index": 1,
+      "target_path": "/global-ecosystem",
+      "settled": true,
+      "hydration_terminal_reason": "finish",
+      "started_delta": 15,
+      "aborts_delta": 55,
+      "errors_delta": 0,
+      "timeouts_delta": 0,
+      "errors_5xx_delta": 0,
+      "persist_restore_hits": 49,
+      "persist_restore_misses": 696,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "burst_index": 2,
+      "target_path": "/global-ecosystem",
+      "settled": true,
+      "hydration_terminal_reason": "finish",
+      "started_delta": 0,
+      "aborts_delta": 75,
+      "errors_delta": 0,
+      "timeouts_delta": 0,
+      "errors_5xx_delta": 0,
+      "persist_restore_hits": 139,
+      "persist_restore_misses": 1336,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    }
+  ],
+  "route_error_summary": {
+    "/global-ecosystem": {
+      "errors_5xx": 0,
+      "errors_total": 0,
+      "timeouts": 0,
+      "aborts": 130,
+      "started": 15
+    }
+  },
+  "metrics": {
+    "starts": 60,
+    "finishes": 60,
+    "queueEnqueues": 0,
+    "queueDrains": 0,
+    "cacheHits": 60,
+    "cacheMisses": 0,
+    "pendingSkeletonShows": 0,
+    "supersededHydrationSkips": 0,
+    "shellVisibleCount": 60,
+    "lastShellVisibleMs": 1.699999988079071,
+    "maxShellVisibleMs": 4.9000000059604645,
+    "hydrationStarts": 2,
+    "hydrationFinishes": 1,
+    "hydrationSkips": 0,
+    "hydrationCancelledSuperseded": 0,
+    "hydrationCancelledNav": 0,
+    "lastHydrationTerminalReason": "finish",
+    "lastHydrationMs": 179,
+    "maxHydrationMs": 179,
+    "lastWidgetSettleMs": 0,
+    "maxWidgetSettleMs": 0,
+    "widgetRequestsStarted": 15,
+    "widgetRequestsCompleted": 30,
+    "widgetRequestsAborted": 130,
+    "widgetRequestErrors": 0,
+    "widgetRequest5xx": 0,
+    "widgetRequestTimeouts": 0,
+    "shellPrefetchAttempts": 24,
+    "shellPrefetchSuccesses": 17,
+    "shellPrefetchFailures": 0,
+    "shellPrefetchInFlightJoins": 3,
+    "lastShellPrefetchMs": 26.80000001192093,
+    "maxShellPrefetchMs": 93,
+    "maxInFlightMs": 56.599999994039536,
+    "lastInFlightMs": 56.39999997615814,
+    "lastRequestedPath": "/global-ecosystem",
+    "lastFinishedPath": "/global-ecosystem",
+    "activeNavTraceId": "nav_mn8hdxq0_1o__global_ecosystem",
+    "lastCompletedNavTraceId": "nav_mn8hdxq0_1o__global_ecosystem",
+    "refreshIntervalSeconds": 30,
+    "persistRestoreHits": 139,
+    "persistRestoreMisses": 1336,
+    "persistExpired": 0,
+    "persistEvictions": 0,
+    "persistStaleServed": 0,
+    "persistStaleRefreshed": 0,
+    "persistRestoreToVisibleMs": 43.19999998807907,
+    "persistRestoreToVisibleSamples": [
+      31.400000005960464,
+      32.400000005960464,
+      27,
+      31.299999982118607,
+      25,
+      21.80000001192093,
+      18.900000005960464,
+      53.099999994039536,
+      53.900000005960464,
+      54.599999994039536,
+      53,
+      54.69999998807907,
+      43.19999998807907
+    ],
+    "events": [
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-obligations-debt-size",
+          "sourceWidgetId": "kpi-obligations-debt-size"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-ltv-hf",
+          "sourceWidgetId": "kpi-ltv-hf"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-zero-use-count",
+          "sourceWidgetId": "kpi-zero-use-count"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-zero-use-capacity",
+          "sourceWidgetId": "kpi-zero-use-capacity"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kamino-stress-debt",
+          "sourceWidgetId": "kamino-stress-debt"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-unhealthy-share",
+          "sourceWidgetId": "kpi-unhealthy-share"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-stress-buffer",
+          "sourceWidgetId": "kamino-stress-debt"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-debt-at-risk-1s",
+          "sourceWidgetId": "kamino-stress-debt"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-debt-at-risk-2s",
+          "sourceWidgetId": "kamino-stress-debt"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kamino-utilization-timeseries",
+          "sourceWidgetId": "kamino-utilization-timeseries"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kamino-ltv-hf-timeseries",
+          "sourceWidgetId": "kamino-ltv-hf-timeseries"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kamino-liability-flows",
+          "sourceWidgetId": "kamino-liability-flows"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-borrow-vol-24h",
+          "sourceWidgetId": "kpi-borrow-vol-24h"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-repay-vol-24h",
+          "sourceWidgetId": "kpi-repay-vol-24h"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-deposit-vol-24h",
+          "sourceWidgetId": "kpi-deposit-vol-24h"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-withdraw-vol-24h",
+          "sourceWidgetId": "kpi-withdraw-vol-24h"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kamino-liquidations",
+          "sourceWidgetId": "kamino-liquidations"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-days-no-liquidation",
+          "sourceWidgetId": "kpi-days-no-liquidation"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-liquidation-count-30d",
+          "sourceWidgetId": "kpi-liquidation-count-30d"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-liquidation-vol-30d",
+          "sourceWidgetId": "kpi-liquidation-vol-30d"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-liquidation-avg-size",
+          "sourceWidgetId": "kpi-liquidation-avg-size"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kamino-obligation-watchlist",
+          "sourceWidgetId": "kamino-obligation-watchlist"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/kamino"
+        }
+      },
+      {
+        "t": 1774590536721,
+        "type": "finish",
+        "details": {
+          "path": "/kamino",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hdxji_1j__kamino"
+        }
+      },
+      {
+        "t": 1774590536727,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/dexes",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590536764,
+        "type": "start",
+        "details": {
+          "path": "/exponent-yield",
+          "navTraceId": "nav_mn8hdxks_1k__exponent_yield"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "shell_visible",
+        "details": {
+          "path": "/exponent-yield",
+          "elapsedMs": 2.5999999940395355
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-pie-tvl",
+          "sourceWidgetId": "exponent-pie-tvl"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-timeline",
+          "sourceWidgetId": "exponent-timeline"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-market-info-mkt1",
+          "sourceWidgetId": "exponent-market-info-mkt1"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-market-info-mkt2",
+          "sourceWidgetId": "exponent-market-info-mkt2"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-locked-base-tokens-mkt1",
+          "sourceWidgetId": "kpi-locked-base-tokens"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-locked-base-tokens-mkt2",
+          "sourceWidgetId": "kpi-locked-base-tokens"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-base-collateral-mkt1",
+          "sourceWidgetId": "kpi-sy-base-collateral"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-base-collateral-mkt2",
+          "sourceWidgetId": "kpi-sy-base-collateral"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-coll-ratio-mkt1",
+          "sourceWidgetId": "kpi-sy-coll-ratio"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-coll-ratio-mkt2",
+          "sourceWidgetId": "kpi-sy-coll-ratio"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-token-strip-flows-mkt1",
+          "sourceWidgetId": "exponent-token-strip-flows-mkt1"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-token-strip-flows-mkt2",
+          "sourceWidgetId": "exponent-token-strip-flows-mkt2"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-vault-sy-balance-mkt1",
+          "sourceWidgetId": "exponent-vault-sy-balance-mkt1"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-vault-sy-balance-mkt2",
+          "sourceWidgetId": "exponent-vault-sy-balance-mkt2"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-yt-staked-share-mkt1",
+          "sourceWidgetId": "kpi-yt-staked-share"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-yt-staked-share-mkt2",
+          "sourceWidgetId": "kpi-yt-staked-share"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yt-staked-mkt1",
+          "sourceWidgetId": "exponent-yt-staked-mkt1"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yt-staked-mkt2",
+          "sourceWidgetId": "exponent-yt-staked-mkt2"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-base-price-mkt1",
+          "sourceWidgetId": "kpi-pt-base-price"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-base-price-mkt2",
+          "sourceWidgetId": "kpi-pt-base-price"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-vol-24h-mkt1",
+          "sourceWidgetId": "kpi-pt-vol-24h"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-vol-24h-mkt2",
+          "sourceWidgetId": "kpi-pt-vol-24h"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-apy-impact-pt-trade-mkt1",
+          "sourceWidgetId": "kpi-apy-impact-pt-trade"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-apy-impact-pt-trade-mkt2",
+          "sourceWidgetId": "kpi-apy-impact-pt-trade"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-pt-swap-flows-mkt1",
+          "sourceWidgetId": "exponent-pt-swap-flows-mkt1"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-pt-swap-flows-mkt2",
+          "sourceWidgetId": "exponent-pt-swap-flows-mkt2"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-depth-mkt1",
+          "sourceWidgetId": "kpi-amm-depth"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-depth-mkt2",
+          "sourceWidgetId": "kpi-amm-depth"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-deployment-ratio-mkt1",
+          "sourceWidgetId": "kpi-amm-deployment-ratio"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-deployment-ratio-mkt2",
+          "sourceWidgetId": "kpi-amm-deployment-ratio"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yield-trading-liq-mkt1",
+          "sourceWidgetId": "exponent-yield-trading-liq-mkt1"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yield-trading-liq-mkt2",
+          "sourceWidgetId": "exponent-yield-trading-liq-mkt2"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-current-fixed-yield-mkt1",
+          "sourceWidgetId": "kpi-current-fixed-yield"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-current-fixed-yield-mkt2",
+          "sourceWidgetId": "kpi-current-fixed-yield"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-base-token-yield-mkt1",
+          "sourceWidgetId": "kpi-base-token-yield"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-base-token-yield-mkt2",
+          "sourceWidgetId": "kpi-base-token-yield"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-fixed-variable-spread-mkt1",
+          "sourceWidgetId": "kpi-fixed-variable-spread"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-fixed-variable-spread-mkt2",
+          "sourceWidgetId": "kpi-fixed-variable-spread"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-realized-rates-mkt1",
+          "sourceWidgetId": "exponent-realized-rates-mkt1"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-realized-rates-mkt2",
+          "sourceWidgetId": "exponent-realized-rates-mkt2"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-divergence-mkt1",
+          "sourceWidgetId": "exponent-divergence-mkt1"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-divergence-mkt2",
+          "sourceWidgetId": "exponent-divergence-mkt2"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/exponent-yield"
+        }
+      },
+      {
+        "t": 1774590536767,
+        "type": "finish",
+        "details": {
+          "path": "/exponent-yield",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hdxks_1k__exponent_yield"
+        }
+      },
+      {
+        "t": 1774590536776,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/kamino",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590536811,
+        "type": "start",
+        "details": {
+          "path": "/risk-analysis",
+          "navTraceId": "nav_mn8hdxm3_1l__risk_analysis"
+        }
+      },
+      {
+        "t": 1774590536813,
+        "type": "shell_visible",
+        "details": {
+          "path": "/risk-analysis",
+          "elapsedMs": 2.2000000178813934
+        }
+      },
+      {
+        "t": 1774590536813,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-pvalue-tables",
+          "sourceWidgetId": "ra-pvalue-tables"
+        }
+      },
+      {
+        "t": 1774590536813,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-dist-orca",
+          "sourceWidgetId": "ra-liq-dist-orca"
+        }
+      },
+      {
+        "t": 1774590536813,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-dist-ray",
+          "sourceWidgetId": "ra-liq-dist-ray"
+        }
+      },
+      {
+        "t": 1774590536813,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-depth-orca",
+          "sourceWidgetId": "ra-liq-depth-orca"
+        }
+      },
+      {
+        "t": 1774590536813,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-depth-ray",
+          "sourceWidgetId": "ra-liq-depth-ray"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-prob-orca",
+          "sourceWidgetId": "ra-prob-orca"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-prob-ray",
+          "sourceWidgetId": "ra-prob-ray"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-exposure",
+          "sourceWidgetId": "ra-xp-exposure"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-dist-orca",
+          "sourceWidgetId": "ra-xp-dist-orca"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-dist-ray",
+          "sourceWidgetId": "ra-xp-dist-ray"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-depth-orca",
+          "sourceWidgetId": "ra-xp-depth-orca"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-depth-ray",
+          "sourceWidgetId": "ra-xp-depth-ray"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-stress-test",
+          "sourceWidgetId": "ra-stress-test"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-cascade",
+          "sourceWidgetId": "ra-cascade"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774590536814,
+        "type": "finish",
+        "details": {
+          "path": "/risk-analysis",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hdxm3_1l__risk_analysis"
+        }
+      },
+      {
+        "t": 1774590536816,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/exponent-yield",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590536858,
+        "type": "start",
+        "details": {
+          "path": "/system-health",
+          "navTraceId": "nav_mn8hdxne_1m__system_health"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "shell_visible",
+        "details": {
+          "path": "/system-health",
+          "elapsedMs": 1.800000011920929
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-master",
+          "sourceWidgetId": "health-master"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-queue-table",
+          "sourceWidgetId": "health-queue-table"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-queue-chart",
+          "sourceWidgetId": "health-queue-chart"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-queue-chart-2",
+          "sourceWidgetId": "health-queue-chart-2"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-table",
+          "sourceWidgetId": "health-base-table"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-chart-events",
+          "sourceWidgetId": "health-base-chart-events"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-chart-accounts",
+          "sourceWidgetId": "health-base-chart-accounts"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-chart-insert-timing",
+          "sourceWidgetId": "health-base-chart-insert-timing"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-trigger-table",
+          "sourceWidgetId": "health-trigger-table"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-cagg-table",
+          "sourceWidgetId": "health-cagg-table"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/system-health"
+        }
+      },
+      {
+        "t": 1774590536860,
+        "type": "finish",
+        "details": {
+          "path": "/system-health",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hdxne_1m__system_health"
+        }
+      },
+      {
+        "t": 1774590536864,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/risk-analysis",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590536904,
+        "type": "start",
+        "details": {
+          "path": "/cover",
+          "navTraceId": "nav_mn8hdxoo_1n__cover"
+        }
+      },
+      {
+        "t": 1774590536906,
+        "type": "shell_visible",
+        "details": {
+          "path": "/cover",
+          "elapsedMs": 1.4000000059604645
+        }
+      },
+      {
+        "t": 1774590536906,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/cover"
+        }
+      },
+      {
+        "t": 1774590536906,
+        "type": "finish",
+        "details": {
+          "path": "/cover",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hdxoo_1n__cover"
+        }
+      },
+      {
+        "t": 1774590536911,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/system-health",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590536952,
+        "type": "start",
+        "details": {
+          "path": "/global-ecosystem",
+          "navTraceId": "nav_mn8hdxq0_1o__global_ecosystem"
+        }
+      },
+      {
+        "t": 1774590536954,
+        "type": "shell_visible",
+        "details": {
+          "path": "/global-ecosystem",
+          "elapsedMs": 1.699999988079071
+        }
+      },
+      {
+        "t": 1774590537009,
+        "type": "persist_restore_visible",
+        "details": {
+          "hits": 15,
+          "latencyMs": 54.69999998807907
+        }
+      },
+      {
+        "t": 1774590537009,
+        "type": "finish",
+        "details": {
+          "path": "/global-ecosystem",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hdxq0_1o__global_ecosystem"
+        }
+      },
+      {
+        "t": 1774590537027,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/cover",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590537048,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/global-ecosystem",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590537100,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/dexes",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590537100,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590537265,
+        "type": "persist_restore_visible",
+        "details": {
+          "hits": 15,
+          "latencyMs": 43.19999998807907
+        }
+      }
+    ],
+    "inFlight": false,
+    "queuedPath": "",
+    "widgetRequestsInFlight": 0,
+    "shellCacheSize": 7,
+    "shellCacheCapacity": 9,
+    "allShellPrefetchScheduled": false,
+    "allShellPrefetchCompleted": true,
+    "prefetchByPath": {
+      "/cover": {
+        "attempts": 4,
+        "successes": 3,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 49.13333333532015,
+        "maxMs": 93,
+        "lastMs": 93
+      },
+      "/global-ecosystem": {
+        "attempts": 4,
+        "successes": 3,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 24.33333334326744,
+        "maxMs": 25.5,
+        "lastMs": 23.700000017881393
+      },
+      "/dexes": {
+        "attempts": 4,
+        "successes": 3,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 26.600000003973644,
+        "maxMs": 27.5,
+        "lastMs": 26.80000001192093
+      },
+      "/kamino": {
+        "attempts": 3,
+        "successes": 2,
+        "failures": 0,
+        "inFlightJoins": 1,
+        "avgMs": 26.549999997019768,
+        "maxMs": 29.900000005960464,
+        "lastMs": 29.900000005960464
+      },
+      "/exponent-yield": {
+        "attempts": 3,
+        "successes": 2,
+        "failures": 0,
+        "inFlightJoins": 1,
+        "avgMs": 23.19999998807907,
+        "maxMs": 24.19999998807907,
+        "lastMs": 22.19999998807907
+      },
+      "/risk-analysis": {
+        "attempts": 3,
+        "successes": 2,
+        "failures": 0,
+        "inFlightJoins": 1,
+        "avgMs": 25.25,
+        "maxMs": 26.900000005960464,
+        "lastMs": 23.599999994039536
+      },
+      "/system-health": {
+        "attempts": 3,
+        "successes": 2,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 58.25,
+        "maxMs": 91.30000001192093,
+        "lastMs": 25.19999998807907
+      }
+    },
+    "currentPath": "/global-ecosystem",
+    "persistRestoreToVisibleAvgMs": 38.48461538323989
+  }
+}

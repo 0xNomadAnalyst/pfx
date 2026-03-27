@@ -1,0 +1,1469 @@
+{
+  "elapsed_seconds": 3.078,
+  "cycles": 2,
+  "targets": [
+    "/cover",
+    "/dexes",
+    "/kamino",
+    "/exponent-yield",
+    "/risk-analysis",
+    "/system-health"
+  ],
+  "samples": [
+    {
+      "path": "/cover",
+      "settled": true,
+      "shell_visible_ms": 4.0,
+      "hydration_ms": 0.0,
+      "widget_settle_ms": 0.0,
+      "in_flight_ms": 4.199999988079071,
+      "hydration_terminal_reason": "",
+      "cache_hits": 1,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 15,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 0,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/dexes",
+      "settled": true,
+      "shell_visible_ms": 2.699999988079071,
+      "hydration_ms": 171.90000000596046,
+      "widget_settle_ms": 171.90000000596046,
+      "in_flight_ms": 3.199999988079071,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 2,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 120,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/kamino",
+      "settled": true,
+      "shell_visible_ms": 2.4000000059604645,
+      "hydration_ms": 165.5,
+      "widget_settle_ms": 165.5,
+      "in_flight_ms": 2.600000023841858,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 3,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 188,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/exponent-yield",
+      "settled": true,
+      "shell_visible_ms": 2.2000000178813934,
+      "hydration_ms": 162.10000002384186,
+      "widget_settle_ms": 162.10000002384186,
+      "in_flight_ms": 2.5,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 4,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 272,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/risk-analysis",
+      "settled": true,
+      "shell_visible_ms": 2.0,
+      "hydration_ms": 166.5,
+      "widget_settle_ms": 166.5,
+      "in_flight_ms": 2.2000000178813934,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 5,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 300,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/system-health",
+      "settled": true,
+      "shell_visible_ms": 1.4000000059604645,
+      "hydration_ms": 168.09999999403954,
+      "widget_settle_ms": 168.09999999403954,
+      "in_flight_ms": 1.5999999940395355,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 6,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 320,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/cover",
+      "settled": true,
+      "shell_visible_ms": 1.5,
+      "hydration_ms": 180.90000000596046,
+      "widget_settle_ms": 180.90000000596046,
+      "in_flight_ms": 1.5,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 7,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 320,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/dexes",
+      "settled": true,
+      "shell_visible_ms": 2.9000000059604645,
+      "hydration_ms": 165.60000002384186,
+      "widget_settle_ms": 165.60000002384186,
+      "in_flight_ms": 3.300000011920929,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 8,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 440,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/kamino",
+      "settled": true,
+      "shell_visible_ms": 2.800000011920929,
+      "hydration_ms": 165.09999999403954,
+      "widget_settle_ms": 165.09999999403954,
+      "in_flight_ms": 3.0999999940395355,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 9,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 508,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/exponent-yield",
+      "settled": true,
+      "shell_visible_ms": 4.800000011920929,
+      "hydration_ms": 173.09999999403954,
+      "widget_settle_ms": 173.09999999403954,
+      "in_flight_ms": 5.4000000059604645,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 10,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 592,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/risk-analysis",
+      "settled": true,
+      "shell_visible_ms": 2.5,
+      "hydration_ms": 164.60000002384186,
+      "widget_settle_ms": 164.60000002384186,
+      "in_flight_ms": 2.699999988079071,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 11,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 606,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "path": "/system-health",
+      "settled": true,
+      "shell_visible_ms": 1.800000011920929,
+      "hydration_ms": 105.40000000596046,
+      "widget_settle_ms": 105.40000000596046,
+      "in_flight_ms": 1.9000000059604645,
+      "hydration_terminal_reason": "cancelled_nav",
+      "cache_hits": 12,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 15,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_5xx": 0,
+      "widget_request_timeouts": 0,
+      "widget_requests_started_delta": 0,
+      "widget_requests_aborted_delta": 0,
+      "widget_request_errors_delta": 0,
+      "widget_request_5xx_delta": 0,
+      "widget_request_timeouts_delta": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 616,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    }
+  ],
+  "aggregates": {
+    "settled_count": 12,
+    "timeout_count": 0,
+    "shell_visible_ms_avg": 2.58,
+    "shell_visible_ms_p95": 4.36,
+    "hydration_ms_avg": 149.07,
+    "hydration_ms_p95": 176.61,
+    "widget_settle_ms_avg": 149.07,
+    "widget_settle_ms_p95": 176.61,
+    "in_flight_ms_avg": 2.85,
+    "in_flight_ms_p95": 4.74,
+    "persist_restore_hits": 0,
+    "persist_restore_misses": 616,
+    "persist_expired": 0,
+    "persist_stale_served": 0,
+    "persist_stale_refreshed": 0,
+    "refresh_interval_seconds": 30.0
+  },
+  "terminal_hydration_reasons_by_path": {
+    "/cover": {
+      "unknown": 1,
+      "cancelled_nav": 1
+    },
+    "/dexes": {
+      "cancelled_nav": 2
+    },
+    "/kamino": {
+      "cancelled_nav": 2
+    },
+    "/exponent-yield": {
+      "cancelled_nav": 2
+    },
+    "/risk-analysis": {
+      "cancelled_nav": 2
+    },
+    "/system-health": {
+      "cancelled_nav": 2
+    }
+  },
+  "route_error_summary": {
+    "/cover": {
+      "errors_5xx": 0,
+      "aborts": 15,
+      "timeouts": 0,
+      "errors_total": 0,
+      "started": 0
+    },
+    "/dexes": {
+      "errors_5xx": 0,
+      "aborts": 0,
+      "timeouts": 0,
+      "errors_total": 0,
+      "started": 0
+    },
+    "/kamino": {
+      "errors_5xx": 0,
+      "aborts": 0,
+      "timeouts": 0,
+      "errors_total": 0,
+      "started": 0
+    },
+    "/exponent-yield": {
+      "errors_5xx": 0,
+      "aborts": 0,
+      "timeouts": 0,
+      "errors_total": 0,
+      "started": 0
+    },
+    "/risk-analysis": {
+      "errors_5xx": 0,
+      "aborts": 0,
+      "timeouts": 0,
+      "errors_total": 0,
+      "started": 0
+    },
+    "/system-health": {
+      "errors_5xx": 0,
+      "aborts": 0,
+      "timeouts": 0,
+      "errors_total": 0,
+      "started": 0
+    }
+  },
+  "final_debug_snapshot": {
+    "starts": 12,
+    "finishes": 12,
+    "queueEnqueues": 0,
+    "queueDrains": 0,
+    "cacheHits": 12,
+    "cacheMisses": 0,
+    "pendingSkeletonShows": 0,
+    "supersededHydrationSkips": 0,
+    "shellVisibleCount": 12,
+    "lastShellVisibleMs": 1.800000011920929,
+    "maxShellVisibleMs": 4.800000011920929,
+    "hydrationStarts": 12,
+    "hydrationFinishes": 11,
+    "hydrationSkips": 1,
+    "hydrationCancelledSuperseded": 0,
+    "hydrationCancelledNav": 12,
+    "lastHydrationTerminalReason": "cancelled_nav",
+    "lastHydrationMs": 105.40000000596046,
+    "maxHydrationMs": 180.90000000596046,
+    "lastWidgetSettleMs": 105.40000000596046,
+    "maxWidgetSettleMs": 180.90000000596046,
+    "widgetRequestsStarted": 0,
+    "widgetRequestsCompleted": 15,
+    "widgetRequestsAborted": 15,
+    "widgetRequestErrors": 0,
+    "widgetRequest5xx": 0,
+    "widgetRequestTimeouts": 0,
+    "shellPrefetchAttempts": 1,
+    "shellPrefetchSuccesses": 0,
+    "shellPrefetchFailures": 0,
+    "shellPrefetchInFlightJoins": 0,
+    "lastShellPrefetchMs": 0,
+    "maxShellPrefetchMs": 0,
+    "maxInFlightMs": 5.4000000059604645,
+    "lastInFlightMs": 1.9000000059604645,
+    "lastRequestedPath": "/system-health",
+    "lastFinishedPath": "/system-health",
+    "activeNavTraceId": "nav_mn8hdtp1_c__system_health",
+    "lastCompletedNavTraceId": "nav_mn8hdtp1_c__system_health",
+    "refreshIntervalSeconds": 30,
+    "persistRestoreHits": 0,
+    "persistRestoreMisses": 616,
+    "persistExpired": 0,
+    "persistEvictions": 0,
+    "persistStaleServed": 0,
+    "persistStaleRefreshed": 0,
+    "persistRestoreToVisibleMs": 0,
+    "persistRestoreToVisibleSamples": [],
+    "events": [
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-base-collateral-mkt1",
+          "sourceWidgetId": "kpi-sy-base-collateral"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-base-collateral-mkt2",
+          "sourceWidgetId": "kpi-sy-base-collateral"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-coll-ratio-mkt1",
+          "sourceWidgetId": "kpi-sy-coll-ratio"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-coll-ratio-mkt2",
+          "sourceWidgetId": "kpi-sy-coll-ratio"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-token-strip-flows-mkt1",
+          "sourceWidgetId": "exponent-token-strip-flows-mkt1"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-token-strip-flows-mkt2",
+          "sourceWidgetId": "exponent-token-strip-flows-mkt2"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-vault-sy-balance-mkt1",
+          "sourceWidgetId": "exponent-vault-sy-balance-mkt1"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-vault-sy-balance-mkt2",
+          "sourceWidgetId": "exponent-vault-sy-balance-mkt2"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-yt-staked-share-mkt1",
+          "sourceWidgetId": "kpi-yt-staked-share"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-yt-staked-share-mkt2",
+          "sourceWidgetId": "kpi-yt-staked-share"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yt-staked-mkt1",
+          "sourceWidgetId": "exponent-yt-staked-mkt1"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yt-staked-mkt2",
+          "sourceWidgetId": "exponent-yt-staked-mkt2"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-base-price-mkt1",
+          "sourceWidgetId": "kpi-pt-base-price"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-base-price-mkt2",
+          "sourceWidgetId": "kpi-pt-base-price"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-vol-24h-mkt1",
+          "sourceWidgetId": "kpi-pt-vol-24h"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-vol-24h-mkt2",
+          "sourceWidgetId": "kpi-pt-vol-24h"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-apy-impact-pt-trade-mkt1",
+          "sourceWidgetId": "kpi-apy-impact-pt-trade"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-apy-impact-pt-trade-mkt2",
+          "sourceWidgetId": "kpi-apy-impact-pt-trade"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-pt-swap-flows-mkt1",
+          "sourceWidgetId": "exponent-pt-swap-flows-mkt1"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-pt-swap-flows-mkt2",
+          "sourceWidgetId": "exponent-pt-swap-flows-mkt2"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-depth-mkt1",
+          "sourceWidgetId": "kpi-amm-depth"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-depth-mkt2",
+          "sourceWidgetId": "kpi-amm-depth"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-deployment-ratio-mkt1",
+          "sourceWidgetId": "kpi-amm-deployment-ratio"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-deployment-ratio-mkt2",
+          "sourceWidgetId": "kpi-amm-deployment-ratio"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yield-trading-liq-mkt1",
+          "sourceWidgetId": "exponent-yield-trading-liq-mkt1"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yield-trading-liq-mkt2",
+          "sourceWidgetId": "exponent-yield-trading-liq-mkt2"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-current-fixed-yield-mkt1",
+          "sourceWidgetId": "kpi-current-fixed-yield"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-current-fixed-yield-mkt2",
+          "sourceWidgetId": "kpi-current-fixed-yield"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-base-token-yield-mkt1",
+          "sourceWidgetId": "kpi-base-token-yield"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-base-token-yield-mkt2",
+          "sourceWidgetId": "kpi-base-token-yield"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-fixed-variable-spread-mkt1",
+          "sourceWidgetId": "kpi-fixed-variable-spread"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-fixed-variable-spread-mkt2",
+          "sourceWidgetId": "kpi-fixed-variable-spread"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-realized-rates-mkt1",
+          "sourceWidgetId": "exponent-realized-rates-mkt1"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-realized-rates-mkt2",
+          "sourceWidgetId": "exponent-realized-rates-mkt2"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-divergence-mkt1",
+          "sourceWidgetId": "exponent-divergence-mkt1"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-divergence-mkt2",
+          "sourceWidgetId": "exponent-divergence-mkt2"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/exponent-yield"
+        }
+      },
+      {
+        "t": 1774590531265,
+        "type": "finish",
+        "details": {
+          "path": "/exponent-yield",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hdtbw_a__exponent_yield"
+        }
+      },
+      {
+        "t": 1774590531367,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/exponent-yield"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-pie-tvl",
+          "sourceWidgetId": "exponent-pie-tvl"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-timeline",
+          "sourceWidgetId": "exponent-timeline"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-market-info-mkt1",
+          "sourceWidgetId": "exponent-market-info-mkt1"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-market-info-mkt2",
+          "sourceWidgetId": "exponent-market-info-mkt2"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-locked-base-tokens-mkt1",
+          "sourceWidgetId": "kpi-locked-base-tokens"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-locked-base-tokens-mkt2",
+          "sourceWidgetId": "kpi-locked-base-tokens"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-base-collateral-mkt1",
+          "sourceWidgetId": "kpi-sy-base-collateral"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-base-collateral-mkt2",
+          "sourceWidgetId": "kpi-sy-base-collateral"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-coll-ratio-mkt1",
+          "sourceWidgetId": "kpi-sy-coll-ratio"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-sy-coll-ratio-mkt2",
+          "sourceWidgetId": "kpi-sy-coll-ratio"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-token-strip-flows-mkt1",
+          "sourceWidgetId": "exponent-token-strip-flows-mkt1"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-token-strip-flows-mkt2",
+          "sourceWidgetId": "exponent-token-strip-flows-mkt2"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-vault-sy-balance-mkt1",
+          "sourceWidgetId": "exponent-vault-sy-balance-mkt1"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-vault-sy-balance-mkt2",
+          "sourceWidgetId": "exponent-vault-sy-balance-mkt2"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-yt-staked-share-mkt1",
+          "sourceWidgetId": "kpi-yt-staked-share"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-yt-staked-share-mkt2",
+          "sourceWidgetId": "kpi-yt-staked-share"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yt-staked-mkt1",
+          "sourceWidgetId": "exponent-yt-staked-mkt1"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yt-staked-mkt2",
+          "sourceWidgetId": "exponent-yt-staked-mkt2"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-base-price-mkt1",
+          "sourceWidgetId": "kpi-pt-base-price"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-base-price-mkt2",
+          "sourceWidgetId": "kpi-pt-base-price"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-vol-24h-mkt1",
+          "sourceWidgetId": "kpi-pt-vol-24h"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-pt-vol-24h-mkt2",
+          "sourceWidgetId": "kpi-pt-vol-24h"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-apy-impact-pt-trade-mkt1",
+          "sourceWidgetId": "kpi-apy-impact-pt-trade"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-apy-impact-pt-trade-mkt2",
+          "sourceWidgetId": "kpi-apy-impact-pt-trade"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-pt-swap-flows-mkt1",
+          "sourceWidgetId": "exponent-pt-swap-flows-mkt1"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-pt-swap-flows-mkt2",
+          "sourceWidgetId": "exponent-pt-swap-flows-mkt2"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-depth-mkt1",
+          "sourceWidgetId": "kpi-amm-depth"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-depth-mkt2",
+          "sourceWidgetId": "kpi-amm-depth"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-deployment-ratio-mkt1",
+          "sourceWidgetId": "kpi-amm-deployment-ratio"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-deployment-ratio-mkt2",
+          "sourceWidgetId": "kpi-amm-deployment-ratio"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yield-trading-liq-mkt1",
+          "sourceWidgetId": "exponent-yield-trading-liq-mkt1"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yield-trading-liq-mkt2",
+          "sourceWidgetId": "exponent-yield-trading-liq-mkt2"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-current-fixed-yield-mkt1",
+          "sourceWidgetId": "kpi-current-fixed-yield"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-current-fixed-yield-mkt2",
+          "sourceWidgetId": "kpi-current-fixed-yield"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-base-token-yield-mkt1",
+          "sourceWidgetId": "kpi-base-token-yield"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-base-token-yield-mkt2",
+          "sourceWidgetId": "kpi-base-token-yield"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-fixed-variable-spread-mkt1",
+          "sourceWidgetId": "kpi-fixed-variable-spread"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-fixed-variable-spread-mkt2",
+          "sourceWidgetId": "kpi-fixed-variable-spread"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-realized-rates-mkt1",
+          "sourceWidgetId": "exponent-realized-rates-mkt1"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-realized-rates-mkt2",
+          "sourceWidgetId": "exponent-realized-rates-mkt2"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-divergence-mkt1",
+          "sourceWidgetId": "exponent-divergence-mkt1"
+        }
+      },
+      {
+        "t": 1774590531490,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-divergence-mkt2",
+          "sourceWidgetId": "exponent-divergence-mkt2"
+        }
+      },
+      {
+        "t": 1774590531530,
+        "type": "start",
+        "details": {
+          "path": "/risk-analysis",
+          "navTraceId": "nav_mn8hdtje_b__risk_analysis"
+        }
+      },
+      {
+        "t": 1774590531531,
+        "type": "hydrate_settled",
+        "details": {
+          "path": "/exponent-yield",
+          "settleMs": 164.60000002384186,
+          "widgetRequestsInFlight": 0
+        }
+      },
+      {
+        "t": 1774590531531,
+        "type": "hydrate_finish",
+        "details": {
+          "path": "/exponent-yield",
+          "hydrationMs": 164.60000002384186,
+          "reason": "cancelled_nav"
+        }
+      },
+      {
+        "t": 1774590531532,
+        "type": "shell_visible",
+        "details": {
+          "path": "/risk-analysis",
+          "elapsedMs": 2.5
+        }
+      },
+      {
+        "t": 1774590531532,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-pvalue-tables",
+          "sourceWidgetId": "ra-pvalue-tables"
+        }
+      },
+      {
+        "t": 1774590531532,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-dist-orca",
+          "sourceWidgetId": "ra-liq-dist-orca"
+        }
+      },
+      {
+        "t": 1774590531532,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-dist-ray",
+          "sourceWidgetId": "ra-liq-dist-ray"
+        }
+      },
+      {
+        "t": 1774590531532,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-depth-orca",
+          "sourceWidgetId": "ra-liq-depth-orca"
+        }
+      },
+      {
+        "t": 1774590531532,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-depth-ray",
+          "sourceWidgetId": "ra-liq-depth-ray"
+        }
+      },
+      {
+        "t": 1774590531532,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-prob-orca",
+          "sourceWidgetId": "ra-prob-orca"
+        }
+      },
+      {
+        "t": 1774590531533,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-prob-ray",
+          "sourceWidgetId": "ra-prob-ray"
+        }
+      },
+      {
+        "t": 1774590531533,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-exposure",
+          "sourceWidgetId": "ra-xp-exposure"
+        }
+      },
+      {
+        "t": 1774590531533,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-dist-orca",
+          "sourceWidgetId": "ra-xp-dist-orca"
+        }
+      },
+      {
+        "t": 1774590531533,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-dist-ray",
+          "sourceWidgetId": "ra-xp-dist-ray"
+        }
+      },
+      {
+        "t": 1774590531533,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-depth-orca",
+          "sourceWidgetId": "ra-xp-depth-orca"
+        }
+      },
+      {
+        "t": 1774590531533,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-depth-ray",
+          "sourceWidgetId": "ra-xp-depth-ray"
+        }
+      },
+      {
+        "t": 1774590531533,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-stress-test",
+          "sourceWidgetId": "ra-stress-test"
+        }
+      },
+      {
+        "t": 1774590531533,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-cascade",
+          "sourceWidgetId": "ra-cascade"
+        }
+      },
+      {
+        "t": 1774590531533,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774590531533,
+        "type": "finish",
+        "details": {
+          "path": "/risk-analysis",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hdtje_b__risk_analysis"
+        }
+      },
+      {
+        "t": 1774590531629,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774590531733,
+        "type": "start",
+        "details": {
+          "path": "/system-health",
+          "navTraceId": "nav_mn8hdtp1_c__system_health"
+        }
+      },
+      {
+        "t": 1774590531734,
+        "type": "hydrate_settled",
+        "details": {
+          "path": "/risk-analysis",
+          "settleMs": 105.40000000596046,
+          "widgetRequestsInFlight": 0
+        }
+      },
+      {
+        "t": 1774590531734,
+        "type": "hydrate_finish",
+        "details": {
+          "path": "/risk-analysis",
+          "hydrationMs": 105.40000000596046,
+          "reason": "cancelled_nav"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "shell_visible",
+        "details": {
+          "path": "/system-health",
+          "elapsedMs": 1.800000011920929
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-master",
+          "sourceWidgetId": "health-master"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-queue-table",
+          "sourceWidgetId": "health-queue-table"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-queue-chart",
+          "sourceWidgetId": "health-queue-chart"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-queue-chart-2",
+          "sourceWidgetId": "health-queue-chart-2"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-table",
+          "sourceWidgetId": "health-base-table"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-chart-events",
+          "sourceWidgetId": "health-base-chart-events"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-chart-accounts",
+          "sourceWidgetId": "health-base-chart-accounts"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-chart-insert-timing",
+          "sourceWidgetId": "health-base-chart-insert-timing"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-trigger-table",
+          "sourceWidgetId": "health-trigger-table"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-cagg-table",
+          "sourceWidgetId": "health-cagg-table"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/system-health"
+        }
+      },
+      {
+        "t": 1774590531735,
+        "type": "finish",
+        "details": {
+          "path": "/system-health",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hdtp1_c__system_health"
+        }
+      },
+      {
+        "t": 1774590531754,
+        "type": "hydrate_skip",
+        "details": {
+          "path": "/risk-analysis",
+          "reason": "cancelled_nav"
+        }
+      },
+      {
+        "t": 1774590531831,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/system-health"
+        }
+      }
+    ],
+    "inFlight": false,
+    "queuedPath": "",
+    "widgetRequestsInFlight": 0,
+    "shellCacheSize": 7,
+    "shellCacheCapacity": 9,
+    "allShellPrefetchScheduled": false,
+    "allShellPrefetchCompleted": true,
+    "prefetchByPath": {
+      "/cover": {
+        "attempts": 1,
+        "successes": 0,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 0,
+        "maxMs": 0,
+        "lastMs": 0
+      }
+    },
+    "currentPath": "/system-health",
+    "persistRestoreToVisibleAvgMs": 0
+  }
+}
