@@ -4042,6 +4042,8 @@
     softNavShellCacheCapacity = SOFT_NAV_SHELL_CACHE_MAX_ENTRIES;
     _allShellPrefetchScheduled = false;
     _allShellPrefetchCompleted = false;
+    _routeShellRefreshTimers.forEach((timer) => clearTimeout(timer));
+    _routeShellRefreshTimers.clear();
     _deferredSoftNavHydrationToken += 1;
     if (_deferredSoftNavHydrationTimer) {
       clearTimeout(_deferredSoftNavHydrationTimer);
@@ -4802,54 +4804,63 @@
 
   let _allShellPrefetchScheduled = false;
   let _allShellPrefetchCompleted = false;
-  function scheduleAllShellPrefetch() {
-    if (_allShellPrefetchScheduled || _allShellPrefetchCompleted) return;
+  const _routeShellRefreshTimers = new Map();
+  function scheduleAllShellPrefetch(prioritizedPaths = []) {
     const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     const effectiveType = String(conn?.effectiveType || "").toLowerCase();
     if (conn && (conn.saveData || effectiveType === "slow-2g" || effectiveType === "2g")) return;
+    const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
+    const allCandidates = collectSoftNavPathsFromUi().filter((p) => p && p !== currentPath);
+    if (!allCandidates.length) {
+      _allShellPrefetchCompleted = true;
+      _allShellPrefetchScheduled = false;
+      return;
+    }
+    const seen = new Set();
+    const ordered = [];
+    (Array.isArray(prioritizedPaths) ? prioritizedPaths : []).forEach((path) => {
+      const normalized = normalizeSoftNavPath(path);
+      if (!normalized || normalized === currentPath || seen.has(normalized)) return;
+      seen.add(normalized);
+      ordered.push(normalized);
+    });
+    allCandidates.forEach((path) => {
+      if (seen.has(path)) return;
+      seen.add(path);
+      ordered.push(path);
+    });
+    const queue = ordered.filter((path) => !getSoftNavShellCache(path));
+    if (!queue.length) {
+      _allShellPrefetchCompleted = true;
+      _allShellPrefetchScheduled = false;
+      return;
+    }
 
-    const runPrefetch = async () => {
-      const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
-      const candidates = collectSoftNavPathsFromUi().filter((p) => p && p !== currentPath);
-      if (!candidates.length) {
-        _allShellPrefetchCompleted = true;
-        return;
+    ensureSoftNavShellCacheCapacity(queue.length + 2);
+    _allShellPrefetchScheduled = true;
+    _allShellPrefetchCompleted = false;
+    const baseDelay = 180;
+    queue.forEach((path, idx) => {
+      const prior = _routeShellRefreshTimers.get(path);
+      if (prior) {
+        clearTimeout(prior);
       }
-      ensureSoftNavShellCacheCapacity(candidates.length + 2);
-      const queue = candidates.filter((path) => !getSoftNavShellCache(path));
-      if (!queue.length) {
-        _allShellPrefetchCompleted = true;
-        return;
-      }
-
-      const concurrency = Math.max(1, Math.min(4, SHELL_PREFETCH_CONCURRENCY));
-      let idx = 0;
-      const workers = Array.from({ length: concurrency }, async () => {
-        while (idx < queue.length) {
-          const path = queue[idx++];
-          try {
-            await fetchAndCacheSoftNavShell(path, "all-shell-prefetch");
-          } catch (_) {
-            // Best-effort prefetch.
+      const delay = Math.max(0, idx * baseDelay);
+      const timer = setTimeout(async () => {
+        _routeShellRefreshTimers.delete(path);
+        try {
+          await fetchAndCacheSoftNavShell(path, "per-route-shell-refresh");
+        } catch (_) {
+          // Best effort prefetch.
+        } finally {
+          if (_routeShellRefreshTimers.size === 0) {
+            _allShellPrefetchCompleted = true;
+            _allShellPrefetchScheduled = false;
           }
         }
-      });
-      await Promise.all(workers);
-      _allShellPrefetchCompleted = true;
-    };
-
-    _allShellPrefetchScheduled = true;
-    const kickoff = () => {
-      runPrefetch().finally(() => {
-        _allShellPrefetchScheduled = false;
-      });
-    };
-
-    if (typeof window.requestIdleCallback === "function") {
-      window.requestIdleCallback(kickoff, { timeout: 2000 });
-    } else {
-      setTimeout(kickoff, 800);
-    }
+      }, delay);
+      _routeShellRefreshTimers.set(path, timer);
+    });
   }
 
   function setWidgetCachedPayload(widgetId, signature, payload) {
@@ -4903,7 +4914,15 @@
     const widgetId = sourceEl.dataset.widgetId || "";
     if (!widgetId) return false;
     const signature = widgetFilterSignature(sourceEl);
-    const entry = getWidgetCacheEntry(widgetId, signature);
+    const sourceWidgetId = resolveSourceWidgetId(sourceEl);
+    let entry = getWidgetCacheEntry(widgetId, signature);
+    if (!entry && sourceWidgetId && sourceWidgetId !== widgetId) {
+      entry = getWidgetCacheEntry(sourceWidgetId, signature);
+      if (entry?.payload) {
+        // Mirror source-id payload under visible widget id for faster follow-up hits.
+        setWidgetCachedPayload(widgetId, signature, entry.payload);
+      }
+    }
     if (!entry || !entry.payload) {
       _softNavDebug.persistRestoreMisses += 1;
       return false;
@@ -6250,6 +6269,65 @@
     return targets;
   }
 
+  function buildWarmupTargetsForEntry(entry) {
+    const targets = [];
+    const pageId = String(entry?.page_id || "").trim();
+    const entryTargets = Array.isArray(entry?.targets) ? entry.targets : [];
+    if (!pageId) return targets;
+    entryTargets.forEach((target) => {
+      const widgetId = String(target?.widget_id || "").trim();
+      if (!widgetId) return;
+      const params = (target && typeof target.params === "object" && target.params) ? target.params : null;
+      targets.push(params ? { page_id: pageId, widget_id: widgetId, params } : { page_id: pageId, widget_id: widgetId });
+    });
+    return targets;
+  }
+
+  function buildActivePageWarmupEntry(maxWidgets = 10) {
+    const pageId = String(document.body?.dataset?.apiPageId || "").trim();
+    if (!pageId) return null;
+    const targets = [];
+    const seen = new Set();
+    const visibleFirst = widgetElements().slice().sort((a, b) => {
+      const av = isWidgetLikelyVisible(a) ? 0 : 1;
+      const bv = isWidgetLikelyVisible(b) ? 0 : 1;
+      return av - bv;
+    });
+    for (const el of visibleFirst) {
+      const widgetId = resolveSourceWidgetId(el);
+      if (!widgetId) continue;
+      const params = buildWidgetRequestParams(el);
+      const sig = `${widgetId}|${Object.keys(params).sort().map((k) => `${k}=${params[k]}`).join("&")}`;
+      if (seen.has(sig)) continue;
+      seen.add(sig);
+      targets.push({ page_id: pageId, widget_id: widgetId, params });
+      if (targets.length >= Math.max(1, maxWidgets)) break;
+    }
+    if (!targets.length) return null;
+    return {
+      slug: String(document.body?.dataset?.currentPageSlug || "").trim(),
+      page_id: pageId,
+      targets,
+      is_active_page: true,
+    };
+  }
+
+  function cacheWarmupPayloadEntry(entry) {
+    if (!entry || !entry.cache_key || !entry.response) return;
+    const cacheKey = String(entry.cache_key);
+    const [sourceWidgetId, signature = ""] = cacheKey.split("::");
+    if (!sourceWidgetId) return;
+    setWidgetCachedPayload(sourceWidgetId, signature, entry.response);
+    // Mirror payload under visible widget ids that alias this source id.
+    widgetElements().forEach((el) => {
+      const visibleWidgetId = String(el?.dataset?.widgetId || "");
+      if (!visibleWidgetId || visibleWidgetId === sourceWidgetId) return;
+      if (resolveSourceWidgetId(el) !== sourceWidgetId) return;
+      const visibleSig = widgetFilterSignature(el);
+      setWidgetCachedPayload(visibleWidgetId, visibleSig, entry.response);
+    });
+  }
+
   function buildWarmupShellPaths(manifest) {
     const paths = [];
     const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
@@ -6480,6 +6558,7 @@
   let _warmupInFlight = false;
   let _navigationReadinessTimer = null;
   let _rewarmupDebounceTimer = null;
+  let _perPageWarmupRunId = 0;
   let _adaptiveShellPrefetchAttempted = 0;
   let _adaptiveShellPrefetchUsed = 0;
   let _adaptiveDialdownTriggered = false;
@@ -6488,6 +6567,99 @@
   const _batchedRevealTargets = new Set();
   let _batchedRevealTimer = null;
   const _skeletonShownAt = new Map();
+
+  async function runPerPageWarmup(manifest, { includeActivePage = true, reason = "warmup" } = {}) {
+    if (_warmupInFlight) return;
+    const defaults = warmupDefaults();
+    const entries = [];
+    if (includeActivePage) {
+      const activeEntry = buildActivePageWarmupEntry(Math.min(10, Math.max(4, defaults.max_jobs)));
+      if (activeEntry) entries.push(activeEntry);
+    }
+    (Array.isArray(manifest) ? manifest : []).forEach((entry) => entries.push(entry));
+    if (!entries.length) return;
+
+    _warmupInFlight = true;
+    const runId = ++_perPageWarmupRunId;
+    const maxPerPageBudget = Math.max(3, Math.floor(defaults.budget_seconds / Math.max(1, entries.length)));
+    const maxPerPageJobs = Math.max(1, Math.floor(defaults.max_jobs / Math.max(1, Math.min(3, entries.length))));
+
+    const runEntry = async (entry, idx) => {
+      if (runId !== _perPageWarmupRunId) return;
+      const targets = entry?.is_active_page
+        ? (Array.isArray(entry.targets) ? entry.targets : [])
+        : buildWarmupTargetsForEntry(entry);
+      if (!targets.length) return;
+
+      if (!entry?.is_active_page) {
+        let retries = 0;
+        while (retries < 8 && (_softNavInFlight || _widgetRequestsInFlight > 0 || document.hidden)) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          if (runId !== _perPageWarmupRunId) return;
+          retries += 1;
+        }
+      }
+
+      const requestBody = {
+        targets,
+        base_params: buildWarmupBaseParams(),
+        budget_seconds: Math.max(2, maxPerPageBudget),
+        max_jobs: Math.max(1, Math.min(maxPerPageJobs, targets.length)),
+        concurrency: Math.max(1, Math.min(defaults.concurrency, 2)),
+      };
+      if (WARMUP_RETURN_PAYLOADS) {
+        requestBody.include_payloads = true;
+      }
+      try {
+        const resp = await fetch(`${getApiBaseUrl()}/api/v1/warmup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+        if (WARMUP_RETURN_PAYLOADS && resp.ok) {
+          try {
+            const data = await resp.json();
+            if (Array.isArray(data?.payloads)) {
+              data.payloads.forEach((payloadEntry) => cacheWarmupPayloadEntry(payloadEntry));
+            }
+          } catch (_) {
+            // Best-effort parse.
+          }
+        }
+      } catch (_) {
+        // Best-effort per-route warmup.
+      }
+
+      const shellPath = entry?.is_active_page
+        ? normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`)
+        : normalizeSoftNavPath(`/${String(entry?.slug || "").trim()}`);
+      if (shellPath) {
+        scheduleAllShellPrefetch([shellPath]);
+      }
+      _softNavDebugEvent("warmup_route_complete", {
+        reason,
+        index: idx,
+        slug: String(entry?.slug || ""),
+        active: !!entry?.is_active_page,
+        targets: targets.length,
+      });
+    };
+
+    try {
+      entries.forEach((entry, idx) => {
+        const delay = entry?.is_active_page ? 0 : (idx * 220);
+        setTimeout(() => { void runEntry(entry, idx); }, delay);
+      });
+    } finally {
+      setTimeout(() => {
+        if (runId === _perPageWarmupRunId) {
+          _warmupInFlight = false;
+          markWarmupRunThisSession();
+          evaluateAdaptiveDialdown();
+        }
+      }, Math.max(800, entries.length * 260));
+    }
+  }
 
   function initWarmupScheduler() {
     if (!WARMUP_ENABLED) return;
@@ -6517,57 +6689,15 @@
         return;
       }
 
-      const targets = buildWarmupTargetsFromManifest(manifest);
-      if (!targets.length) {
+      if (!manifest.length) {
         markWarmupRunThisSession();
         return;
       }
 
-      _warmupInFlight = true;
       try {
-        const defaults = warmupDefaults();
-        const warmupBody = {
-          targets,
-          base_params: buildWarmupBaseParams(),
-          budget_seconds: defaults.budget_seconds,
-          max_jobs: defaults.max_jobs,
-          concurrency: defaults.concurrency,
-        };
-        if (WARMUP_RETURN_PAYLOADS) {
-          warmupBody.include_payloads = true;
-        }
-        const resp = await fetch(`${getApiBaseUrl()}/api/v1/warmup`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(warmupBody),
-        });
-        if (WARMUP_RETURN_PAYLOADS && resp.ok) {
-          try {
-            const data = await resp.json();
-            if (Array.isArray(data.payloads)) {
-              for (const entry of data.payloads) {
-                if (entry.cache_key && entry.response) {
-                  const cacheKey = String(entry.cache_key);
-                  const [widgetId, signature = ""] = cacheKey.split("::");
-                  if (widgetId) {
-                    setWidgetCachedPayload(widgetId, signature, entry.response);
-                  }
-                }
-              }
-            }
-          } catch (_ignore) { /* best-effort parse */ }
-        }
-        if (!_adaptiveDialdownTriggered) {
-          setTimeout(() => {
-            void prefetchWarmupShells(manifest);
-          }, 1200);
-        }
+        await runPerPageWarmup(manifest, { includeActivePage: true, reason: "startup" });
       } catch (_) {
         // Best-effort background optimization.
-      } finally {
-        _warmupInFlight = false;
-        markWarmupRunThisSession();
-        evaluateAdaptiveDialdown();
       }
     };
 
@@ -6584,9 +6714,11 @@
     const cadenceMs = Math.max(15_000, DASH_REFRESH_INTERVAL_MS);
     _navigationReadinessTimer = setInterval(() => {
       if (document.hidden || _softNavInFlight || _pipelineSwitchInProgress) return;
+      const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
       _allShellPrefetchCompleted = false;
-      scheduleAllShellPrefetch();
-      scheduleRewarmup();
+      scheduleAllShellPrefetch(currentPath ? [currentPath] : []);
+      const manifest = readWarmupManifest();
+      void runPerPageWarmup(manifest, { includeActivePage: true, reason: "cadence" });
     }, cadenceMs);
   }
 
@@ -6605,51 +6737,10 @@
       try { sessionStorage.removeItem(WARMUP_SESSION_KEY); } catch (_) {}
       const manifest = readWarmupManifest();
       if (!manifest.length) return;
-      const targets = buildWarmupTargetsFromManifest(manifest);
-      if (!targets.length) return;
-      _warmupInFlight = true;
       try {
-        const defaults = warmupDefaults();
-        const rewarmBody = {
-          targets,
-          base_params: buildWarmupBaseParams(),
-          budget_seconds: defaults.budget_seconds,
-          max_jobs: defaults.max_jobs,
-          concurrency: defaults.concurrency,
-        };
-        if (WARMUP_RETURN_PAYLOADS) {
-          rewarmBody.include_payloads = true;
-        }
-        const resp = await fetch(`${getApiBaseUrl()}/api/v1/warmup`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(rewarmBody),
-        });
-        if (WARMUP_RETURN_PAYLOADS && resp.ok) {
-          try {
-            const data = await resp.json();
-            if (Array.isArray(data.payloads)) {
-              for (const entry of data.payloads) {
-                if (entry.cache_key && entry.response) {
-                  const cacheKey = String(entry.cache_key);
-                  const [widgetId, signature = ""] = cacheKey.split("::");
-                  if (widgetId) {
-                    setWidgetCachedPayload(widgetId, signature, entry.response);
-                  }
-                }
-              }
-            }
-          } catch (_ignore) { /* best-effort parse */ }
-        }
-        setTimeout(() => {
-          void prefetchWarmupShells(manifest);
-        }, 1200);
+        await runPerPageWarmup(manifest, { includeActivePage: true, reason: "filter-rewarm" });
       } catch (_) {
         // Best-effort background re-warmup.
-      } finally {
-        _warmupInFlight = false;
-        markWarmupRunThisSession();
-        evaluateAdaptiveDialdown();
       }
     }, delay);
   }

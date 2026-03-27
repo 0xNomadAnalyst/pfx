@@ -1,0 +1,2711 @@
+{
+  "run_started_utc": "2026-03-27T02:31:37.539081+00:00",
+  "run_finished_utc": "2026-03-27T02:33:16.074094+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8013",
+    "pages": [
+      "risk-analysis",
+      "health",
+      "global-ecosystem"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "1h",
+      "24h",
+      "7d",
+      "30d"
+    ],
+    "repeats": 2,
+    "timeout_seconds": 30.0,
+    "parallel": 1,
+    "parallel_profiles": [
+      1
+    ],
+    "parallel_ramp": "",
+    "soak_seconds": 0.0,
+    "soak_pause_seconds": 0.0,
+    "widget_filter": [],
+    "quick": true,
+    "max_widget_errors": -1,
+    "max_widget_5xx": -1,
+    "max_widget_timeouts": -1,
+    "hotspot_widgets": [
+      "ge-activity-vol-usx",
+      "ge-tvl-share-usx"
+    ],
+    "expected_refresh_interval_seconds": 30.0,
+    "refresh_interval_tolerance_seconds": 2.0
+  },
+  "profile_runs": [
+    {
+      "profile": "parallel-1",
+      "parallel": 1,
+      "loops_completed": 1,
+      "result_count": 56,
+      "telemetry_before": {
+        "enabled": true,
+        "refresh_interval_seconds": 30.0,
+        "request_stats": {
+          "requests_total": 0,
+          "requests_success": 0,
+          "requests_error": 0,
+          "requests_by_page": {},
+          "errors_by_page": {},
+          "requests_by_widget": {},
+          "status_family_counts": {},
+          "latency_by_page": {},
+          "latency_by_widget": {},
+          "nav_trace_counts": {},
+          "status_family_by_widget": {}
+        },
+        "cache_stats": {
+          "entries": 13,
+          "max_entries": 512,
+          "ttl_seconds": 30.0,
+          "jitter_pct": 15.0,
+          "hits": 4,
+          "misses": 13,
+          "stale_served": 0,
+          "inflight_waits": 0,
+          "bg_refresh_started": 0,
+          "bg_refresh_failed": 0,
+          "evictions": 0,
+          "swr_executor_active_count": 0
+        },
+        "sql_pool_pressure": {
+          "pool_checkout_count": 0,
+          "pool_checkout_wait_total_ms": 0.0,
+          "pool_checkout_wait_max_ms": 0.0,
+          "pool_in_use_last": 0,
+          "pool_idle_last": 0,
+          "pool_in_use_max": 0,
+          "pool_wait_over_25ms": 0,
+          "query_count": 0,
+          "query_error_count": 0,
+          "query_duration_total_ms": 0.0,
+          "query_duration_max_ms": 0.0,
+          "last_query_row_count": 0,
+          "query_fingerprint_stats": {},
+          "pool_checkout_wait_avg_ms": 0.0,
+          "query_duration_avg_ms": 0.0
+        },
+        "hotspot_summary": {
+          "widgets": {
+            "global-ecosystem/ge-activity-vol-usx": {
+              "latency": {},
+              "status_families": {},
+              "top_sql_fingerprints": []
+            },
+            "global-ecosystem/ge-tvl-share-usx": {
+              "latency": {},
+              "status_families": {},
+              "top_sql_fingerprints": []
+            }
+          },
+          "pool_wait_avg_ms": 0.0,
+          "pool_wait_max_ms": 0.0
+        }
+      },
+      "telemetry_after": {
+        "enabled": true,
+        "refresh_interval_seconds": 30.0,
+        "request_stats": {
+          "requests_total": 168,
+          "requests_success": 168,
+          "requests_error": 0,
+          "requests_by_page": {
+            "risk-analysis": 60,
+            "health": 48,
+            "global-ecosystem": 60
+          },
+          "errors_by_page": {},
+          "requests_by_widget": {
+            "risk-analysis/ra-pvalue-tables": 12,
+            "risk-analysis/ra-liq-dist-orca": 12,
+            "risk-analysis/ra-xp-exposure": 12,
+            "risk-analysis/ra-stress-test": 12,
+            "risk-analysis/ra-cascade": 12,
+            "health/health-master": 12,
+            "health/health-queue-chart": 12,
+            "health/health-base-chart-events": 12,
+            "health/health-cagg-table": 12,
+            "global-ecosystem/ge-issuance-bar": 12,
+            "global-ecosystem/ge-issuance-time": 12,
+            "global-ecosystem/ge-yields-vs-time": 12,
+            "global-ecosystem/ge-tvl-share-usx": 12,
+            "global-ecosystem/ge-activity-vol-usx": 12
+          },
+          "status_family_counts": {
+            "2xx": 168
+          },
+          "latency_by_page": {
+            "risk-analysis": {
+              "count": 60,
+              "avg_ms": 405.567,
+              "max_ms": 8446.849,
+              "p50_ms": 0.088,
+              "p95_ms": 2968.387,
+              "p99_ms": 6741.839
+            },
+            "health": {
+              "count": 48,
+              "avg_ms": 1465.974,
+              "max_ms": 43644.778,
+              "p50_ms": 0.123,
+              "p95_ms": 3140.645,
+              "p99_ms": 29536.039
+            },
+            "global-ecosystem": {
+              "count": 60,
+              "avg_ms": 259.242,
+              "max_ms": 3360.1,
+              "p50_ms": 0.034,
+              "p95_ms": 2123.223,
+              "p99_ms": 2707.243
+            }
+          },
+          "latency_by_widget": {
+            "risk-analysis/ra-pvalue-tables": {
+              "count": 12,
+              "avg_ms": 463.121,
+              "max_ms": 5557.002,
+              "p50_ms": 0.036,
+              "p95_ms": 2500.7,
+              "p99_ms": 4945.742
+            },
+            "risk-analysis/ra-liq-dist-orca": {
+              "count": 12,
+              "avg_ms": 198.244,
+              "max_ms": 2378.165,
+              "p50_ms": 0.052,
+              "p95_ms": 1070.304,
+              "p99_ms": 2116.593
+            },
+            "risk-analysis/ra-xp-exposure": {
+              "count": 12,
+              "avg_ms": 238.498,
+              "max_ms": 2857.001,
+              "p50_ms": 0.439,
+              "p95_ms": 1286.017,
+              "p99_ms": 2542.804
+            },
+            "risk-analysis/ra-stress-test": {
+              "count": 12,
+              "avg_ms": 423.787,
+              "max_ms": 5084.726,
+              "p50_ms": 0.068,
+              "p95_ms": 2288.18,
+              "p99_ms": 4525.417
+            },
+            "risk-analysis/ra-cascade": {
+              "count": 12,
+              "avg_ms": 704.184,
+              "max_ms": 8446.849,
+              "p50_ms": 0.284,
+              "p95_ms": 3801.342,
+              "p99_ms": 7517.747
+            },
+            "health/health-master": {
+              "count": 12,
+              "avg_ms": 4772.609,
+              "max_ms": 43644.778,
+              "p50_ms": 0.039,
+              "p95_ms": 27134.551,
+              "p99_ms": 40342.733
+            },
+            "health/health-queue-chart": {
+              "count": 12,
+              "avg_ms": 639.272,
+              "max_ms": 4041.455,
+              "p50_ms": 0.348,
+              "p95_ms": 2625.896,
+              "p99_ms": 3758.343
+            },
+            "health/health-base-chart-events": {
+              "count": 12,
+              "avg_ms": 361.159,
+              "max_ms": 1152.499,
+              "p50_ms": 0.109,
+              "p95_ms": 1108.63,
+              "p99_ms": 1143.725
+            },
+            "health/health-cagg-table": {
+              "count": 12,
+              "avg_ms": 90.857,
+              "max_ms": 1088.906,
+              "p50_ms": 0.117,
+              "p95_ms": 490.151,
+              "p99_ms": 969.155
+            },
+            "global-ecosystem/ge-issuance-bar": {
+              "count": 12,
+              "avg_ms": 90.194,
+              "max_ms": 1082.033,
+              "p50_ms": 0.029,
+              "p95_ms": 486.936,
+              "p99_ms": 963.014
+            },
+            "global-ecosystem/ge-issuance-time": {
+              "count": 12,
+              "avg_ms": 380.802,
+              "max_ms": 1310.827,
+              "p50_ms": 0.049,
+              "p95_ms": 1209.499,
+              "p99_ms": 1290.561
+            },
+            "global-ecosystem/ge-yields-vs-time": {
+              "count": 12,
+              "avg_ms": 825.153,
+              "max_ms": 3360.1,
+              "p50_ms": 0.051,
+              "p95_ms": 2751.504,
+              "p99_ms": 3238.381
+            },
+            "global-ecosystem/ge-tvl-share-usx": {
+              "count": 12,
+              "avg_ms": 0.028,
+              "max_ms": 0.055,
+              "p50_ms": 0.023,
+              "p95_ms": 0.049,
+              "p99_ms": 0.054
+            },
+            "global-ecosystem/ge-activity-vol-usx": {
+              "count": 12,
+              "avg_ms": 0.032,
+              "max_ms": 0.077,
+              "p50_ms": 0.024,
+              "p95_ms": 0.069,
+              "p99_ms": 0.076
+            }
+          },
+          "nav_trace_counts": {},
+          "status_family_by_widget": {
+            "risk-analysis/ra-pvalue-tables": {
+              "2xx": 12
+            },
+            "risk-analysis/ra-liq-dist-orca": {
+              "2xx": 12
+            },
+            "risk-analysis/ra-xp-exposure": {
+              "2xx": 12
+            },
+            "risk-analysis/ra-stress-test": {
+              "2xx": 12
+            },
+            "risk-analysis/ra-cascade": {
+              "2xx": 12
+            },
+            "health/health-master": {
+              "2xx": 12
+            },
+            "health/health-queue-chart": {
+              "2xx": 12
+            },
+            "health/health-base-chart-events": {
+              "2xx": 12
+            },
+            "health/health-cagg-table": {
+              "2xx": 12
+            },
+            "global-ecosystem/ge-issuance-bar": {
+              "2xx": 12
+            },
+            "global-ecosystem/ge-issuance-time": {
+              "2xx": 12
+            },
+            "global-ecosystem/ge-yields-vs-time": {
+              "2xx": 12
+            },
+            "global-ecosystem/ge-tvl-share-usx": {
+              "2xx": 12
+            },
+            "global-ecosystem/ge-activity-vol-usx": {
+              "2xx": 12
+            }
+          }
+        },
+        "cache_stats": {
+          "entries": 58,
+          "max_entries": 512,
+          "ttl_seconds": 30.0,
+          "jitter_pct": 15.0,
+          "hits": 379,
+          "misses": 59,
+          "stale_served": 0,
+          "inflight_waits": 1,
+          "bg_refresh_started": 0,
+          "bg_refresh_failed": 0,
+          "evictions": 0,
+          "swr_executor_active_count": 0
+        },
+        "sql_pool_pressure": {
+          "pool_checkout_count": 23,
+          "pool_checkout_wait_total_ms": 0.07020003977231681,
+          "pool_checkout_wait_max_ms": 0.005099980626255274,
+          "pool_in_use_last": 0,
+          "pool_idle_last": 1,
+          "pool_in_use_max": 1,
+          "pool_wait_over_25ms": 0,
+          "query_count": 23,
+          "query_error_count": 0,
+          "query_duration_total_ms": 65989.95629997808,
+          "query_duration_max_ms": 43382.43470000452,
+          "last_query_row_count": 23,
+          "query_fingerprint_stats": {
+            "health/health-master/268700cb15edcb06": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 43382.435,
+              "max_ms": 43382.435,
+              "p95_ms": 43382.435,
+              "p99_ms": 43382.435,
+              "page": "health",
+              "widget": "health-master",
+              "query_preview": "SELECT domain, domain_label, is_red, queue_red, trigger_red, base_red, cagg_red FROM health.v_health_master_table",
+              "slow_samples_ms": [
+                43382.435
+              ]
+            },
+            "health/health-queue-chart/bb4494cb476b0766": {
+              "count": 4,
+              "error_count": 0,
+              "avg_ms": 1656.828,
+              "max_ms": 3778.614,
+              "p95_ms": 3393.055,
+              "p99_ms": 3701.502,
+              "page": "health",
+              "widget": "health-queue-chart",
+              "query_preview": "SELECT bucket, queue_name, avg_value FROM health.v_health_queue_chart(%s, %s, %s, %s)",
+              "slow_samples_ms": [
+                3778.614,
+                1208.22,
+                852.198,
+                788.279
+              ]
+            },
+            "health/health-base-chart-events/3f6d5a43e6e45895": {
+              "count": 4,
+              "error_count": 0,
+              "avg_ms": 822.922,
+              "max_ms": 891.564,
+              "p95_ms": 879.634,
+              "p99_ms": 889.178,
+              "page": "health",
+              "widget": "health-base-chart-events",
+              "query_preview": "SELECT bucket, category, avg_row_count FROM health.v_health_base_chart(%s, %s, %s)",
+              "slow_samples_ms": [
+                891.564,
+                812.029,
+                809.901,
+                778.195
+              ]
+            },
+            "health/health-cagg-table/77b2e01990b05955": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 827.274,
+              "max_ms": 827.274,
+              "p95_ms": 827.274,
+              "p99_ms": 827.274,
+              "page": "health",
+              "widget": "health-cagg-table",
+              "query_preview": "SELECT status, view_schema, view_name, source_table, cagg_latest, source_latest, refresh_lag_mins, is_red FROM health.v_health_cagg_table",
+              "slow_samples_ms": [
+                827.274
+              ]
+            },
+            "global-ecosystem/ge-issuance-bar/47673282f87eda7c": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 580.406,
+              "max_ms": 580.406,
+              "p95_ms": 580.406,
+              "p99_ms": 580.406,
+              "page": "global-ecosystem",
+              "widget": "ge-issuance-bar",
+              "query_preview": "WITH latest_sy AS ( SELECT DISTINCT ON (mint_sy) supply / POWER(10, decimals) AS sy_supply FROM exponent.cagg_sy_token_account_5s WHERE meta_base_mint = %s ORDER BY mint_sy, bucket DESC ), latest_vaults AS ( SELECT SUM(p",
+              "slow_samples_ms": [
+                580.406
+              ]
+            },
+            "global-ecosystem/ge-issuance-time/038d9e59482e1fa6": {
+              "count": 4,
+              "error_count": 0,
+              "avg_ms": 871.809,
+              "max_ms": 1047.094,
+              "p95_ms": 1014.827,
+              "p99_ms": 1040.64,
+              "page": "global-ecosystem",
+              "widget": "ge-issuance-time",
+              "query_preview": "WITH sy_ts AS ( SELECT time_bucket(%s::interval, bucket) AS bt, LAST(supply / POWER(10, decimals), bucket) AS sy_supply FROM exponent.cagg_sy_token_account_5s WHERE meta_base_mint = %s AND bucket >= NOW() - %s::interval ",
+              "slow_samples_ms": [
+                1047.094,
+                831.981,
+                811.798,
+                796.363
+              ]
+            },
+            "global-ecosystem/ge-yields-vs-time/1403ff471e96e936": {
+              "count": 4,
+              "error_count": 0,
+              "avg_ms": 1065.269,
+              "max_ms": 1754.752,
+              "p95_ms": 1619.367,
+              "p99_ms": 1727.675,
+              "page": "global-ecosystem",
+              "widget": "ge-yields-vs-time",
+              "query_preview": "SELECT bucket_time, onyc_in_dexes, onyc_in_kamino, onyc_in_exponent, onyc_tracked_total, onyc_in_dexes_pct, onyc_in_kamino_pct, onyc_in_exponent_pct, dex_swap_volume, dex_lp_volume, dex_total_volume, kam_total_volume, ex",
+              "slow_samples_ms": [
+                1754.752,
+                852.187,
+                838.995,
+                815.142
+              ]
+            },
+            "global-ecosystem/ge-yields-vs-time/bbc81eb3f1800b99": {
+              "count": 4,
+              "error_count": 0,
+              "avg_ms": 883.132,
+              "max_ms": 1066.334,
+              "p95_ms": 1037.571,
+              "p99_ms": 1060.582,
+              "page": "global-ecosystem",
+              "widget": "ge-yields-vs-time",
+              "query_preview": "WITH rate_buckets AS ( SELECT time_bucket(%s::interval, bucket) AS bt, LAST(sy_exchange_rate, bucket) AS rate FROM exponent.cagg_sy_meta_account_5s WHERE meta_base_mint = %s AND bucket >= NOW() - %s::interval GROUP BY bt",
+              "slow_samples_ms": [
+                1066.334,
+                874.581,
+                806.71,
+                784.903
+              ]
+            }
+          },
+          "pool_checkout_wait_avg_ms": 0.003,
+          "query_duration_avg_ms": 2869.129
+        },
+        "hotspot_summary": {
+          "widgets": {
+            "global-ecosystem/ge-activity-vol-usx": {
+              "latency": {
+                "count": 12,
+                "avg_ms": 0.032,
+                "max_ms": 0.077,
+                "p50_ms": 0.024,
+                "p95_ms": 0.069,
+                "p99_ms": 0.076
+              },
+              "status_families": {
+                "2xx": 12
+              },
+              "top_sql_fingerprints": []
+            },
+            "global-ecosystem/ge-tvl-share-usx": {
+              "latency": {
+                "count": 12,
+                "avg_ms": 0.028,
+                "max_ms": 0.055,
+                "p50_ms": 0.023,
+                "p95_ms": 0.049,
+                "p99_ms": 0.054
+              },
+              "status_families": {
+                "2xx": 12
+              },
+              "top_sql_fingerprints": []
+            }
+          },
+          "pool_wait_avg_ms": 0.003,
+          "pool_wait_max_ms": 0.005
+        }
+      }
+    }
+  ],
+  "hotspot_summary": {
+    "global-ecosystem/ge-activity-vol-usx": {
+      "count": 4,
+      "errors": 0,
+      "errors_5xx": 0,
+      "timeouts": 0,
+      "warm_p95_ms_max": 23.34,
+      "cold_ms_max": 16.64
+    },
+    "global-ecosystem/ge-tvl-share-usx": {
+      "count": 4,
+      "errors": 0,
+      "errors_5xx": 0,
+      "timeouts": 0,
+      "warm_p95_ms_max": 15.65,
+      "cold_ms_max": 15.48
+    }
+  },
+  "results": [
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-activity-vol-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.28,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.54,
+      "warm_p50_ms": 9.02,
+      "warm_p95_ms": 15.75,
+      "warm_avg_ms": 9.02,
+      "warm_max_ms": 16.5,
+      "payload_bytes_p50": 1105,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-bar",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1097.64,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 2.2,
+      "warm_p50_ms": 8.49,
+      "warm_p95_ms": 14.15,
+      "warm_avg_ms": 8.49,
+      "warm_max_ms": 14.78,
+      "payload_bytes_p50": 635,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1061.12,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 3.48,
+      "warm_p50_ms": 12.74,
+      "warm_p95_ms": 21.07,
+      "warm_avg_ms": 12.74,
+      "warm_max_ms": 22.0,
+      "payload_bytes_p50": 493,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-tvl-share-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.23,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 0.92,
+      "warm_p50_ms": 7.09,
+      "warm_p95_ms": 12.64,
+      "warm_avg_ms": 7.09,
+      "warm_max_ms": 13.25,
+      "payload_bytes_p50": 1096,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-yields-vs-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2136.69,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.42,
+      "warm_p50_ms": 9.09,
+      "warm_p95_ms": 15.99,
+      "warm_avg_ms": 9.09,
+      "warm_max_ms": 16.76,
+      "payload_bytes_p50": 1215,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-activity-vol-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.22,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 0.96,
+      "warm_p50_ms": 0.97,
+      "warm_p95_ms": 0.98,
+      "warm_avg_ms": 0.97,
+      "warm_max_ms": 0.98,
+      "payload_bytes_p50": 1945,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-bar",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 12.7,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.17,
+      "warm_p50_ms": 7.85,
+      "warm_p95_ms": 13.86,
+      "warm_avg_ms": 7.85,
+      "warm_max_ms": 14.52,
+      "payload_bytes_p50": 635,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1141.35,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 14.47,
+      "warm_p50_ms": 14.73,
+      "warm_p95_ms": 14.97,
+      "warm_avg_ms": 14.73,
+      "warm_max_ms": 15.0,
+      "payload_bytes_p50": 1401,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-tvl-share-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.34,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.07,
+      "warm_p50_ms": 5.94,
+      "warm_p95_ms": 10.33,
+      "warm_avg_ms": 5.94,
+      "warm_max_ms": 10.81,
+      "payload_bytes_p50": 1541,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-yields-vs-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2183.56,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.67,
+      "warm_p50_ms": 10.03,
+      "warm_p95_ms": 17.56,
+      "warm_avg_ms": 10.03,
+      "warm_max_ms": 18.4,
+      "payload_bytes_p50": 1789,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-activity-vol-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 16.64,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.1,
+      "warm_p50_ms": 15.77,
+      "warm_p95_ms": 16.38,
+      "warm_avg_ms": 15.77,
+      "warm_max_ms": 16.45,
+      "payload_bytes_p50": 2390,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-bar",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 13.24,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.22,
+      "warm_p50_ms": 15.64,
+      "warm_p95_ms": 16.02,
+      "warm_avg_ms": 15.64,
+      "warm_max_ms": 16.06,
+      "payload_bytes_p50": 635,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1326.98,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 14.56,
+      "warm_p50_ms": 14.58,
+      "warm_p95_ms": 14.6,
+      "warm_avg_ms": 14.58,
+      "warm_max_ms": 14.6,
+      "payload_bytes_p50": 1691,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-tvl-share-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.48,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 14.61,
+      "warm_p50_ms": 15.16,
+      "warm_p95_ms": 15.65,
+      "warm_avg_ms": 15.16,
+      "warm_max_ms": 15.71,
+      "payload_bytes_p50": 1759,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-yields-vs-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 3375.29,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 11.4,
+      "warm_p50_ms": 13.69,
+      "warm_p95_ms": 15.75,
+      "warm_avg_ms": 13.69,
+      "warm_max_ms": 15.98,
+      "payload_bytes_p50": 2041,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-activity-vol-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.21,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.33,
+      "warm_p50_ms": 12.91,
+      "warm_p95_ms": 23.34,
+      "warm_avg_ms": 12.91,
+      "warm_max_ms": 24.5,
+      "payload_bytes_p50": 3332,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-bar",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.19,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 0.99,
+      "warm_p50_ms": 1.16,
+      "warm_p95_ms": 1.31,
+      "warm_avg_ms": 1.16,
+      "warm_max_ms": 1.33,
+      "payload_bytes_p50": 635,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1074.39,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 2.71,
+      "warm_p50_ms": 2.79,
+      "warm_p95_ms": 2.87,
+      "warm_avg_ms": 2.79,
+      "warm_max_ms": 2.88,
+      "payload_bytes_p50": 2310,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-tvl-share-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.66,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.04,
+      "warm_p50_ms": 1.07,
+      "warm_p95_ms": 1.1,
+      "warm_avg_ms": 1.07,
+      "warm_max_ms": 1.1,
+      "payload_bytes_p50": 2206,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-yields-vs-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2270.61,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.8,
+      "warm_p50_ms": 8.69,
+      "warm_p95_ms": 14.9,
+      "warm_avg_ms": 8.69,
+      "warm_max_ms": 15.59,
+      "payload_bytes_p50": 2668,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-base-chart-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1049.28,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.04,
+      "warm_p50_ms": 1.26,
+      "warm_p95_ms": 1.46,
+      "warm_avg_ms": 1.26,
+      "warm_max_ms": 1.48,
+      "payload_bytes_p50": 427,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-cagg-table",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1091.15,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 14.45,
+      "warm_p50_ms": 17.37,
+      "warm_p95_ms": 20.0,
+      "warm_avg_ms": 17.37,
+      "warm_max_ms": 20.29,
+      "payload_bytes_p50": 5264,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-master",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 30015.57,
+      "cold_ok": false,
+      "cold_status_code": 0,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 20.55,
+      "warm_p50_ms": 6832.41,
+      "warm_p95_ms": 12963.09,
+      "warm_avg_ms": 6832.41,
+      "warm_max_ms": 13644.28,
+      "payload_bytes_p50": 1615,
+      "error_samples": [],
+      "cold_timeout": true,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-queue-chart",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1062.24,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 16.06,
+      "warm_p50_ms": 18.68,
+      "warm_p95_ms": 21.03,
+      "warm_avg_ms": 18.68,
+      "warm_max_ms": 21.29,
+      "payload_bytes_p50": 3216,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-base-chart-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1166.82,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.67,
+      "warm_p50_ms": 8.46,
+      "warm_p95_ms": 14.58,
+      "warm_avg_ms": 8.46,
+      "warm_max_ms": 15.26,
+      "payload_bytes_p50": 1562,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-cagg-table",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.61,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.19,
+      "warm_p50_ms": 1.41,
+      "warm_p95_ms": 1.6,
+      "warm_avg_ms": 1.41,
+      "warm_max_ms": 1.63,
+      "payload_bytes_p50": 5264,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-master",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.87,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 14.24,
+      "warm_p50_ms": 14.86,
+      "warm_p95_ms": 15.41,
+      "warm_avg_ms": 14.86,
+      "warm_max_ms": 15.47,
+      "payload_bytes_p50": 1615,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-queue-chart",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1127.61,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 13.48,
+      "warm_p50_ms": 14.15,
+      "warm_p95_ms": 14.74,
+      "warm_avg_ms": 14.15,
+      "warm_max_ms": 14.81,
+      "payload_bytes_p50": 5658,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-base-chart-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1087.38,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 12.31,
+      "warm_p50_ms": 13.99,
+      "warm_p95_ms": 15.51,
+      "warm_avg_ms": 13.99,
+      "warm_max_ms": 15.68,
+      "payload_bytes_p50": 1360,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-cagg-table",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2.62,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 13.62,
+      "warm_p50_ms": 14.01,
+      "warm_p95_ms": 14.37,
+      "warm_avg_ms": 14.01,
+      "warm_max_ms": 14.41,
+      "payload_bytes_p50": 5264,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-master",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 25.13,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.03,
+      "warm_p50_ms": 15.12,
+      "warm_p95_ms": 15.19,
+      "warm_avg_ms": 15.12,
+      "warm_max_ms": 15.2,
+      "payload_bytes_p50": 1615,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-queue-chart",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 4057.12,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 16.47,
+      "warm_p50_ms": 20.97,
+      "warm_p95_ms": 25.03,
+      "warm_avg_ms": 20.97,
+      "warm_max_ms": 25.48,
+      "payload_bytes_p50": 8134,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-base-chart-events",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1086.19,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.52,
+      "warm_p50_ms": 14.1,
+      "warm_p95_ms": 25.42,
+      "warm_avg_ms": 14.1,
+      "warm_max_ms": 26.67,
+      "payload_bytes_p50": 3165,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-cagg-table",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.12,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.15,
+      "warm_p50_ms": 1.29,
+      "warm_p95_ms": 1.41,
+      "warm_avg_ms": 1.29,
+      "warm_max_ms": 1.42,
+      "payload_bytes_p50": 5264,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-master",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.02,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.0,
+      "warm_p50_ms": 6.02,
+      "warm_p95_ms": 10.54,
+      "warm_avg_ms": 6.02,
+      "warm_max_ms": 11.04,
+      "payload_bytes_p50": 1615,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "health",
+      "widget": "health-queue-chart",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1469.57,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.77,
+      "warm_p50_ms": 10.71,
+      "warm_p95_ms": 18.76,
+      "warm_avg_ms": 10.71,
+      "warm_max_ms": 19.65,
+      "payload_bytes_p50": 7295,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-cascade",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 8462.48,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 14.88,
+      "warm_p50_ms": 19.23,
+      "warm_p95_ms": 23.15,
+      "warm_avg_ms": 19.23,
+      "warm_max_ms": 23.59,
+      "payload_bytes_p50": 9818,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-liq-dist-orca",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2391.84,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.77,
+      "warm_p50_ms": 19.33,
+      "warm_p95_ms": 22.52,
+      "warm_avg_ms": 19.33,
+      "warm_max_ms": 22.88,
+      "payload_bytes_p50": 512,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-pvalue-tables",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 5573.65,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.66,
+      "warm_p50_ms": 8.84,
+      "warm_p95_ms": 15.3,
+      "warm_avg_ms": 8.84,
+      "warm_max_ms": 16.01,
+      "payload_bytes_p50": 4894,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-stress-test",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 5086.88,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 16.74,
+      "warm_p50_ms": 17.55,
+      "warm_p95_ms": 18.27,
+      "warm_avg_ms": 17.55,
+      "warm_max_ms": 18.35,
+      "payload_bytes_p50": 3121,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-xp-exposure",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2859.1,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 14.83,
+      "warm_p50_ms": 17.61,
+      "warm_p95_ms": 20.11,
+      "warm_avg_ms": 17.61,
+      "warm_max_ms": 20.38,
+      "payload_bytes_p50": 372,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-cascade",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.87,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 14.79,
+      "warm_p50_ms": 15.19,
+      "warm_p95_ms": 15.56,
+      "warm_avg_ms": 15.19,
+      "warm_max_ms": 15.6,
+      "payload_bytes_p50": 9818,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-liq-dist-orca",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.53,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.84,
+      "warm_p50_ms": 15.92,
+      "warm_p95_ms": 15.99,
+      "warm_avg_ms": 15.92,
+      "warm_max_ms": 16.0,
+      "payload_bytes_p50": 512,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-pvalue-tables",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.1,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 14.0,
+      "warm_p50_ms": 15.11,
+      "warm_p95_ms": 16.1,
+      "warm_avg_ms": 15.11,
+      "warm_max_ms": 16.21,
+      "payload_bytes_p50": 4894,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-stress-test",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 14.99,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 14.67,
+      "warm_p50_ms": 15.33,
+      "warm_p95_ms": 15.92,
+      "warm_avg_ms": 15.33,
+      "warm_max_ms": 15.99,
+      "payload_bytes_p50": 3121,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-xp-exposure",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2.07,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 13.1,
+      "warm_p50_ms": 14.65,
+      "warm_p95_ms": 16.04,
+      "warm_avg_ms": 14.65,
+      "warm_max_ms": 16.2,
+      "payload_bytes_p50": 372,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-cascade",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.55,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 12.74,
+      "warm_p50_ms": 14.08,
+      "warm_p95_ms": 15.28,
+      "warm_avg_ms": 14.08,
+      "warm_max_ms": 15.41,
+      "payload_bytes_p50": 9818,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-liq-dist-orca",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.96,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.37,
+      "warm_p50_ms": 15.58,
+      "warm_p95_ms": 15.78,
+      "warm_avg_ms": 15.58,
+      "warm_max_ms": 15.8,
+      "payload_bytes_p50": 512,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-pvalue-tables",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.29,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.12,
+      "warm_p50_ms": 6.47,
+      "warm_p95_ms": 11.28,
+      "warm_avg_ms": 6.47,
+      "warm_max_ms": 11.82,
+      "payload_bytes_p50": 4894,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-stress-test",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.15,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.22,
+      "warm_p50_ms": 12.94,
+      "warm_p95_ms": 23.49,
+      "warm_avg_ms": 12.94,
+      "warm_max_ms": 24.66,
+      "payload_bytes_p50": 3121,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-xp-exposure",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.61,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.32,
+      "warm_p50_ms": 1.41,
+      "warm_p95_ms": 1.5,
+      "warm_avg_ms": 1.41,
+      "warm_max_ms": 1.51,
+      "payload_bytes_p50": 372,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-cascade",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 25.06,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.03,
+      "warm_p50_ms": 15.76,
+      "warm_p95_ms": 16.41,
+      "warm_avg_ms": 15.76,
+      "warm_max_ms": 16.48,
+      "payload_bytes_p50": 9818,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-liq-dist-orca",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.62,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.26,
+      "warm_p50_ms": 15.27,
+      "warm_p95_ms": 15.27,
+      "warm_avg_ms": 15.27,
+      "warm_max_ms": 15.27,
+      "payload_bytes_p50": 512,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-pvalue-tables",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.12,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.35,
+      "warm_p50_ms": 15.83,
+      "warm_p95_ms": 16.26,
+      "warm_avg_ms": 15.83,
+      "warm_max_ms": 16.31,
+      "payload_bytes_p50": 4894,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-stress-test",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1.3,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.14,
+      "warm_p50_ms": 1.17,
+      "warm_p95_ms": 1.2,
+      "warm_avg_ms": 1.17,
+      "warm_max_ms": 1.21,
+      "payload_bytes_p50": 3121,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "risk-analysis",
+      "widget": "ra-xp-exposure",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.56,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 2,
+      "warm_success_count": 2,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.81,
+      "warm_p50_ms": 8.45,
+      "warm_p95_ms": 14.43,
+      "warm_avg_ms": 8.45,
+      "warm_max_ms": 15.1,
+      "payload_bytes_p50": 372,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    }
+  ],
+  "telemetry": {
+    "captured": true,
+    "profiles": [
+      {
+        "profile": "parallel-1",
+        "parallel": 1,
+        "loops_completed": 1,
+        "result_count": 56,
+        "telemetry_before": {
+          "enabled": true,
+          "refresh_interval_seconds": 30.0,
+          "request_stats": {
+            "requests_total": 0,
+            "requests_success": 0,
+            "requests_error": 0,
+            "requests_by_page": {},
+            "errors_by_page": {},
+            "requests_by_widget": {},
+            "status_family_counts": {},
+            "latency_by_page": {},
+            "latency_by_widget": {},
+            "nav_trace_counts": {},
+            "status_family_by_widget": {}
+          },
+          "cache_stats": {
+            "entries": 13,
+            "max_entries": 512,
+            "ttl_seconds": 30.0,
+            "jitter_pct": 15.0,
+            "hits": 4,
+            "misses": 13,
+            "stale_served": 0,
+            "inflight_waits": 0,
+            "bg_refresh_started": 0,
+            "bg_refresh_failed": 0,
+            "evictions": 0,
+            "swr_executor_active_count": 0
+          },
+          "sql_pool_pressure": {
+            "pool_checkout_count": 0,
+            "pool_checkout_wait_total_ms": 0.0,
+            "pool_checkout_wait_max_ms": 0.0,
+            "pool_in_use_last": 0,
+            "pool_idle_last": 0,
+            "pool_in_use_max": 0,
+            "pool_wait_over_25ms": 0,
+            "query_count": 0,
+            "query_error_count": 0,
+            "query_duration_total_ms": 0.0,
+            "query_duration_max_ms": 0.0,
+            "last_query_row_count": 0,
+            "query_fingerprint_stats": {},
+            "pool_checkout_wait_avg_ms": 0.0,
+            "query_duration_avg_ms": 0.0
+          },
+          "hotspot_summary": {
+            "widgets": {
+              "global-ecosystem/ge-activity-vol-usx": {
+                "latency": {},
+                "status_families": {},
+                "top_sql_fingerprints": []
+              },
+              "global-ecosystem/ge-tvl-share-usx": {
+                "latency": {},
+                "status_families": {},
+                "top_sql_fingerprints": []
+              }
+            },
+            "pool_wait_avg_ms": 0.0,
+            "pool_wait_max_ms": 0.0
+          }
+        },
+        "telemetry_after": {
+          "enabled": true,
+          "refresh_interval_seconds": 30.0,
+          "request_stats": {
+            "requests_total": 168,
+            "requests_success": 168,
+            "requests_error": 0,
+            "requests_by_page": {
+              "risk-analysis": 60,
+              "health": 48,
+              "global-ecosystem": 60
+            },
+            "errors_by_page": {},
+            "requests_by_widget": {
+              "risk-analysis/ra-pvalue-tables": 12,
+              "risk-analysis/ra-liq-dist-orca": 12,
+              "risk-analysis/ra-xp-exposure": 12,
+              "risk-analysis/ra-stress-test": 12,
+              "risk-analysis/ra-cascade": 12,
+              "health/health-master": 12,
+              "health/health-queue-chart": 12,
+              "health/health-base-chart-events": 12,
+              "health/health-cagg-table": 12,
+              "global-ecosystem/ge-issuance-bar": 12,
+              "global-ecosystem/ge-issuance-time": 12,
+              "global-ecosystem/ge-yields-vs-time": 12,
+              "global-ecosystem/ge-tvl-share-usx": 12,
+              "global-ecosystem/ge-activity-vol-usx": 12
+            },
+            "status_family_counts": {
+              "2xx": 168
+            },
+            "latency_by_page": {
+              "risk-analysis": {
+                "count": 60,
+                "avg_ms": 405.567,
+                "max_ms": 8446.849,
+                "p50_ms": 0.088,
+                "p95_ms": 2968.387,
+                "p99_ms": 6741.839
+              },
+              "health": {
+                "count": 48,
+                "avg_ms": 1465.974,
+                "max_ms": 43644.778,
+                "p50_ms": 0.123,
+                "p95_ms": 3140.645,
+                "p99_ms": 29536.039
+              },
+              "global-ecosystem": {
+                "count": 60,
+                "avg_ms": 259.242,
+                "max_ms": 3360.1,
+                "p50_ms": 0.034,
+                "p95_ms": 2123.223,
+                "p99_ms": 2707.243
+              }
+            },
+            "latency_by_widget": {
+              "risk-analysis/ra-pvalue-tables": {
+                "count": 12,
+                "avg_ms": 463.121,
+                "max_ms": 5557.002,
+                "p50_ms": 0.036,
+                "p95_ms": 2500.7,
+                "p99_ms": 4945.742
+              },
+              "risk-analysis/ra-liq-dist-orca": {
+                "count": 12,
+                "avg_ms": 198.244,
+                "max_ms": 2378.165,
+                "p50_ms": 0.052,
+                "p95_ms": 1070.304,
+                "p99_ms": 2116.593
+              },
+              "risk-analysis/ra-xp-exposure": {
+                "count": 12,
+                "avg_ms": 238.498,
+                "max_ms": 2857.001,
+                "p50_ms": 0.439,
+                "p95_ms": 1286.017,
+                "p99_ms": 2542.804
+              },
+              "risk-analysis/ra-stress-test": {
+                "count": 12,
+                "avg_ms": 423.787,
+                "max_ms": 5084.726,
+                "p50_ms": 0.068,
+                "p95_ms": 2288.18,
+                "p99_ms": 4525.417
+              },
+              "risk-analysis/ra-cascade": {
+                "count": 12,
+                "avg_ms": 704.184,
+                "max_ms": 8446.849,
+                "p50_ms": 0.284,
+                "p95_ms": 3801.342,
+                "p99_ms": 7517.747
+              },
+              "health/health-master": {
+                "count": 12,
+                "avg_ms": 4772.609,
+                "max_ms": 43644.778,
+                "p50_ms": 0.039,
+                "p95_ms": 27134.551,
+                "p99_ms": 40342.733
+              },
+              "health/health-queue-chart": {
+                "count": 12,
+                "avg_ms": 639.272,
+                "max_ms": 4041.455,
+                "p50_ms": 0.348,
+                "p95_ms": 2625.896,
+                "p99_ms": 3758.343
+              },
+              "health/health-base-chart-events": {
+                "count": 12,
+                "avg_ms": 361.159,
+                "max_ms": 1152.499,
+                "p50_ms": 0.109,
+                "p95_ms": 1108.63,
+                "p99_ms": 1143.725
+              },
+              "health/health-cagg-table": {
+                "count": 12,
+                "avg_ms": 90.857,
+                "max_ms": 1088.906,
+                "p50_ms": 0.117,
+                "p95_ms": 490.151,
+                "p99_ms": 969.155
+              },
+              "global-ecosystem/ge-issuance-bar": {
+                "count": 12,
+                "avg_ms": 90.194,
+                "max_ms": 1082.033,
+                "p50_ms": 0.029,
+                "p95_ms": 486.936,
+                "p99_ms": 963.014
+              },
+              "global-ecosystem/ge-issuance-time": {
+                "count": 12,
+                "avg_ms": 380.802,
+                "max_ms": 1310.827,
+                "p50_ms": 0.049,
+                "p95_ms": 1209.499,
+                "p99_ms": 1290.561
+              },
+              "global-ecosystem/ge-yields-vs-time": {
+                "count": 12,
+                "avg_ms": 825.153,
+                "max_ms": 3360.1,
+                "p50_ms": 0.051,
+                "p95_ms": 2751.504,
+                "p99_ms": 3238.381
+              },
+              "global-ecosystem/ge-tvl-share-usx": {
+                "count": 12,
+                "avg_ms": 0.028,
+                "max_ms": 0.055,
+                "p50_ms": 0.023,
+                "p95_ms": 0.049,
+                "p99_ms": 0.054
+              },
+              "global-ecosystem/ge-activity-vol-usx": {
+                "count": 12,
+                "avg_ms": 0.032,
+                "max_ms": 0.077,
+                "p50_ms": 0.024,
+                "p95_ms": 0.069,
+                "p99_ms": 0.076
+              }
+            },
+            "nav_trace_counts": {},
+            "status_family_by_widget": {
+              "risk-analysis/ra-pvalue-tables": {
+                "2xx": 12
+              },
+              "risk-analysis/ra-liq-dist-orca": {
+                "2xx": 12
+              },
+              "risk-analysis/ra-xp-exposure": {
+                "2xx": 12
+              },
+              "risk-analysis/ra-stress-test": {
+                "2xx": 12
+              },
+              "risk-analysis/ra-cascade": {
+                "2xx": 12
+              },
+              "health/health-master": {
+                "2xx": 12
+              },
+              "health/health-queue-chart": {
+                "2xx": 12
+              },
+              "health/health-base-chart-events": {
+                "2xx": 12
+              },
+              "health/health-cagg-table": {
+                "2xx": 12
+              },
+              "global-ecosystem/ge-issuance-bar": {
+                "2xx": 12
+              },
+              "global-ecosystem/ge-issuance-time": {
+                "2xx": 12
+              },
+              "global-ecosystem/ge-yields-vs-time": {
+                "2xx": 12
+              },
+              "global-ecosystem/ge-tvl-share-usx": {
+                "2xx": 12
+              },
+              "global-ecosystem/ge-activity-vol-usx": {
+                "2xx": 12
+              }
+            }
+          },
+          "cache_stats": {
+            "entries": 58,
+            "max_entries": 512,
+            "ttl_seconds": 30.0,
+            "jitter_pct": 15.0,
+            "hits": 379,
+            "misses": 59,
+            "stale_served": 0,
+            "inflight_waits": 1,
+            "bg_refresh_started": 0,
+            "bg_refresh_failed": 0,
+            "evictions": 0,
+            "swr_executor_active_count": 0
+          },
+          "sql_pool_pressure": {
+            "pool_checkout_count": 23,
+            "pool_checkout_wait_total_ms": 0.07020003977231681,
+            "pool_checkout_wait_max_ms": 0.005099980626255274,
+            "pool_in_use_last": 0,
+            "pool_idle_last": 1,
+            "pool_in_use_max": 1,
+            "pool_wait_over_25ms": 0,
+            "query_count": 23,
+            "query_error_count": 0,
+            "query_duration_total_ms": 65989.95629997808,
+            "query_duration_max_ms": 43382.43470000452,
+            "last_query_row_count": 23,
+            "query_fingerprint_stats": {
+              "health/health-master/268700cb15edcb06": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 43382.435,
+                "max_ms": 43382.435,
+                "p95_ms": 43382.435,
+                "p99_ms": 43382.435,
+                "page": "health",
+                "widget": "health-master",
+                "query_preview": "SELECT domain, domain_label, is_red, queue_red, trigger_red, base_red, cagg_red FROM health.v_health_master_table",
+                "slow_samples_ms": [
+                  43382.435
+                ]
+              },
+              "health/health-queue-chart/bb4494cb476b0766": {
+                "count": 4,
+                "error_count": 0,
+                "avg_ms": 1656.828,
+                "max_ms": 3778.614,
+                "p95_ms": 3393.055,
+                "p99_ms": 3701.502,
+                "page": "health",
+                "widget": "health-queue-chart",
+                "query_preview": "SELECT bucket, queue_name, avg_value FROM health.v_health_queue_chart(%s, %s, %s, %s)",
+                "slow_samples_ms": [
+                  3778.614,
+                  1208.22,
+                  852.198,
+                  788.279
+                ]
+              },
+              "health/health-base-chart-events/3f6d5a43e6e45895": {
+                "count": 4,
+                "error_count": 0,
+                "avg_ms": 822.922,
+                "max_ms": 891.564,
+                "p95_ms": 879.634,
+                "p99_ms": 889.178,
+                "page": "health",
+                "widget": "health-base-chart-events",
+                "query_preview": "SELECT bucket, category, avg_row_count FROM health.v_health_base_chart(%s, %s, %s)",
+                "slow_samples_ms": [
+                  891.564,
+                  812.029,
+                  809.901,
+                  778.195
+                ]
+              },
+              "health/health-cagg-table/77b2e01990b05955": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 827.274,
+                "max_ms": 827.274,
+                "p95_ms": 827.274,
+                "p99_ms": 827.274,
+                "page": "health",
+                "widget": "health-cagg-table",
+                "query_preview": "SELECT status, view_schema, view_name, source_table, cagg_latest, source_latest, refresh_lag_mins, is_red FROM health.v_health_cagg_table",
+                "slow_samples_ms": [
+                  827.274
+                ]
+              },
+              "global-ecosystem/ge-issuance-bar/47673282f87eda7c": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 580.406,
+                "max_ms": 580.406,
+                "p95_ms": 580.406,
+                "p99_ms": 580.406,
+                "page": "global-ecosystem",
+                "widget": "ge-issuance-bar",
+                "query_preview": "WITH latest_sy AS ( SELECT DISTINCT ON (mint_sy) supply / POWER(10, decimals) AS sy_supply FROM exponent.cagg_sy_token_account_5s WHERE meta_base_mint = %s ORDER BY mint_sy, bucket DESC ), latest_vaults AS ( SELECT SUM(p",
+                "slow_samples_ms": [
+                  580.406
+                ]
+              },
+              "global-ecosystem/ge-issuance-time/038d9e59482e1fa6": {
+                "count": 4,
+                "error_count": 0,
+                "avg_ms": 871.809,
+                "max_ms": 1047.094,
+                "p95_ms": 1014.827,
+                "p99_ms": 1040.64,
+                "page": "global-ecosystem",
+                "widget": "ge-issuance-time",
+                "query_preview": "WITH sy_ts AS ( SELECT time_bucket(%s::interval, bucket) AS bt, LAST(supply / POWER(10, decimals), bucket) AS sy_supply FROM exponent.cagg_sy_token_account_5s WHERE meta_base_mint = %s AND bucket >= NOW() - %s::interval ",
+                "slow_samples_ms": [
+                  1047.094,
+                  831.981,
+                  811.798,
+                  796.363
+                ]
+              },
+              "global-ecosystem/ge-yields-vs-time/1403ff471e96e936": {
+                "count": 4,
+                "error_count": 0,
+                "avg_ms": 1065.269,
+                "max_ms": 1754.752,
+                "p95_ms": 1619.367,
+                "p99_ms": 1727.675,
+                "page": "global-ecosystem",
+                "widget": "ge-yields-vs-time",
+                "query_preview": "SELECT bucket_time, onyc_in_dexes, onyc_in_kamino, onyc_in_exponent, onyc_tracked_total, onyc_in_dexes_pct, onyc_in_kamino_pct, onyc_in_exponent_pct, dex_swap_volume, dex_lp_volume, dex_total_volume, kam_total_volume, ex",
+                "slow_samples_ms": [
+                  1754.752,
+                  852.187,
+                  838.995,
+                  815.142
+                ]
+              },
+              "global-ecosystem/ge-yields-vs-time/bbc81eb3f1800b99": {
+                "count": 4,
+                "error_count": 0,
+                "avg_ms": 883.132,
+                "max_ms": 1066.334,
+                "p95_ms": 1037.571,
+                "p99_ms": 1060.582,
+                "page": "global-ecosystem",
+                "widget": "ge-yields-vs-time",
+                "query_preview": "WITH rate_buckets AS ( SELECT time_bucket(%s::interval, bucket) AS bt, LAST(sy_exchange_rate, bucket) AS rate FROM exponent.cagg_sy_meta_account_5s WHERE meta_base_mint = %s AND bucket >= NOW() - %s::interval GROUP BY bt",
+                "slow_samples_ms": [
+                  1066.334,
+                  874.581,
+                  806.71,
+                  784.903
+                ]
+              }
+            },
+            "pool_checkout_wait_avg_ms": 0.003,
+            "query_duration_avg_ms": 2869.129
+          },
+          "hotspot_summary": {
+            "widgets": {
+              "global-ecosystem/ge-activity-vol-usx": {
+                "latency": {
+                  "count": 12,
+                  "avg_ms": 0.032,
+                  "max_ms": 0.077,
+                  "p50_ms": 0.024,
+                  "p95_ms": 0.069,
+                  "p99_ms": 0.076
+                },
+                "status_families": {
+                  "2xx": 12
+                },
+                "top_sql_fingerprints": []
+              },
+              "global-ecosystem/ge-tvl-share-usx": {
+                "latency": {
+                  "count": 12,
+                  "avg_ms": 0.028,
+                  "max_ms": 0.055,
+                  "p50_ms": 0.023,
+                  "p95_ms": 0.049,
+                  "p99_ms": 0.054
+                },
+                "status_families": {
+                  "2xx": 12
+                },
+                "top_sql_fingerprints": []
+              }
+            },
+            "pool_wait_avg_ms": 0.003,
+            "pool_wait_max_ms": 0.005
+          }
+        }
+      }
+    ]
+  }
+}

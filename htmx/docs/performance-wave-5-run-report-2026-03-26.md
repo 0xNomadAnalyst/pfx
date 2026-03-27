@@ -66,6 +66,20 @@
 - Cadence telemetry note:
   - API telemetry capture was unavailable in this local run (`"captured": false`), so API-side cadence assertion could not be empirically enforced from telemetry payloads in this run.
 
+### 4) API telemetry-enabled cadence assertion (follow-up)
+
+- Dedicated telemetry-enabled API run completed on a separate API instance (`API_TELEMETRY_ENABLED=1`, port `8013`):
+  - Output: `htmx/docs/benchmark-runs/wave5-api-cadence-check-8013.json`
+- Cadence assertion status:
+  - Telemetry capture is now present (`"captured": true`).
+  - `telemetry_after.refresh_interval_seconds = 30.0` with `expected_refresh_interval_seconds = 30.0` and tolerance `2.0` seconds.
+  - This confirms API-side cadence coherence for `DASH_REFRESH_INTERVAL_SECONDS=30`.
+- Hotspot reliability snapshot under telemetry-enabled run:
+  - `global-ecosystem/ge-activity-vol-usx`: `errors=0`, `errors_5xx=0`, `timeouts=0`.
+  - `global-ecosystem/ge-tvl-share-usx`: `errors=0`, `errors_5xx=0`, `timeouts=0`.
+- Remaining caveat:
+  - One scenario still showed a cold-start timeout envelope in this run (`health/health-master` cold path), while warm-path and cadence assertions remained valid.
+
 ## Recommendation for `DASH_REFRESH_INTERVAL_SECONDS`
 
 - **Primary recommendation: `30` seconds** for production baseline.
@@ -77,6 +91,6 @@
 
 ## Follow-up Actions
 
-- Enable API telemetry in benchmark environments (`API_TELEMETRY_ENABLED=1`) so cadence gates are enforced end-to-end.
-- Resolve persistent `global-ecosystem` hotspot `500`s before strict widget-zero-error promotion gates are re-enabled.
+- Keep API telemetry enabled in stage/perf benchmark environments so cadence gates remain enforceable end-to-end.
+- Investigate cold-start timeout envelope on `health/health-master` before tightening strict zero-timeout cold-start gates.
 - Add a dedicated reload-focused persistence benchmark scenario to enforce non-zero restore-hit expectations across browser restart/reload paths.
