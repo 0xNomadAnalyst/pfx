@@ -8,17 +8,10 @@
   <link rel="icon" href="/static/images/favicon-32x32.png" type="image/png" sizes="32x32" />
   <title>{{ app_title }} - {{ page_title }}</title>
   <link rel="stylesheet" href="/static/css/theme.css?v=108" />
-  <link rel="preload" as="image" href="/static/images/video-posters/0wgPh78PwAs.png" />
-  <link rel="preload" as="image" href="/static/images/video-posters/Ktk99W77UWk.png" />
-  <link rel="preload" as="image" href="/static/images/video-posters/5p5nsW3Vxtg.png" />
-  <link rel="preload" as="image" href="/static/images/video-posters/W0hpbYCwGmQ.png" />
-  <link rel="preload" as="image" href="/static/images/video-posters/Bjf98CbpM1g.png" />
-  <link rel="preload" as="image" href="/static/images/video-posters/gpwDZdXkIMY.png" />
-  <link rel="preload" as="image" href="/static/images/video-posters/tuuF4efh3NM.png" />
   <script>document.documentElement.style.setProperty('--half-screen', (screen.width / 2) + 'px');</script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 </head>
 <body class="{% if use_sidebar_nav %}sidebar-nav-mode{% endif %}"
   data-api-base-url="{{ api_base_url }}"

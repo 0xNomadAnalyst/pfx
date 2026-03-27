@@ -23,8 +23,6 @@
   const SOFT_NAV_SHELL_CACHE_MAX_ENTRIES = readRuntimeInt("softNavShellCacheMaxEntries", 5, 1, 40);
   const SOFT_NAV_SHELL_CACHE_TTL_MS = readRuntimeInt("softNavShellCacheTtlMs", 600_000, 10_000, 3_600_000);
   const SOFT_NAV_SHELL_REFRESH_DELAY_MS = readRuntimeInt("softNavShellRefreshDelayMs", 3000, 500, 20_000);
-  const ROUTE_WIDGET_PREFETCH_MAX_WIDGETS = readRuntimeInt("routeWidgetPrefetchMaxWidgets", 40, 2, 60);
-  const ROUTE_WIDGET_PREFETCH_CONCURRENCY = readRuntimeInt("routeWidgetPrefetchConcurrency", 3, 1, 8);
   const VIEWPORT_REFRESH_DEFER_MS = 280;
   const VIEWPORT_REFRESH_STAGGER_MS = 70;
   const WIDGET_RESPONSE_CACHE_PER_WIDGET_LIMIT = 8;
@@ -78,7 +76,6 @@
   const softNavShellCache = new Map();
   const softNavShellFetchInFlight = new Map();
   const softNavShellPrefetchStats = new Map();
-  const routeWidgetPrefetchInFlight = new Map();
   let softNavShellCacheCapacity = SOFT_NAV_SHELL_CACHE_MAX_ENTRIES;
   const PINNED_SOFT_NAV_PATHS = new Set(["/global-ecosystem", "/cover"]);
   const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = readRuntimeInt("widgetResponseCacheMaxEntries", 100, 10, 500);
@@ -4941,170 +4938,6 @@
     });
   }
 
-  function buildPrefetchParamsForShellWidget(shellWidgetEl) {
-    const params = {};
-    if (!shellWidgetEl) return params;
-    const widgetId = String(shellWidgetEl.getAttribute("data-widget-id") || "");
-    const sourceWidgetId = String(shellWidgetEl.getAttribute("data-source-widget-id") || widgetId || "");
-    const protoOverride = String(shellWidgetEl.getAttribute("data-protocol-override") || "");
-
-    if (protoOverride) {
-      const fullProto = protoOverride === "ray" ? "raydium" : protoOverride;
-      params.protocol = fullProto;
-      const asset = currentAsset();
-      params.pair = pairForAssetProtocol(fullProto, asset) || currentPair();
-    } else {
-      params.protocol = currentProtocol();
-      params.pair = currentPair();
-    }
-    params.last_window = currentLastWindow();
-    const pl = currentPipeline();
-    if (pl) params._pipeline = pl;
-    const pb = currentPriceBasis();
-    if (pb && pb !== "default") params.price_basis = pb;
-
-    const m1 = currentMkt1();
-    const m2 = currentMkt2();
-    if (m1) params.mkt1 = m1;
-    if (m2) params.mkt2 = m2;
-
-    if (sourceWidgetId === "trade-impact-toggle") {
-      params.impact_mode = shellWidgetEl.getAttribute("data-impact-mode") || "size";
-    }
-    if (sourceWidgetId === "swaps-flows-toggle") {
-      params.flow_mode = shellWidgetEl.getAttribute("data-flow-mode") || "usx";
-    }
-    if (sourceWidgetId === "swaps-distribution-toggle") {
-      params.distribution_mode = shellWidgetEl.getAttribute("data-distribution-mode") || "sell-order";
-    }
-    if (sourceWidgetId === "swaps-ohlcv") {
-      params.ohlcv_interval = shellWidgetEl.getAttribute("data-ohlcv-interval") || "1d";
-    }
-    if (widgetId === "health-queue-chart" || widgetId === "health-queue-chart-2") {
-      params.health_schema = shellWidgetEl.getAttribute("data-health-schema") || "dexes";
-      params.health_attribute = shellWidgetEl.getAttribute("data-health-attribute") || "Write Rate";
-    }
-    if (
-      widgetId === "health-base-chart-events"
-      || widgetId === "health-base-chart-accounts"
-      || widgetId === "health-base-chart-insert-timing"
-    ) {
-      params.health_base_schema = shellWidgetEl.getAttribute("data-health-base-schema") || "dexes";
-    }
-    return params;
-  }
-
-  function buildPrefetchSignature(params) {
-    const safe = params && typeof params === "object" ? params : {};
-    return Object.keys(safe).sort().map((key) => `${key}=${String(safe[key])}`).join("&");
-  }
-
-  async function prefetchRouteWidgetPayloads(path, maxWidgets = ROUTE_WIDGET_PREFETCH_MAX_WIDGETS) {
-    const normalizedPath = normalizeSoftNavPath(path);
-    if (!normalizedPath) return false;
-    const inFlight = routeWidgetPrefetchInFlight.get(normalizedPath);
-    if (inFlight?.promise) return inFlight.promise;
-
-    const token = Symbol(normalizedPath);
-    const req = (async () => {
-      try {
-        let shellHtml = getSoftNavShellCache(normalizedPath);
-        if (!shellHtml) {
-          await fetchAndCacheSoftNavShell(normalizedPath, "route-widget-prefetch");
-          shellHtml = getSoftNavShellCache(normalizedPath);
-        }
-        if (!shellHtml) return false;
-
-        const doc = new DOMParser().parseFromString(shellHtml, "text/html");
-        const widgets = Array.from(doc.querySelectorAll(".widget-loader[hx-get]"))
-          .slice(0, Math.max(1, maxWidgets));
-        if (!widgets.length) return true;
-
-        const queue = widgets.map((widgetEl) => {
-          const widgetId = String(widgetEl.getAttribute("data-widget-id") || "");
-          const sourceWidgetId = String(widgetEl.getAttribute("data-source-widget-id") || widgetId || "");
-          const endpoint = String(widgetEl.getAttribute("hx-get") || "").trim();
-          if (!widgetId || !endpoint) return null;
-          return { widgetId, sourceWidgetId, endpoint, params: buildPrefetchParamsForShellWidget(widgetEl) };
-        }).filter(Boolean);
-        let attempted = 0;
-        let successes = 0;
-
-        let index = 0;
-        const workers = Array.from({ length: Math.max(1, ROUTE_WIDGET_PREFETCH_CONCURRENCY) }, async () => {
-          while (index < queue.length) {
-            if (document.hidden || _softNavInFlight) return;
-            const job = queue[index++];
-            attempted += 1;
-            try {
-              const url = new URL(job.endpoint, window.location.origin);
-              Object.entries(job.params || {}).forEach(([k, v]) => {
-                if (v == null || v === "") return;
-                url.searchParams.set(k, String(v));
-              });
-              const resp = await fetch(url.toString(), {
-                headers: { "X-Requested-With": "riskdash-route-widget-prefetch" },
-                cache: "no-store",
-              });
-              if (!resp.ok) continue;
-              const payload = await resp.json();
-              if (!payload || payload.status !== "success") continue;
-              successes += 1;
-              const signature = buildPrefetchSignature(job.params);
-              setWidgetCachedPayload(job.widgetId, signature, payload);
-              if (job.sourceWidgetId && job.sourceWidgetId !== job.widgetId) {
-                setWidgetCachedPayload(job.sourceWidgetId, signature, payload);
-              }
-            } catch (_) {
-              // Best effort background payload prefetch.
-            }
-          }
-        });
-        await Promise.all(workers);
-        _softNavDebugEvent("route_widget_prefetch_done", { path: normalizedPath, attempted, successes });
-        return true;
-      } catch (err) {
-        _softNavDebugEvent("route_widget_prefetch_failed", {
-          path: normalizedPath,
-          detail: String(err && err.message ? err.message : err || "unknown"),
-        });
-        return false;
-      } finally {
-        if (routeWidgetPrefetchInFlight.get(normalizedPath)?.token === token) {
-          routeWidgetPrefetchInFlight.delete(normalizedPath);
-        }
-      }
-    })();
-    routeWidgetPrefetchInFlight.set(normalizedPath, { token, promise: req });
-    return req;
-  }
-
-  function scheduleRouteWidgetPayloadPrefetch(prioritizedPaths = []) {
-    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    const effectiveType = String(conn?.effectiveType || "").toLowerCase();
-    if (conn && (conn.saveData || effectiveType === "slow-2g" || effectiveType === "2g")) return;
-    if (document.hidden || _softNavInFlight) return;
-    const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
-    const allCandidates = collectSoftNavPathsFromUi().filter((p) => p && p !== currentPath);
-    if (!allCandidates.length) return;
-    const seen = new Set();
-    const ordered = [];
-    (Array.isArray(prioritizedPaths) ? prioritizedPaths : []).forEach((p) => {
-      const n = normalizeSoftNavPath(p);
-      if (!n || n === currentPath || seen.has(n)) return;
-      seen.add(n);
-      ordered.push(n);
-    });
-    allCandidates.forEach((p) => {
-      if (seen.has(p)) return;
-      seen.add(p);
-      ordered.push(p);
-    });
-    ordered.forEach((routePath, idx) => {
-      setTimeout(() => { void prefetchRouteWidgetPayloads(routePath); }, idx * 320);
-    });
-  }
-
   function setWidgetCachedPayload(widgetId, signature, payload) {
     if (!widgetId || !payload) return;
     const key = widgetCacheKey(widgetId, signature);
@@ -5347,7 +5180,6 @@
     }
     ensureSoftNavShellCacheCapacity(collectSoftNavPathsFromUi().length + 2);
     scheduleAllShellPrefetch();
-    setTimeout(() => { scheduleRouteWidgetPayloadPrefetch(); }, 900);
     if (pageSelect.dataset.boundPageNav === "1") return;
     pageSelect.dataset.boundPageNav = "1";
 
@@ -5392,7 +5224,6 @@
     if (!sidebar) return;
     ensureSoftNavShellCacheCapacity(collectSoftNavPathsFromUi().length + 2);
     scheduleAllShellPrefetch();
-    setTimeout(() => { scheduleRouteWidgetPayloadPrefetch(); }, 900);
     if (sidebar.dataset.boundSidebarNav === "1") return;
     sidebar.dataset.boundSidebarNav = "1";
 
@@ -6155,7 +5986,6 @@
     setPageSelectorBusy(false);
     _softNavController = null;
     _softNavCurrentPath = "";
-    setTimeout(() => { scheduleRouteWidgetPayloadPrefetch(); }, 700);
     if (_softNavQueuedPath) {
       const next = _softNavQueuedPath;
       _softNavQueuedPath = "";
@@ -6682,6 +6512,7 @@
       const shells = [];
       softNavShellCache.forEach((entry, path) => {
         if (!entry || !entry.html) return;
+      if (!entry.pinned) return;
         const expiresAtMs = Number(entry.expiresAt || 0) > 0
           ? Number(entry.expiresAt)
           : now + PERSIST_SHELL_EXPIRES_AFTER_MS;
@@ -6898,7 +6729,6 @@
         : normalizeSoftNavPath(`/${String(entry?.slug || "").trim()}`);
       if (shellPath) {
         scheduleAllShellPrefetch([shellPath]);
-        void prefetchRouteWidgetPayloads(shellPath, ROUTE_WIDGET_PREFETCH_MAX_WIDGETS);
       }
       _softNavDebugEvent("warmup_route_complete", {
         reason,
@@ -6922,7 +6752,6 @@
         _warmupInFlight = false;
         markWarmupRunThisSession();
         evaluateAdaptiveDialdown();
-        scheduleRouteWidgetPayloadPrefetch();
       }
     }
   }
@@ -6980,15 +6809,12 @@
 
   function initNavigationReadinessScheduler() {
     if (_navigationReadinessTimer) return;
-    const cadenceMs = Math.max(8_000, Math.min(15_000, Math.floor(DASH_REFRESH_INTERVAL_MS / 2)));
+    const cadenceMs = 120_000;
     _navigationReadinessTimer = setInterval(() => {
       if (document.hidden || _softNavInFlight || _pipelineSwitchInProgress) return;
       const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
       _allShellPrefetchCompleted = false;
       scheduleAllShellPrefetch(currentPath ? [currentPath] : []);
-      scheduleRouteWidgetPayloadPrefetch();
-      const manifest = readWarmupManifest();
-      void runPerPageWarmup(manifest, { includeActivePage: true, reason: "cadence" });
     }, cadenceMs);
   }
 
@@ -7326,7 +7152,6 @@
       setWidgetCachedPayload(widgetId, signature, payload);
       sourceEl.dataset.lastRenderedSignature = signature;
       sourceEl.dataset.lastRenderedGeneratedAt = generatedAt;
-      scheduleCurrentPageShellSnapshot(600);
       sourceEl.dataset.hasLoadedOnce = "1";
     };
 
@@ -8359,8 +8184,12 @@
       mermaid.initialize({ startOnLoad: false, theme: "dark" });
     }
     if (PERSIST_CACHE_ENABLED) {
-      setInterval(persistCacheWrite, Math.max(15_000, DASH_REFRESH_INTERVAL_MS));
       window.addEventListener("beforeunload", persistCacheWrite);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          persistCacheWrite();
+        }
+      });
     }
   });
 
