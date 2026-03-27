@@ -1,0 +1,1176 @@
+{
+  "elapsed_seconds": 4.0,
+  "bursts": 2,
+  "clicks_per_burst": 30,
+  "interval_ms": 35,
+  "burst_summaries": [
+    {
+      "burst_index": 1,
+      "target_path": "/global-ecosystem",
+      "settled": true,
+      "hydration_terminal_reason": "finish",
+      "started_delta": 15,
+      "aborts_delta": 90,
+      "errors_delta": 0,
+      "timeouts_delta": 0,
+      "errors_5xx_delta": 0,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 745,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "burst_index": 2,
+      "target_path": "/global-ecosystem",
+      "settled": true,
+      "hydration_terminal_reason": "finish",
+      "started_delta": 15,
+      "aborts_delta": 90,
+      "errors_delta": 0,
+      "timeouts_delta": 0,
+      "errors_5xx_delta": 0,
+      "persist_restore_hits": 49,
+      "persist_restore_misses": 1441,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    }
+  ],
+  "route_error_summary": {
+    "/global-ecosystem": {
+      "errors_5xx": 0,
+      "errors_total": 0,
+      "timeouts": 0,
+      "aborts": 180,
+      "started": 30
+    }
+  },
+  "metrics": {
+    "starts": 60,
+    "finishes": 60,
+    "queueEnqueues": 0,
+    "queueDrains": 0,
+    "cacheHits": 60,
+    "cacheMisses": 0,
+    "pendingSkeletonShows": 0,
+    "supersededHydrationSkips": 0,
+    "shellVisibleCount": 60,
+    "lastShellVisibleMs": 2,
+    "maxShellVisibleMs": 4.5999999940395355,
+    "hydrationStarts": 2,
+    "hydrationFinishes": 2,
+    "hydrationSkips": 0,
+    "hydrationCancelledSuperseded": 0,
+    "hydrationCancelledNav": 0,
+    "lastHydrationTerminalReason": "finish",
+    "lastHydrationMs": 179,
+    "maxHydrationMs": 179,
+    "lastWidgetSettleMs": 0,
+    "maxWidgetSettleMs": 0,
+    "widgetRequestsStarted": 30,
+    "widgetRequestsCompleted": 37,
+    "widgetRequestsAborted": 180,
+    "widgetRequestErrors": 0,
+    "widgetRequest5xx": 0,
+    "widgetRequestTimeouts": 0,
+    "shellPrefetchAttempts": 22,
+    "shellPrefetchSuccesses": 21,
+    "shellPrefetchFailures": 0,
+    "shellPrefetchInFlightJoins": 0,
+    "lastShellPrefetchMs": 67.2000000178814,
+    "maxShellPrefetchMs": 240.59999999403954,
+    "maxInFlightMs": 39,
+    "lastInFlightMs": 28.700000017881393,
+    "lastRequestedPath": "/global-ecosystem",
+    "lastFinishedPath": "/global-ecosystem",
+    "activeNavTraceId": "nav_mn8hj5fb_1o__global_ecosystem",
+    "lastCompletedNavTraceId": "nav_mn8hj5fb_1o__global_ecosystem",
+    "refreshIntervalSeconds": 30,
+    "persistRestoreHits": 49,
+    "persistRestoreMisses": 1441,
+    "persistExpired": 0,
+    "persistEvictions": 0,
+    "persistStaleServed": 0,
+    "persistStaleRefreshed": 0,
+    "persistRestoreToVisibleMs": 20.299999982118607,
+    "persistRestoreToVisibleSamples": [
+      37,
+      25.19999998807907,
+      24,
+      23.30000001192093,
+      26.600000023841858,
+      21.5,
+      20.299999982118607
+    ],
+    "events": [
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-apy-impact-pt-trade-mkt2",
+          "sourceWidgetId": "kpi-apy-impact-pt-trade"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-pt-swap-flows-mkt1",
+          "sourceWidgetId": "exponent-pt-swap-flows-mkt1"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-pt-swap-flows-mkt2",
+          "sourceWidgetId": "exponent-pt-swap-flows-mkt2"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-depth-mkt1",
+          "sourceWidgetId": "kpi-amm-depth"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-depth-mkt2",
+          "sourceWidgetId": "kpi-amm-depth"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-deployment-ratio-mkt1",
+          "sourceWidgetId": "kpi-amm-deployment-ratio"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-amm-deployment-ratio-mkt2",
+          "sourceWidgetId": "kpi-amm-deployment-ratio"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yield-trading-liq-mkt1",
+          "sourceWidgetId": "exponent-yield-trading-liq-mkt1"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-yield-trading-liq-mkt2",
+          "sourceWidgetId": "exponent-yield-trading-liq-mkt2"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-current-fixed-yield-mkt1",
+          "sourceWidgetId": "kpi-current-fixed-yield"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-current-fixed-yield-mkt2",
+          "sourceWidgetId": "kpi-current-fixed-yield"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-base-token-yield-mkt1",
+          "sourceWidgetId": "kpi-base-token-yield"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-base-token-yield-mkt2",
+          "sourceWidgetId": "kpi-base-token-yield"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-fixed-variable-spread-mkt1",
+          "sourceWidgetId": "kpi-fixed-variable-spread"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "kpi-fixed-variable-spread-mkt2",
+          "sourceWidgetId": "kpi-fixed-variable-spread"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-realized-rates-mkt1",
+          "sourceWidgetId": "exponent-realized-rates-mkt1"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-realized-rates-mkt2",
+          "sourceWidgetId": "exponent-realized-rates-mkt2"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-divergence-mkt1",
+          "sourceWidgetId": "exponent-divergence-mkt1"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "exponent-divergence-mkt2",
+          "sourceWidgetId": "exponent-divergence-mkt2"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/exponent-yield"
+        }
+      },
+      {
+        "t": 1774590780031,
+        "type": "finish",
+        "details": {
+          "path": "/exponent-yield",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hj5a4_1k__exponent_yield"
+        }
+      },
+      {
+        "t": 1774590780075,
+        "type": "start",
+        "details": {
+          "path": "/risk-analysis",
+          "navTraceId": "nav_mn8hj5bf_1l__risk_analysis"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "shell_visible",
+        "details": {
+          "path": "/risk-analysis",
+          "elapsedMs": 2.199999988079071
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-pvalue-tables",
+          "sourceWidgetId": "ra-pvalue-tables"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-dist-orca",
+          "sourceWidgetId": "ra-liq-dist-orca"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-dist-ray",
+          "sourceWidgetId": "ra-liq-dist-ray"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-depth-orca",
+          "sourceWidgetId": "ra-liq-depth-orca"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-liq-depth-ray",
+          "sourceWidgetId": "ra-liq-depth-ray"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-prob-orca",
+          "sourceWidgetId": "ra-prob-orca"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-prob-ray",
+          "sourceWidgetId": "ra-prob-ray"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-exposure",
+          "sourceWidgetId": "ra-xp-exposure"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-dist-orca",
+          "sourceWidgetId": "ra-xp-dist-orca"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-dist-ray",
+          "sourceWidgetId": "ra-xp-dist-ray"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-depth-orca",
+          "sourceWidgetId": "ra-xp-depth-orca"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-xp-depth-ray",
+          "sourceWidgetId": "ra-xp-depth-ray"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-stress-test",
+          "sourceWidgetId": "ra-stress-test"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ra-cascade",
+          "sourceWidgetId": "ra-cascade"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774590780077,
+        "type": "finish",
+        "details": {
+          "path": "/risk-analysis",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hj5bf_1l__risk_analysis"
+        }
+      },
+      {
+        "t": 1774590780081,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/risk-analysis",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780123,
+        "type": "start",
+        "details": {
+          "path": "/system-health",
+          "navTraceId": "nav_mn8hj5cr_1m__system_health"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "shell_visible",
+        "details": {
+          "path": "/system-health",
+          "elapsedMs": 1.800000011920929
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-master",
+          "sourceWidgetId": "health-master"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-queue-table",
+          "sourceWidgetId": "health-queue-table"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-queue-chart",
+          "sourceWidgetId": "health-queue-chart"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-queue-chart-2",
+          "sourceWidgetId": "health-queue-chart-2"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-table",
+          "sourceWidgetId": "health-base-table"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-chart-events",
+          "sourceWidgetId": "health-base-chart-events"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-chart-accounts",
+          "sourceWidgetId": "health-base-chart-accounts"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-base-chart-insert-timing",
+          "sourceWidgetId": "health-base-chart-insert-timing"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-trigger-table",
+          "sourceWidgetId": "health-trigger-table"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "health-cagg-table",
+          "sourceWidgetId": "health-cagg-table"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/system-health"
+        }
+      },
+      {
+        "t": 1774590780125,
+        "type": "finish",
+        "details": {
+          "path": "/system-health",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hj5cr_1m__system_health"
+        }
+      },
+      {
+        "t": 1774590780130,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/system-health",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780168,
+        "type": "start",
+        "details": {
+          "path": "/cover",
+          "navTraceId": "nav_mn8hj5e0_1n__cover"
+        }
+      },
+      {
+        "t": 1774590780170,
+        "type": "shell_visible",
+        "details": {
+          "path": "/cover",
+          "elapsedMs": 1.5
+        }
+      },
+      {
+        "t": 1774590780170,
+        "type": "warmup_priority_trigger",
+        "details": {
+          "reason": "nav-cache-hit-without-payload",
+          "path": "/cover"
+        }
+      },
+      {
+        "t": 1774590780170,
+        "type": "finish",
+        "details": {
+          "path": "/cover",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hj5e0_1n__cover"
+        }
+      },
+      {
+        "t": 1774590780172,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/cover",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780215,
+        "type": "start",
+        "details": {
+          "path": "/global-ecosystem",
+          "navTraceId": "nav_mn8hj5fb_1o__global_ecosystem"
+        }
+      },
+      {
+        "t": 1774590780217,
+        "type": "shell_visible",
+        "details": {
+          "path": "/global-ecosystem",
+          "elapsedMs": 2
+        }
+      },
+      {
+        "t": 1774590780244,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-bar",
+          "sourceWidgetId": "ge-tvl-bar"
+        }
+      },
+      {
+        "t": 1774590780244,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-bar",
+          "sourceWidgetId": "ge-activity-bar"
+        }
+      },
+      {
+        "t": 1774590780244,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-pie",
+          "sourceWidgetId": "ge-tvl-pie"
+        }
+      },
+      {
+        "t": 1774590780244,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-pct",
+          "sourceWidgetId": "ge-activity-pct"
+        }
+      },
+      {
+        "t": 1774590780244,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-time",
+          "sourceWidgetId": "ge-tvl-time"
+        }
+      },
+      {
+        "t": 1774590780244,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-vol",
+          "sourceWidgetId": "ge-activity-vol"
+        }
+      },
+      {
+        "t": 1774590780244,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-share",
+          "sourceWidgetId": "ge-tvl-share"
+        }
+      },
+      {
+        "t": 1774590780244,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-share",
+          "sourceWidgetId": "ge-activity-share"
+        }
+      },
+      {
+        "t": 1774590780244,
+        "type": "persist_restore_visible",
+        "details": {
+          "hits": 7,
+          "latencyMs": 26.600000023841858
+        }
+      },
+      {
+        "t": 1774590780244,
+        "type": "finish",
+        "details": {
+          "path": "/global-ecosystem",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8hj5fb_1o__global_ecosystem"
+        }
+      },
+      {
+        "t": 1774590780248,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/global-ecosystem",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780270,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/dexes",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780314,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/kamino",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780338,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780360,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/exponent-yield",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780408,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/risk-analysis",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780444,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/system-health",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780484,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-bar",
+          "sourceWidgetId": "ge-tvl-bar"
+        }
+      },
+      {
+        "t": 1774590780484,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-bar",
+          "sourceWidgetId": "ge-activity-bar"
+        }
+      },
+      {
+        "t": 1774590780484,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-pie",
+          "sourceWidgetId": "ge-tvl-pie"
+        }
+      },
+      {
+        "t": 1774590780484,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-pct",
+          "sourceWidgetId": "ge-activity-pct"
+        }
+      },
+      {
+        "t": 1774590780484,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-time",
+          "sourceWidgetId": "ge-tvl-time"
+        }
+      },
+      {
+        "t": 1774590780484,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-vol",
+          "sourceWidgetId": "ge-activity-vol"
+        }
+      },
+      {
+        "t": 1774590780484,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-share",
+          "sourceWidgetId": "ge-tvl-share"
+        }
+      },
+      {
+        "t": 1774590780484,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-share",
+          "sourceWidgetId": "ge-activity-share"
+        }
+      },
+      {
+        "t": 1774590780484,
+        "type": "persist_restore_visible",
+        "details": {
+          "hits": 7,
+          "latencyMs": 21.5
+        }
+      },
+      {
+        "t": 1774590780512,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-bar",
+          "sourceWidgetId": "ge-tvl-bar"
+        }
+      },
+      {
+        "t": 1774590780512,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-bar",
+          "sourceWidgetId": "ge-activity-bar"
+        }
+      },
+      {
+        "t": 1774590780512,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-pie",
+          "sourceWidgetId": "ge-tvl-pie"
+        }
+      },
+      {
+        "t": 1774590780512,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-pct",
+          "sourceWidgetId": "ge-activity-pct"
+        }
+      },
+      {
+        "t": 1774590780512,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-time",
+          "sourceWidgetId": "ge-tvl-time"
+        }
+      },
+      {
+        "t": 1774590780513,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-vol",
+          "sourceWidgetId": "ge-activity-vol"
+        }
+      },
+      {
+        "t": 1774590780513,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-tvl-share",
+          "sourceWidgetId": "ge-tvl-share"
+        }
+      },
+      {
+        "t": 1774590780513,
+        "type": "persist_restore_miss",
+        "details": {
+          "widgetId": "ge-activity-share",
+          "sourceWidgetId": "ge-activity-share"
+        }
+      },
+      {
+        "t": 1774590780513,
+        "type": "persist_restore_visible",
+        "details": {
+          "hits": 7,
+          "latencyMs": 20.299999982118607
+        }
+      },
+      {
+        "t": 1774590780513,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-issuance-bar",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40f_0do7b",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780513,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-issuance-pie",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40f_ahzf4",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780513,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-issuance-time",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40f_ynm6e",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780513,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-current-yields",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40f_l627j",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780514,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-yields-vs-time",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40f_vi822",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780514,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-availability-bar",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40g_4ue7h",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780514,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-availability-time",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40g_yrykv",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780514,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-tvl-bar",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40g_mj64r",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780514,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-activity-bar",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40g_9gp0q",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780514,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-tvl-pie",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40g_sy9z6",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780514,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-activity-pct",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40g_b4y3t",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780515,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-tvl-time",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40g_ab0n3",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780515,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-activity-vol",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40h_gz4om",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780515,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-tvl-share",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40h_2tub3",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780515,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-activity-share",
+          "navTraceId": "nav_mn8hj3ua_u__global_ecosystem",
+          "requestId": "nav_mn8hj3ua_u__global_ecosystem_req_mn8hj40h_b37we",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774590780517,
+        "type": "hydrate_finish",
+        "details": {
+          "path": "/global-ecosystem",
+          "hydrationMs": 179,
+          "reason": "finish"
+        }
+      },
+      {
+        "t": 1774590780525,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/cover",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780763,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/global-ecosystem",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780763,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/kamino",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780763,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/dexes",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780763,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/exponent-yield",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780796,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/system-health",
+          "source": "background-refresh"
+        }
+      },
+      {
+        "t": 1774590780796,
+        "type": "shell_prefetch_success",
+        "details": {
+          "path": "/risk-analysis",
+          "source": "background-refresh"
+        }
+      }
+    ],
+    "inFlight": false,
+    "queuedPath": "",
+    "widgetRequestsInFlight": 0,
+    "shellCacheSize": 7,
+    "shellCacheCapacity": 9,
+    "allShellPrefetchScheduled": false,
+    "allShellPrefetchCompleted": true,
+    "prefetchByPath": {
+      "/cover": {
+        "attempts": 4,
+        "successes": 3,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 27.76666667064031,
+        "maxMs": 33.5,
+        "lastMs": 33.5
+      },
+      "/global-ecosystem": {
+        "attempts": 3,
+        "successes": 3,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 104.53333333134651,
+        "maxMs": 240.59999999403954,
+        "lastMs": 240.59999999403954
+      },
+      "/dexes": {
+        "attempts": 3,
+        "successes": 3,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 84.30000000198682,
+        "maxMs": 200.2000000178814,
+        "lastMs": 200.2000000178814
+      },
+      "/kamino": {
+        "attempts": 3,
+        "successes": 3,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 66.56666666269302,
+        "maxMs": 155.90000000596046,
+        "lastMs": 155.90000000596046
+      },
+      "/exponent-yield": {
+        "attempts": 3,
+        "successes": 3,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 51.666666666666664,
+        "maxMs": 109.80000001192093,
+        "lastMs": 109.80000001192093
+      },
+      "/risk-analysis": {
+        "attempts": 3,
+        "successes": 3,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 38.26666667064031,
+        "maxMs": 67.2000000178814,
+        "lastMs": 67.2000000178814
+      },
+      "/system-health": {
+        "attempts": 3,
+        "successes": 3,
+        "failures": 0,
+        "inFlightJoins": 0,
+        "avgMs": 34.2333333392938,
+        "maxMs": 52.70000001788139,
+        "lastMs": 52.70000001788139
+      }
+    },
+    "currentPath": "/global-ecosystem",
+    "persistRestoreToVisibleAvgMs": 25.414285715137208
+  }
+}

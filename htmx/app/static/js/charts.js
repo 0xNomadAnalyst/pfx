@@ -25,7 +25,7 @@
   const SOFT_NAV_SHELL_REFRESH_DELAY_MS = readRuntimeInt("softNavShellRefreshDelayMs", 3000, 500, 20_000);
   const VIEWPORT_REFRESH_DEFER_MS = 280;
   const VIEWPORT_REFRESH_STAGGER_MS = 70;
-  const WIDGET_RESPONSE_CACHE_PER_WIDGET_LIMIT = 8;
+  const WIDGET_RESPONSE_CACHE_PER_WIDGET_LIMIT = readRuntimeInt("widgetResponseCachePerWidgetLimit", 8, 2, 24);
   const VIEWPORT_POLL_STALE_MS = readRuntimeInt("viewportPollStaleMs", 45_000, 5_000, 300_000);
   const CRITICAL_CACHE_MAX_AGE_MS = readRuntimeInt("criticalCacheMaxAgeMs", 60_000, 5_000, 300_000);
   const DEFAULT_CACHE_MAX_AGE_MS = readRuntimeInt("defaultCacheMaxAgeMs", 300_000, 10_000, 1_800_000);
@@ -57,9 +57,9 @@
   const PERSIST_CACHE_INDEX_KEY = `${PERSIST_CACHE_KEY_PREFIX}keys:${PERSIST_CACHE_VERSION}`;
   const PERSIST_CACHE_WIDGET_ENTRY_PREFIX = `${PERSIST_CACHE_KEY_PREFIX}widget:${PERSIST_CACHE_VERSION}:`;
   const PERSIST_CACHE_SHELL_ENTRY_PREFIX = `${PERSIST_CACHE_KEY_PREFIX}shell:${PERSIST_CACHE_VERSION}:`;
-  const PERSIST_CACHE_MAX_BYTES = 2 * 1024 * 1024;
-  const PERSIST_CACHE_MAX_ENTRIES = 220;
-  const PERSIST_CACHE_WIDGET_MAX_ENTRIES = 180;
+  const PERSIST_CACHE_MAX_BYTES = readRuntimeInt("persistCacheMaxBytes", 2 * 1024 * 1024, 262_144, 8 * 1024 * 1024);
+  const PERSIST_CACHE_MAX_ENTRIES = readRuntimeInt("persistCacheMaxEntries", 220, 50, 1200);
+  const PERSIST_CACHE_WIDGET_MAX_ENTRIES = readRuntimeInt("persistCacheWidgetMaxEntries", 180, 20, 1000);
   const PERSIST_WIDGET_STALE_AFTER_MS = Math.max(5_000, DASH_REFRESH_INTERVAL_MS);
   // Keep last-known widget payloads available much longer so users can return
   // instantly after dwelling on other pages; stale state still triggers refresh.
