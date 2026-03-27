@@ -4762,6 +4762,20 @@
     return paths;
   }
 
+  function syncSidebarHighlight(targetPath) {
+    const normalizedTarget = normalizeSoftNavPath(
+      targetPath || `${window.location.pathname}${window.location.search || ""}`,
+    );
+    const liveLinks = Array.from(document.querySelectorAll("#sidebar-nav .sidebar-nav-link[data-sidebar-path]"));
+    liveLinks.forEach((l) => {
+      const linkPath = normalizeSoftNavPath(l.getAttribute("data-sidebar-path") || "");
+      const match = !!normalizedTarget && !!linkPath && linkPath === normalizedTarget;
+      l.classList.toggle("is-active", match);
+      if (match) l.setAttribute("aria-current", "page");
+      else l.removeAttribute("aria-current");
+    });
+  }
+
   function isPinnedSoftNavPath(path) {
     const normalized = normalizeSoftNavPath(path);
     return !!normalized && PINNED_SOFT_NAV_PATHS.has(normalized);
@@ -5284,16 +5298,6 @@
       });
     }
 
-    function highlightSidebarLink(targetPath) {
-      const liveLinks = Array.from(document.querySelectorAll("#sidebar-nav .sidebar-nav-link[data-sidebar-path]"));
-      liveLinks.forEach((l) => {
-        const match = l.getAttribute("data-sidebar-path") === targetPath;
-        l.classList.toggle("is-active", match);
-        if (match) l.setAttribute("aria-current", "page");
-        else l.removeAttribute("aria-current");
-      });
-    }
-
     if (document.body.dataset.boundSidebarNavDelegated !== "1") {
       document.body.dataset.boundSidebarNavDelegated = "1";
       document.addEventListener("click", (e) => {
@@ -5302,11 +5306,13 @@
         const path = link.getAttribute("data-sidebar-path");
         if (!path) return;
         e.preventDefault();
-        highlightSidebarLink(path);
+        syncSidebarHighlight(path);
         if (path === `${window.location.pathname}${window.location.search || ""}`) return;
         softNavigateToPage(path, { pushHistory: true });
       }, true);
     }
+
+    syncSidebarHighlight(`${window.location.pathname}${window.location.search || ""}`);
 
   }
 
@@ -5998,6 +6004,7 @@
     });
     _softNavInFlight = false;
     setPageSelectorBusy(false);
+    syncSidebarHighlight(`${window.location.pathname}${window.location.search || ""}`);
     _softNavController = null;
     _softNavCurrentPath = "";
     if (_softNavQueuedPath) {
