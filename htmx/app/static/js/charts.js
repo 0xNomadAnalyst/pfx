@@ -4032,7 +4032,7 @@
 
   function clearAllForPipelineSwitch() {
     _pipelineSwitchInProgress = true;
-    widgetElements().forEach((el) => {
+    document.querySelectorAll(".widget-loader.htmx-request").forEach((el) => {
       try { htmx.trigger(el, "htmx:abort"); } catch (_) {}
     });
     resetDashboardLoading();
@@ -5267,7 +5267,8 @@
     }
 
     function highlightSidebarLink(targetPath) {
-      links.forEach((l) => {
+      const liveLinks = Array.from(document.querySelectorAll("#sidebar-nav .sidebar-nav-link[data-sidebar-path]"));
+      liveLinks.forEach((l) => {
         const match = l.getAttribute("data-sidebar-path") === targetPath;
         l.classList.toggle("is-active", match);
         if (match) l.setAttribute("aria-current", "page");
@@ -5275,21 +5276,24 @@
       });
     }
 
-    links.forEach((link) => {
-      link.addEventListener("click", (e) => {
+    if (document.body.dataset.boundSidebarNavDelegated !== "1") {
+      document.body.dataset.boundSidebarNavDelegated = "1";
+      document.addEventListener("click", (e) => {
+        const link = e.target?.closest?.("#sidebar-nav .sidebar-nav-link[data-sidebar-path]");
+        if (!link) return;
         const path = link.getAttribute("data-sidebar-path");
         if (!path) return;
         e.preventDefault();
         highlightSidebarLink(path);
         if (path === `${window.location.pathname}${window.location.search || ""}`) return;
         softNavigateToPage(path, { pushHistory: true });
-      });
-    });
+      }, true);
+    }
 
   }
 
   function teardownForSoftNavigation() {
-    widgetElements().forEach((el) => {
+    document.querySelectorAll(".widget-loader.htmx-request").forEach((el) => {
       try { htmx.trigger(el, "htmx:abort"); } catch (_) {}
     });
     chartState.forEach(({ instance }) => {
