@@ -7,7 +7,7 @@
   <link rel="icon" href="/static/images/favicon-16x16.png" type="image/png" sizes="16x16" />
   <link rel="icon" href="/static/images/favicon-32x32.png" type="image/png" sizes="32x32" />
   <title>{{ app_title }} - {{ page_title }}</title>
-  <link rel="stylesheet" href="/static/css/theme.css?v=99" />
+  <link rel="stylesheet" href="/static/css/theme.css?v=108" />
   <link rel="preload" as="image" href="/static/images/video-posters/0wgPh78PwAs.png" />
   <link rel="preload" as="image" href="/static/images/video-posters/Ktk99W77UWk.png" />
   <link rel="preload" as="image" href="/static/images/video-posters/5p5nsW3Vxtg.png" />
@@ -747,6 +747,7 @@
     var CARD_OFFSET = 14;
     var FOCUS_PAD = 6;
     var POINTER_HALF = 6;
+    var OVERLAY_FADE_MS = 220;
 
     var mobileOverlay = document.getElementById("mobile-entry-overlay");
     var viewportOverlay = document.getElementById("viewport-policy-overlay");
@@ -764,6 +765,7 @@
     );
     var rafHandle = 0;
     var manualGuideOpen = false;
+    var overlayHideTimer = 0;
 
     function currentPageSlug() {
       return (document.body.dataset.currentPageSlug || "").trim();
@@ -784,10 +786,30 @@
       } catch (_) {}
       if (introIframe) introIframe.src = "";
       if (introPoster) introPoster.classList.remove("hidden");
-      overlay.hidden = true;
-      overlay.classList.remove("is-ready");
+      hideGuideOverlay();
+    }
+
+    function hideGuideOverlay() {
+      if (overlayHideTimer) {
+        clearTimeout(overlayHideTimer);
+        overlayHideTimer = 0;
+      }
+      if (overlay.hidden) {
+        overlay.classList.remove("is-ready");
+        overlay.classList.remove("is-closing");
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("ecosystem-guide-active");
+        return;
+      }
+      overlay.classList.add("is-closing");
       overlay.setAttribute("aria-hidden", "true");
       document.body.classList.remove("ecosystem-guide-active");
+      overlayHideTimer = window.setTimeout(function() {
+        overlay.hidden = true;
+        overlay.classList.remove("is-ready");
+        overlay.classList.remove("is-closing");
+        overlayHideTimer = 0;
+      }, OVERLAY_FADE_MS);
     }
 
     function isDeviceGateActive() {
@@ -1016,13 +1038,15 @@
 
     function refreshGuideState() {
       if (!shouldShowGuide()) {
-        overlay.hidden = true;
-        overlay.classList.remove("is-ready");
-        overlay.setAttribute("aria-hidden", "true");
-        document.body.classList.remove("ecosystem-guide-active");
+        hideGuideOverlay();
         return;
       }
+      if (overlayHideTimer) {
+        clearTimeout(overlayHideTimer);
+        overlayHideTimer = 0;
+      }
       overlay.hidden = false;
+      overlay.classList.remove("is-closing");
       overlay.classList.remove("is-ready");
       overlay.setAttribute("aria-hidden", "false");
       document.body.classList.add("ecosystem-guide-active");
