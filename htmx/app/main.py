@@ -111,7 +111,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "critical_cache_max_age_ms": 60_000,
         "default_cache_max_age_ms": 300_000,
         "soft_nav_shell_refresh_delay_ms": 3_000,
-        "soft_nav_shell_cache_ttl_ms": 600_000,
+        "soft_nav_shell_cache_ttl_ms": 3_600_000,
         "viewport_poll_stale_ms": 45_000,
         "refresh_kpi_seconds": 0,
         "refresh_chart_seconds": 60,

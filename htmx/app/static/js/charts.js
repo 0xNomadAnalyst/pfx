@@ -63,8 +63,16 @@
   const PERSIST_CACHE_MAX_ENTRIES = 220;
   const PERSIST_CACHE_WIDGET_MAX_ENTRIES = 180;
   const PERSIST_WIDGET_STALE_AFTER_MS = Math.max(5_000, DASH_REFRESH_INTERVAL_MS);
-  const PERSIST_WIDGET_EXPIRES_AFTER_MS = Math.max(DEFAULT_CACHE_MAX_AGE_MS, DASH_REFRESH_INTERVAL_MS * 3);
-  const PERSIST_SHELL_EXPIRES_AFTER_MS = Math.max(SOFT_NAV_SHELL_CACHE_TTL_MS, DASH_REFRESH_INTERVAL_MS * 10);
+  // Keep last-known widget payloads available much longer so users can return
+  // instantly after dwelling on other pages; stale state still triggers refresh.
+  const PERSIST_WIDGET_EXPIRES_AFTER_MS = Math.max(
+    DEFAULT_CACHE_MAX_AGE_MS * 12,
+    DASH_REFRESH_INTERVAL_MS * 240
+  );
+  const PERSIST_SHELL_EXPIRES_AFTER_MS = Math.max(
+    SOFT_NAV_SHELL_CACHE_TTL_MS,
+    DASH_REFRESH_INTERVAL_MS * 240
+  );
   const detailTableCache = new Map();
   const pageActionCache = new Map();
   const softNavShellCache = new Map();
@@ -4749,7 +4757,12 @@
     const normalizedPath = normalizeSoftNavPath(path);
     if (!normalizedPath || !html) return;
     const existing = softNavShellCache.get(normalizedPath);
-    const shouldPin = Boolean(pinned || existing?.pinned || isPinnedSoftNavPath(normalizedPath));
+    const shouldPin = Boolean(
+      pinned
+      || existing?.pinned
+      || isPinnedSoftNavPath(normalizedPath)
+      || source === "live"
+    );
     if (softNavShellCache.has(normalizedPath)) softNavShellCache.delete(normalizedPath);
     softNavShellCache.set(normalizedPath, {
       html,
