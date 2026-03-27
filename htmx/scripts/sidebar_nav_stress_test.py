@@ -5,6 +5,13 @@ import json
 import time
 
 
+def _safe_int(value) -> int:
+    try:
+        return max(0, int(value))
+    except Exception:
+        return 0
+
+
 async def wait_until_settled(page, timeout_s: float = 30.0, quiet_ms: int = 500) -> tuple[bool, dict]:
     deadline = time.monotonic() + timeout_s
     quiet_started = None
@@ -50,6 +57,17 @@ async def run() -> None:
     parser.add_argument("--interval-ms", type=int, default=35)
     parser.add_argument("--settle-timeout-s", type=float, default=45.0)
     parser.add_argument("--goto-timeout-ms", type=int, default=90000)
+    parser.add_argument("--max-timeouts", type=int, default=-1, help="Fail if total timed_out bursts exceeds this (-1 disables)")
+    parser.add_argument("--max-route-errors", type=int, default=-1, help="Fail if any route exceeds this total error count (-1 disables)")
+    parser.add_argument("--max-route-5xx", type=int, default=-1, help="Fail if any route exceeds this 5xx count (-1 disables)")
+    parser.add_argument("--max-route-timeouts", type=int, default=-1, help="Fail if any route exceeds this timeout count (-1 disables)")
+    parser.add_argument(
+        "--max-route-abort-ratio",
+        type=float,
+        default=-1.0,
+        help="Fail if any route abort_ratio (aborts/started) exceeds this (-1 disables)",
+    )
+    parser.add_argument("--max-hydration-orphans", type=int, default=-1, help="Fail if hydration starts do not close cleanly (-1 disables)")
     parser.add_argument("--headless", action="store_true")
     args = parser.parse_args()
 
@@ -93,6 +111,14 @@ async def run() -> None:
 
         print(f"Found {link_count} sidebar links.")
 
+        previous = {
+            "widgetRequestsStarted": 0,
+            "widgetRequestsAborted": 0,
+            "widgetRequestErrors": 0,
+            "widgetRequestTimeouts": 0,
+            "widgetRequest5xx": 0,
+        }
+        burst_summaries: list[dict] = []
         overall_start = time.monotonic()
         for burst in range(args.bursts):
             print(f"\nBurst {burst + 1}/{args.bursts}: {args.clicks_per_burst} rapid clicks")
@@ -110,20 +136,98 @@ async def run() -> None:
                 await asyncio.sleep(args.interval_ms / 1000.0)
 
             settled, snapshot = await wait_until_settled(page, timeout_s=args.settle_timeout_s)
+            started_now = _safe_int(snapshot.get("widgetRequestsStarted"))
+            aborted_now = _safe_int(snapshot.get("widgetRequestsAborted"))
+            errors_now = _safe_int(snapshot.get("widgetRequestErrors"))
+            timeout_now = _safe_int(snapshot.get("widgetRequestTimeouts"))
+            e5xx_now = _safe_int(snapshot.get("widgetRequest5xx"))
+            burst_summary = {
+                "burst_index": burst + 1,
+                "target_path": str(snapshot.get("currentPath") or ""),
+                "settled": bool(settled),
+                "hydration_terminal_reason": str(snapshot.get("lastHydrationTerminalReason") or ""),
+                "started_delta": max(0, started_now - previous["widgetRequestsStarted"]),
+                "aborts_delta": max(0, aborted_now - previous["widgetRequestsAborted"]),
+                "errors_delta": max(0, errors_now - previous["widgetRequestErrors"]),
+                "timeouts_delta": max(0, timeout_now - previous["widgetRequestTimeouts"]),
+                "errors_5xx_delta": max(0, e5xx_now - previous["widgetRequest5xx"]),
+            }
+            burst_summaries.append(burst_summary)
+            previous = {
+                "widgetRequestsStarted": started_now,
+                "widgetRequestsAborted": aborted_now,
+                "widgetRequestErrors": errors_now,
+                "widgetRequestTimeouts": timeout_now,
+                "widgetRequest5xx": e5xx_now,
+            }
             status = "settled" if settled else "timed_out"
-            print(f"  -> {status} | current={snapshot.get('currentPath')} | inFlight={snapshot.get('inFlight')} | queued={snapshot.get('queuedPath')}")
+            print(
+                f"  -> {status} | current={snapshot.get('currentPath')} | inFlight={snapshot.get('inFlight')} | "
+                f"queued={snapshot.get('queuedPath')} | 5xx+err+abort="
+                f"{burst_summary['errors_5xx_delta']}/{burst_summary['errors_delta']}/{burst_summary['aborts_delta']}"
+            )
 
         elapsed = time.monotonic() - overall_start
         final_snapshot = await page.evaluate("() => window.__softNavDebug.snapshot()")
+        route_error_summary: dict[str, dict[str, int]] = {}
+        for burst in burst_summaries:
+            path = burst["target_path"] or "unknown"
+            if path not in route_error_summary:
+                route_error_summary[path] = {"errors_5xx": 0, "errors_total": 0, "timeouts": 0, "aborts": 0, "started": 0}
+            route_error_summary[path]["errors_5xx"] += int(burst["errors_5xx_delta"])
+            route_error_summary[path]["errors_total"] += int(burst["errors_delta"])
+            route_error_summary[path]["timeouts"] += int(burst["timeouts_delta"])
+            route_error_summary[path]["aborts"] += int(burst["aborts_delta"])
+            route_error_summary[path]["started"] += int(burst["started_delta"])
         report = {
             "elapsed_seconds": round(elapsed, 3),
             "bursts": args.bursts,
             "clicks_per_burst": args.clicks_per_burst,
             "interval_ms": args.interval_ms,
+            "burst_summaries": burst_summaries,
+            "route_error_summary": route_error_summary,
             "metrics": final_snapshot,
         }
         print("\n=== Soft-nav stress report ===")
         print(json.dumps(report, indent=2))
+
+        timeouts_total = sum(1 for item in burst_summaries if not item.get("settled"))
+        hydration_starts = _safe_int(final_snapshot.get("hydrationStarts"))
+        hydration_finishes = _safe_int(final_snapshot.get("hydrationFinishes"))
+        hydration_skips = _safe_int(final_snapshot.get("hydrationSkips"))
+        hydration_orphans = max(0, hydration_starts - (hydration_finishes + hydration_skips))
+        route_error_max = max((item.get("errors_total", 0) for item in route_error_summary.values()), default=0)
+        route_5xx_max = max((item.get("errors_5xx", 0) for item in route_error_summary.values()), default=0)
+        route_timeout_max = max((item.get("timeouts", 0) for item in route_error_summary.values()), default=0)
+        route_abort_ratio_max = max(
+            (
+                float(item.get("aborts", 0)) / max(1.0, float(item.get("started", 0)) + float(item.get("aborts", 0)))
+                for item in route_error_summary.values()
+            ),
+            default=0.0,
+        )
+
+        violated = []
+        if args.max_timeouts >= 0 and timeouts_total > args.max_timeouts:
+            violated.append(f"timeouts_total={timeouts_total} > max_timeouts={args.max_timeouts}")
+        if args.max_route_errors >= 0 and route_error_max > args.max_route_errors:
+            violated.append(f"route_error_max={route_error_max} > max_route_errors={args.max_route_errors}")
+        if args.max_route_5xx >= 0 and route_5xx_max > args.max_route_5xx:
+            violated.append(f"route_5xx_max={route_5xx_max} > max_route_5xx={args.max_route_5xx}")
+        if args.max_route_timeouts >= 0 and route_timeout_max > args.max_route_timeouts:
+            violated.append(f"route_timeout_max={route_timeout_max} > max_route_timeouts={args.max_route_timeouts}")
+        if args.max_route_abort_ratio >= 0 and route_abort_ratio_max > args.max_route_abort_ratio:
+            violated.append(
+                f"route_abort_ratio_max={route_abort_ratio_max:.4f} > max_route_abort_ratio={args.max_route_abort_ratio}"
+            )
+        if args.max_hydration_orphans >= 0 and hydration_orphans > args.max_hydration_orphans:
+            violated.append(
+                f"hydration_orphans={hydration_orphans} > max_hydration_orphans={args.max_hydration_orphans}"
+            )
+
+        if violated:
+            await browser.close()
+            raise SystemExit("Stress assertions failed: " + "; ".join(violated))
 
         await browser.close()
 

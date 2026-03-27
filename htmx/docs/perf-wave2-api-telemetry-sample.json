@@ -1,0 +1,125 @@
+{
+  "run_started_utc": "2026-03-27T00:52:30.907573+00:00",
+  "run_finished_utc": "2026-03-27T00:52:30.923397+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8005",
+    "pages": [
+      "header-health"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "24h"
+    ],
+    "repeats": 1,
+    "timeout_seconds": 30.0,
+    "parallel": 1,
+    "widget_filter": [],
+    "quick": true
+  },
+  "results": [
+    {
+      "page": "header-health",
+      "widget": "health-status",
+      "params": {},
+      "cold_ms": 1.09,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_min_ms": 14.53,
+      "warm_p50_ms": 14.53,
+      "warm_p95_ms": 14.53,
+      "warm_avg_ms": 14.53,
+      "warm_max_ms": 14.53,
+      "payload_bytes_p50": 17,
+      "error_samples": []
+    }
+  ],
+  "telemetry": {
+    "captured": true,
+    "before": {
+      "enabled": true,
+      "request_stats": {
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "requests_by_page": {},
+        "errors_by_page": {},
+        "requests_by_widget": {}
+      },
+      "cache_stats": {
+        "entries": 2,
+        "max_entries": 512,
+        "ttl_seconds": 120.0,
+        "jitter_pct": 15.0,
+        "hits": 0,
+        "misses": 3,
+        "stale_served": 0,
+        "inflight_waits": 0,
+        "bg_refresh_started": 0,
+        "bg_refresh_failed": 0,
+        "evictions": 0,
+        "swr_executor_active_count": 0
+      },
+      "sql_pool_pressure": {
+        "pool_checkout_count": 0,
+        "pool_checkout_wait_total_ms": 0.0,
+        "pool_checkout_wait_max_ms": 0.0,
+        "pool_in_use_last": 0,
+        "pool_idle_last": 0,
+        "pool_in_use_max": 0,
+        "pool_wait_over_25ms": 0,
+        "query_count": 0,
+        "query_error_count": 0,
+        "query_duration_total_ms": 0.0,
+        "query_duration_max_ms": 0.0,
+        "last_query_row_count": 0,
+        "pool_checkout_wait_avg_ms": 0.0,
+        "query_duration_avg_ms": 0.0
+      }
+    },
+    "after": {
+      "enabled": true,
+      "request_stats": {
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "requests_by_page": {},
+        "errors_by_page": {},
+        "requests_by_widget": {}
+      },
+      "cache_stats": {
+        "entries": 2,
+        "max_entries": 512,
+        "ttl_seconds": 120.0,
+        "jitter_pct": 15.0,
+        "hits": 0,
+        "misses": 3,
+        "stale_served": 0,
+        "inflight_waits": 0,
+        "bg_refresh_started": 0,
+        "bg_refresh_failed": 0,
+        "evictions": 0,
+        "swr_executor_active_count": 0
+      },
+      "sql_pool_pressure": {
+        "pool_checkout_count": 0,
+        "pool_checkout_wait_total_ms": 0.0,
+        "pool_checkout_wait_max_ms": 0.0,
+        "pool_in_use_last": 0,
+        "pool_idle_last": 0,
+        "pool_in_use_max": 0,
+        "pool_wait_over_25ms": 0,
+        "query_count": 0,
+        "query_error_count": 0,
+        "query_duration_total_ms": 0.0,
+        "query_duration_max_ms": 0.0,
+        "last_query_row_count": 0,
+        "pool_checkout_wait_avg_ms": 0.0,
+        "query_duration_avg_ms": 0.0
+      }
+    }
+  }
+}

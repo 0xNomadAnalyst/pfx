@@ -19,3 +19,6 @@ Default URL: `http://localhost:8002/playbook-liquidity`
 - Each widget pulls JSON from `/api/v1/playbook-liquidity/{widget}`.
 - Theme toggle is persisted in `localStorage`.
 - Soft-nav test and telemetry docs: `docs/soft-nav-testing-and-telemetry.md`.
+- 2026-03-27 loading assessment report: `docs/loading-speed-assessment-2026-03-27.md`.
+- 2026-03-27 Wave 2 run report: `docs/performance-wave-2-run-report-2026-03-27.md`.
+- 2026-03-26 Wave 3 run report: `docs/performance-wave-3-run-report-2026-03-26.md`.

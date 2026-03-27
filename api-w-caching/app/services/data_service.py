@@ -92,6 +92,20 @@ class DataService:
         self._health_status_lock = threading.Lock()
         self._health_status_cached: bool | None = None
         self._health_status_expires_at = 0.0
+        self._telemetry_enabled = os.getenv("API_TELEMETRY_ENABLED", "0") == "1"
+        self._telemetry_lock = threading.Lock()
+        self._telemetry: dict[str, Any] = {
+            "requests_total": 0,
+            "requests_success": 0,
+            "requests_error": 0,
+            "requests_by_page": {},
+            "errors_by_page": {},
+            "requests_by_widget": {},
+            "status_family_counts": {},
+            "latency_by_page": {},
+            "latency_by_widget": {},
+            "nav_trace_counts": {},
+        }
         self._validate_dbsql_contract()
 
     def _validate_dbsql_contract(self) -> None:
@@ -151,6 +165,36 @@ class DataService:
         if hasattr(self, "_query_cache") and hasattr(self._query_cache, "stats"):
             return self._query_cache.stats()
         return {}
+
+    def get_telemetry_snapshot(self) -> dict[str, Any]:
+        with self._telemetry_lock:
+            request_stats = json.loads(json.dumps(self._telemetry))
+        request_stats["latency_by_page"] = self._latency_rollup(request_stats.get("latency_by_page", {}))
+        request_stats["latency_by_widget"] = self._latency_rollup(request_stats.get("latency_by_widget", {}))
+        return {
+            "enabled": self._telemetry_enabled,
+            "request_stats": request_stats,
+            "cache_stats": self.get_cache_stats(),
+            "sql_pool_pressure": self.sql.get_telemetry_snapshot() if hasattr(self.sql, "get_telemetry_snapshot") else {},
+        }
+
+    def reset_telemetry(self) -> dict[str, Any]:
+        with self._telemetry_lock:
+            self._telemetry = {
+                "requests_total": 0,
+                "requests_success": 0,
+                "requests_error": 0,
+                "requests_by_page": {},
+                "errors_by_page": {},
+                "requests_by_widget": {},
+                "status_family_counts": {},
+                "latency_by_page": {},
+                "latency_by_widget": {},
+                "nav_trace_counts": {},
+            }
+        if hasattr(self.sql, "reset_telemetry"):
+            self.sql.reset_telemetry()
+        return self.get_telemetry_snapshot()
 
     def warmup(self) -> None:
         """Prime expensive caches to reduce first-user cold latency."""
@@ -406,7 +450,13 @@ class DataService:
         liquidity = self._pages["playbook-liquidity"]
         return liquidity.get_meta()  # type: ignore[no-any-return]
 
-    def get_widget_data(self, page: str, widget_id: str, params: dict[str, Any]) -> dict[str, Any]:
+    def get_widget_data(
+        self,
+        page: str,
+        widget_id: str,
+        params: dict[str, Any],
+        trace_ctx: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         started = time.perf_counter()
         page_service = self._pages.get(page)
         if page_service is None:
@@ -415,27 +465,141 @@ class DataService:
         protocol = str(params.get("protocol", page_service.default_protocol))
         pair = str(params.get("pair", page_service.default_pair))
         generated_at = datetime.now(UTC)
-        payload = page_service.get_widget_payload(widget_id, params)
-        response = {
-            "metadata": {
-                "protocol": protocol,
-                "pair": pair,
-                "generated_at": generated_at,
-                "watermark": None,
-            },
-            "data": payload,
-            "status": "success",
-        }
-        if self._log_slow_widgets:
+        trace = trace_ctx or {}
+        nav_trace_id = str(trace.get("nav_trace_id", ""))
+        request_id = str(trace.get("request_id", ""))
+        if hasattr(self.sql, "set_request_context"):
+            self.sql.set_request_context(
+                page=page,
+                widget=widget_id,
+                nav_trace_id=nav_trace_id,
+                request_id=request_id,
+            )
+        self._record_widget_request_started(page, widget_id, nav_trace_id=nav_trace_id)
+        status_code = 200
+        try:
+            payload = page_service.get_widget_payload(widget_id, params)
+            response = {
+                "metadata": {
+                    "protocol": protocol,
+                    "pair": pair,
+                    "generated_at": generated_at,
+                    "watermark": None,
+                },
+                "data": payload,
+                "status": "success",
+            }
+            return response
+        except Exception:
+            status_code = 500
+            raise
+        finally:
             elapsed_ms = (time.perf_counter() - started) * 1000.0
-            if elapsed_ms >= self._slow_widget_threshold_ms:
-                logger.warning("Slow widget %.2fms page=%s widget=%s", elapsed_ms, page, widget_id)
-        return response
+            self._record_widget_request_finished(
+                page,
+                widget_id,
+                elapsed_ms=elapsed_ms,
+                status_code=status_code,
+            )
+            if hasattr(self.sql, "clear_request_context"):
+                self.sql.clear_request_context()
+            if self._log_slow_widgets:
+                if elapsed_ms >= self._slow_widget_threshold_ms:
+                    logger.warning("Slow widget %.2fms page=%s widget=%s", elapsed_ms, page, widget_id)
 
     @staticmethod
     def _build_cache_key(widget_id: str, params: dict[str, Any]) -> str:
         sig = "&".join(f"{k}={params[k]}" for k in sorted(params.keys()))
         return f"{widget_id}::{sig}"
+
+    def _record_widget_request_started(self, page: str, widget_id: str, *, nav_trace_id: str = "") -> None:
+        if not self._telemetry_enabled:
+            return
+        with self._telemetry_lock:
+            self._telemetry["requests_total"] = int(self._telemetry["requests_total"]) + 1
+            page_counts = self._telemetry["requests_by_page"]
+            page_counts[page] = int(page_counts.get(page, 0)) + 1
+            widget_key = f"{page}/{widget_id}"
+            widget_counts = self._telemetry["requests_by_widget"]
+            widget_counts[widget_key] = int(widget_counts.get(widget_key, 0)) + 1
+            if nav_trace_id:
+                trace_counts = self._telemetry["nav_trace_counts"]
+                trace_counts[nav_trace_id] = int(trace_counts.get(nav_trace_id, 0)) + 1
+
+    def _record_widget_request_finished(
+        self,
+        page: str,
+        widget_id: str,
+        *,
+        elapsed_ms: float,
+        status_code: int,
+    ) -> None:
+        if not self._telemetry_enabled:
+            return
+        widget_key = f"{page}/{widget_id}"
+        family = f"{max(0, int(status_code)) // 100}xx"
+        with self._telemetry_lock:
+            if 200 <= int(status_code) < 300:
+                self._telemetry["requests_success"] = int(self._telemetry["requests_success"]) + 1
+            else:
+                self._telemetry["requests_error"] = int(self._telemetry["requests_error"]) + 1
+                error_counts = self._telemetry["errors_by_page"]
+                error_counts[page] = int(error_counts.get(page, 0)) + 1
+            status_counts = self._telemetry["status_family_counts"]
+            status_counts[family] = int(status_counts.get(family, 0)) + 1
+            page_latency = self._telemetry["latency_by_page"]
+            widget_latency = self._telemetry["latency_by_widget"]
+            page_entry = self._update_latency_entry(page_latency.get(page), elapsed_ms)
+            widget_entry = self._update_latency_entry(widget_latency.get(widget_key), elapsed_ms)
+            page_latency[page] = page_entry
+            widget_latency[widget_key] = widget_entry
+
+    @staticmethod
+    def _update_latency_entry(entry: dict[str, Any] | None, elapsed_ms: float) -> dict[str, Any]:
+        if not isinstance(entry, dict):
+            entry = {"count": 0, "total_ms": 0.0, "max_ms": 0.0, "samples": []}
+        safe_ms = max(0.0, float(elapsed_ms))
+        entry["count"] = int(entry.get("count", 0)) + 1
+        entry["total_ms"] = float(entry.get("total_ms", 0.0)) + safe_ms
+        entry["max_ms"] = max(float(entry.get("max_ms", 0.0)), safe_ms)
+        samples = list(entry.get("samples", []))
+        samples.append(safe_ms)
+        if len(samples) > 400:
+            samples = samples[-400:]
+        entry["samples"] = samples
+        return entry
+
+    @staticmethod
+    def _latency_rollup(raw: dict[str, Any]) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for key, value in (raw or {}).items():
+            if not isinstance(value, dict):
+                continue
+            count = int(value.get("count", 0) or 0)
+            total_ms = float(value.get("total_ms", 0.0) or 0.0)
+            samples = [float(v) for v in value.get("samples", [])]
+            out[key] = {
+                "count": count,
+                "avg_ms": round(total_ms / count, 3) if count > 0 else 0.0,
+                "max_ms": round(float(value.get("max_ms", 0.0) or 0.0), 3),
+                "p50_ms": DataService._percentile(samples, 50),
+                "p95_ms": DataService._percentile(samples, 95),
+                "p99_ms": DataService._percentile(samples, 99),
+            }
+        return out
+
+    @staticmethod
+    def _percentile(values: list[float], pct: float) -> float:
+        if not values:
+            return 0.0
+        if len(values) == 1:
+            return round(float(values[0]), 3)
+        ordered = sorted(values)
+        rank = (len(ordered) - 1) * max(0.0, min(100.0, float(pct))) / 100.0
+        lo = int(rank)
+        hi = min(lo + 1, len(ordered) - 1)
+        frac = rank - lo
+        return round((ordered[lo] * (1.0 - frac)) + (ordered[hi] * frac), 3)
 
     def warmup_targets(
         self,

@@ -7,7 +7,7 @@
   <link rel="icon" href="/static/images/favicon-16x16.png" type="image/png" sizes="16x16" />
   <link rel="icon" href="/static/images/favicon-32x32.png" type="image/png" sizes="32x32" />
   <title>{{ app_title }} - {{ page_title }}</title>
-  <link rel="stylesheet" href="/static/css/theme.css?v=96" />
+  <link rel="stylesheet" href="/static/css/theme.css?v=99" />
   <link rel="preload" as="image" href="/static/images/video-posters/0wgPh78PwAs.png" />
   <link rel="preload" as="image" href="/static/images/video-posters/Ktk99W77UWk.png" />
   <link rel="preload" as="image" href="/static/images/video-posters/5p5nsW3Vxtg.png" />
@@ -99,7 +99,20 @@
           <path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1z" fill="url(#sol-b)"/>
           <path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1z" fill="url(#sol-c)"/>
         </svg>
-        {{ app_title }}
+        <span class="topbar-app-title">{{ app_title }}</span>
+        <button
+          type="button"
+          id="topbar-guide-info-btn"
+          class="topbar-guide-info-btn"
+          aria-label="Open dashboard guide"
+          title="Open dashboard guide"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.8" stroke="currentColor" stroke-width="2.1"></circle>
+            <circle cx="12" cy="8" r="1.2" fill="currentColor"></circle>
+            <path d="M12 11v6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"></path>
+          </svg>
+        </button>
       </div>
       {% if show_pipeline_switcher %}
       <div class="topbar-meta topbar-filters pipeline-switcher">
@@ -738,6 +751,7 @@
     var mobileOverlay = document.getElementById("mobile-entry-overlay");
     var viewportOverlay = document.getElementById("viewport-policy-overlay");
     var dismissBtn = document.getElementById("ecosystem-guide-dismiss");
+    var guideInfoBtn = document.getElementById("topbar-guide-info-btn");
     var introIframe = document.getElementById("ecosystem-guide-intro-iframe");
     var introPoster = document.getElementById("ecosystem-guide-poster");
     var introPosterPlay = document.getElementById("ecosystem-guide-poster-play");
@@ -749,6 +763,7 @@
       overlay.querySelectorAll(".ecosystem-guide-card[data-guide-card]")
     );
     var rafHandle = 0;
+    var manualGuideOpen = false;
 
     function currentPageSlug() {
       return (document.body.dataset.currentPageSlug || "").trim();
@@ -763,12 +778,14 @@
     }
 
     function dismissGuide() {
+      manualGuideOpen = false;
       try {
         window.sessionStorage.setItem(DISMISS_KEY, "1");
       } catch (_) {}
       if (introIframe) introIframe.src = "";
       if (introPoster) introPoster.classList.remove("hidden");
       overlay.hidden = true;
+      overlay.classList.remove("is-ready");
       overlay.setAttribute("aria-hidden", "true");
       document.body.classList.remove("ecosystem-guide-active");
     }
@@ -781,10 +798,18 @@
     }
 
     function shouldShowGuide() {
+      if (isDeviceGateActive()) return false;
+      if (manualGuideOpen) return true;
       if (currentPageSlug() !== TARGET_PAGE) return false;
       if (hasDismissedGuide()) return false;
-      if (isDeviceGateActive()) return false;
       return true;
+    }
+
+    function openGuideFromHeader() {
+      if (isDeviceGateActive()) return;
+      manualGuideOpen = true;
+      refreshGuideState();
+      requestLayoutUpdate();
     }
 
     function clamp(value, min, max) {
@@ -978,6 +1003,7 @@
         item.el.style.top = rowTop + "px";
         item.el.style.setProperty("--guide-pointer-left", item.pointerLeft + "px");
       });
+      overlay.classList.add("is-ready");
     }
 
     function requestLayoutUpdate() {
@@ -991,11 +1017,13 @@
     function refreshGuideState() {
       if (!shouldShowGuide()) {
         overlay.hidden = true;
+        overlay.classList.remove("is-ready");
         overlay.setAttribute("aria-hidden", "true");
         document.body.classList.remove("ecosystem-guide-active");
         return;
       }
       overlay.hidden = false;
+      overlay.classList.remove("is-ready");
       overlay.setAttribute("aria-hidden", "false");
       document.body.classList.add("ecosystem-guide-active");
       syncIntroVideo();
@@ -1010,6 +1038,12 @@
     }
     if (introPoster) {
       introPoster.addEventListener("click", loadIntroVideo);
+    }
+    if (guideInfoBtn) {
+      guideInfoBtn.addEventListener("click", function(e) {
+        e.preventDefault();
+        openGuideFromHeader();
+      });
     }
 
     overlay.addEventListener("click", function(e) {

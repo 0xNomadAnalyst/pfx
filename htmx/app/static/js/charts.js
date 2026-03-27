@@ -55,6 +55,7 @@
   const pageActionCache = new Map();
   const softNavShellCache = new Map();
   const softNavShellFetchInFlight = new Map();
+  const softNavShellPrefetchStats = new Map();
   let softNavShellCacheCapacity = SOFT_NAV_SHELL_CACHE_MAX_ENTRIES;
   const PINNED_SOFT_NAV_PATHS = new Set(["/global-ecosystem", "/cover"]);
   const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = readRuntimeInt("widgetResponseCacheMaxEntries", 100, 10, 500);
@@ -1841,6 +1842,21 @@
       }
     }
 
+    const formatPieTitleExtra = (id, text) => {
+      const raw = String(text || "");
+      if (!raw || id !== "exponent-pie-tvl" || !raw.includes(":")) return raw;
+      // Keep short labels compact; split long labels after the final delimiter.
+      if (raw.length < 56) return raw;
+      const splitToken = " : ";
+      const splitIdx = raw.lastIndexOf(splitToken);
+      if (splitIdx >= 0) {
+        return `${raw.slice(0, splitIdx + splitToken.length).trimEnd()}\n${raw.slice(splitIdx + splitToken.length)}`;
+      }
+      const fallbackIdx = raw.lastIndexOf(":");
+      if (fallbackIdx < 0) return raw;
+      return `${raw.slice(0, fallbackIdx + 1)}\n${raw.slice(fallbackIdx + 1).trimStart()}`;
+    };
+
     let option;
     const focusedTickZoom = isLeftLinked ? leftDefaultZoomWindow : null;
     if (chartData.chart === "candlestick-volume") {
@@ -2672,9 +2688,10 @@
             left: 10,
             top: 6,
             style: {
-              text: chartData.title_extra,
+              text: formatPieTitleExtra(widgetId, chartData.title_extra),
               fill: chartTextColor(),
               fontSize: 11,
+              lineHeight: 14,
               opacity: 0.7,
               textAlign: "left",
               textVerticalAlign: "top",
@@ -4021,7 +4038,9 @@
     if (_activeHydrationTrace?.settleTimer) {
       clearTimeout(_activeHydrationTrace.settleTimer);
     }
-    _activeHydrationTrace = null;
+    if (_activeHydrationTrace) {
+      _finishHydrationTrace(_activeHydrationTrace, { terminalReason: "cancelled_nav" });
+    }
     _widgetRequestsInFlight = 0;
     protocolPairs = [];
     const mkt1 = document.getElementById("mkt1-select");
@@ -4685,21 +4704,32 @@
     }
   }
 
-  async function fetchAndCacheSoftNavShell(path) {
+  async function fetchAndCacheSoftNavShell(path, source = "unknown") {
     const normalizedPath = normalizeSoftNavPath(path);
     if (!normalizedPath) return false;
 
     const inFlight = softNavShellFetchInFlight.get(normalizedPath);
-    if (inFlight) return inFlight;
+    if (inFlight) {
+      _recordShellPrefetch(normalizedPath, "inflight_join");
+      return inFlight;
+    }
 
     const req = (async () => {
+      const startedAtMs = performance.now();
+      _recordShellPrefetch(normalizedPath, "attempt");
       const response = await fetch(normalizedPath, {
         headers: { "X-Requested-With": "riskdash-soft-nav-refresh" },
         cache: "no-store",
       });
-      if (!response.ok) return false;
+      if (!response.ok) {
+        _recordShellPrefetch(normalizedPath, "failed", performance.now() - startedAtMs);
+        _softNavDebugEvent("shell_prefetch_failed", { path: normalizedPath, source, status: response.status });
+        return false;
+      }
       const html = await response.text();
       setSoftNavShellCache(normalizedPath, html);
+      _recordShellPrefetch(normalizedPath, "success", performance.now() - startedAtMs);
+      _softNavDebugEvent("shell_prefetch_success", { path: normalizedPath, source });
       return true;
     })();
     softNavShellFetchInFlight.set(normalizedPath, req);
@@ -4740,7 +4770,7 @@
         while (idx < queue.length) {
           const path = queue[idx++];
           try {
-            await fetchAndCacheSoftNavShell(path);
+            await fetchAndCacheSoftNavShell(path, "all-shell-prefetch");
           } catch (_) {
             // Best-effort prefetch.
           }
@@ -5075,7 +5105,9 @@
     if (_activeHydrationTrace?.settleTimer) {
       clearTimeout(_activeHydrationTrace.settleTimer);
     }
-    _activeHydrationTrace = null;
+    if (_activeHydrationTrace) {
+      _finishHydrationTrace(_activeHydrationTrace, { terminalReason: "cancelled_nav" });
+    }
     _widgetRequestsInFlight = 0;
   }
 
@@ -5162,6 +5194,9 @@
   let _softNavController = null;
   let _softNavCurrentPath = "";
   let _softNavQueuedPath = "";
+  let _softNavTraceSeq = 0;
+  let _softNavActiveTraceId = "";
+  let _softNavLastCompletedTraceId = "";
   let _sidebarDebounceTimer = 0;
   let _sidebarDebouncePath = "";
   const SIDEBAR_DEBOUNCE_MS = 180;
@@ -5182,6 +5217,9 @@
     hydrationStarts: 0,
     hydrationFinishes: 0,
     hydrationSkips: 0,
+    hydrationCancelledSuperseded: 0,
+    hydrationCancelledNav: 0,
+    lastHydrationTerminalReason: "",
     lastHydrationMs: 0,
     maxHydrationMs: 0,
     lastWidgetSettleMs: 0,
@@ -5190,11 +5228,20 @@
     widgetRequestsCompleted: 0,
     widgetRequestsAborted: 0,
     widgetRequestErrors: 0,
+    widgetRequest5xx: 0,
     widgetRequestTimeouts: 0,
+    shellPrefetchAttempts: 0,
+    shellPrefetchSuccesses: 0,
+    shellPrefetchFailures: 0,
+    shellPrefetchInFlightJoins: 0,
+    lastShellPrefetchMs: 0,
+    maxShellPrefetchMs: 0,
     maxInFlightMs: 0,
     lastInFlightMs: 0,
     lastRequestedPath: "",
     lastFinishedPath: "",
+    activeNavTraceId: "",
+    lastCompletedNavTraceId: "",
     events: [],
   };
   let _widgetRequestsInFlight = 0;
@@ -5204,6 +5251,9 @@
   let _visibilityObserver = null;
 
   function _startHydrationTrace(path) {
+    if (_activeHydrationTrace) {
+      _finishHydrationTrace(_activeHydrationTrace, { terminalReason: "cancelled_nav" });
+    }
     const trace = {
       id: ++_hydrationSerial,
       path: normalizeSoftNavPath(path),
@@ -5242,7 +5292,7 @@
     }, 140);
   }
 
-  function _finishHydrationTrace(trace, { skipped = false } = {}) {
+  function _finishHydrationTrace(trace, { skipped = false, terminalReason = "" } = {}) {
     if (!trace) return;
     if (_activeHydrationTrace && _activeHydrationTrace.id === trace.id) {
       if (trace.settleTimer) {
@@ -5251,9 +5301,16 @@
       }
       _activeHydrationTrace = null;
     }
+    const finalReason = terminalReason || (skipped ? "skip" : "finish");
+    _softNavDebug.lastHydrationTerminalReason = finalReason;
+    if (finalReason === "cancelled_superseded") {
+      _softNavDebug.hydrationCancelledSuperseded += 1;
+    } else if (finalReason === "cancelled_nav") {
+      _softNavDebug.hydrationCancelledNav += 1;
+    }
     if (skipped) {
       _softNavDebug.hydrationSkips += 1;
-      _softNavDebugEvent("hydrate_skip", { path: trace.path || "" });
+      _softNavDebugEvent("hydrate_skip", { path: trace.path || "", reason: finalReason });
       return;
     }
     const finishedAtMs = performance.now();
@@ -5268,7 +5325,44 @@
       _softNavDebug.maxWidgetSettleMs = Math.max(_softNavDebug.maxWidgetSettleMs, hydrationMs);
       _softNavDebugEvent("hydrate_settled", { path: trace.path || "", settleMs: hydrationMs, widgetRequestsInFlight: 0 });
     }
-    _softNavDebugEvent("hydrate_finish", { path: trace.path || "", hydrationMs });
+    _softNavDebugEvent("hydrate_finish", { path: trace.path || "", hydrationMs, reason: finalReason });
+  }
+
+  function _recordShellPrefetch(path, status, elapsedMs = 0) {
+    const normalizedPath = normalizeSoftNavPath(path) || path || "";
+    if (!normalizedPath) return;
+    const safeElapsed = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
+    const current = softNavShellPrefetchStats.get(normalizedPath) || {
+      attempts: 0,
+      successes: 0,
+      failures: 0,
+      inFlightJoins: 0,
+      totalMs: 0,
+      maxMs: 0,
+      lastMs: 0,
+    };
+    if (status === "attempt") {
+      current.attempts += 1;
+      _softNavDebug.shellPrefetchAttempts += 1;
+    } else if (status === "success") {
+      current.successes += 1;
+      current.totalMs += safeElapsed;
+      current.maxMs = Math.max(current.maxMs, safeElapsed);
+      current.lastMs = safeElapsed;
+      _softNavDebug.shellPrefetchSuccesses += 1;
+      _softNavDebug.lastShellPrefetchMs = safeElapsed;
+      _softNavDebug.maxShellPrefetchMs = Math.max(_softNavDebug.maxShellPrefetchMs, safeElapsed);
+    } else if (status === "failed") {
+      current.failures += 1;
+      current.lastMs = safeElapsed;
+      _softNavDebug.shellPrefetchFailures += 1;
+      _softNavDebug.lastShellPrefetchMs = safeElapsed;
+      _softNavDebug.maxShellPrefetchMs = Math.max(_softNavDebug.maxShellPrefetchMs, safeElapsed);
+    } else if (status === "inflight_join") {
+      current.inFlightJoins += 1;
+      _softNavDebug.shellPrefetchInFlightJoins += 1;
+    }
+    softNavShellPrefetchStats.set(normalizedPath, current);
   }
 
   function _recordShellVisible(path) {
@@ -5292,6 +5386,21 @@
   }
 
   function _softNavDebugSnapshot() {
+    const prefetchByPath = {};
+    softNavShellPrefetchStats.forEach((value, key) => {
+      const successCount = Math.max(0, Number(value.successes) || 0);
+      const totalMs = Math.max(0, Number(value.totalMs) || 0);
+      const avgMs = successCount > 0 ? totalMs / successCount : 0;
+      prefetchByPath[key] = {
+        attempts: Math.max(0, Number(value.attempts) || 0),
+        successes: successCount,
+        failures: Math.max(0, Number(value.failures) || 0),
+        inFlightJoins: Math.max(0, Number(value.inFlightJoins) || 0),
+        avgMs,
+        maxMs: Math.max(0, Number(value.maxMs) || 0),
+        lastMs: Math.max(0, Number(value.lastMs) || 0),
+      };
+    });
     return {
       ..._softNavDebug,
       inFlight: _softNavInFlight,
@@ -5301,6 +5410,9 @@
       shellCacheCapacity: softNavShellCacheCapacity,
       allShellPrefetchScheduled: _allShellPrefetchScheduled,
       allShellPrefetchCompleted: _allShellPrefetchCompleted,
+      prefetchByPath,
+      activeNavTraceId: _softNavActiveTraceId,
+      lastCompletedNavTraceId: _softNavLastCompletedTraceId,
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     };
   }
@@ -5320,6 +5432,9 @@
     _softNavDebug.hydrationStarts = 0;
     _softNavDebug.hydrationFinishes = 0;
     _softNavDebug.hydrationSkips = 0;
+    _softNavDebug.hydrationCancelledSuperseded = 0;
+    _softNavDebug.hydrationCancelledNav = 0;
+    _softNavDebug.lastHydrationTerminalReason = "";
     _softNavDebug.lastHydrationMs = 0;
     _softNavDebug.maxHydrationMs = 0;
     _softNavDebug.lastWidgetSettleMs = 0;
@@ -5328,13 +5443,26 @@
     _softNavDebug.widgetRequestsCompleted = 0;
     _softNavDebug.widgetRequestsAborted = 0;
     _softNavDebug.widgetRequestErrors = 0;
+    _softNavDebug.widgetRequest5xx = 0;
     _softNavDebug.widgetRequestTimeouts = 0;
+    _softNavDebug.shellPrefetchAttempts = 0;
+    _softNavDebug.shellPrefetchSuccesses = 0;
+    _softNavDebug.shellPrefetchFailures = 0;
+    _softNavDebug.shellPrefetchInFlightJoins = 0;
+    _softNavDebug.lastShellPrefetchMs = 0;
+    _softNavDebug.maxShellPrefetchMs = 0;
     _softNavDebug.maxInFlightMs = 0;
     _softNavDebug.lastInFlightMs = 0;
     _softNavDebug.lastRequestedPath = "";
     _softNavDebug.lastFinishedPath = "";
+    _softNavDebug.activeNavTraceId = "";
+    _softNavDebug.lastCompletedNavTraceId = "";
     _softNavDebug.events = [];
+    softNavShellPrefetchStats.clear();
     _softNavCurrentStartMs = 0;
+    _softNavTraceSeq = 0;
+    _softNavActiveTraceId = "";
+    _softNavLastCompletedTraceId = "";
     _widgetRequestsInFlight = 0;
     if (_activeHydrationTrace?.settleTimer) {
       clearTimeout(_activeHydrationTrace.settleTimer);
@@ -5469,14 +5597,14 @@
     const navPath = normalizeSoftNavPath(path);
     const livePath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
     if (!navPath || navPath !== livePath) {
-      _finishHydrationTrace(trace, { skipped: true });
+      _finishHydrationTrace(trace, { skipped: true, terminalReason: "cancelled_nav" });
       return false;
     }
 
     if (hasSupersedingNav(path)) {
       _softNavDebug.supersededHydrationSkips += 1;
       _softNavDebugEvent("superseded_skip", { path, queuedPath: _softNavQueuedPath || "" });
-      _finishHydrationTrace(trace, { skipped: true });
+      _finishHydrationTrace(trace, { skipped: true, terminalReason: "cancelled_superseded" });
       return false;
     }
 
@@ -5485,12 +5613,12 @@
       if (hasSupersedingNav(path)) {
         _softNavDebug.supersededHydrationSkips += 1;
         _softNavDebugEvent("superseded_skip_post_guard", { path, queuedPath: _softNavQueuedPath || "" });
-        _finishHydrationTrace(trace, { skipped: true });
+        _finishHydrationTrace(trace, { skipped: true, terminalReason: "cancelled_superseded" });
         return false;
       }
       const guardedLivePath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
       if (!guardedLivePath || guardedLivePath !== navPath) {
-        _finishHydrationTrace(trace, { skipped: true });
+        _finishHydrationTrace(trace, { skipped: true, terminalReason: "cancelled_nav" });
         return false;
       }
     }
@@ -5504,7 +5632,7 @@
 
     const postFiltersPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
     if (!postFiltersPath || postFiltersPath !== navPath) {
-      _finishHydrationTrace(trace, { skipped: true });
+      _finishHydrationTrace(trace, { skipped: true, terminalReason: "cancelled_nav" });
       return false;
     }
 
@@ -5591,7 +5719,7 @@
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
     try {
-      const ok = await fetchAndCacheSoftNavShell(normalizedPath);
+      const ok = await fetchAndCacheSoftNavShell(normalizedPath, "background-refresh");
       if (!ok) {
         recordPerfMetric("softNavShellBackgroundRefreshFailed");
         return;
@@ -5612,7 +5740,13 @@
     }
     _softNavDebug.finishes += 1;
     _softNavDebug.lastFinishedPath = `${window.location.pathname}${window.location.search || ""}`;
-    _softNavDebugEvent("finish", { path: _softNavDebug.lastFinishedPath, queuedPath: _softNavQueuedPath || "" });
+    _softNavLastCompletedTraceId = _softNavActiveTraceId || _softNavLastCompletedTraceId;
+    _softNavDebug.lastCompletedNavTraceId = _softNavLastCompletedTraceId;
+    _softNavDebugEvent("finish", {
+      path: _softNavDebug.lastFinishedPath,
+      queuedPath: _softNavQueuedPath || "",
+      navTraceId: _softNavLastCompletedTraceId,
+    });
     _softNavInFlight = false;
     setPageSelectorBusy(false);
     _softNavController = null;
@@ -5633,6 +5767,15 @@
     const queued = normalizeSoftNavPath(_softNavQueuedPath);
     const current = normalizeSoftNavPath(currentPath);
     return !!queued && !!current && queued !== current;
+  }
+
+  function _nextNavTraceId(path) {
+    _softNavTraceSeq += 1;
+    const stamp = Date.now().toString(36);
+    const seq = _softNavTraceSeq.toString(36);
+    const norm = normalizeSoftNavPath(path || `${window.location.pathname}${window.location.search || ""}`) || "";
+    const routeToken = norm.replace(/[^\w]/g, "_").slice(0, 36);
+    return `nav_${stamp}_${seq}_${routeToken}`;
   }
 
   async function softNavigateToPage(path, { pushHistory = true } = {}) {
@@ -5663,10 +5806,12 @@
     const { signal } = _softNavController;
     _softNavInFlight = true;
     _softNavCurrentPath = navPath;
+    _softNavActiveTraceId = _nextNavTraceId(navPath);
+    _softNavDebug.activeNavTraceId = _softNavActiveTraceId;
     _softNavCurrentStartMs = performance.now();
     _softNavDebug.starts += 1;
     _softNavDebug.lastRequestedPath = navPath;
-    _softNavDebugEvent("start", { path: navPath });
+    _softNavDebugEvent("start", { path: navPath, navTraceId: _softNavActiveTraceId });
     setPageSelectorBusy(true);
     let shellAppliedFromCache = false;
     const cachedShell = getSoftNavShellCache(navPath);
@@ -6561,6 +6706,17 @@
   document.body.addEventListener("htmx:beforeSend", (event) => {
     const el = event.detail.elt;
     if (!el || !el.classList.contains("widget-loader")) return;
+    const navTraceId = _softNavActiveTraceId || _softNavLastCompletedTraceId || _nextNavTraceId("");
+    const requestId = `${navTraceId}_req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    el.dataset.navTraceId = navTraceId;
+    el.dataset.navRequestId = requestId;
+    const requestConfig = event.detail?.requestConfig;
+    if (requestConfig?.headers) {
+      requestConfig.headers["X-Riskdash-Nav-Trace"] = navTraceId;
+      requestConfig.headers["X-Riskdash-Request-Id"] = requestId;
+      requestConfig.headers["X-Riskdash-Widget-Id"] = String(el.dataset.widgetId || "");
+      requestConfig.headers["X-Riskdash-Current-Path"] = `${window.location.pathname}${window.location.search || ""}`;
+    }
     _widgetRequestsInFlight += 1;
     _softNavDebug.widgetRequestsStarted += 1;
     if (_activeHydrationTrace) _scheduleHydrationSettleCheck(_activeHydrationTrace);
@@ -6734,6 +6890,9 @@
     }
     const xhr = event.detail.xhr;
     _softNavDebug.widgetRequestErrors += 1;
+    if (xhr.status >= 500) {
+      _softNavDebug.widgetRequest5xx += 1;
+    }
     let detail = `HTTP ${xhr.status}`;
     try {
       const payload = JSON.parse(xhr.responseText);
@@ -6743,6 +6902,13 @@
     } catch (_) {
       // Ignore parse errors and keep default status detail.
     }
+    _softNavDebugEvent("widget_request_error", {
+      widgetId,
+      status: xhr.status,
+      navTraceId: sourceEl.dataset.navTraceId || _softNavActiveTraceId || "",
+      requestId: sourceEl.dataset.navRequestId || "",
+      currentPath: `${window.location.pathname}${window.location.search || ""}`,
+    });
     setWidgetError(widgetId, detail);
   });
 
@@ -6756,6 +6922,12 @@
       return;
     }
     _softNavDebug.widgetRequestErrors += 1;
+    _softNavDebugEvent("widget_request_send_error", {
+      widgetId,
+      navTraceId: sourceEl.dataset.navTraceId || _softNavActiveTraceId || "",
+      requestId: sourceEl.dataset.navRequestId || "",
+      currentPath: `${window.location.pathname}${window.location.search || ""}`,
+    });
     setWidgetError(widgetId, "cannot reach API");
   });
 
@@ -6769,6 +6941,12 @@
       return;
     }
     _softNavDebug.widgetRequestTimeouts += 1;
+    _softNavDebugEvent("widget_request_timeout", {
+      widgetId,
+      navTraceId: sourceEl.dataset.navTraceId || _softNavActiveTraceId || "",
+      requestId: sourceEl.dataset.navRequestId || "",
+      currentPath: `${window.location.pathname}${window.location.search || ""}`,
+    });
     setWidgetError(widgetId, "request timeout");
   });
 
@@ -6786,6 +6964,12 @@
     }
     const widgetId = sourceEl.dataset.widgetId;
     if (!widgetId) return;
+    _softNavDebugEvent("widget_request_abort", {
+      widgetId,
+      navTraceId: sourceEl.dataset.navTraceId || _softNavActiveTraceId || "",
+      requestId: sourceEl.dataset.navRequestId || "",
+      currentPath: `${window.location.pathname}${window.location.search || ""}`,
+    });
     clearStaleTimestampLabel(widgetId);
   });
 
@@ -7561,6 +7745,8 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    _softNavActiveTraceId = _nextNavTraceId(`${window.location.pathname}${window.location.search || ""}`);
+    _softNavDebug.activeNavTraceId = _softNavActiveTraceId;
     window.__softNavDebug = {
       snapshot: _softNavDebugSnapshot,
       reset: _softNavDebugReset,

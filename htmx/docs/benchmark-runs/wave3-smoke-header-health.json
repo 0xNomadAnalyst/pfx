@@ -1,0 +1,134 @@
+{
+  "run_started_utc": "2026-03-27T01:06:28.479330+00:00",
+  "run_finished_utc": "2026-03-27T01:06:28.621875+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8001",
+    "pages": [
+      "header-health"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "1h",
+      "24h",
+      "7d",
+      "30d"
+    ],
+    "repeats": 1,
+    "timeout_seconds": 5.0,
+    "parallel": 1,
+    "parallel_profiles": [
+      1
+    ],
+    "parallel_ramp": "",
+    "soak_seconds": 0.0,
+    "soak_pause_seconds": 0.0,
+    "widget_filter": [],
+    "quick": true
+  },
+  "profile_runs": [
+    {
+      "profile": "parallel-1",
+      "parallel": 1,
+      "loops_completed": 1,
+      "result_count": 4,
+      "telemetry_before": null,
+      "telemetry_after": null
+    }
+  ],
+  "results": [
+    {
+      "page": "header-health",
+      "widget": "health-status",
+      "params": {},
+      "cold_ms": 24.24,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_min_ms": 15.23,
+      "warm_p50_ms": 15.23,
+      "warm_p95_ms": 15.23,
+      "warm_avg_ms": 15.23,
+      "warm_max_ms": 15.23,
+      "payload_bytes_p50": 17,
+      "error_samples": [],
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "header-health",
+      "widget": "health-status",
+      "params": {},
+      "cold_ms": 15.68,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_min_ms": 16.29,
+      "warm_p50_ms": 16.29,
+      "warm_p95_ms": 16.29,
+      "warm_avg_ms": 16.29,
+      "warm_max_ms": 16.29,
+      "payload_bytes_p50": 17,
+      "error_samples": [],
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "header-health",
+      "widget": "health-status",
+      "params": {},
+      "cold_ms": 1.93,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_min_ms": 1.36,
+      "warm_p50_ms": 1.36,
+      "warm_p95_ms": 1.36,
+      "warm_avg_ms": 1.36,
+      "warm_max_ms": 1.36,
+      "payload_bytes_p50": 17,
+      "error_samples": [],
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "header-health",
+      "widget": "health-status",
+      "params": {},
+      "cold_ms": 1.58,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_min_ms": 25.07,
+      "warm_p50_ms": 25.07,
+      "warm_p95_ms": 25.07,
+      "warm_avg_ms": 25.07,
+      "warm_max_ms": 25.07,
+      "payload_bytes_p50": 17,
+      "error_samples": [],
+      "profile": "parallel-1",
+      "loop_index": 1
+    }
+  ],
+  "telemetry": {
+    "captured": false,
+    "profiles": [
+      {
+        "profile": "parallel-1",
+        "parallel": 1,
+        "loops_completed": 1,
+        "result_count": 4,
+        "telemetry_before": null,
+        "telemetry_after": null
+      }
+    ]
+  }
+}

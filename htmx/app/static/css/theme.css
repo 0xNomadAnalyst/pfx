@@ -306,10 +306,53 @@ html[data-theme="light"] .sidebar-nav-link.is-active {
 .topbar-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   font-weight: 700;
   letter-spacing: 0.2px;
   white-space: nowrap;
+}
+
+.topbar-app-title {
+  line-height: 1;
+}
+
+.topbar-guide-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+  margin-right: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(248, 169, 74, 0.9);
+  cursor: pointer;
+  transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), color 0.42s cubic-bezier(0.16, 1, 0.3, 1), filter 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.topbar-guide-info-btn:hover {
+  transform: scale(1.08);
+  color: rgba(248, 169, 74, 1);
+  filter: drop-shadow(0 0 6px rgba(248, 169, 74, 0.3));
+}
+
+.topbar-guide-info-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(12, 22, 40, 0.92),
+    0 0 0 3px rgba(248, 169, 74, 0.55);
+  border-radius: 999px;
+}
+
+html[data-theme="light"] .topbar-guide-info-btn {
+  color: rgba(188, 98, 27, 0.9);
+}
+
+html[data-theme="light"] .topbar-guide-info-btn:hover {
+  color: rgba(188, 98, 27, 0.98);
+  filter: drop-shadow(0 0 6px rgba(188, 98, 27, 0.24));
 }
 
 .solana-icon {
@@ -1935,6 +1978,12 @@ body.ecosystem-guide-active {
 
 .ecosystem-guide-overlay[hidden] {
   display: none !important;
+}
+
+.ecosystem-guide-overlay:not(.is-ready) .ecosystem-guide-focus,
+.ecosystem-guide-overlay:not(.is-ready) .ecosystem-guide-card,
+.ecosystem-guide-overlay:not(.is-ready) .ecosystem-guide-center {
+  opacity: 0;
 }
 
 .ecosystem-guide-shade {

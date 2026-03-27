@@ -191,6 +191,24 @@ GLOBAL_ECOSYSTEM_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("ge-activity-share-eusx", {}),
 ]
 
+RISK_ANALYSIS_SCENARIOS: list[WidgetScenario] = [
+    WidgetScenario("ra-pvalue-tables", {}),
+    WidgetScenario("ra-liq-dist-ray", {}),
+    WidgetScenario("ra-liq-dist-orca", {}),
+    WidgetScenario("ra-liq-depth-ray", {}),
+    WidgetScenario("ra-liq-depth-orca", {}),
+    WidgetScenario("ra-prob-ray", {}),
+    WidgetScenario("ra-prob-orca", {}),
+    WidgetScenario("ra-xp-exposure", {}),
+    WidgetScenario("ra-xp-dist-ray", {}),
+    WidgetScenario("ra-xp-dist-orca", {}),
+    WidgetScenario("ra-xp-depth-ray", {}),
+    WidgetScenario("ra-xp-depth-orca", {}),
+    WidgetScenario("ra-stress-test", {}),
+    WidgetScenario("ra-sensitivity-table", {}),
+    WidgetScenario("ra-cascade", {}),
+]
+
 HEADER_HEALTH_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("health-status", {}, direct_path="/api/v1/health-status"),
 ]
@@ -207,6 +225,7 @@ PAGE_DEFAULT_SCENARIOS: dict[str, list[WidgetScenario]] = {
     "exponent": EXPONENT_SCENARIOS,
     "health": HEALTH_SCENARIOS,
     "global-ecosystem": GLOBAL_ECOSYSTEM_SCENARIOS,
+    "risk-analysis": RISK_ANALYSIS_SCENARIOS,
     "header-health": HEADER_HEALTH_SCENARIOS,
     "header-health-proxy": HEADER_HEALTH_PROXY_SCENARIOS,
 }
@@ -220,6 +239,7 @@ PAGE_ALIASES: dict[str, str] = {
     "exponent": "exponent",
     "health": "health",
     "global-ecosystem": "global-ecosystem",
+    "risk-analysis": "risk-analysis",
     "header-health": "header-health",
     "header-health-proxy": "header-health-proxy",
 }
@@ -272,6 +292,13 @@ QUICK_WIDGETS_BY_PAGE: dict[str, list[str]] = {
         "ge-tvl-share-usx",
         "ge-activity-vol-usx",
     ],
+    "risk-analysis": [
+        "ra-pvalue-tables",
+        "ra-liq-dist-orca",
+        "ra-xp-exposure",
+        "ra-stress-test",
+        "ra-cascade",
+    ],
     "header-health": [
         "health-status",
     ],
@@ -301,6 +328,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repeats", type=int, default=5, help="Warm repeats per scenario")
     parser.add_argument("--timeout-seconds", type=float, default=30.0, help="HTTP timeout")
     parser.add_argument("--parallel", type=int, default=1, help="Concurrent scenario workers")
+    parser.add_argument(
+        "--parallel-ramp",
+        default="",
+        help="Optional comma-separated worker ramp (e.g. 1,2,4). Runs each profile sequentially.",
+    )
+    parser.add_argument(
+        "--soak-seconds",
+        type=float,
+        default=0.0,
+        help="Optional soak duration per profile (0 disables, runs repeated loops until duration expires).",
+    )
+    parser.add_argument(
+        "--soak-pause-seconds",
+        type=float,
+        default=0.0,
+        help="Pause between soak loops for the same profile.",
+    )
     parser.add_argument("--output-json", default="", help="Optional output path for JSON report")
     parser.add_argument(
         "--widgets",
@@ -316,6 +360,16 @@ def parse_args() -> argparse.Namespace:
         "--fail-on-errors",
         action="store_true",
         help="Exit non-zero when any scenario has cold/warm request errors",
+    )
+    parser.add_argument(
+        "--capture-telemetry",
+        action="store_true",
+        help="Capture /api/v1/telemetry snapshot (if enabled on API)",
+    )
+    parser.add_argument(
+        "--reset-telemetry",
+        action="store_true",
+        help="Call /api/v1/telemetry/reset before benchmark (requires --capture-telemetry)",
     )
     return parser.parse_args()
 
@@ -334,6 +388,25 @@ def percentile(sorted_values: list[float], p: float) -> float:
 
 def fetch_json(url: str, timeout_seconds: float) -> tuple[dict[str, Any] | None, int, str]:
     req = Request(url, method="GET")
+    try:
+        with urlopen(req, timeout=timeout_seconds) as resp:
+            code = int(resp.status)
+            raw = resp.read()
+            text = raw.decode("utf-8")
+            return json.loads(text), code, text
+    except HTTPError as exc:
+        payload = exc.read().decode("utf-8", errors="replace")
+        return None, int(exc.code), payload
+    except TimeoutError as exc:
+        return None, 0, str(exc)
+    except URLError as exc:
+        return None, 0, str(exc)
+    except Exception as exc:  # pragma: no cover - defensive path
+        return None, 0, str(exc)
+
+
+def post_json(url: str, timeout_seconds: float) -> tuple[dict[str, Any] | None, int, str]:
+    req = Request(url, method="POST")
     try:
         with urlopen(req, timeout=timeout_seconds) as resp:
             code = int(resp.status)
@@ -393,6 +466,7 @@ def parse_pages(page_arg: str) -> list[str]:
                 "exponent",
                 "health",
                 "global-ecosystem",
+                "risk-analysis",
                 "header-health",
                 "header-health-proxy",
             ]
@@ -418,6 +492,25 @@ def scenario_list_for_page(page: str, widget_filter: set[str], quick: bool) -> l
     if filtered:
         return filtered
     return [WidgetScenario(widget=widget_id, extra_params={}) for widget_id in sorted(widget_filter)]
+
+
+def parse_parallel_profiles(parallel: int, parallel_ramp: str) -> list[int]:
+    if not parallel_ramp.strip():
+        return [max(1, int(parallel))]
+    parsed: list[int] = []
+    for raw in parallel_ramp.split(","):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            value = max(1, int(raw))
+        except ValueError:
+            raise ValueError(f"Invalid parallel ramp value: {raw}") from None
+        if value not in parsed:
+            parsed.append(value)
+    if not parsed:
+        return [max(1, int(parallel))]
+    return parsed
 
 
 def run_scenario(
@@ -471,6 +564,53 @@ def run_scenario(
     }
 
 
+def execute_jobs(
+    *,
+    jobs: list[tuple[str, WidgetScenario, dict[str, Any]]],
+    base_url: str,
+    repeats: int,
+    timeout_seconds: float,
+    parallel: int,
+    profile_label: str,
+    loop_index: int,
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    if parallel <= 1:
+        for page, scenario, params in jobs:
+            row = run_scenario(
+                base_url=base_url,
+                page=page,
+                scenario=scenario,
+                common_params=params,
+                repeats=repeats,
+                timeout_seconds=timeout_seconds,
+            )
+            row["profile"] = profile_label
+            row["loop_index"] = loop_index
+            results.append(row)
+        return results
+
+    with ThreadPoolExecutor(max_workers=parallel) as pool:
+        future_map = {
+            pool.submit(
+                run_scenario,
+                base_url,
+                page,
+                scenario,
+                params,
+                repeats,
+                timeout_seconds,
+            ): (page, scenario, params)
+            for page, scenario, params in jobs
+        }
+        for future in as_completed(future_map):
+            row = future.result()
+            row["profile"] = profile_label
+            row["loop_index"] = loop_index
+            results.append(row)
+    return results
+
+
 def print_report(results: list[dict[str, Any]]) -> None:
     print("\nBenchmark results")
     print("=" * 110)
@@ -521,6 +661,10 @@ def main() -> int:
     windows = [item.strip() for item in args.windows.split(",") if item.strip()]
     widget_filter = {item.strip() for item in args.widgets.split(",") if item.strip()}
     pages = parse_pages(args.page)
+    parallel_profiles = parse_parallel_profiles(args.parallel, args.parallel_ramp)
+
+    if args.reset_telemetry and not args.capture_telemetry:
+        raise ValueError("--reset-telemetry requires --capture-telemetry")
 
     start = datetime.now(timezone.utc)
     jobs: list[tuple[str, WidgetScenario, dict[str, Any]]] = []
@@ -541,37 +685,63 @@ def main() -> int:
                 jobs.append((page, scenario, common_params))
 
     results: list[dict[str, Any]] = []
-    if args.parallel <= 1:
-        for page, scenario, params in jobs:
-            results.append(
-                run_scenario(
-                    base_url=args.base_url,
-                    page=page,
-                    scenario=scenario,
-                    common_params=params,
-                    repeats=args.repeats,
-                    timeout_seconds=args.timeout_seconds,
-                )
+    profile_runs: list[dict[str, Any]] = []
+    telemetry_base = args.base_url.rstrip("/")
+    for parallel in parallel_profiles:
+        profile_label = f"parallel-{parallel}"
+        profile_before: dict[str, Any] | None = None
+        profile_after: dict[str, Any] | None = None
+        if args.capture_telemetry:
+            if args.reset_telemetry:
+                post_json(f"{telemetry_base}/api/v1/telemetry/reset", timeout_seconds=args.timeout_seconds)
+            payload, status_code, _ = fetch_json(f"{telemetry_base}/api/v1/telemetry", timeout_seconds=args.timeout_seconds)
+            if status_code == 200 and payload is not None:
+                profile_before = payload
+
+        profile_results: list[dict[str, Any]] = []
+        loops = 0
+        soak_seconds = max(0.0, float(args.soak_seconds))
+        soak_deadline = time.time() + soak_seconds if soak_seconds > 0 else 0.0
+        while True:
+            loops += 1
+            batch = execute_jobs(
+                jobs=jobs,
+                base_url=args.base_url,
+                repeats=args.repeats,
+                timeout_seconds=args.timeout_seconds,
+                parallel=parallel,
+                profile_label=profile_label,
+                loop_index=loops,
             )
-    else:
-        with ThreadPoolExecutor(max_workers=args.parallel) as pool:
-            future_map = {
-                pool.submit(
-                    run_scenario,
-                    args.base_url,
-                    page,
-                    scenario,
-                    params,
-                    args.repeats,
-                    args.timeout_seconds,
-                ): (page, scenario, params)
-                for page, scenario, params in jobs
+            profile_results.extend(batch)
+            if soak_seconds <= 0:
+                break
+            if time.time() >= soak_deadline:
+                break
+            if args.soak_pause_seconds > 0:
+                time.sleep(args.soak_pause_seconds)
+
+        if args.capture_telemetry:
+            payload, status_code, _ = fetch_json(f"{telemetry_base}/api/v1/telemetry", timeout_seconds=args.timeout_seconds)
+            if status_code == 200 and payload is not None:
+                profile_after = payload
+
+        profile_runs.append(
+            {
+                "profile": profile_label,
+                "parallel": parallel,
+                "loops_completed": loops,
+                "result_count": len(profile_results),
+                "telemetry_before": profile_before,
+                "telemetry_after": profile_after,
             }
-            for future in as_completed(future_map):
-                results.append(future.result())
+        )
+        results.extend(profile_results)
 
     results.sort(
         key=lambda item: (
+            str(item.get("profile", "")),
+            int(item.get("loop_index", 0)),
             str(item.get("page", "")),
             str(item["params"].get("last_window")),
             item["widget"],
@@ -594,11 +764,21 @@ def main() -> int:
             "repeats": args.repeats,
             "timeout_seconds": args.timeout_seconds,
             "parallel": args.parallel,
+            "parallel_profiles": parallel_profiles,
+            "parallel_ramp": args.parallel_ramp,
+            "soak_seconds": args.soak_seconds,
+            "soak_pause_seconds": args.soak_pause_seconds,
             "widget_filter": sorted(widget_filter),
             "quick": args.quick,
         },
+        "profile_runs": profile_runs,
         "results": results,
     }
+    if args.capture_telemetry:
+        report["telemetry"] = {
+            "captured": any(isinstance(run.get("telemetry_after"), dict) for run in profile_runs),
+            "profiles": profile_runs,
+        }
 
     if args.output_json:
         output_path = Path(args.output_json)

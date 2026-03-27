@@ -30,18 +30,30 @@ def _safe_float(value: Any) -> float:
     return num
 
 
+def _safe_int(value: Any) -> int:
+    try:
+        return max(0, int(value))
+    except Exception:
+        return 0
+
+
 async def wait_for_target_settle(page, target_path: str, timeout_s: float = 45.0) -> tuple[bool, dict]:
     deadline = time.monotonic() + timeout_s
     last_snapshot: dict = {}
     stable_since = 0.0
 
     while time.monotonic() < deadline:
-        snap = await page.evaluate(
-            """() => {
-              if (!window.__softNavDebug || typeof window.__softNavDebug.snapshot !== "function") return null;
-              return window.__softNavDebug.snapshot();
-            }"""
-        )
+        try:
+            snap = await page.evaluate(
+                """() => {
+                  if (!window.__softNavDebug || typeof window.__softNavDebug.snapshot !== "function") return null;
+                  return window.__softNavDebug.snapshot();
+                }"""
+            )
+        except Exception:
+            # Can happen during same-tab hard navigations or brief context swaps.
+            await asyncio.sleep(0.08)
+            continue
         if not isinstance(snap, dict):
             await asyncio.sleep(0.05)
             continue
@@ -63,12 +75,49 @@ async def wait_for_target_settle(page, target_path: str, timeout_s: float = 45.0
     return False, last_snapshot
 
 
+async def read_terminal_hydration_reason(page, target_path: str) -> str:
+    try:
+        reason = await page.evaluate(
+            """(path) => {
+              if (!window.__softNavDebug || typeof window.__softNavDebug.snapshot !== "function") return "";
+              const snap = window.__softNavDebug.snapshot();
+              const events = Array.isArray(snap.events) ? snap.events : [];
+              for (let idx = events.length - 1; idx >= 0; idx -= 1) {
+                const ev = events[idx];
+                if (!ev || !ev.details) continue;
+                const evPath = String(ev.details.path || "");
+                if (evPath !== String(path)) continue;
+                if (ev.type === "hydrate_finish" || ev.type === "hydrate_skip") {
+                  const reason = String(ev.details.reason || "");
+                  if (reason) return reason;
+                }
+              }
+              return String(snap.lastHydrationTerminalReason || "");
+            }""",
+            target_path,
+        )
+    except Exception:
+        return ""
+    return str(reason or "")
+
+
 async def run() -> None:
     parser = argparse.ArgumentParser(description="Benchmark soft-nav shell/hydration/data-settle phases.")
     parser.add_argument("--url", default="http://127.0.0.1:8002/global-ecosystem")
     parser.add_argument("--cycles", type=int, default=2, help="How many full rounds through targets")
     parser.add_argument("--settle-timeout-s", type=float, default=45.0)
     parser.add_argument("--goto-timeout-ms", type=int, default=90000)
+    parser.add_argument("--max-timeouts", type=int, default=-1, help="Fail if total timed-out targets exceeds this (-1 disables)")
+    parser.add_argument("--max-route-errors", type=int, default=-1, help="Fail if any route exceeds this total error count (-1 disables)")
+    parser.add_argument("--max-route-5xx", type=int, default=-1, help="Fail if any route exceeds this 5xx error count (-1 disables)")
+    parser.add_argument("--max-route-timeouts", type=int, default=-1, help="Fail if any route exceeds this timeout count (-1 disables)")
+    parser.add_argument(
+        "--max-route-abort-ratio",
+        type=float,
+        default=-1.0,
+        help="Fail if any route abort_ratio (aborts/started) exceeds this (-1 disables)",
+    )
+    parser.add_argument("--max-hydration-orphans", type=int, default=-1, help="Fail if hydration traces remain unclosed (-1 disables)")
     parser.add_argument("--headless", action="store_true")
     args = parser.parse_args()
 
@@ -145,6 +194,15 @@ async def run() -> None:
         await page.evaluate("() => window.__softNavDebug.reset()")
 
         samples: list[dict[str, Any]] = []
+        previous_counters = {
+            "widgetRequestsStarted": 0,
+            "widgetRequestsAborted": 0,
+            "widgetRequestErrors": 0,
+            "widgetRequestTimeouts": 0,
+            "widgetRequest5xx": 0,
+        }
+        route_error_summary: dict[str, dict[str, int]] = {}
+        terminal_reasons: dict[str, dict[str, int]] = {}
         started_at = time.monotonic()
         for cycle in range(args.cycles):
             print(f"\nCycle {cycle + 1}/{args.cycles}")
@@ -165,28 +223,68 @@ async def run() -> None:
                     path,
                 )
                 settled, snap = await wait_for_target_settle(page, path, timeout_s=args.settle_timeout_s)
+                terminal_reason = await read_terminal_hydration_reason(page, path)
+                started_now = _safe_int(snap.get("widgetRequestsStarted"))
+                aborted_now = _safe_int(snap.get("widgetRequestsAborted"))
+                errors_now = _safe_int(snap.get("widgetRequestErrors"))
+                timeout_now = _safe_int(snap.get("widgetRequestTimeouts"))
+                e5xx_now = _safe_int(snap.get("widgetRequest5xx"))
+                widget_started_delta = max(0, started_now - previous_counters["widgetRequestsStarted"])
+                widget_aborted_delta = max(0, aborted_now - previous_counters["widgetRequestsAborted"])
+                widget_errors_delta = max(0, errors_now - previous_counters["widgetRequestErrors"])
+                widget_timeout_delta = max(0, timeout_now - previous_counters["widgetRequestTimeouts"])
+                widget_5xx_delta = max(0, e5xx_now - previous_counters["widgetRequest5xx"])
+                previous_counters = {
+                    "widgetRequestsStarted": started_now,
+                    "widgetRequestsAborted": aborted_now,
+                    "widgetRequestErrors": errors_now,
+                    "widgetRequestTimeouts": timeout_now,
+                    "widgetRequest5xx": e5xx_now,
+                }
+                measured_settle_ms = _safe_float(snap.get("lastWidgetSettleMs"))
+                if widget_started_delta > 0 and measured_settle_ms <= 0:
+                    measured_settle_ms = max(1.0, _safe_float(snap.get("lastHydrationMs")))
                 sample = {
                     "path": path,
                     "settled": bool(settled),
                     "shell_visible_ms": _safe_float(snap.get("lastShellVisibleMs")),
                     "hydration_ms": _safe_float(snap.get("lastHydrationMs")),
-                    "widget_settle_ms": _safe_float(snap.get("lastWidgetSettleMs")),
+                    "widget_settle_ms": measured_settle_ms,
                     "in_flight_ms": _safe_float(snap.get("lastInFlightMs")),
+                    "hydration_terminal_reason": terminal_reason,
                     "cache_hits": int(snap.get("cacheHits") or 0),
                     "cache_misses": int(snap.get("cacheMisses") or 0),
                     "widget_requests_started": int(snap.get("widgetRequestsStarted") or 0),
                     "widget_requests_completed": int(snap.get("widgetRequestsCompleted") or 0),
                     "widget_requests_aborted": int(snap.get("widgetRequestsAborted") or 0),
                     "widget_request_errors": int(snap.get("widgetRequestErrors") or 0),
+                    "widget_request_5xx": int(snap.get("widgetRequest5xx") or 0),
                     "widget_request_timeouts": int(snap.get("widgetRequestTimeouts") or 0),
+                    "widget_requests_started_delta": widget_started_delta,
+                    "widget_requests_aborted_delta": widget_aborted_delta,
+                    "widget_request_errors_delta": widget_errors_delta,
+                    "widget_request_5xx_delta": widget_5xx_delta,
+                    "widget_request_timeouts_delta": widget_timeout_delta,
                     "shell_cache_size": int(snap.get("shellCacheSize") or 0),
                     "shell_cache_capacity": int(snap.get("shellCacheCapacity") or 0),
                 }
                 samples.append(sample)
+                if path not in route_error_summary:
+                    route_error_summary[path] = {"errors_5xx": 0, "aborts": 0, "timeouts": 0, "errors_total": 0, "started": 0}
+                route_error_summary[path]["errors_5xx"] += widget_5xx_delta
+                route_error_summary[path]["aborts"] += widget_aborted_delta
+                route_error_summary[path]["timeouts"] += widget_timeout_delta
+                route_error_summary[path]["errors_total"] += widget_errors_delta
+                route_error_summary[path]["started"] += widget_started_delta
+                reason_bucket = terminal_reason or "unknown"
+                if path not in terminal_reasons:
+                    terminal_reasons[path] = {}
+                terminal_reasons[path][reason_bucket] = terminal_reasons[path].get(reason_bucket, 0) + 1
                 status = "settled" if settled else "timed_out"
                 print(
                     f"  {path} -> {status} | shell={sample['shell_visible_ms']:.1f}ms | "
-                    f"hydrate={sample['hydration_ms']:.1f}ms | data={sample['widget_settle_ms']:.1f}ms"
+                    f"hydrate={sample['hydration_ms']:.1f}ms | data={sample['widget_settle_ms']:.1f}ms | "
+                    f"reason={reason_bucket}"
                 )
 
         elapsed = round(time.monotonic() - started_at, 3)
@@ -214,11 +312,47 @@ async def run() -> None:
                 "in_flight_ms_avg": round(statistics.fmean(inflight_vals), 2) if inflight_vals else 0.0,
                 "in_flight_ms_p95": round(_percentile(inflight_vals, 95), 2),
             },
+            "terminal_hydration_reasons_by_path": terminal_reasons,
+            "route_error_summary": route_error_summary,
             "final_debug_snapshot": final_snapshot,
         }
 
         print("\n=== Soft-nav phase benchmark ===")
         print(json.dumps(summary, indent=2))
+
+        timeout_count = int(summary["aggregates"].get("timeout_count", 0))
+        route_error_max = max((item.get("errors_total", 0) for item in route_error_summary.values()), default=0)
+        route_5xx_max = max((item.get("errors_5xx", 0) for item in route_error_summary.values()), default=0)
+        route_timeout_max = max((item.get("timeouts", 0) for item in route_error_summary.values()), default=0)
+        route_abort_ratio_max = max(
+            (
+                (float(item.get("aborts", 0)) / max(1.0, float(item.get("started", 0)) + float(item.get("aborts", 0))))
+                for item in route_error_summary.values()
+            ),
+            default=0.0,
+        )
+        hydration_starts = _safe_int(final_snapshot.get("hydrationStarts"))
+        hydration_finishes = _safe_int(final_snapshot.get("hydrationFinishes"))
+        hydration_skips = _safe_int(final_snapshot.get("hydrationSkips"))
+        hydration_orphans = max(0, hydration_starts - (hydration_finishes + hydration_skips))
+        failures = []
+        if args.max_timeouts >= 0 and timeout_count > args.max_timeouts:
+            failures.append(f"timeout_count={timeout_count} > max_timeouts={args.max_timeouts}")
+        if args.max_route_errors >= 0 and route_error_max > args.max_route_errors:
+            failures.append(f"route_error_max={route_error_max} > max_route_errors={args.max_route_errors}")
+        if args.max_route_5xx >= 0 and route_5xx_max > args.max_route_5xx:
+            failures.append(f"route_5xx_max={route_5xx_max} > max_route_5xx={args.max_route_5xx}")
+        if args.max_route_timeouts >= 0 and route_timeout_max > args.max_route_timeouts:
+            failures.append(f"route_timeout_max={route_timeout_max} > max_route_timeouts={args.max_route_timeouts}")
+        if args.max_route_abort_ratio >= 0 and route_abort_ratio_max > args.max_route_abort_ratio:
+            failures.append(
+                f"route_abort_ratio_max={route_abort_ratio_max:.4f} > max_route_abort_ratio={args.max_route_abort_ratio}"
+            )
+        if args.max_hydration_orphans >= 0 and hydration_orphans > args.max_hydration_orphans:
+            failures.append(f"hydration_orphans={hydration_orphans} > max_hydration_orphans={args.max_hydration_orphans}")
+        if failures:
+            await browser.close()
+            raise SystemExit("Phase benchmark assertions failed: " + "; ".join(failures))
         await browser.close()
 
 

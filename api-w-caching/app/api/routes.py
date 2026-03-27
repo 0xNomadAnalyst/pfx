@@ -6,7 +6,7 @@ from typing import Annotated
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ _pipeline_switch_lock = threading.Lock()
 
 _raw_stats = os.getenv("API_CACHE_STATS_ENABLED")
 _CACHE_STATS_ENABLED = (_raw_stats == "1") if _raw_stats is not None else bool(API_CACHE_CONFIG.get("API_CACHE_STATS_ENABLED", False))
+_TELEMETRY_ENABLED = os.getenv("API_TELEMETRY_ENABLED", "0") == "1"
 
 
 def get_data_service() -> DataService:
@@ -58,6 +59,20 @@ def cache_stats(svc: DataService = Depends(get_data_service)) -> dict[str, objec
     if not _CACHE_STATS_ENABLED:
         raise HTTPException(status_code=404, detail="Cache stats endpoint is disabled")
     return svc.get_cache_stats()
+
+
+@router.get("/api/v1/telemetry")
+def telemetry(svc: DataService = Depends(get_data_service)) -> dict[str, object]:
+    if not _TELEMETRY_ENABLED:
+        raise HTTPException(status_code=404, detail="Telemetry endpoint is disabled")
+    return svc.get_telemetry_snapshot()
+
+
+@router.post("/api/v1/telemetry/reset")
+def telemetry_reset(svc: DataService = Depends(get_data_service)) -> dict[str, object]:
+    if not _TELEMETRY_ENABLED:
+        raise HTTPException(status_code=404, detail="Telemetry endpoint is disabled")
+    return {"status": "ok", "telemetry": svc.reset_telemetry()}
 
 
 # ── Pipeline switcher (dev only, gated by ENABLE_PIPELINE_SWITCHER=1) ────────
@@ -136,6 +151,7 @@ def get_meta(
 @router.get("/api/v1/{page}/{widget}", response_model=WidgetResponse)
 @router.get("/api/v1/pages/{page}/widgets/{widget}", response_model=WidgetResponse)
 def get_widget(
+    request: Request,
     page: str,
     widget: str,
     protocol: Annotated[str, Query()] = "raydium",
@@ -198,7 +214,13 @@ def get_widget(
         "_pipeline": _pipeline,
     }
     try:
-        payload = svc.get_widget_data(page=page, widget_id=widget, params=params)
+        trace_ctx = {
+            "nav_trace_id": request.headers.get("X-Riskdash-Nav-Trace", ""),
+            "request_id": request.headers.get("X-Riskdash-Request-Id", ""),
+            "widget_id": request.headers.get("X-Riskdash-Widget-Id", ""),
+            "current_path": request.headers.get("X-Riskdash-Current-Path", ""),
+        }
+        payload = svc.get_widget_data(page=page, widget_id=widget, params=params, trace_ctx=trace_ctx)
         return WidgetResponse(**payload)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Widget not found") from exc

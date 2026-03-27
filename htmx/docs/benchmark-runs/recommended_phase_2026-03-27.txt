@@ -1,0 +1,613 @@
+Opening http://127.0.0.1:8016/global-ecosystem
+Targets (6): /cover, /dexes, /kamino, /exponent-yield, /risk-analysis, /system-health
+
+Cycle 1/1
+  /cover -> settled | shell=2.5ms | hydrate=0.0ms | data=0.0ms
+  /dexes -> settled | shell=2.9ms | hydrate=0.0ms | data=0.0ms
+  /kamino -> settled | shell=3.1ms | hydrate=0.0ms | data=0.0ms
+  /exponent-yield -> settled | shell=2.8ms | hydrate=0.0ms | data=0.0ms
+[console:error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+[console:error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+[console:error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[console:error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+[console:error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[console:error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+  /risk-analysis -> settled | shell=3.0ms | hydrate=16407.4ms | data=0.0ms
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+  /system-health -> settled | shell=2.4ms | hydrate=16407.4ms | data=0.0ms
+
+=== Soft-nav phase benchmark ===
+{
+  "elapsed_seconds": 21.25,
+  "cycles": 1,
+  "targets": [
+    "/cover",
+    "/dexes",
+    "/kamino",
+    "/exponent-yield",
+    "/risk-analysis",
+    "/system-health"
+  ],
+  "samples": [
+    {
+      "path": "/cover",
+      "settled": true,
+      "shell_visible_ms": 2.5,
+      "hydration_ms": 0.0,
+      "widget_settle_ms": 0.0,
+      "in_flight_ms": 2.6000000089406967,
+      "cache_hits": 1,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 0,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_timeouts": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9
+    },
+    {
+      "path": "/dexes",
+      "settled": true,
+      "shell_visible_ms": 2.8999999910593033,
+      "hydration_ms": 0.0,
+      "widget_settle_ms": 0.0,
+      "in_flight_ms": 2.8999999910593033,
+      "cache_hits": 2,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 0,
+      "widget_requests_aborted": 15,
+      "widget_request_errors": 0,
+      "widget_request_timeouts": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9
+    },
+    {
+      "path": "/kamino",
+      "settled": true,
+      "shell_visible_ms": 3.1000000089406967,
+      "hydration_ms": 0.0,
+      "widget_settle_ms": 0.0,
+      "in_flight_ms": 3.2000000029802322,
+      "cache_hits": 3,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 0,
+      "widget_requests_aborted": 75,
+      "widget_request_errors": 0,
+      "widget_request_timeouts": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9
+    },
+    {
+      "path": "/exponent-yield",
+      "settled": true,
+      "shell_visible_ms": 2.7999999970197678,
+      "hydration_ms": 0.0,
+      "widget_settle_ms": 0.0,
+      "in_flight_ms": 2.9000000059604645,
+      "cache_hits": 4,
+      "cache_misses": 0,
+      "widget_requests_started": 0,
+      "widget_requests_completed": 0,
+      "widget_requests_aborted": 109,
+      "widget_request_errors": 0,
+      "widget_request_timeouts": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9
+    },
+    {
+      "path": "/risk-analysis",
+      "settled": true,
+      "shell_visible_ms": 3.0,
+      "hydration_ms": 16407.40000000596,
+      "widget_settle_ms": 0.0,
+      "in_flight_ms": 3.1000000089406967,
+      "cache_hits": 5,
+      "cache_misses": 0,
+      "widget_requests_started": 85,
+      "widget_requests_completed": 70,
+      "widget_requests_aborted": 237,
+      "widget_request_errors": 0,
+      "widget_request_timeouts": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9
+    },
+    {
+      "path": "/system-health",
+      "settled": true,
+      "shell_visible_ms": 2.4000000059604645,
+      "hydration_ms": 16407.40000000596,
+      "widget_settle_ms": 0.0,
+      "in_flight_ms": 2.5,
+      "cache_hits": 6,
+      "cache_misses": 0,
+      "widget_requests_started": 85,
+      "widget_requests_completed": 71,
+      "widget_requests_aborted": 251,
+      "widget_request_errors": 0,
+      "widget_request_timeouts": 0,
+      "shell_cache_size": 7,
+      "shell_cache_capacity": 9
+    }
+  ],
+  "aggregates": {
+    "settled_count": 6,
+    "timeout_count": 0,
+    "shell_visible_ms_avg": 2.78,
+    "shell_visible_ms_p95": 3.08,
+    "hydration_ms_avg": 5469.13,
+    "hydration_ms_p95": 16407.4,
+    "widget_settle_ms_avg": 0.0,
+    "widget_settle_ms_p95": 0.0,
+    "in_flight_ms_avg": 2.87,
+    "in_flight_ms_p95": 3.18
+  },
+  "final_debug_snapshot": {
+    "starts": 6,
+    "finishes": 6,
+    "queueEnqueues": 0,
+    "queueDrains": 0,
+    "cacheHits": 6,
+    "cacheMisses": 0,
+    "pendingSkeletonShows": 0,
+    "supersededHydrationSkips": 0,
+    "shellVisibleCount": 6,
+    "lastShellVisibleMs": 2.4000000059604645,
+    "maxShellVisibleMs": 3.1000000089406967,
+    "hydrationStarts": 6,
+    "hydrationFinishes": 1,
+    "hydrationSkips": 4,
+    "lastHydrationMs": 16407.40000000596,
+    "maxHydrationMs": 16407.40000000596,
+    "lastWidgetSettleMs": 0,
+    "maxWidgetSettleMs": 0,
+    "widgetRequestsStarted": 85,
+    "widgetRequestsCompleted": 71,
+    "widgetRequestsAborted": 251,
+    "widgetRequestErrors": 0,
+    "widgetRequestTimeouts": 0,
+    "maxInFlightMs": 3.2000000029802322,
+    "lastInFlightMs": 2.5,
+    "lastRequestedPath": "/system-health",
+    "lastFinishedPath": "/system-health",
+    "events": [
+      {
+        "t": 1774571337843,
+        "type": "start",
+        "details": {
+          "path": "/cover"
+        }
+      },
+      {
+        "t": 1774571337845,
+        "type": "shell_visible",
+        "details": {
+          "path": "/cover",
+          "elapsedMs": 2.5
+        }
+      },
+      {
+        "t": 1774571337845,
+        "type": "finish",
+        "details": {
+          "path": "/cover",
+          "queuedPath": ""
+        }
+      },
+      {
+        "t": 1774571337936,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/cover"
+        }
+      },
+      {
+        "t": 1774571338276,
+        "type": "start",
+        "details": {
+          "path": "/dexes"
+        }
+      },
+      {
+        "t": 1774571338279,
+        "type": "shell_visible",
+        "details": {
+          "path": "/dexes",
+          "elapsedMs": 2.8999999910593033
+        }
+      },
+      {
+        "t": 1774571338279,
+        "type": "finish",
+        "details": {
+          "path": "/dexes",
+          "queuedPath": ""
+        }
+      },
+      {
+        "t": 1774571338371,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/dexes"
+        }
+      },
+      {
+        "t": 1774571338732,
+        "type": "start",
+        "details": {
+          "path": "/kamino"
+        }
+      },
+      {
+        "t": 1774571338735,
+        "type": "shell_visible",
+        "details": {
+          "path": "/kamino",
+          "elapsedMs": 3.1000000089406967
+        }
+      },
+      {
+        "t": 1774571338735,
+        "type": "finish",
+        "details": {
+          "path": "/kamino",
+          "queuedPath": ""
+        }
+      },
+      {
+        "t": 1774571338834,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/kamino"
+        }
+      },
+      {
+        "t": 1774571339174,
+        "type": "start",
+        "details": {
+          "path": "/exponent-yield"
+        }
+      },
+      {
+        "t": 1774571339177,
+        "type": "shell_visible",
+        "details": {
+          "path": "/exponent-yield",
+          "elapsedMs": 2.7999999970197678
+        }
+      },
+      {
+        "t": 1774571339177,
+        "type": "finish",
+        "details": {
+          "path": "/exponent-yield",
+          "queuedPath": ""
+        }
+      },
+      {
+        "t": 1774571339267,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/exponent-yield"
+        }
+      },
+      {
+        "t": 1774571339608,
+        "type": "start",
+        "details": {
+          "path": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774571339611,
+        "type": "shell_visible",
+        "details": {
+          "path": "/risk-analysis",
+          "elapsedMs": 3
+        }
+      },
+      {
+        "t": 1774571339611,
+        "type": "finish",
+        "details": {
+          "path": "/risk-analysis",
+          "queuedPath": ""
+        }
+      },
+      {
+        "t": 1774571339703,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774571343796,
+        "type": "hydrate_skip",
+        "details": {
+          "path": "/dexes"
+        }
+      },
+      {
+        "t": 1774571343804,
+        "type": "hydrate_skip",
+        "details": {
+          "path": "/cover"
+        }
+      },
+      {
+        "t": 1774571349931,
+        "type": "hydrate_skip",
+        "details": {
+          "path": "/kamino"
+        }
+      },
+      {
+        "t": 1774571349935,
+        "type": "hydrate_skip",
+        "details": {
+          "path": "/exponent-yield"
+        }
+      },
+      {
+        "t": 1774571356111,
+        "type": "hydrate_finish",
+        "details": {
+          "path": "/risk-analysis",
+          "hydrationMs": 16407.40000000596
+        }
+      },
+      {
+        "t": 1774571358648,
+        "type": "start",
+        "details": {
+          "path": "/system-health"
+        }
+      },
+      {
+        "t": 1774571358651,
+        "type": "shell_visible",
+        "details": {
+          "path": "/system-health",
+          "elapsedMs": 2.4000000059604645
+        }
+      },
+      {
+        "t": 1774571358651,
+        "type": "finish",
+        "details": {
+          "path": "/system-health",
+          "queuedPath": ""
+        }
+      },
+      {
+        "t": 1774571358742,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/system-health"
+        }
+      }
+    ],
+    "inFlight": false,
+    "queuedPath": "",
+    "widgetRequestsInFlight": 0,
+    "shellCacheSize": 7,
+    "shellCacheCapacity": 9,
+    "allShellPrefetchScheduled": false,
+    "allShellPrefetchCompleted": true,
+    "currentPath": "/system-health"
+  }
+}

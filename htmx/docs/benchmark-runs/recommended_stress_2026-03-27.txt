@@ -1,0 +1,218 @@
+Opening http://127.0.0.1:8016/global-ecosystem
+Found 7 sidebar links.
+
+Burst 1/2: 25 rapid clicks
+[console:error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+  -> settled | current=/kamino | inFlight=False | queued=
+
+Burst 2/2: 25 rapid clicks
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+[pageerror] Uncaught (in promise) undefined
+  -> settled | current=/dexes | inFlight=False | queued=
+
+=== Soft-nav stress report ===
+{
+  "elapsed_seconds": 3.687,
+  "bursts": 2,
+  "clicks_per_burst": 25,
+  "interval_ms": 35,
+  "metrics": {
+    "starts": 2,
+    "finishes": 2,
+    "queueEnqueues": 0,
+    "queueDrains": 0,
+    "cacheHits": 2,
+    "cacheMisses": 0,
+    "pendingSkeletonShows": 0,
+    "supersededHydrationSkips": 0,
+    "shellVisibleCount": 2,
+    "lastShellVisibleMs": 7.5999999940395355,
+    "maxShellVisibleMs": 7.5999999940395355,
+    "hydrationStarts": 2,
+    "hydrationFinishes": 0,
+    "hydrationSkips": 0,
+    "lastHydrationMs": 0,
+    "maxHydrationMs": 0,
+    "lastWidgetSettleMs": 0,
+    "maxWidgetSettleMs": 0,
+    "widgetRequestsStarted": 34,
+    "widgetRequestsCompleted": 34,
+    "widgetRequestsAborted": 83,
+    "widgetRequestErrors": 0,
+    "widgetRequestTimeouts": 0,
+    "maxInFlightMs": 7.5999999940395355,
+    "lastInFlightMs": 7.5999999940395355,
+    "lastRequestedPath": "/dexes",
+    "lastFinishedPath": "/dexes",
+    "events": [
+      {
+        "t": 1774571322353,
+        "type": "start",
+        "details": {
+          "path": "/kamino"
+        }
+      },
+      {
+        "t": 1774571322356,
+        "type": "shell_visible",
+        "details": {
+          "path": "/kamino",
+          "elapsedMs": 3.1000000089406967
+        }
+      },
+      {
+        "t": 1774571322357,
+        "type": "finish",
+        "details": {
+          "path": "/kamino",
+          "queuedPath": ""
+        }
+      },
+      {
+        "t": 1774571322459,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/kamino"
+        }
+      },
+      {
+        "t": 1774571324197,
+        "type": "start",
+        "details": {
+          "path": "/dexes"
+        }
+      },
+      {
+        "t": 1774571324204,
+        "type": "shell_visible",
+        "details": {
+          "path": "/dexes",
+          "elapsedMs": 7.5999999940395355
+        }
+      },
+      {
+        "t": 1774571324204,
+        "type": "finish",
+        "details": {
+          "path": "/dexes",
+          "queuedPath": ""
+        }
+      },
+      {
+        "t": 1774571324304,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/dexes"
+        }
+      }
+    ],
+    "inFlight": false,
+    "queuedPath": "",
+    "widgetRequestsInFlight": 0,
+    "shellCacheSize": 7,
+    "shellCacheCapacity": 9,
+    "allShellPrefetchScheduled": false,
+    "allShellPrefetchCompleted": true,
+    "currentPath": "/dexes"
+  }
+}

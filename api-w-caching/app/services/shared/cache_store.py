@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import logging
 import os
 from threading import Event, RLock
+import time
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
@@ -26,8 +27,10 @@ class QueryCache:
         self._cache: OrderedDict[str, tuple[float, float, Any]] = OrderedDict()
         self._inflight: dict[str, Event] = {}
         self._refreshing: set[str] = set()
+        self._refresh_retry_after_ts: dict[str, float] = {}
         self._lock = RLock()
         self._log_swr = os.getenv("API_CACHE_LOG_SWR", "0") == "1"
+        self._refresh_failure_cooldown_ms = max(0, int(os.getenv("API_CACHE_SWR_FAILURE_COOLDOWN_MS", "500")))
 
         workers = swr_workers if swr_workers is not None else int(os.getenv("API_CACHE_SWR_WORKERS", "4"))
         self._swr_executor = ThreadPoolExecutor(
@@ -144,8 +147,10 @@ class QueryCache:
         stale = self.get(key, allow_stale=True)
         if stale is not None:
             launch_refresh = False
+            now = time.monotonic()
             with self._lock:
-                if key not in self._refreshing:
+                retry_after = float(self._refresh_retry_after_ts.get(key, 0.0) or 0.0)
+                if key not in self._refreshing and now >= retry_after:
                     self._refreshing.add(key)
                     launch_refresh = True
 
@@ -172,8 +177,13 @@ class QueryCache:
         try:
             value = loader()
             self.set(key, value, ttl_seconds=ttl_seconds, swr_seconds=swr_seconds)
+            with self._lock:
+                self._refresh_retry_after_ts.pop(key, None)
         except Exception:
             self._bg_refresh_failed += 1
+            if self._refresh_failure_cooldown_ms > 0:
+                with self._lock:
+                    self._refresh_retry_after_ts[key] = time.monotonic() + (self._refresh_failure_cooldown_ms / 1000.0)
             if self._log_swr:
                 logger.warning("cache_swr refresh_failed key=%s", key)
         finally:
