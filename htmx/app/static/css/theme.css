@@ -246,7 +246,6 @@ body {
 
 .sidebar-nav-link.is-busy,
 .sidebar-nav-link[aria-disabled="true"] {
-  pointer-events: none;
   opacity: 0.66;
 }
 

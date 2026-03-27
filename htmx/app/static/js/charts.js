@@ -5820,11 +5820,13 @@
       pageSelect.disabled = isBusy;
       pageSelect.dataset.loading = isBusy ? "1" : "0";
     }
+    // Keep sidebar links interactive even while a nav is in-flight so fast
+    // user clicks can always queue/preempt the current navigation.
     document.querySelectorAll("#sidebar-nav .sidebar-nav-link[data-sidebar-path]").forEach((link) => {
       if (isBusy) {
-        link.setAttribute("aria-disabled", "true");
+        link.setAttribute("data-nav-busy", "1");
       } else {
-        link.removeAttribute("aria-disabled");
+        link.removeAttribute("data-nav-busy");
       }
       link.classList.toggle("is-busy", isBusy);
     });
