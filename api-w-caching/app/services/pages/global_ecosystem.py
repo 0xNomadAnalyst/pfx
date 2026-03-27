@@ -39,6 +39,7 @@ class GlobalEcosystemPageService(BasePageService):
     _ISSUANCE_TTL = float(os.getenv("GE_ISSUANCE_TTL_SECONDS", "120"))
     _ONYC_SUPPLY_TTL = float(os.getenv("GE_ONYC_SUPPLY_TTL_SECONDS", "300"))
     _TS_TIMEOUT_MS = int(os.getenv("GE_TIMESERIES_TIMEOUT_MS", "60000"))
+    _HOTSPOT_WIDGET_TTL = float(os.getenv("GE_HOTSPOT_WIDGET_TTL_SECONDS", "180"))
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
@@ -60,6 +61,12 @@ class GlobalEcosystemPageService(BasePageService):
             "ge-activity-vol": self._activity_vol,
             "ge-tvl-share": self._tvl_share,
             "ge-activity-share": self._activity_share,
+            # Wave 4 hotspot aliases: these are used by benchmark + UI configs.
+            "ge-activity-vol-usx": self._activity_vol_usx,
+            "ge-tvl-share-usx": self._tvl_share_usx,
+            # Keep eUSX aliases for compatibility with paired widget sets.
+            "ge-activity-vol-eusx": self._activity_vol_eusx,
+            "ge-tvl-share-eusx": self._tvl_share_eusx,
         }
 
     # ------------------------------------------------------------------
@@ -842,6 +849,25 @@ class GlobalEcosystemPageService(BasePageService):
             ],
         }
 
+    def _activity_vol_usx(self, params: dict[str, Any]) -> dict[str, Any]:
+        last_window = str(params.get("last_window", "7d"))
+        cache_key = f"ge::hotspot::activity_vol_usx::{last_window}"
+
+        def _load() -> dict[str, Any]:
+            payload = self._activity_vol(params)
+            payload["dynamic_title"] = f"USX Activity Volume vs. Time (Last {self._window_label(last_window)})"
+            payload["hotspot_widget"] = "ge-activity-vol-usx"
+            return payload
+
+        return self._cached(cache_key, _load, ttl_seconds=self._HOTSPOT_WIDGET_TTL)
+
+    def _activity_vol_eusx(self, params: dict[str, Any]) -> dict[str, Any]:
+        payload = self._activity_vol(params)
+        last_window = self._window_label(params.get("last_window", "7d"))
+        payload["dynamic_title"] = f"eUSX Activity Volume vs. Time (Last {last_window})"
+        payload["hotspot_widget"] = "ge-activity-vol-eusx"
+        return payload
+
     # ------------------------------------------------------------------
     # Widget: Activity Share Over Time (100% stacked area)
     # ------------------------------------------------------------------
@@ -870,3 +896,22 @@ class GlobalEcosystemPageService(BasePageService):
                  "data": [row.get("exp_volume_pct") for row in rows]},
             ],
         }
+
+    def _tvl_share_usx(self, params: dict[str, Any]) -> dict[str, Any]:
+        last_window = str(params.get("last_window", "7d"))
+        cache_key = f"ge::hotspot::tvl_share_usx::{last_window}"
+
+        def _load() -> dict[str, Any]:
+            payload = self._tvl_share(params)
+            payload["dynamic_title"] = f"USX TVL Share vs. Time (Last {self._window_label(last_window)})"
+            payload["hotspot_widget"] = "ge-tvl-share-usx"
+            return payload
+
+        return self._cached(cache_key, _load, ttl_seconds=self._HOTSPOT_WIDGET_TTL)
+
+    def _tvl_share_eusx(self, params: dict[str, Any]) -> dict[str, Any]:
+        payload = self._tvl_share(params)
+        last_window = self._window_label(params.get("last_window", "7d"))
+        payload["dynamic_title"] = f"eUSX TVL Share vs. Time (Last {last_window})"
+        payload["hotspot_widget"] = "ge-tvl-share-eusx"
+        return payload

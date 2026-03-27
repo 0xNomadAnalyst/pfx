@@ -2,6 +2,19 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Safe runtime defaults; all values remain overridable at deploy time.
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    API_PORT=8001 \
+    PORT=8002 \
+    HTMX_CACHE_MODE=balanced \
+    HTMX_MAX_CONCURRENT_WIDGET_REQUESTS=5 \
+    API_CACHE_MODE=speed \
+    API_PREWARM_GLOBAL_HOTSPOTS_ENABLED=1 \
+    GE_HOTSPOT_WIDGET_TTL_SECONDS=180 \
+    API_TELEMETRY_ENABLED=0 \
+    CORS_ALLOWED_ORIGINS=
+
 # Install API dependencies
 COPY api-w-caching/requirements.txt api-requirements.txt
 RUN pip install --no-cache-dir -r api-requirements.txt
@@ -18,7 +31,7 @@ COPY htmx/ htmx/
 COPY start-prod.sh start-prod.sh
 RUN chmod +x start-prod.sh
 
-# Railway injects PORT at runtime; document the default UI port.
-EXPOSE 8002
+# Public UI port and internal API port.
+EXPOSE 8001 8002
 
 CMD ["./start-prod.sh"]

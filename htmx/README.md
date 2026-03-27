@@ -22,3 +22,4 @@ Default URL: `http://localhost:8002/playbook-liquidity`
 - 2026-03-27 loading assessment report: `docs/loading-speed-assessment-2026-03-27.md`.
 - 2026-03-27 Wave 2 run report: `docs/performance-wave-2-run-report-2026-03-27.md`.
 - 2026-03-26 Wave 3 run report: `docs/performance-wave-3-run-report-2026-03-26.md`.
+- 2026-03-27 Wave 4 run report: `docs/performance-wave-4-run-report-2026-03-27.md`.

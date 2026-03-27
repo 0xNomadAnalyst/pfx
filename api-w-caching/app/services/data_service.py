@@ -21,6 +21,10 @@ from app.services.shared.cache_store import QueryCache
 from app.services.sql_adapter import SqlAdapter
 
 logger = logging.getLogger(__name__)
+_HOTSPOT_WIDGET_KEYS = {
+    "global-ecosystem/ge-activity-vol-usx",
+    "global-ecosystem/ge-tvl-share-usx",
+}
 
 
 class _DexesCompositeService:
@@ -105,6 +109,7 @@ class DataService:
             "latency_by_page": {},
             "latency_by_widget": {},
             "nav_trace_counts": {},
+            "status_family_by_widget": {},
         }
         self._validate_dbsql_contract()
 
@@ -171,11 +176,16 @@ class DataService:
             request_stats = json.loads(json.dumps(self._telemetry))
         request_stats["latency_by_page"] = self._latency_rollup(request_stats.get("latency_by_page", {}))
         request_stats["latency_by_widget"] = self._latency_rollup(request_stats.get("latency_by_widget", {}))
+        sql_snapshot = self.sql.get_telemetry_snapshot() if hasattr(self.sql, "get_telemetry_snapshot") else {}
         return {
             "enabled": self._telemetry_enabled,
             "request_stats": request_stats,
             "cache_stats": self.get_cache_stats(),
-            "sql_pool_pressure": self.sql.get_telemetry_snapshot() if hasattr(self.sql, "get_telemetry_snapshot") else {},
+            "sql_pool_pressure": sql_snapshot,
+            "hotspot_summary": self._build_hotspot_summary(
+                request_stats,
+                sql_snapshot,
+            ),
         }
 
     def reset_telemetry(self) -> dict[str, Any]:
@@ -191,6 +201,7 @@ class DataService:
                 "latency_by_page": {},
                 "latency_by_widget": {},
                 "nav_trace_counts": {},
+                "status_family_by_widget": {},
             }
         if hasattr(self.sql, "reset_telemetry"):
             self.sql.reset_telemetry()
@@ -371,6 +382,9 @@ class DataService:
                     global_jobs.append(("global-ecosystem", "ge-issuance-time", params))
                 global_jobs.append(("global-ecosystem", "ge-activity-pct-usx", params))
                 global_jobs.append(("global-ecosystem", "ge-yield-generation", params))
+                if os.getenv("API_PREWARM_GLOBAL_HOTSPOTS_ENABLED", "1") == "1":
+                    global_jobs.append(("global-ecosystem", "ge-activity-vol-usx", params))
+                    global_jobs.append(("global-ecosystem", "ge-tvl-share-usx", params))
 
         if os.getenv("API_PREWARM_GLOBAL_FIRST", "0") == "1":
             warmup_jobs = global_jobs + warmup_jobs
@@ -547,6 +561,12 @@ class DataService:
                 error_counts[page] = int(error_counts.get(page, 0)) + 1
             status_counts = self._telemetry["status_family_counts"]
             status_counts[family] = int(status_counts.get(family, 0)) + 1
+            status_by_widget = self._telemetry["status_family_by_widget"]
+            per_widget = status_by_widget.get(widget_key)
+            if not isinstance(per_widget, dict):
+                per_widget = {}
+            per_widget[family] = int(per_widget.get(family, 0)) + 1
+            status_by_widget[widget_key] = per_widget
             page_latency = self._telemetry["latency_by_page"]
             widget_latency = self._telemetry["latency_by_widget"]
             page_entry = self._update_latency_entry(page_latency.get(page), elapsed_ms)
@@ -600,6 +620,51 @@ class DataService:
         hi = min(lo + 1, len(ordered) - 1)
         frac = rank - lo
         return round((ordered[lo] * (1.0 - frac)) + (ordered[hi] * frac), 3)
+
+    @staticmethod
+    def _build_hotspot_summary(request_stats: dict[str, Any], sql_snapshot: dict[str, Any]) -> dict[str, Any]:
+        latency = request_stats.get("latency_by_widget", {})
+        status_by_widget = request_stats.get("status_family_by_widget", {})
+        fingerprints = sql_snapshot.get("query_fingerprint_stats", {})
+        pool_wait_avg = float(sql_snapshot.get("pool_checkout_wait_avg_ms", 0.0) or 0.0)
+        pool_wait_max = float(sql_snapshot.get("pool_checkout_wait_max_ms", 0.0) or 0.0)
+        result: dict[str, Any] = {
+            "widgets": {},
+            "pool_wait_avg_ms": round(pool_wait_avg, 3),
+            "pool_wait_max_ms": round(pool_wait_max, 3),
+        }
+        for key in sorted(_HOTSPOT_WIDGET_KEYS):
+            lat = latency.get(key, {}) if isinstance(latency, dict) else {}
+            statuses = status_by_widget.get(key, {}) if isinstance(status_by_widget, dict) else {}
+            fp_entries: list[dict[str, Any]] = []
+            if isinstance(fingerprints, dict):
+                for fp_key, fp in fingerprints.items():
+                    if not isinstance(fp, dict):
+                        continue
+                    if str(fp.get("page", "")) != "global-ecosystem":
+                        continue
+                    if str(fp.get("widget", "")) != key.split("/", 1)[1]:
+                        continue
+                    fp_entries.append(
+                        {
+                            "fingerprint_key": fp_key,
+                            "count": int(fp.get("count", 0) or 0),
+                            "error_count": int(fp.get("error_count", 0) or 0),
+                            "avg_ms": float(fp.get("avg_ms", 0.0) or 0.0),
+                            "p95_ms": float(fp.get("p95_ms", 0.0) or 0.0),
+                            "p99_ms": float(fp.get("p99_ms", 0.0) or 0.0),
+                            "max_ms": float(fp.get("max_ms", 0.0) or 0.0),
+                            "query_preview": str(fp.get("query_preview", "")),
+                            "slow_samples_ms": list(fp.get("slow_samples_ms", [])),
+                        }
+                    )
+            fp_entries.sort(key=lambda item: (item["p95_ms"], item["count"]), reverse=True)
+            result["widgets"][key] = {
+                "latency": lat if isinstance(lat, dict) else {},
+                "status_families": statuses if isinstance(statuses, dict) else {},
+                "top_sql_fingerprints": fp_entries[:5],
+            }
+        return result
 
     def warmup_targets(
         self,

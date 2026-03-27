@@ -176,3 +176,26 @@ Wave 3 extends the assessment surface with correlated nav-trace telemetry, route
 - Critical-route reliability (`risk-analysis`, `system-health`) passes in API baseline and tuned runs with `fail_on_errors`.
 - Frontend phase/stress runs pass timeout and 5xx gates with new route timeout/abort-ratio assertions enabled.
 - Parallel API profile (`parallel=3`) materially lowers many cold and warm latencies on critical routes, but still shows tail spikes in selected health/risk widgets; keep as stage-only until repeated soak remains clean.
+
+## Wave 4 Addendum (2026-03-27)
+
+Wave 4 targeted the two blocking `global-ecosystem` hotspots and added per-widget promotion gates.
+
+### Wave 4 artifacts
+
+- `htmx/docs/benchmark-runs/wave4-api-baseline-critical-8011-rerun.json`
+- `htmx/docs/benchmark-runs/wave4-api-tuned-critical-8011.json`
+- `htmx/docs/benchmark-runs/wave4-api-ramp-soak-8011.json`
+- `htmx/docs/benchmark-runs/wave4-api-global-hotspot-telemetry-8012.json`
+
+### Wave 4 key results
+
+- Critical baseline and tuned runs passed with zero scenario failures.
+- Mixed-route ramp + soak (with hotspot widget gates enabled) passed:
+  - `global-ecosystem/ge-activity-vol-usx`: `errors=0`, `5xx=0`, `timeouts=0`
+  - `global-ecosystem/ge-tvl-share-usx`: `errors=0`, `5xx=0`, `timeouts=0`
+- Frontend phase and stress reliability gates remained passing in Wave 4 verification runs.
+
+### Notes
+
+- Telemetry endpoint capture depends on `API_TELEMETRY_ENABLED=1`; when disabled, benchmark telemetry snapshots are absent by design.

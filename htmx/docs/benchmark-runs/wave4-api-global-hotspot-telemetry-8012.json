@@ -1,0 +1,1721 @@
+{
+  "run_started_utc": "2026-03-27T01:56:33.531822+00:00",
+  "run_finished_utc": "2026-03-27T01:57:16.125318+00:00",
+  "config": {
+    "base_url": "http://127.0.0.1:8012",
+    "pages": [
+      "global-ecosystem"
+    ],
+    "protocol": "raydium",
+    "pair": "USX-USDC",
+    "windows": [
+      "1h",
+      "24h",
+      "7d",
+      "30d"
+    ],
+    "repeats": 1,
+    "timeout_seconds": 20.0,
+    "parallel": 1,
+    "parallel_profiles": [
+      1
+    ],
+    "parallel_ramp": "",
+    "soak_seconds": 0.0,
+    "soak_pause_seconds": 0.0,
+    "widget_filter": [],
+    "quick": true,
+    "max_widget_errors": 0,
+    "max_widget_5xx": 0,
+    "max_widget_timeouts": 0,
+    "hotspot_widgets": [
+      "ge-activity-vol-usx",
+      "ge-tvl-share-usx"
+    ]
+  },
+  "profile_runs": [
+    {
+      "profile": "parallel-1",
+      "parallel": 1,
+      "loops_completed": 1,
+      "result_count": 20,
+      "telemetry_before": null,
+      "telemetry_after": {
+        "enabled": true,
+        "request_stats": {
+          "requests_total": 38,
+          "requests_success": 38,
+          "requests_error": 0,
+          "requests_by_page": {
+            "exponent": 6,
+            "kamino": 4,
+            "global-ecosystem": 28
+          },
+          "errors_by_page": {},
+          "requests_by_widget": {
+            "exponent/exponent-market-meta": 1,
+            "exponent/exponent-pie-tvl": 1,
+            "exponent/kpi-base-token-yield": 1,
+            "exponent/exponent-pt-swap-flows-mkt1": 1,
+            "exponent/exponent-pt-swap-flows-mkt2": 1,
+            "exponent/exponent-market-assets": 1,
+            "kamino/kamino-market-assets": 1,
+            "kamino/kamino-config-table": 1,
+            "kamino/kamino-rate-curve": 1,
+            "kamino/kamino-stress-debt": 1,
+            "global-ecosystem/ge-issuance-time": 6,
+            "global-ecosystem/ge-yields-vs-time": 6,
+            "global-ecosystem/ge-tvl-share-usx": 6,
+            "global-ecosystem/ge-activity-vol-usx": 6,
+            "global-ecosystem/ge-issuance-bar": 4
+          },
+          "status_family_counts": {
+            "2xx": 38
+          },
+          "latency_by_page": {
+            "exponent": {
+              "count": 6,
+              "avg_ms": 1892.939,
+              "max_ms": 7227.685,
+              "p50_ms": 1220.163,
+              "p95_ms": 5843.155,
+              "p99_ms": 6950.779
+            },
+            "kamino": {
+              "count": 4,
+              "avg_ms": 4677.833,
+              "max_ms": 7150.947,
+              "p50_ms": 5365.304,
+              "p95_ms": 6931.801,
+              "p99_ms": 7107.118
+            },
+            "global-ecosystem": {
+              "count": 28,
+              "avg_ms": 427.402,
+              "max_ms": 2930.761,
+              "p50_ms": 0.054,
+              "p95_ms": 2294.659,
+              "p99_ms": 2764.497
+            }
+          },
+          "latency_by_widget": {
+            "exponent/exponent-market-meta": {
+              "count": 1,
+              "avg_ms": 7227.685,
+              "max_ms": 7227.685,
+              "p50_ms": 7227.685,
+              "p95_ms": 7227.685,
+              "p99_ms": 7227.685
+            },
+            "exponent/exponent-pie-tvl": {
+              "count": 1,
+              "avg_ms": 0.038,
+              "max_ms": 0.038,
+              "p50_ms": 0.038,
+              "p95_ms": 0.038,
+              "p99_ms": 0.038
+            },
+            "exponent/kpi-base-token-yield": {
+              "count": 1,
+              "avg_ms": 0.018,
+              "max_ms": 0.018,
+              "p50_ms": 0.018,
+              "p95_ms": 0.018,
+              "p99_ms": 0.018
+            },
+            "exponent/exponent-pt-swap-flows-mkt1": {
+              "count": 1,
+              "avg_ms": 1689.566,
+              "max_ms": 1689.566,
+              "p50_ms": 1689.566,
+              "p95_ms": 1689.566,
+              "p99_ms": 1689.566
+            },
+            "exponent/exponent-pt-swap-flows-mkt2": {
+              "count": 1,
+              "avg_ms": 1612.368,
+              "max_ms": 1612.368,
+              "p50_ms": 1612.368,
+              "p95_ms": 1612.368,
+              "p99_ms": 1612.368
+            },
+            "exponent/exponent-market-assets": {
+              "count": 1,
+              "avg_ms": 827.959,
+              "max_ms": 827.959,
+              "p50_ms": 827.959,
+              "p95_ms": 827.959,
+              "p99_ms": 827.959
+            },
+            "kamino/kamino-market-assets": {
+              "count": 1,
+              "avg_ms": 5689.972,
+              "max_ms": 5689.972,
+              "p50_ms": 5689.972,
+              "p95_ms": 5689.972,
+              "p99_ms": 5689.972
+            },
+            "kamino/kamino-config-table": {
+              "count": 1,
+              "avg_ms": 829.777,
+              "max_ms": 829.777,
+              "p50_ms": 829.777,
+              "p95_ms": 829.777,
+              "p99_ms": 829.777
+            },
+            "kamino/kamino-rate-curve": {
+              "count": 1,
+              "avg_ms": 7150.947,
+              "max_ms": 7150.947,
+              "p50_ms": 7150.947,
+              "p95_ms": 7150.947,
+              "p99_ms": 7150.947
+            },
+            "kamino/kamino-stress-debt": {
+              "count": 1,
+              "avg_ms": 5040.636,
+              "max_ms": 5040.636,
+              "p50_ms": 5040.636,
+              "p95_ms": 5040.636,
+              "p99_ms": 5040.636
+            },
+            "global-ecosystem/ge-issuance-time": {
+              "count": 6,
+              "avg_ms": 564.938,
+              "max_ms": 1162.693,
+              "p50_ms": 555.391,
+              "p95_ms": 1151.043,
+              "p99_ms": 1160.363
+            },
+            "global-ecosystem/ge-yields-vs-time": {
+              "count": 6,
+              "avg_ms": 1250.47,
+              "max_ms": 2930.761,
+              "p50_ms": 1128.501,
+              "p95_ms": 2776.813,
+              "p99_ms": 2899.971
+            },
+            "global-ecosystem/ge-tvl-share-usx": {
+              "count": 6,
+              "avg_ms": 0.057,
+              "max_ms": 0.12,
+              "p50_ms": 0.053,
+              "p95_ms": 0.108,
+              "p99_ms": 0.117
+            },
+            "global-ecosystem/ge-activity-vol-usx": {
+              "count": 6,
+              "avg_ms": 0.05,
+              "max_ms": 0.112,
+              "p50_ms": 0.044,
+              "p95_ms": 0.1,
+              "p99_ms": 0.11
+            },
+            "global-ecosystem/ge-issuance-bar": {
+              "count": 4,
+              "avg_ms": 268.543,
+              "max_ms": 1074.064,
+              "p50_ms": 0.038,
+              "p95_ms": 912.96,
+              "p99_ms": 1041.843
+            }
+          },
+          "nav_trace_counts": {},
+          "status_family_by_widget": {
+            "exponent/exponent-market-meta": {
+              "2xx": 1
+            },
+            "exponent/exponent-pie-tvl": {
+              "2xx": 1
+            },
+            "exponent/kpi-base-token-yield": {
+              "2xx": 1
+            },
+            "exponent/exponent-pt-swap-flows-mkt1": {
+              "2xx": 1
+            },
+            "exponent/exponent-pt-swap-flows-mkt2": {
+              "2xx": 1
+            },
+            "exponent/exponent-market-assets": {
+              "2xx": 1
+            },
+            "kamino/kamino-market-assets": {
+              "2xx": 1
+            },
+            "kamino/kamino-config-table": {
+              "2xx": 1
+            },
+            "kamino/kamino-rate-curve": {
+              "2xx": 1
+            },
+            "kamino/kamino-stress-debt": {
+              "2xx": 1
+            },
+            "global-ecosystem/ge-issuance-time": {
+              "2xx": 6
+            },
+            "global-ecosystem/ge-yields-vs-time": {
+              "2xx": 6
+            },
+            "global-ecosystem/ge-tvl-share-usx": {
+              "2xx": 6
+            },
+            "global-ecosystem/ge-activity-vol-usx": {
+              "2xx": 6
+            },
+            "global-ecosystem/ge-issuance-bar": {
+              "2xx": 4
+            }
+          }
+        },
+        "cache_stats": {
+          "entries": 27,
+          "max_entries": 512,
+          "ttl_seconds": 120.0,
+          "jitter_pct": 15.0,
+          "hits": 30,
+          "misses": 27,
+          "stale_served": 0,
+          "inflight_waits": 0,
+          "bg_refresh_started": 0,
+          "bg_refresh_failed": 0,
+          "evictions": 0,
+          "swr_executor_active_count": 0
+        },
+        "sql_pool_pressure": {
+          "pool_checkout_count": 28,
+          "pool_checkout_wait_total_ms": 0.0820999703137204,
+          "pool_checkout_wait_max_ms": 0.006799993570894003,
+          "pool_in_use_last": 0,
+          "pool_idle_last": 1,
+          "pool_in_use_max": 1,
+          "pool_wait_over_25ms": 0,
+          "query_count": 28,
+          "query_error_count": 0,
+          "query_duration_total_ms": 43315.46199999866,
+          "query_duration_max_ms": 6952.576900002896,
+          "last_query_row_count": 23,
+          "query_fingerprint_stats": {
+            "//9dd2355e4d8aeacd": {
+              "count": 8,
+              "error_count": 0,
+              "avg_ms": 870.867,
+              "max_ms": 3081.69,
+              "p95_ms": 2201.669,
+              "p99_ms": 2905.686,
+              "page": "",
+              "widget": "",
+              "query_preview": "SELECT to_regprocedure(%s) AS proc",
+              "slow_samples_ms": [
+                3081.69,
+                567.345,
+                557.391,
+                555.375,
+                552.552
+              ]
+            },
+            "exponent/exponent-market-meta/c87ae249efa3dd14": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 6952.577,
+              "max_ms": 6952.577,
+              "p95_ms": 6952.577,
+              "p99_ms": 6952.577,
+              "page": "exponent",
+              "widget": "exponent-market-meta",
+              "query_preview": "SELECT market_pt_symbol_array_all, market_pt_symbol_array_full, apy_realized_7d_array, base_tokens_symbols_array, base_tokens_locked_array, apy_market_mkt1, apy_market_mkt2, base_token_collateralization_ratio_array, apy_",
+              "slow_samples_ms": [
+                6952.577
+              ]
+            },
+            "exponent/exponent-pt-swap-flows-mkt1/023505de786a250d": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 1416.488,
+              "max_ms": 1416.488,
+              "p95_ms": 1416.488,
+              "p99_ms": 1416.488,
+              "page": "exponent",
+              "widget": "exponent-pt-swap-flows-mkt1",
+              "query_preview": "SELECT bucket_time, amm_pt_out, amm_pt_in, amm_pt_swap_count, pt_supply_ui_delta_pos, pt_supply_ui_delta_neg, pt_supply, sy_for_pt_pct_sy, sy_yield_pool_pct, total_sy_in_escrow, yt_share_staked_pct, uncollected_sy, pool_",
+              "slow_samples_ms": [
+                1416.488
+              ]
+            },
+            "exponent/exponent-pt-swap-flows-mkt2/023505de786a250d": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 1338.431,
+              "max_ms": 1338.431,
+              "p95_ms": 1338.431,
+              "p99_ms": 1338.431,
+              "page": "exponent",
+              "widget": "exponent-pt-swap-flows-mkt2",
+              "query_preview": "SELECT bucket_time, amm_pt_out, amm_pt_in, amm_pt_swap_count, pt_supply_ui_delta_pos, pt_supply_ui_delta_neg, pt_supply, sy_for_pt_pct_sy, sy_yield_pool_pct, total_sy_in_escrow, yt_share_staked_pct, uncollected_sy, pool_",
+              "slow_samples_ms": [
+                1338.431
+              ]
+            },
+            "exponent/exponent-market-assets/ccc61d0c14891b99": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 550.834,
+              "max_ms": 550.834,
+              "p95_ms": 550.834,
+              "p99_ms": 550.834,
+              "page": "exponent",
+              "widget": "exponent-market-assets",
+              "query_preview": "SELECT meta_pt_name, meta_sy_name, env_sy_symbol, meta_base_symbol, sy_interface_type, env_sy_decimals, maturity_date, vault_address, market_address, mint_sy, mint_pt, mint_yt, mint_lp FROM exponent.aux_key_relations ORD",
+              "slow_samples_ms": [
+                550.834
+              ]
+            },
+            "kamino/kamino-market-assets/488a47e04d63c7c5": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 5412.141,
+              "max_ms": 5412.141,
+              "p95_ms": 5412.141,
+              "p99_ms": 5412.141,
+              "page": "kamino",
+              "widget": "kamino-market-assets",
+              "query_preview": "SELECT token_symbol, reserve_type, reserve_status, loan_to_value_pct, liquidation_threshold_pct, borrow_factor_pct, available_tokens, borrowed_tokens, total_supply, utilization_pct, supply_apy_pct, borrow_apy_pct, reserv",
+              "slow_samples_ms": [
+                5412.141
+              ]
+            },
+            "kamino/kamino-config-table/2bd795a1e5708527": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 555.168,
+              "max_ms": 555.168,
+              "p95_ms": 555.168,
+              "p99_ms": 555.168,
+              "page": "kamino",
+              "widget": "kamino-config-table",
+              "query_preview": "SELECT reserve_brw_all_symbols_array, reserve_coll_all_symbols_array, market_quote_currency, market_user_borrow_limit, reserve_brw_all_risk_weight_array, reserve_coll_all_ltv_new_loan_array, reserve_coll_all_ltv_unhealth",
+              "slow_samples_ms": [
+                555.168
+              ]
+            },
+            "kamino/kamino-rate-curve/789c1d23880cd831": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 5966.488,
+              "max_ms": 5966.488,
+              "p95_ms": 5966.488,
+              "p99_ms": 5966.488,
+              "page": "kamino",
+              "widget": "kamino-rate-curve",
+              "query_preview": "SELECT utilization_pct AS utilization_rate_pct, borrow_rate_pct FROM kamino_lend.rate_curve_all() ORDER BY utilization_bps LIMIT 37",
+              "slow_samples_ms": [
+                5966.488
+              ]
+            },
+            "kamino/kamino-rate-curve/c601b0da967d8d71": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 634.236,
+              "max_ms": 634.236,
+              "p95_ms": 634.236,
+              "p99_ms": 634.236,
+              "page": "kamino",
+              "widget": "kamino-rate-curve",
+              "query_preview": "SELECT reserve_brw_all_utilization_pct_array, reserve_brw_all_symbols_array, reserve_brw_all_borrowed, obl_debt_borrow_nonzero_count, obl_loan_avg_size, reserve_brw_all_shares_pct_array, obl_ltv_weighted_avg_sig, obl_hf_",
+              "slow_samples_ms": [
+                634.236
+              ]
+            },
+            "kamino/kamino-stress-debt/947ce16f5c4b75dc": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 3920.133,
+              "max_ms": 3920.133,
+              "p95_ms": 3920.133,
+              "p99_ms": 3920.133,
+              "page": "kamino",
+              "widget": "kamino-stress-debt",
+              "query_preview": "SELECT step_number, pct_change, total_borrows, total_deposits, unhealthy_debt, bad_debt, total_liquidatable_value, liquidation_distance_to_healthy, unhealthy_debt_less_liquidatable_part, bad_debt_less_liquidatable_part F",
+              "slow_samples_ms": [
+                3920.133
+              ]
+            },
+            "kamino/kamino-stress-debt/fdfc8c931160b7f3": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 573.622,
+              "max_ms": 573.622,
+              "p95_ms": 573.622,
+              "p99_ms": 573.622,
+              "page": "kamino",
+              "widget": "kamino-stress-debt",
+              "query_preview": "SELECT symbol, STDDEV(market_price) AS sd, AVG(market_price) AS ap FROM kamino_lend.cagg_reserves_5s WHERE bucket >= NOW() - INTERVAL '7 days' GROUP BY symbol",
+              "slow_samples_ms": [
+                573.622
+              ]
+            },
+            "global-ecosystem/ge-issuance-time/038d9e59482e1fa6": {
+              "count": 3,
+              "error_count": 0,
+              "avg_ms": 853.079,
+              "max_ms": 884.838,
+              "p95_ms": 880.244,
+              "p99_ms": 883.919,
+              "page": "global-ecosystem",
+              "widget": "ge-issuance-time",
+              "query_preview": "WITH sy_ts AS ( SELECT time_bucket(%s::interval, bucket) AS bt, LAST(supply / POWER(10, decimals), bucket) AS sy_supply FROM exponent.cagg_sy_token_account_5s WHERE meta_base_mint = %s AND bucket >= NOW() - %s::interval ",
+              "slow_samples_ms": [
+                884.838,
+                838.9,
+                835.499
+              ]
+            },
+            "global-ecosystem/ge-yields-vs-time/1403ff471e96e936": {
+              "count": 3,
+              "error_count": 0,
+              "avg_ms": 1112.85,
+              "max_ms": 1545.458,
+              "p95_ms": 1483.721,
+              "p99_ms": 1533.111,
+              "page": "global-ecosystem",
+              "widget": "ge-yields-vs-time",
+              "query_preview": "SELECT bucket_time, onyc_in_dexes, onyc_in_kamino, onyc_in_exponent, onyc_tracked_total, onyc_in_dexes_pct, onyc_in_kamino_pct, onyc_in_exponent_pct, dex_swap_volume, dex_lp_volume, dex_total_volume, kam_total_volume, ex",
+              "slow_samples_ms": [
+                1545.458,
+                928.089,
+                865.002
+              ]
+            },
+            "global-ecosystem/ge-yields-vs-time/bbc81eb3f1800b99": {
+              "count": 3,
+              "error_count": 0,
+              "avg_ms": 834.087,
+              "max_ms": 839.174,
+              "p95_ms": 838.483,
+              "p99_ms": 839.036,
+              "page": "global-ecosystem",
+              "widget": "ge-yields-vs-time",
+              "query_preview": "WITH rate_buckets AS ( SELECT time_bucket(%s::interval, bucket) AS bt, LAST(sy_exchange_rate, bucket) AS rate FROM exponent.cagg_sy_meta_account_5s WHERE meta_base_mint = %s AND bucket >= NOW() - %s::interval GROUP BY bt",
+              "slow_samples_ms": [
+                839.174,
+                832.26,
+                830.828
+              ]
+            },
+            "global-ecosystem/ge-issuance-bar/47673282f87eda7c": {
+              "count": 1,
+              "error_count": 0,
+              "avg_ms": 628.359,
+              "max_ms": 628.359,
+              "p95_ms": 628.359,
+              "p99_ms": 628.359,
+              "page": "global-ecosystem",
+              "widget": "ge-issuance-bar",
+              "query_preview": "WITH latest_sy AS ( SELECT DISTINCT ON (mint_sy) supply / POWER(10, decimals) AS sy_supply FROM exponent.cagg_sy_token_account_5s WHERE meta_base_mint = %s ORDER BY mint_sy, bucket DESC ), latest_vaults AS ( SELECT SUM(p",
+              "slow_samples_ms": [
+                628.359
+              ]
+            }
+          },
+          "pool_checkout_wait_avg_ms": 0.003,
+          "query_duration_avg_ms": 1546.981
+        },
+        "hotspot_summary": {
+          "widgets": {
+            "global-ecosystem/ge-activity-vol-usx": {
+              "latency": {
+                "count": 6,
+                "avg_ms": 0.05,
+                "max_ms": 0.112,
+                "p50_ms": 0.044,
+                "p95_ms": 0.1,
+                "p99_ms": 0.11
+              },
+              "status_families": {
+                "2xx": 6
+              },
+              "top_sql_fingerprints": []
+            },
+            "global-ecosystem/ge-tvl-share-usx": {
+              "latency": {
+                "count": 6,
+                "avg_ms": 0.057,
+                "max_ms": 0.12,
+                "p50_ms": 0.053,
+                "p95_ms": 0.108,
+                "p99_ms": 0.117
+              },
+              "status_families": {
+                "2xx": 6
+              },
+              "top_sql_fingerprints": []
+            }
+          },
+          "pool_wait_avg_ms": 0.003,
+          "pool_wait_max_ms": 0.007
+        }
+      }
+    }
+  ],
+  "hotspot_summary": {
+    "global-ecosystem/ge-activity-vol-usx": {
+      "count": 4,
+      "errors": 2,
+      "errors_5xx": 0,
+      "timeouts": 2,
+      "warm_p95_ms_max": 2053.39,
+      "cold_ms_max": 2038.05
+    },
+    "global-ecosystem/ge-tvl-share-usx": {
+      "count": 4,
+      "errors": 2,
+      "errors_5xx": 0,
+      "timeouts": 2,
+      "warm_p95_ms_max": 2061.45,
+      "cold_ms_max": 2038.62
+    }
+  },
+  "results": [
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-activity-vol-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2038.05,
+      "cold_ok": false,
+      "cold_status_code": 0,
+      "warm_repeats": 1,
+      "warm_success_count": 0,
+      "warm_error_count": 1,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 1,
+      "warm_min_ms": 2053.39,
+      "warm_p50_ms": 2053.39,
+      "warm_p95_ms": 2053.39,
+      "warm_avg_ms": 2053.39,
+      "warm_max_ms": 2053.39,
+      "payload_bytes_p50": 107,
+      "error_samples": [
+        "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+      ],
+      "cold_timeout": true,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-bar",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2049.86,
+      "cold_ok": false,
+      "cold_status_code": 0,
+      "warm_repeats": 1,
+      "warm_success_count": 0,
+      "warm_error_count": 1,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 1,
+      "warm_min_ms": 2047.03,
+      "warm_p50_ms": 2047.03,
+      "warm_p95_ms": 2047.03,
+      "warm_avg_ms": 2047.03,
+      "warm_max_ms": 2047.03,
+      "payload_bytes_p50": 107,
+      "error_samples": [
+        "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+      ],
+      "cold_timeout": true,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2043.01,
+      "cold_ok": false,
+      "cold_status_code": 0,
+      "warm_repeats": 1,
+      "warm_success_count": 0,
+      "warm_error_count": 1,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 1,
+      "warm_min_ms": 2054.75,
+      "warm_p50_ms": 2054.75,
+      "warm_p95_ms": 2054.75,
+      "warm_avg_ms": 2054.75,
+      "warm_max_ms": 2054.75,
+      "payload_bytes_p50": 107,
+      "error_samples": [
+        "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+      ],
+      "cold_timeout": true,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-tvl-share-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2038.62,
+      "cold_ok": false,
+      "cold_status_code": 0,
+      "warm_repeats": 1,
+      "warm_success_count": 0,
+      "warm_error_count": 1,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 1,
+      "warm_min_ms": 2061.45,
+      "warm_p50_ms": 2061.45,
+      "warm_p95_ms": 2061.45,
+      "warm_avg_ms": 2061.45,
+      "warm_max_ms": 2061.45,
+      "payload_bytes_p50": 107,
+      "error_samples": [
+        "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+      ],
+      "cold_timeout": true,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-yields-vs-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "1h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2045.69,
+      "cold_ok": false,
+      "cold_status_code": 0,
+      "warm_repeats": 1,
+      "warm_success_count": 0,
+      "warm_error_count": 1,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 1,
+      "warm_min_ms": 2061.08,
+      "warm_p50_ms": 2061.08,
+      "warm_p95_ms": 2061.08,
+      "warm_avg_ms": 2061.08,
+      "warm_max_ms": 2061.08,
+      "payload_bytes_p50": 107,
+      "error_samples": [
+        "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+      ],
+      "cold_timeout": true,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-activity-vol-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 14.86,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 16.47,
+      "warm_p50_ms": 16.47,
+      "warm_p95_ms": 16.47,
+      "warm_avg_ms": 16.47,
+      "warm_max_ms": 16.47,
+      "payload_bytes_p50": 1947,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-bar",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2051.62,
+      "cold_ok": false,
+      "cold_status_code": 0,
+      "warm_repeats": 1,
+      "warm_success_count": 0,
+      "warm_error_count": 1,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 1,
+      "warm_min_ms": 2038.8,
+      "warm_p50_ms": 2038.8,
+      "warm_p95_ms": 2038.8,
+      "warm_avg_ms": 2038.8,
+      "warm_max_ms": 2038.8,
+      "payload_bytes_p50": 107,
+      "error_samples": [
+        "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
+      ],
+      "cold_timeout": true,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2646.11,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 12.99,
+      "warm_p50_ms": 12.99,
+      "warm_p95_ms": 12.99,
+      "warm_avg_ms": 12.99,
+      "warm_max_ms": 12.99,
+      "payload_bytes_p50": 1401,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-tvl-share-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 16.39,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.6,
+      "warm_p50_ms": 15.6,
+      "warm_p95_ms": 15.6,
+      "warm_avg_ms": 15.6,
+      "warm_max_ms": 15.6,
+      "payload_bytes_p50": 1541,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-yields-vs-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "24h",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2330.48,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 3.59,
+      "warm_p50_ms": 3.59,
+      "warm_p95_ms": 3.59,
+      "warm_avg_ms": 3.59,
+      "warm_max_ms": 3.59,
+      "payload_bytes_p50": 1788,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-activity-vol-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.42,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.36,
+      "warm_p50_ms": 1.36,
+      "warm_p95_ms": 1.36,
+      "warm_avg_ms": 1.36,
+      "warm_max_ms": 1.36,
+      "payload_bytes_p50": 2387,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-bar",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.74,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.24,
+      "warm_p50_ms": 15.24,
+      "warm_p95_ms": 15.24,
+      "warm_avg_ms": 15.24,
+      "warm_max_ms": 15.24,
+      "payload_bytes_p50": 635,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1118.24,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 1.66,
+      "warm_p50_ms": 1.66,
+      "warm_p95_ms": 1.66,
+      "warm_avg_ms": 1.66,
+      "warm_max_ms": 1.66,
+      "payload_bytes_p50": 1691,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-tvl-share-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 14.59,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.83,
+      "warm_p50_ms": 15.83,
+      "warm_p95_ms": 15.83,
+      "warm_avg_ms": 15.83,
+      "warm_max_ms": 15.83,
+      "payload_bytes_p50": 1759,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-yields-vs-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "30d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2932.61,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 26.25,
+      "warm_p50_ms": 26.25,
+      "warm_p95_ms": 26.25,
+      "warm_avg_ms": 26.25,
+      "warm_max_ms": 26.25,
+      "payload_bytes_p50": 2040,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-activity-vol-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 15.79,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.93,
+      "warm_p50_ms": 15.93,
+      "warm_p95_ms": 15.93,
+      "warm_avg_ms": 15.93,
+      "warm_max_ms": 15.93,
+      "payload_bytes_p50": 3335,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-bar",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1089.51,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 12.34,
+      "warm_p50_ms": 12.34,
+      "warm_p95_ms": 12.34,
+      "warm_avg_ms": 12.34,
+      "warm_max_ms": 12.34,
+      "payload_bytes_p50": 635,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-issuance-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 1177.98,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 18.16,
+      "warm_p50_ms": 18.16,
+      "warm_p95_ms": 18.16,
+      "warm_avg_ms": 18.16,
+      "warm_max_ms": 18.16,
+      "payload_bytes_p50": 2310,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-tvl-share-usx",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 16.06,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 15.78,
+      "warm_p50_ms": 15.78,
+      "warm_p95_ms": 15.78,
+      "warm_avg_ms": 15.78,
+      "warm_max_ms": 15.78,
+      "payload_bytes_p50": 2206,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    },
+    {
+      "page": "global-ecosystem",
+      "widget": "ge-yields-vs-time",
+      "params": {
+        "protocol": "raydium",
+        "pair": "USX-USDC",
+        "last_window": "7d",
+        "mkt1": "",
+        "mkt2": ""
+      },
+      "cold_ms": 2271.84,
+      "cold_ok": true,
+      "cold_status_code": 200,
+      "warm_repeats": 1,
+      "warm_success_count": 1,
+      "warm_error_count": 0,
+      "warm_5xx_count": 0,
+      "warm_timeout_count": 0,
+      "warm_min_ms": 19.49,
+      "warm_p50_ms": 19.49,
+      "warm_p95_ms": 19.49,
+      "warm_avg_ms": 19.49,
+      "warm_max_ms": 19.49,
+      "payload_bytes_p50": 2667,
+      "error_samples": [],
+      "cold_timeout": false,
+      "cold_5xx": false,
+      "profile": "parallel-1",
+      "loop_index": 1
+    }
+  ],
+  "telemetry": {
+    "captured": true,
+    "profiles": [
+      {
+        "profile": "parallel-1",
+        "parallel": 1,
+        "loops_completed": 1,
+        "result_count": 20,
+        "telemetry_before": null,
+        "telemetry_after": {
+          "enabled": true,
+          "request_stats": {
+            "requests_total": 38,
+            "requests_success": 38,
+            "requests_error": 0,
+            "requests_by_page": {
+              "exponent": 6,
+              "kamino": 4,
+              "global-ecosystem": 28
+            },
+            "errors_by_page": {},
+            "requests_by_widget": {
+              "exponent/exponent-market-meta": 1,
+              "exponent/exponent-pie-tvl": 1,
+              "exponent/kpi-base-token-yield": 1,
+              "exponent/exponent-pt-swap-flows-mkt1": 1,
+              "exponent/exponent-pt-swap-flows-mkt2": 1,
+              "exponent/exponent-market-assets": 1,
+              "kamino/kamino-market-assets": 1,
+              "kamino/kamino-config-table": 1,
+              "kamino/kamino-rate-curve": 1,
+              "kamino/kamino-stress-debt": 1,
+              "global-ecosystem/ge-issuance-time": 6,
+              "global-ecosystem/ge-yields-vs-time": 6,
+              "global-ecosystem/ge-tvl-share-usx": 6,
+              "global-ecosystem/ge-activity-vol-usx": 6,
+              "global-ecosystem/ge-issuance-bar": 4
+            },
+            "status_family_counts": {
+              "2xx": 38
+            },
+            "latency_by_page": {
+              "exponent": {
+                "count": 6,
+                "avg_ms": 1892.939,
+                "max_ms": 7227.685,
+                "p50_ms": 1220.163,
+                "p95_ms": 5843.155,
+                "p99_ms": 6950.779
+              },
+              "kamino": {
+                "count": 4,
+                "avg_ms": 4677.833,
+                "max_ms": 7150.947,
+                "p50_ms": 5365.304,
+                "p95_ms": 6931.801,
+                "p99_ms": 7107.118
+              },
+              "global-ecosystem": {
+                "count": 28,
+                "avg_ms": 427.402,
+                "max_ms": 2930.761,
+                "p50_ms": 0.054,
+                "p95_ms": 2294.659,
+                "p99_ms": 2764.497
+              }
+            },
+            "latency_by_widget": {
+              "exponent/exponent-market-meta": {
+                "count": 1,
+                "avg_ms": 7227.685,
+                "max_ms": 7227.685,
+                "p50_ms": 7227.685,
+                "p95_ms": 7227.685,
+                "p99_ms": 7227.685
+              },
+              "exponent/exponent-pie-tvl": {
+                "count": 1,
+                "avg_ms": 0.038,
+                "max_ms": 0.038,
+                "p50_ms": 0.038,
+                "p95_ms": 0.038,
+                "p99_ms": 0.038
+              },
+              "exponent/kpi-base-token-yield": {
+                "count": 1,
+                "avg_ms": 0.018,
+                "max_ms": 0.018,
+                "p50_ms": 0.018,
+                "p95_ms": 0.018,
+                "p99_ms": 0.018
+              },
+              "exponent/exponent-pt-swap-flows-mkt1": {
+                "count": 1,
+                "avg_ms": 1689.566,
+                "max_ms": 1689.566,
+                "p50_ms": 1689.566,
+                "p95_ms": 1689.566,
+                "p99_ms": 1689.566
+              },
+              "exponent/exponent-pt-swap-flows-mkt2": {
+                "count": 1,
+                "avg_ms": 1612.368,
+                "max_ms": 1612.368,
+                "p50_ms": 1612.368,
+                "p95_ms": 1612.368,
+                "p99_ms": 1612.368
+              },
+              "exponent/exponent-market-assets": {
+                "count": 1,
+                "avg_ms": 827.959,
+                "max_ms": 827.959,
+                "p50_ms": 827.959,
+                "p95_ms": 827.959,
+                "p99_ms": 827.959
+              },
+              "kamino/kamino-market-assets": {
+                "count": 1,
+                "avg_ms": 5689.972,
+                "max_ms": 5689.972,
+                "p50_ms": 5689.972,
+                "p95_ms": 5689.972,
+                "p99_ms": 5689.972
+              },
+              "kamino/kamino-config-table": {
+                "count": 1,
+                "avg_ms": 829.777,
+                "max_ms": 829.777,
+                "p50_ms": 829.777,
+                "p95_ms": 829.777,
+                "p99_ms": 829.777
+              },
+              "kamino/kamino-rate-curve": {
+                "count": 1,
+                "avg_ms": 7150.947,
+                "max_ms": 7150.947,
+                "p50_ms": 7150.947,
+                "p95_ms": 7150.947,
+                "p99_ms": 7150.947
+              },
+              "kamino/kamino-stress-debt": {
+                "count": 1,
+                "avg_ms": 5040.636,
+                "max_ms": 5040.636,
+                "p50_ms": 5040.636,
+                "p95_ms": 5040.636,
+                "p99_ms": 5040.636
+              },
+              "global-ecosystem/ge-issuance-time": {
+                "count": 6,
+                "avg_ms": 564.938,
+                "max_ms": 1162.693,
+                "p50_ms": 555.391,
+                "p95_ms": 1151.043,
+                "p99_ms": 1160.363
+              },
+              "global-ecosystem/ge-yields-vs-time": {
+                "count": 6,
+                "avg_ms": 1250.47,
+                "max_ms": 2930.761,
+                "p50_ms": 1128.501,
+                "p95_ms": 2776.813,
+                "p99_ms": 2899.971
+              },
+              "global-ecosystem/ge-tvl-share-usx": {
+                "count": 6,
+                "avg_ms": 0.057,
+                "max_ms": 0.12,
+                "p50_ms": 0.053,
+                "p95_ms": 0.108,
+                "p99_ms": 0.117
+              },
+              "global-ecosystem/ge-activity-vol-usx": {
+                "count": 6,
+                "avg_ms": 0.05,
+                "max_ms": 0.112,
+                "p50_ms": 0.044,
+                "p95_ms": 0.1,
+                "p99_ms": 0.11
+              },
+              "global-ecosystem/ge-issuance-bar": {
+                "count": 4,
+                "avg_ms": 268.543,
+                "max_ms": 1074.064,
+                "p50_ms": 0.038,
+                "p95_ms": 912.96,
+                "p99_ms": 1041.843
+              }
+            },
+            "nav_trace_counts": {},
+            "status_family_by_widget": {
+              "exponent/exponent-market-meta": {
+                "2xx": 1
+              },
+              "exponent/exponent-pie-tvl": {
+                "2xx": 1
+              },
+              "exponent/kpi-base-token-yield": {
+                "2xx": 1
+              },
+              "exponent/exponent-pt-swap-flows-mkt1": {
+                "2xx": 1
+              },
+              "exponent/exponent-pt-swap-flows-mkt2": {
+                "2xx": 1
+              },
+              "exponent/exponent-market-assets": {
+                "2xx": 1
+              },
+              "kamino/kamino-market-assets": {
+                "2xx": 1
+              },
+              "kamino/kamino-config-table": {
+                "2xx": 1
+              },
+              "kamino/kamino-rate-curve": {
+                "2xx": 1
+              },
+              "kamino/kamino-stress-debt": {
+                "2xx": 1
+              },
+              "global-ecosystem/ge-issuance-time": {
+                "2xx": 6
+              },
+              "global-ecosystem/ge-yields-vs-time": {
+                "2xx": 6
+              },
+              "global-ecosystem/ge-tvl-share-usx": {
+                "2xx": 6
+              },
+              "global-ecosystem/ge-activity-vol-usx": {
+                "2xx": 6
+              },
+              "global-ecosystem/ge-issuance-bar": {
+                "2xx": 4
+              }
+            }
+          },
+          "cache_stats": {
+            "entries": 27,
+            "max_entries": 512,
+            "ttl_seconds": 120.0,
+            "jitter_pct": 15.0,
+            "hits": 30,
+            "misses": 27,
+            "stale_served": 0,
+            "inflight_waits": 0,
+            "bg_refresh_started": 0,
+            "bg_refresh_failed": 0,
+            "evictions": 0,
+            "swr_executor_active_count": 0
+          },
+          "sql_pool_pressure": {
+            "pool_checkout_count": 28,
+            "pool_checkout_wait_total_ms": 0.0820999703137204,
+            "pool_checkout_wait_max_ms": 0.006799993570894003,
+            "pool_in_use_last": 0,
+            "pool_idle_last": 1,
+            "pool_in_use_max": 1,
+            "pool_wait_over_25ms": 0,
+            "query_count": 28,
+            "query_error_count": 0,
+            "query_duration_total_ms": 43315.46199999866,
+            "query_duration_max_ms": 6952.576900002896,
+            "last_query_row_count": 23,
+            "query_fingerprint_stats": {
+              "//9dd2355e4d8aeacd": {
+                "count": 8,
+                "error_count": 0,
+                "avg_ms": 870.867,
+                "max_ms": 3081.69,
+                "p95_ms": 2201.669,
+                "p99_ms": 2905.686,
+                "page": "",
+                "widget": "",
+                "query_preview": "SELECT to_regprocedure(%s) AS proc",
+                "slow_samples_ms": [
+                  3081.69,
+                  567.345,
+                  557.391,
+                  555.375,
+                  552.552
+                ]
+              },
+              "exponent/exponent-market-meta/c87ae249efa3dd14": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 6952.577,
+                "max_ms": 6952.577,
+                "p95_ms": 6952.577,
+                "p99_ms": 6952.577,
+                "page": "exponent",
+                "widget": "exponent-market-meta",
+                "query_preview": "SELECT market_pt_symbol_array_all, market_pt_symbol_array_full, apy_realized_7d_array, base_tokens_symbols_array, base_tokens_locked_array, apy_market_mkt1, apy_market_mkt2, base_token_collateralization_ratio_array, apy_",
+                "slow_samples_ms": [
+                  6952.577
+                ]
+              },
+              "exponent/exponent-pt-swap-flows-mkt1/023505de786a250d": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 1416.488,
+                "max_ms": 1416.488,
+                "p95_ms": 1416.488,
+                "p99_ms": 1416.488,
+                "page": "exponent",
+                "widget": "exponent-pt-swap-flows-mkt1",
+                "query_preview": "SELECT bucket_time, amm_pt_out, amm_pt_in, amm_pt_swap_count, pt_supply_ui_delta_pos, pt_supply_ui_delta_neg, pt_supply, sy_for_pt_pct_sy, sy_yield_pool_pct, total_sy_in_escrow, yt_share_staked_pct, uncollected_sy, pool_",
+                "slow_samples_ms": [
+                  1416.488
+                ]
+              },
+              "exponent/exponent-pt-swap-flows-mkt2/023505de786a250d": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 1338.431,
+                "max_ms": 1338.431,
+                "p95_ms": 1338.431,
+                "p99_ms": 1338.431,
+                "page": "exponent",
+                "widget": "exponent-pt-swap-flows-mkt2",
+                "query_preview": "SELECT bucket_time, amm_pt_out, amm_pt_in, amm_pt_swap_count, pt_supply_ui_delta_pos, pt_supply_ui_delta_neg, pt_supply, sy_for_pt_pct_sy, sy_yield_pool_pct, total_sy_in_escrow, yt_share_staked_pct, uncollected_sy, pool_",
+                "slow_samples_ms": [
+                  1338.431
+                ]
+              },
+              "exponent/exponent-market-assets/ccc61d0c14891b99": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 550.834,
+                "max_ms": 550.834,
+                "p95_ms": 550.834,
+                "p99_ms": 550.834,
+                "page": "exponent",
+                "widget": "exponent-market-assets",
+                "query_preview": "SELECT meta_pt_name, meta_sy_name, env_sy_symbol, meta_base_symbol, sy_interface_type, env_sy_decimals, maturity_date, vault_address, market_address, mint_sy, mint_pt, mint_yt, mint_lp FROM exponent.aux_key_relations ORD",
+                "slow_samples_ms": [
+                  550.834
+                ]
+              },
+              "kamino/kamino-market-assets/488a47e04d63c7c5": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 5412.141,
+                "max_ms": 5412.141,
+                "p95_ms": 5412.141,
+                "p99_ms": 5412.141,
+                "page": "kamino",
+                "widget": "kamino-market-assets",
+                "query_preview": "SELECT token_symbol, reserve_type, reserve_status, loan_to_value_pct, liquidation_threshold_pct, borrow_factor_pct, available_tokens, borrowed_tokens, total_supply, utilization_pct, supply_apy_pct, borrow_apy_pct, reserv",
+                "slow_samples_ms": [
+                  5412.141
+                ]
+              },
+              "kamino/kamino-config-table/2bd795a1e5708527": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 555.168,
+                "max_ms": 555.168,
+                "p95_ms": 555.168,
+                "p99_ms": 555.168,
+                "page": "kamino",
+                "widget": "kamino-config-table",
+                "query_preview": "SELECT reserve_brw_all_symbols_array, reserve_coll_all_symbols_array, market_quote_currency, market_user_borrow_limit, reserve_brw_all_risk_weight_array, reserve_coll_all_ltv_new_loan_array, reserve_coll_all_ltv_unhealth",
+                "slow_samples_ms": [
+                  555.168
+                ]
+              },
+              "kamino/kamino-rate-curve/789c1d23880cd831": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 5966.488,
+                "max_ms": 5966.488,
+                "p95_ms": 5966.488,
+                "p99_ms": 5966.488,
+                "page": "kamino",
+                "widget": "kamino-rate-curve",
+                "query_preview": "SELECT utilization_pct AS utilization_rate_pct, borrow_rate_pct FROM kamino_lend.rate_curve_all() ORDER BY utilization_bps LIMIT 37",
+                "slow_samples_ms": [
+                  5966.488
+                ]
+              },
+              "kamino/kamino-rate-curve/c601b0da967d8d71": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 634.236,
+                "max_ms": 634.236,
+                "p95_ms": 634.236,
+                "p99_ms": 634.236,
+                "page": "kamino",
+                "widget": "kamino-rate-curve",
+                "query_preview": "SELECT reserve_brw_all_utilization_pct_array, reserve_brw_all_symbols_array, reserve_brw_all_borrowed, obl_debt_borrow_nonzero_count, obl_loan_avg_size, reserve_brw_all_shares_pct_array, obl_ltv_weighted_avg_sig, obl_hf_",
+                "slow_samples_ms": [
+                  634.236
+                ]
+              },
+              "kamino/kamino-stress-debt/947ce16f5c4b75dc": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 3920.133,
+                "max_ms": 3920.133,
+                "p95_ms": 3920.133,
+                "p99_ms": 3920.133,
+                "page": "kamino",
+                "widget": "kamino-stress-debt",
+                "query_preview": "SELECT step_number, pct_change, total_borrows, total_deposits, unhealthy_debt, bad_debt, total_liquidatable_value, liquidation_distance_to_healthy, unhealthy_debt_less_liquidatable_part, bad_debt_less_liquidatable_part F",
+                "slow_samples_ms": [
+                  3920.133
+                ]
+              },
+              "kamino/kamino-stress-debt/fdfc8c931160b7f3": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 573.622,
+                "max_ms": 573.622,
+                "p95_ms": 573.622,
+                "p99_ms": 573.622,
+                "page": "kamino",
+                "widget": "kamino-stress-debt",
+                "query_preview": "SELECT symbol, STDDEV(market_price) AS sd, AVG(market_price) AS ap FROM kamino_lend.cagg_reserves_5s WHERE bucket >= NOW() - INTERVAL '7 days' GROUP BY symbol",
+                "slow_samples_ms": [
+                  573.622
+                ]
+              },
+              "global-ecosystem/ge-issuance-time/038d9e59482e1fa6": {
+                "count": 3,
+                "error_count": 0,
+                "avg_ms": 853.079,
+                "max_ms": 884.838,
+                "p95_ms": 880.244,
+                "p99_ms": 883.919,
+                "page": "global-ecosystem",
+                "widget": "ge-issuance-time",
+                "query_preview": "WITH sy_ts AS ( SELECT time_bucket(%s::interval, bucket) AS bt, LAST(supply / POWER(10, decimals), bucket) AS sy_supply FROM exponent.cagg_sy_token_account_5s WHERE meta_base_mint = %s AND bucket >= NOW() - %s::interval ",
+                "slow_samples_ms": [
+                  884.838,
+                  838.9,
+                  835.499
+                ]
+              },
+              "global-ecosystem/ge-yields-vs-time/1403ff471e96e936": {
+                "count": 3,
+                "error_count": 0,
+                "avg_ms": 1112.85,
+                "max_ms": 1545.458,
+                "p95_ms": 1483.721,
+                "p99_ms": 1533.111,
+                "page": "global-ecosystem",
+                "widget": "ge-yields-vs-time",
+                "query_preview": "SELECT bucket_time, onyc_in_dexes, onyc_in_kamino, onyc_in_exponent, onyc_tracked_total, onyc_in_dexes_pct, onyc_in_kamino_pct, onyc_in_exponent_pct, dex_swap_volume, dex_lp_volume, dex_total_volume, kam_total_volume, ex",
+                "slow_samples_ms": [
+                  1545.458,
+                  928.089,
+                  865.002
+                ]
+              },
+              "global-ecosystem/ge-yields-vs-time/bbc81eb3f1800b99": {
+                "count": 3,
+                "error_count": 0,
+                "avg_ms": 834.087,
+                "max_ms": 839.174,
+                "p95_ms": 838.483,
+                "p99_ms": 839.036,
+                "page": "global-ecosystem",
+                "widget": "ge-yields-vs-time",
+                "query_preview": "WITH rate_buckets AS ( SELECT time_bucket(%s::interval, bucket) AS bt, LAST(sy_exchange_rate, bucket) AS rate FROM exponent.cagg_sy_meta_account_5s WHERE meta_base_mint = %s AND bucket >= NOW() - %s::interval GROUP BY bt",
+                "slow_samples_ms": [
+                  839.174,
+                  832.26,
+                  830.828
+                ]
+              },
+              "global-ecosystem/ge-issuance-bar/47673282f87eda7c": {
+                "count": 1,
+                "error_count": 0,
+                "avg_ms": 628.359,
+                "max_ms": 628.359,
+                "p95_ms": 628.359,
+                "p99_ms": 628.359,
+                "page": "global-ecosystem",
+                "widget": "ge-issuance-bar",
+                "query_preview": "WITH latest_sy AS ( SELECT DISTINCT ON (mint_sy) supply / POWER(10, decimals) AS sy_supply FROM exponent.cagg_sy_token_account_5s WHERE meta_base_mint = %s ORDER BY mint_sy, bucket DESC ), latest_vaults AS ( SELECT SUM(p",
+                "slow_samples_ms": [
+                  628.359
+                ]
+              }
+            },
+            "pool_checkout_wait_avg_ms": 0.003,
+            "query_duration_avg_ms": 1546.981
+          },
+          "hotspot_summary": {
+            "widgets": {
+              "global-ecosystem/ge-activity-vol-usx": {
+                "latency": {
+                  "count": 6,
+                  "avg_ms": 0.05,
+                  "max_ms": 0.112,
+                  "p50_ms": 0.044,
+                  "p95_ms": 0.1,
+                  "p99_ms": 0.11
+                },
+                "status_families": {
+                  "2xx": 6
+                },
+                "top_sql_fingerprints": []
+              },
+              "global-ecosystem/ge-tvl-share-usx": {
+                "latency": {
+                  "count": 6,
+                  "avg_ms": 0.057,
+                  "max_ms": 0.12,
+                  "p50_ms": 0.053,
+                  "p95_ms": 0.108,
+                  "p99_ms": 0.117
+                },
+                "status_families": {
+                  "2xx": 6
+                },
+                "top_sql_fingerprints": []
+              }
+            },
+            "pool_wait_avg_ms": 0.003,
+            "pool_wait_max_ms": 0.007
+          }
+        }
+      }
+    ]
+  }
+}

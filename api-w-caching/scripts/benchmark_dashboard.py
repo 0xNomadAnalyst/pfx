@@ -166,6 +166,10 @@ HEALTH_SCENARIOS: list[WidgetScenario] = [
 ]
 
 GLOBAL_ECOSYSTEM_SCENARIOS: list[WidgetScenario] = [
+    WidgetScenario("ge-hdr-issuance", {}),
+    WidgetScenario("ge-hdr-yields", {}),
+    WidgetScenario("ge-hdr-availability", {}),
+    WidgetScenario("ge-hdr-tvl-activity", {}),
     WidgetScenario("ge-issuance-bar", {}),
     WidgetScenario("ge-issuance-pie", {}),
     WidgetScenario("ge-issuance-time", {}),
@@ -179,10 +183,20 @@ GLOBAL_ECOSYSTEM_SCENARIOS: list[WidgetScenario] = [
     WidgetScenario("ge-supply-dist-eusx-bar", {}),
     WidgetScenario("ge-token-avail-usx", {}),
     WidgetScenario("ge-token-avail-eusx", {}),
+    WidgetScenario("ge-availability-bar", {}),
+    WidgetScenario("ge-availability-time", {}),
     WidgetScenario("ge-tvl-defi-usx", {}),
     WidgetScenario("ge-tvl-defi-eusx", {}),
+    WidgetScenario("ge-tvl-bar", {}),
+    WidgetScenario("ge-tvl-pie", {}),
+    WidgetScenario("ge-tvl-time", {}),
+    WidgetScenario("ge-tvl-share", {}),
     WidgetScenario("ge-tvl-share-usx", {}),
     WidgetScenario("ge-tvl-share-eusx", {}),
+    WidgetScenario("ge-activity-bar", {}),
+    WidgetScenario("ge-activity-pct", {}),
+    WidgetScenario("ge-activity-vol", {}),
+    WidgetScenario("ge-activity-share", {}),
     WidgetScenario("ge-activity-pct-usx", {}),
     WidgetScenario("ge-activity-pct-eusx", {}),
     WidgetScenario("ge-activity-vol-usx", {}),
@@ -371,6 +385,29 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Call /api/v1/telemetry/reset before benchmark (requires --capture-telemetry)",
     )
+    parser.add_argument(
+        "--max-widget-errors",
+        type=int,
+        default=-1,
+        help="Fail if any tracked widget exceeds this total error count (-1 disables).",
+    )
+    parser.add_argument(
+        "--max-widget-5xx",
+        type=int,
+        default=-1,
+        help="Fail if any tracked widget exceeds this 5xx count (-1 disables).",
+    )
+    parser.add_argument(
+        "--max-widget-timeouts",
+        type=int,
+        default=-1,
+        help="Fail if any tracked widget exceeds this timeout count (-1 disables).",
+    )
+    parser.add_argument(
+        "--hotspot-widgets",
+        default="ge-activity-vol-usx,ge-tvl-share-usx",
+        help="Comma-separated widget ids to report and gate as hotspots.",
+    )
     return parser.parse_args()
 
 
@@ -537,6 +574,8 @@ def run_scenario(
     warm_latencies = sorted(run["elapsed_ms"] for run in warm_runs)
     success_count = sum(1 for run in warm_runs if run["ok"])
     error_samples = [run["error"] for run in warm_runs if not run["ok"]][:2]
+    warm_5xx_count = sum(1 for run in warm_runs if int(run.get("status_code", 0)) >= 500)
+    warm_timeout_count = sum(1 for run in warm_runs if int(run.get("status_code", 0)) == 0)
 
     p50 = statistics.median(warm_latencies) if warm_latencies else 0.0
     p95 = percentile(warm_latencies, 0.95)
@@ -554,6 +593,8 @@ def run_scenario(
         "warm_repeats": repeats,
         "warm_success_count": success_count,
         "warm_error_count": repeats - success_count,
+        "warm_5xx_count": warm_5xx_count,
+        "warm_timeout_count": warm_timeout_count,
         "warm_min_ms": round(min_ms, 2),
         "warm_p50_ms": round(p50, 2),
         "warm_p95_ms": round(p95, 2),
@@ -561,6 +602,8 @@ def run_scenario(
         "warm_max_ms": round(max_ms, 2),
         "payload_bytes_p50": int(statistics.median(run["payload_bytes"] for run in warm_runs)) if warm_runs else 0,
         "error_samples": error_samples,
+        "cold_timeout": int(cold.get("status_code", 0)) == 0,
+        "cold_5xx": int(cold.get("status_code", 0)) >= 500,
     }
 
 
@@ -609,6 +652,35 @@ def execute_jobs(
             row["loop_index"] = loop_index
             results.append(row)
     return results
+
+
+def summarize_hotspot_widgets(results: list[dict[str, Any]], hotspot_widgets: set[str]) -> dict[str, dict[str, Any]]:
+    summary: dict[str, dict[str, Any]] = {}
+    for row in results:
+        widget = str(row.get("widget", ""))
+        if widget not in hotspot_widgets:
+            continue
+        key = f"{row.get('page', '')}/{widget}"
+        if key not in summary:
+            summary[key] = {
+                "count": 0,
+                "errors": 0,
+                "errors_5xx": 0,
+                "timeouts": 0,
+                "warm_p95_ms_max": 0.0,
+                "cold_ms_max": 0.0,
+            }
+        item = summary[key]
+        item["count"] += 1
+        errors = int(row.get("warm_error_count", 0)) + (0 if row.get("cold_ok", False) else 1)
+        errors_5xx = int(row.get("warm_5xx_count", 0)) + (1 if row.get("cold_5xx") else 0)
+        timeouts = int(row.get("warm_timeout_count", 0)) + (1 if row.get("cold_timeout") else 0)
+        item["errors"] += errors
+        item["errors_5xx"] += errors_5xx
+        item["timeouts"] += timeouts
+        item["warm_p95_ms_max"] = max(float(item["warm_p95_ms_max"]), float(row.get("warm_p95_ms", 0.0)))
+        item["cold_ms_max"] = max(float(item["cold_ms_max"]), float(row.get("cold_ms", 0.0)))
+    return summary
 
 
 def print_report(results: list[dict[str, Any]]) -> None:
@@ -662,6 +734,7 @@ def main() -> int:
     widget_filter = {item.strip() for item in args.widgets.split(",") if item.strip()}
     pages = parse_pages(args.page)
     parallel_profiles = parse_parallel_profiles(args.parallel, args.parallel_ramp)
+    hotspot_widgets = {item.strip() for item in args.hotspot_widgets.split(",") if item.strip()}
 
     if args.reset_telemetry and not args.capture_telemetry:
         raise ValueError("--reset-telemetry requires --capture-telemetry")
@@ -751,6 +824,15 @@ def main() -> int:
         )
     )
     print_report(results)
+    hotspot_summary = summarize_hotspot_widgets(results, hotspot_widgets)
+    if hotspot_summary:
+        print("\nHotspot summary")
+        print("=" * 110)
+        for key, value in sorted(hotspot_summary.items()):
+            print(
+                f"{key}: errors={value['errors']} 5xx={value['errors_5xx']} "
+                f"timeouts={value['timeouts']} warm_p95_max_ms={value['warm_p95_ms_max']:.2f}"
+            )
 
     report = {
         "run_started_utc": start.isoformat(),
@@ -770,8 +852,13 @@ def main() -> int:
             "soak_pause_seconds": args.soak_pause_seconds,
             "widget_filter": sorted(widget_filter),
             "quick": args.quick,
+            "max_widget_errors": args.max_widget_errors,
+            "max_widget_5xx": args.max_widget_5xx,
+            "max_widget_timeouts": args.max_widget_timeouts,
+            "hotspot_widgets": sorted(hotspot_widgets),
         },
         "profile_runs": profile_runs,
+        "hotspot_summary": hotspot_summary,
         "results": results,
     }
     if args.capture_telemetry:
@@ -790,7 +877,20 @@ def main() -> int:
         row for row in results
         if (not row.get("cold_ok", False)) or int(row.get("warm_error_count", 0)) > 0
     ]
+    widget_errors_max = max((int(v.get("errors", 0)) for v in hotspot_summary.values()), default=0)
+    widget_5xx_max = max((int(v.get("errors_5xx", 0)) for v in hotspot_summary.values()), default=0)
+    widget_timeouts_max = max((int(v.get("timeouts", 0)) for v in hotspot_summary.values()), default=0)
+    gate_failures: list[str] = []
+    if args.max_widget_errors >= 0 and widget_errors_max > args.max_widget_errors:
+        gate_failures.append(f"widget_errors_max={widget_errors_max} > max_widget_errors={args.max_widget_errors}")
+    if args.max_widget_5xx >= 0 and widget_5xx_max > args.max_widget_5xx:
+        gate_failures.append(f"widget_5xx_max={widget_5xx_max} > max_widget_5xx={args.max_widget_5xx}")
+    if args.max_widget_timeouts >= 0 and widget_timeouts_max > args.max_widget_timeouts:
+        gate_failures.append(f"widget_timeouts_max={widget_timeouts_max} > max_widget_timeouts={args.max_widget_timeouts}")
     if args.fail_on_errors and failures:
+        return 1
+    if gate_failures:
+        print("Widget gate failures: " + "; ".join(gate_failures))
         return 1
 
     return 0

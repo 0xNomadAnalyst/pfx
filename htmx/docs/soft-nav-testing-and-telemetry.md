@@ -266,6 +266,30 @@ python "api-w-caching/scripts/benchmark_dashboard.py" \
   --output-json "htmx/docs/benchmark-runs/wave3-api-ramp-soak.json"
 ```
 
+Wave 4 hotspot gate flags:
+
+```bash
+python "api-w-caching/scripts/benchmark_dashboard.py" \
+  --base-url http://127.0.0.1:8011 \
+  --page risk-analysis,health,global-ecosystem \
+  --quick \
+  --parallel-ramp 1,3 \
+  --soak-seconds 120 \
+  --soak-pause-seconds 1 \
+  --max-widget-errors 0 \
+  --max-widget-5xx 0 \
+  --max-widget-timeouts 0 \
+  --hotspot-widgets ge-activity-vol-usx,ge-tvl-share-usx \
+  --capture-telemetry \
+  --reset-telemetry \
+  --output-json "htmx/docs/benchmark-runs/wave4-api-ramp-soak-8011.json"
+```
+
+`benchmark_dashboard.py` now emits:
+
+- `hotspot_summary` with per-hotspot `errors`, `errors_5xx`, `timeouts`, and max latency envelopes.
+- Gate failure output when hotspot thresholds are violated.
+
 ---
 
 ## Quick Debug Snippets

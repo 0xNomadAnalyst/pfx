@@ -271,6 +271,7 @@ class SqlAdapter:
                 "page": str(entry.get("page", "")),
                 "widget": str(entry.get("widget", "")),
                 "query_preview": str(entry.get("query_preview", "")),
+                "slow_samples_ms": list(entry.get("slow_samples_ms", [])),
             }
         snapshot["query_fingerprint_stats"] = fingerprint_rollup
         return snapshot
@@ -352,6 +353,7 @@ class SqlAdapter:
                     "total_ms": 0.0,
                     "max_ms": 0.0,
                     "samples": [],
+                    "slow_samples_ms": [],
                     "page": context.get("page", ""),
                     "widget": context.get("widget", ""),
                     "query_preview": " ".join(query.split())[:220],
@@ -366,6 +368,8 @@ class SqlAdapter:
             if len(samples) > 300:
                 samples = samples[-300:]
             entry["samples"] = samples
+            slow_samples = sorted([float(v) for v in entry.get("slow_samples_ms", [])] + [elapsed_ms], reverse=True)
+            entry["slow_samples_ms"] = [round(v, 3) for v in slow_samples[:5]]
             fp_stats[fp_key] = entry
 
     @staticmethod
