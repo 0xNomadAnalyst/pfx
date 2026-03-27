@@ -1,0 +1,641 @@
+Opening http://127.0.0.1:8002/global-ecosystem
+Found 7 sidebar links.
+
+Burst 1/2: 20 rapid clicks
+  -> settled | current=/risk-analysis | inFlight=False | queued= | 5xx+err+abort=0/0/30
+
+Burst 2/2: 20 rapid clicks
+[console:error] htmx:afterRequest
+[console:error] htmx:sendAbort
+  -> settled | current=/exponent-yield | inFlight=False | queued= | 5xx+err+abort=0/0/14
+
+=== Soft-nav stress report ===
+{
+  "elapsed_seconds": 3.172,
+  "bursts": 2,
+  "clicks_per_burst": 20,
+  "interval_ms": 35,
+  "burst_summaries": [
+    {
+      "burst_index": 1,
+      "target_path": "/risk-analysis",
+      "settled": true,
+      "hydration_terminal_reason": "finish",
+      "started_delta": 15,
+      "aborts_delta": 30,
+      "errors_delta": 0,
+      "timeouts_delta": 0,
+      "errors_5xx_delta": 0,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 14,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    },
+    {
+      "burst_index": 2,
+      "target_path": "/exponent-yield",
+      "settled": true,
+      "hydration_terminal_reason": "finish",
+      "started_delta": 0,
+      "aborts_delta": 14,
+      "errors_delta": 0,
+      "timeouts_delta": 0,
+      "errors_5xx_delta": 0,
+      "persist_restore_hits": 0,
+      "persist_restore_misses": 14,
+      "persist_expired": 0,
+      "refresh_interval_seconds": 30.0
+    }
+  ],
+  "route_error_summary": {
+    "/risk-analysis": {
+      "errors_5xx": 0,
+      "errors_total": 0,
+      "timeouts": 0,
+      "aborts": 30,
+      "started": 15
+    },
+    "/exponent-yield": {
+      "errors_5xx": 0,
+      "errors_total": 0,
+      "timeouts": 0,
+      "aborts": 14,
+      "started": 0
+    }
+  },
+  "metrics": {
+    "starts": 2,
+    "finishes": 2,
+    "queueEnqueues": 0,
+    "queueDrains": 0,
+    "cacheHits": 2,
+    "cacheMisses": 0,
+    "pendingSkeletonShows": 0,
+    "supersededHydrationSkips": 0,
+    "shellVisibleCount": 2,
+    "lastShellVisibleMs": 4.4000000059604645,
+    "maxShellVisibleMs": 5.299999997019768,
+    "hydrationStarts": 2,
+    "hydrationFinishes": 1,
+    "hydrationSkips": 0,
+    "hydrationCancelledSuperseded": 0,
+    "hydrationCancelledNav": 0,
+    "lastHydrationTerminalReason": "finish",
+    "lastHydrationMs": 132.59999999403954,
+    "maxHydrationMs": 132.59999999403954,
+    "lastWidgetSettleMs": 0,
+    "maxWidgetSettleMs": 0,
+    "widgetRequestsStarted": 15,
+    "widgetRequestsCompleted": 11,
+    "widgetRequestsAborted": 44,
+    "widgetRequestErrors": 0,
+    "widgetRequest5xx": 0,
+    "widgetRequestTimeouts": 0,
+    "shellPrefetchAttempts": 0,
+    "shellPrefetchSuccesses": 0,
+    "shellPrefetchFailures": 0,
+    "shellPrefetchInFlightJoins": 0,
+    "lastShellPrefetchMs": 0,
+    "maxShellPrefetchMs": 0,
+    "maxInFlightMs": 5.399999991059303,
+    "lastInFlightMs": 4.4000000059604645,
+    "lastRequestedPath": "/exponent-yield",
+    "lastFinishedPath": "/exponent-yield",
+    "activeNavTraceId": "nav_mn8a326l_2__exponent_yield",
+    "lastCompletedNavTraceId": "nav_mn8a326l_2__exponent_yield",
+    "refreshIntervalSeconds": 30,
+    "persistRestoreHits": 0,
+    "persistRestoreMisses": 14,
+    "persistExpired": 0,
+    "persistEvictions": 0,
+    "persistStaleServed": 0,
+    "persistStaleRefreshed": 0,
+    "persistRestoreToVisibleMs": 0,
+    "persistRestoreToVisibleSamples": [],
+    "events": [
+      {
+        "t": 1774578270636,
+        "type": "start",
+        "details": {
+          "path": "/risk-analysis",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-issuance-bar",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzl_i12ry",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-issuance-pie",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzm_e1v6r",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-issuance-time",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzm_827oo",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-current-yields",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzm_ivap0",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-yields-vs-time",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzm_rmqo5",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-availability-bar",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzn_5zwof",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-availability-time",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzn_2oy7e",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-tvl-bar",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzn_w0ue5",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-activity-bar",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzn_en1di",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-tvl-pie",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzn_zmt5t",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-activity-pct",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzo_phbef",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-tvl-time",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzo_wpui2",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-activity-vol",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzo_hk8pf",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-tvl-share",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzo_b6289",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270637,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ge-activity-share",
+          "navTraceId": "nav_mn8a2zz5_1__global_ecosystem",
+          "requestId": "nav_mn8a2zz5_1__global_ecosystem_req_mn8a2zzo_llrv8",
+          "currentPath": "/global-ecosystem"
+        }
+      },
+      {
+        "t": 1774578270641,
+        "type": "shell_visible",
+        "details": {
+          "path": "/risk-analysis",
+          "elapsedMs": 5.299999997019768
+        }
+      },
+      {
+        "t": 1774578270641,
+        "type": "finish",
+        "details": {
+          "path": "/risk-analysis",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis"
+        }
+      },
+      {
+        "t": 1774578270732,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270858,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-pvalue-tables",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270859,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-liq-dist-orca",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270859,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-liq-dist-ray",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270859,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-liq-depth-orca",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270859,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-liq-depth-ray",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270860,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-prob-orca",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270860,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-prob-ray",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270860,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-exposure",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270860,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-dist-orca",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270860,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-dist-ray",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270860,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-depth-orca",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270860,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-depth-ray",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270861,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-stress-test",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270861,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-cascade",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270863,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-exposure",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3158_f4zmd",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578270865,
+        "type": "hydrate_finish",
+        "details": {
+          "path": "/risk-analysis",
+          "hydrationMs": 132.59999999403954,
+          "reason": "finish"
+        }
+      },
+      {
+        "t": 1774578272205,
+        "type": "start",
+        "details": {
+          "path": "/exponent-yield",
+          "navTraceId": "nav_mn8a326l_2__exponent_yield"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-pvalue-tables",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3157_b2zh3",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-liq-dist-orca",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3157_hg616",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-liq-dist-ray",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3157_uz6qk",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-liq-depth-orca",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3157_cy46j",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-liq-depth-ray",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3157_b1vf4",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-prob-orca",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3158_c6gnn",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-prob-ray",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3158_i957z",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-exposure",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a315c_e7yl9",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-dist-orca",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3158_56dar",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-dist-ray",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3158_oqfg5",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-depth-orca",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3158_2e1in",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-xp-depth-ray",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3159_4b83c",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-stress-test",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3159_px73y",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272207,
+        "type": "widget_request_abort",
+        "details": {
+          "widgetId": "ra-cascade",
+          "navTraceId": "nav_mn8a30z0_1__risk_analysis",
+          "requestId": "nav_mn8a30z0_1__risk_analysis_req_mn8a3159_jc1su",
+          "currentPath": "/risk-analysis"
+        }
+      },
+      {
+        "t": 1774578272209,
+        "type": "shell_visible",
+        "details": {
+          "path": "/exponent-yield",
+          "elapsedMs": 4.4000000059604645
+        }
+      },
+      {
+        "t": 1774578272209,
+        "type": "finish",
+        "details": {
+          "path": "/exponent-yield",
+          "queuedPath": "",
+          "navTraceId": "nav_mn8a326l_2__exponent_yield"
+        }
+      },
+      {
+        "t": 1774578272299,
+        "type": "hydrate_start",
+        "details": {
+          "path": "/exponent-yield"
+        }
+      }
+    ],
+    "inFlight": false,
+    "queuedPath": "",
+    "widgetRequestsInFlight": 0,
+    "shellCacheSize": 7,
+    "shellCacheCapacity": 9,
+    "allShellPrefetchScheduled": false,
+    "allShellPrefetchCompleted": true,
+    "prefetchByPath": {},
+    "currentPath": "/exponent-yield",
+    "persistRestoreToVisibleAvgMs": 0
+  }
+}

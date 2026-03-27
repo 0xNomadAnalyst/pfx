@@ -45,9 +45,32 @@ _ENV_MAP: dict[str, type] = {
 }
 
 
+def _parse_bool(value: str) -> bool:
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _read_dash_refresh_interval_seconds(default: float = 30.0) -> float:
+    raw = os.getenv("DASH_REFRESH_INTERVAL_SECONDS")
+    if raw is None:
+        return default
+    try:
+        parsed = float(raw.strip())
+    except Exception:
+        return default
+    if not parsed or parsed < 0:
+        return default
+    return max(5.0, min(3600.0, parsed))
+
+
 def _resolve() -> dict[str, Any]:
     mode = os.getenv("API_CACHE_MODE", "balanced").lower().strip()
     profile = dict(API_CACHE_PROFILES.get(mode, API_CACHE_PROFILES["balanced"]))
+    dash_refresh_seconds = _read_dash_refresh_interval_seconds()
+    if "API_CACHE_TTL_SECONDS" not in os.environ:
+        profile["API_CACHE_TTL_SECONDS"] = dash_refresh_seconds
+    if "API_CACHE_SWR_SECONDS" not in os.environ:
+        profile["API_CACHE_SWR_SECONDS"] = max(5.0, round(dash_refresh_seconds * 0.5, 3))
+    profile["DASH_REFRESH_INTERVAL_SECONDS"] = dash_refresh_seconds
 
     for key, converter in _ENV_MAP.items():
         raw = os.getenv(key)
@@ -55,7 +78,7 @@ def _resolve() -> dict[str, Any]:
             continue
         raw = raw.strip()
         if converter is bool:
-            profile[key] = raw == "1"
+            profile[key] = _parse_bool(raw)
         elif converter is float:
             profile[key] = float(raw)
         elif converter is int:

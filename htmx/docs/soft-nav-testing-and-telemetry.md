@@ -72,6 +72,10 @@ Use these in CI/regression runs:
 - `--max-route-timeouts` (default `-1`, disabled)
 - `--max-route-abort-ratio` (default `-1`, disabled)
 - `--max-hydration-orphans` (default `-1`, disabled)
+- `--min-restore-hit-rate` (default `-1`, disabled)
+- `--max-persist-expired` (default `-1`, disabled)
+- `--expected-refresh-interval-seconds` (default `-1`, disabled)
+- `--refresh-interval-tolerance-seconds` (default `2.0`)
 
 ### Healthy signal
 
@@ -142,6 +146,10 @@ python "htmx/scripts/soft_nav_phase_benchmark.py" \
 - `--max-route-timeouts` (default `-1`, disabled)
 - `--max-route-abort-ratio` (default `-1`, disabled)
 - `--max-hydration-orphans` (default `-1`, disabled)
+- `--min-restore-hit-rate` (default `-1`, disabled)
+- `--max-persist-expired` (default `-1`, disabled)
+- `--expected-refresh-interval-seconds` (default `-1`, disabled)
+- `--refresh-interval-tolerance-seconds` (default `2.0`)
 
 ---
 
@@ -157,6 +165,7 @@ Wave 3 correlation fields:
 
 - `activeNavTraceId`
 - `lastCompletedNavTraceId`
+- `refreshIntervalSeconds`
 
 ### Soft-nav counters (high-level)
 
@@ -204,6 +213,15 @@ Wave 3 correlation fields:
   - `lastShellPrefetchMs`
   - `maxShellPrefetchMs`
   - `prefetchByPath` (`attempts/successes/failures/inFlightJoins/avgMs/maxMs/lastMs`)
+- **Persistence telemetry**
+  - `persistRestoreHits`
+  - `persistRestoreMisses`
+  - `persistExpired`
+  - `persistEvictions`
+  - `persistStaleServed`
+  - `persistStaleRefreshed`
+  - `persistRestoreToVisibleMs`
+  - `persistRestoreToVisibleAvgMs`
 
 ### Event stream (`snapshot().events`)
 
@@ -229,6 +247,7 @@ Wave 3 request-correlation events include:
 When `API_TELEMETRY_ENABLED=1` on the API service:
 
 - `GET /api/v1/telemetry` returns:
+  - `refresh_interval_seconds` (active unified cadence from API config)
   - `request_stats` (request totals, success/error totals, by-page/by-widget counters)
   - `request_stats.status_family_counts` (`2xx/4xx/5xx` family counts)
   - `request_stats.latency_by_page` (`count/avg/p50/p95/p99/max`)
@@ -289,6 +308,19 @@ python "api-w-caching/scripts/benchmark_dashboard.py" \
 
 - `hotspot_summary` with per-hotspot `errors`, `errors_5xx`, `timeouts`, and max latency envelopes.
 - Gate failure output when hotspot thresholds are violated.
+
+Wave 5 cadence gate flags:
+
+```bash
+python "api-w-caching/scripts/benchmark_dashboard.py" \
+  --base-url http://127.0.0.1:8011 \
+  --page risk-analysis,health,global-ecosystem \
+  --quick \
+  --capture-telemetry \
+  --expected-refresh-interval-seconds 30 \
+  --refresh-interval-tolerance-seconds 2 \
+  --output-json "htmx/docs/benchmark-runs/wave5-api-cadence-check.json"
+```
 
 ---
 

@@ -18,6 +18,8 @@
   const PAGE_ACTION_CACHE_TTL_MS = 60_000;
   const DETAIL_TABLE_CACHE_MAX_ENTRIES = 40;
   const PAGE_ACTION_CACHE_MAX_ENTRIES = 40;
+  const DASH_REFRESH_INTERVAL_SECONDS = readRuntimeInt("dashRefreshIntervalSeconds", 30, 5, 3600);
+  const DASH_REFRESH_INTERVAL_MS = DASH_REFRESH_INTERVAL_SECONDS * 1000;
   const SOFT_NAV_SHELL_CACHE_MAX_ENTRIES = readRuntimeInt("softNavShellCacheMaxEntries", 5, 1, 40);
   const SOFT_NAV_SHELL_CACHE_TTL_MS = readRuntimeInt("softNavShellCacheTtlMs", 600_000, 10_000, 3_600_000);
   const SOFT_NAV_SHELL_REFRESH_DELAY_MS = readRuntimeInt("softNavShellRefreshDelayMs", 3000, 500, 20_000);
@@ -49,8 +51,18 @@
   const WARMUP_RETURN_PAYLOADS = readRuntimeBool("warmupReturnPayloads", false);
   const PERSIST_CACHE_ENABLED = readRuntimeBool("persistCacheEnabled", false);
   const PERSIST_CACHE_KEY_PREFIX = "riskdash:pcache:";
-  const PERSIST_CACHE_VERSION_KEY = "riskdash:pcache:version";
+  const PERSIST_CACHE_VERSION = "v3";
+  const PERSIST_CACHE_VERSION_KEY = `${PERSIST_CACHE_KEY_PREFIX}version`;
+  const PERSIST_CACHE_DATA_KEY = `${PERSIST_CACHE_KEY_PREFIX}data:${PERSIST_CACHE_VERSION}`;
+  const PERSIST_CACHE_INDEX_KEY = `${PERSIST_CACHE_KEY_PREFIX}keys:${PERSIST_CACHE_VERSION}`;
+  const PERSIST_CACHE_WIDGET_ENTRY_PREFIX = `${PERSIST_CACHE_KEY_PREFIX}widget:${PERSIST_CACHE_VERSION}:`;
+  const PERSIST_CACHE_SHELL_ENTRY_PREFIX = `${PERSIST_CACHE_KEY_PREFIX}shell:${PERSIST_CACHE_VERSION}:`;
   const PERSIST_CACHE_MAX_BYTES = 2 * 1024 * 1024;
+  const PERSIST_CACHE_MAX_ENTRIES = 220;
+  const PERSIST_CACHE_WIDGET_MAX_ENTRIES = 180;
+  const PERSIST_WIDGET_STALE_AFTER_MS = Math.max(5_000, DASH_REFRESH_INTERVAL_MS);
+  const PERSIST_WIDGET_EXPIRES_AFTER_MS = Math.max(DEFAULT_CACHE_MAX_AGE_MS, DASH_REFRESH_INTERVAL_MS * 3);
+  const PERSIST_SHELL_EXPIRES_AFTER_MS = Math.max(SOFT_NAV_SHELL_CACHE_TTL_MS, DASH_REFRESH_INTERVAL_MS * 10);
   const detailTableCache = new Map();
   const pageActionCache = new Map();
   const softNavShellCache = new Map();
@@ -4580,14 +4592,60 @@
     return widgetId.startsWith("kpi-");
   }
 
-  function isPayloadFreshEnoughForWidget(widgetId, payload) {
-    const generatedAt = payload?.metadata?.generated_at;
-    if (!generatedAt) return true;
-    const ts = Date.parse(generatedAt);
-    if (!Number.isFinite(ts)) return true;
-    const ageMs = Date.now() - ts;
-    const budgetMs = isCriticalWidget(widgetId) ? CRITICAL_CACHE_MAX_AGE_MS : DEFAULT_CACHE_MAX_AGE_MS;
-    return ageMs <= budgetMs;
+  function buildWidgetCacheEntry(widgetId, payload, meta = {}) {
+    const now = Date.now();
+    const critical = isCriticalWidget(widgetId);
+    const generatedAtTs = Date.parse(payload?.metadata?.generated_at || "");
+    const referenceTs = Number.isFinite(generatedAtTs) ? generatedAtTs : now;
+    const freshnessMs = critical ? CRITICAL_CACHE_MAX_AGE_MS : DEFAULT_CACHE_MAX_AGE_MS;
+    const staleAfterMs = Math.max(PERSIST_WIDGET_STALE_AFTER_MS, Math.min(freshnessMs, DASH_REFRESH_INTERVAL_MS * 2));
+    const expiresAfterMs = Math.max(PERSIST_WIDGET_EXPIRES_AFTER_MS, freshnessMs);
+    const cachedAtMs = Number(meta.cachedAtMs) > 0 ? Number(meta.cachedAtMs) : now;
+    const staleAtMs = Number(meta.staleAtMs) > 0 ? Number(meta.staleAtMs) : Math.max(cachedAtMs + staleAfterMs, referenceTs + staleAfterMs);
+    const expiresAtMs = Number(meta.expiresAtMs) > 0 ? Number(meta.expiresAtMs) : Math.max(cachedAtMs + expiresAfterMs, referenceTs + expiresAfterMs);
+    return {
+      payload,
+      cachedAtMs,
+      staleAtMs,
+      expiresAtMs,
+      lruAtMs: now,
+      staleServed: false,
+      source: String(meta.source || "memory"),
+    };
+  }
+
+  function getWidgetCacheEntry(widgetId, signature) {
+    if (!widgetId) return null;
+    const key = widgetCacheKey(widgetId, signature);
+    const entry = widgetResponseCache.get(key);
+    if (!entry || !entry.payload) return null;
+    const now = Date.now();
+    if (Number(entry.expiresAtMs || 0) > 0 && now > Number(entry.expiresAtMs)) {
+      widgetResponseCache.delete(key);
+      _softNavDebug.persistExpired += 1;
+      _softNavDebugEvent("persist_widget_expired", { widgetId, key });
+      return null;
+    }
+    entry.lruAtMs = now;
+    widgetResponseCache.delete(key);
+    widgetResponseCache.set(key, entry);
+    return entry;
+  }
+
+  function classifyWidgetCacheFreshness(widgetId, entry) {
+    if (!entry || !entry.payload) return "miss";
+    const now = Date.now();
+    const expiresAtMs = Number(entry.expiresAtMs || 0);
+    if (expiresAtMs > 0 && now > expiresAtMs) {
+      return "expired";
+    }
+    const staleAtMs = Number(entry.staleAtMs || 0);
+    const generatedAtTs = Date.parse(entry.payload?.metadata?.generated_at || "");
+    const referenceTs = Number.isFinite(generatedAtTs) ? generatedAtTs : Number(entry.cachedAtMs || 0) || now;
+    const freshnessBudget = isCriticalWidget(widgetId) ? CRITICAL_CACHE_MAX_AGE_MS : DEFAULT_CACHE_MAX_AGE_MS;
+    const staleBudgetTs = referenceTs + freshnessBudget;
+    const effectiveStaleAtMs = staleAtMs > 0 ? Math.min(staleAtMs, staleBudgetTs) : staleBudgetTs;
+    return now > effectiveStaleAtMs ? "stale" : "fresh";
   }
 
   function setLruCacheEntry(cacheMap, maxEntries, key, value) {
@@ -4797,7 +4855,12 @@
   function setWidgetCachedPayload(widgetId, signature, payload) {
     if (!widgetId || !payload) return;
     const key = widgetCacheKey(widgetId, signature);
-    setLruCacheEntry(widgetResponseCache, WIDGET_RESPONSE_CACHE_MAX_ENTRIES, key, payload);
+    const existing = widgetResponseCache.get(key);
+    const nextEntry = buildWidgetCacheEntry(widgetId, payload, {
+      source: "widget",
+      cachedAtMs: existing?.cachedAtMs,
+    });
+    setLruCacheEntry(widgetResponseCache, WIDGET_RESPONSE_CACHE_MAX_ENTRIES, key, nextEntry);
     let sameWidgetCount = 0;
     for (const cacheKey of widgetResponseCache.keys()) {
       if (cacheKey.startsWith(`${widgetId}::`)) sameWidgetCount += 1;
@@ -4808,6 +4871,7 @@
         if (cacheKey.startsWith(`${widgetId}::`)) {
           widgetResponseCache.delete(cacheKey);
           sameWidgetCount -= 1;
+          _softNavDebug.persistEvictions += 1;
           evicted = true;
           break;
         }
@@ -4817,13 +4881,21 @@
   }
 
   function getWidgetCachedPayload(widgetId, signature) {
-    if (!widgetId) return null;
-    const key = widgetCacheKey(widgetId, signature);
-    const payload = widgetResponseCache.get(key);
-    if (!payload) return null;
-    widgetResponseCache.delete(key);
-    widgetResponseCache.set(key, payload);
-    return payload;
+    const entry = getWidgetCacheEntry(widgetId, signature);
+    return entry?.payload || null;
+  }
+
+  function scheduleWidgetStaleRefresh(sourceEl, reason = "stale_cache") {
+    if (!sourceEl) return;
+    if (sourceEl.dataset.staleRefreshPending === "1") return;
+    sourceEl.dataset.staleRefreshPending = "1";
+    _softNavDebug.persistStaleRefreshed += 1;
+    setTimeout(() => {
+      sourceEl.dataset.staleRefreshPending = "0";
+      if (document.body.contains(sourceEl)) {
+        htmx.trigger(sourceEl, "dashboard-refresh");
+      }
+    }, 0);
   }
 
   function renderCachedWidgetPayload(sourceEl) {
@@ -4831,15 +4903,30 @@
     const widgetId = sourceEl.dataset.widgetId || "";
     if (!widgetId) return false;
     const signature = widgetFilterSignature(sourceEl);
-    const payload = getWidgetCachedPayload(widgetId, signature);
-    if (!payload) return false;
-    if (!isPayloadFreshEnoughForWidget(widgetId, payload)) return false;
+    const entry = getWidgetCacheEntry(widgetId, signature);
+    if (!entry || !entry.payload) {
+      _softNavDebug.persistRestoreMisses += 1;
+      return false;
+    }
+    const freshness = classifyWidgetCacheFreshness(widgetId, entry);
+    if (freshness === "expired") {
+      _softNavDebug.persistRestoreMisses += 1;
+      return false;
+    }
+    const payload = entry.payload;
 
     const srcId = resolveSourceWidgetId(sourceEl);
     _renderingWidgetEl = sourceEl;
     try {
       renderPayload(widgetId, payload, srcId);
-      updateTimestamp(widgetId, payload?.metadata?.generated_at, { stale: true });
+      const stale = freshness !== "fresh";
+      updateTimestamp(widgetId, payload?.metadata?.generated_at, { stale });
+      _softNavDebug.persistRestoreHits += 1;
+      if (stale) {
+        entry.staleServed = true;
+        _softNavDebug.persistStaleServed += 1;
+        scheduleWidgetStaleRefresh(sourceEl);
+      }
       sourceEl.dataset.hasLoadedOnce = "1";
       return true;
     } catch (_) {
@@ -4850,12 +4937,24 @@
   }
 
   function hydrateWidgetsFromCache() {
+    const startedAt = performance.now();
     let hits = 0;
     widgetElements().forEach((el) => {
       if (renderCachedWidgetPayload(el)) {
         hits += 1;
       }
     });
+    if (hits > 0) {
+      const latencyMs = Math.max(0, performance.now() - startedAt);
+      _softNavDebug.persistRestoreToVisibleMs = latencyMs;
+      const samples = Array.isArray(_softNavDebug.persistRestoreToVisibleSamples)
+        ? _softNavDebug.persistRestoreToVisibleSamples
+        : [];
+      samples.push(latencyMs);
+      if (samples.length > 50) samples.splice(0, samples.length - 50);
+      _softNavDebug.persistRestoreToVisibleSamples = samples;
+      _softNavDebugEvent("persist_restore_visible", { hits, latencyMs });
+    }
     return hits;
   }
 
@@ -5162,6 +5261,8 @@
       "currentPipeline",
       "defaultProtocol",
       "defaultPair",
+      "dashRefreshIntervalSeconds",
+      "cacheMode",
       "warmupBudgetSeconds",
       "warmupMaxJobs",
       "warmupConcurrency",
@@ -5242,6 +5343,15 @@
     lastFinishedPath: "",
     activeNavTraceId: "",
     lastCompletedNavTraceId: "",
+    refreshIntervalSeconds: DASH_REFRESH_INTERVAL_SECONDS,
+    persistRestoreHits: 0,
+    persistRestoreMisses: 0,
+    persistExpired: 0,
+    persistEvictions: 0,
+    persistStaleServed: 0,
+    persistStaleRefreshed: 0,
+    persistRestoreToVisibleMs: 0,
+    persistRestoreToVisibleSamples: [],
     events: [],
   };
   let _widgetRequestsInFlight = 0;
@@ -5401,6 +5511,12 @@
         lastMs: Math.max(0, Number(value.lastMs) || 0),
       };
     });
+    const restoreSamples = Array.isArray(_softNavDebug.persistRestoreToVisibleSamples)
+      ? _softNavDebug.persistRestoreToVisibleSamples
+      : [];
+    const restoreAvgMs = restoreSamples.length
+      ? restoreSamples.reduce((sum, value) => sum + Number(value || 0), 0) / restoreSamples.length
+      : 0;
     return {
       ..._softNavDebug,
       inFlight: _softNavInFlight,
@@ -5414,6 +5530,7 @@
       activeNavTraceId: _softNavActiveTraceId,
       lastCompletedNavTraceId: _softNavLastCompletedTraceId,
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
+      persistRestoreToVisibleAvgMs: restoreAvgMs,
     };
   }
 
@@ -5457,6 +5574,15 @@
     _softNavDebug.lastFinishedPath = "";
     _softNavDebug.activeNavTraceId = "";
     _softNavDebug.lastCompletedNavTraceId = "";
+    _softNavDebug.refreshIntervalSeconds = DASH_REFRESH_INTERVAL_SECONDS;
+    _softNavDebug.persistRestoreHits = 0;
+    _softNavDebug.persistRestoreMisses = 0;
+    _softNavDebug.persistExpired = 0;
+    _softNavDebug.persistEvictions = 0;
+    _softNavDebug.persistStaleServed = 0;
+    _softNavDebug.persistStaleRefreshed = 0;
+    _softNavDebug.persistRestoreToVisibleMs = 0;
+    _softNavDebug.persistRestoreToVisibleSamples = [];
     _softNavDebug.events = [];
     softNavShellPrefetchStats.clear();
     _softNavCurrentStartMs = 0;
@@ -6022,6 +6148,7 @@
     initWidgetVisibilityTracking();
     triggerDashboardRefresh({ prioritizeViewport: true });
     initWarmupScheduler();
+    initNavigationReadinessScheduler();
 
     initTradeImpactModeToggle();
     initSwapsFlowModeToggle();
@@ -6203,32 +6330,82 @@
   function _persistCacheVersionKey() {
     const slug = document.body?.dataset?.currentPageSlug || "";
     const mode = document.body?.dataset?.cacheMode || "balanced";
-    return `${slug}:${mode}`;
+    return `${PERSIST_CACHE_VERSION}:${slug}:${mode}:r${DASH_REFRESH_INTERVAL_SECONDS}`;
   }
 
   function persistCacheWrite() {
     if (!PERSIST_CACHE_ENABLED) return;
     try {
       const version = _persistCacheVersionKey();
-      const shells = {};
+      const now = Date.now();
+      const shells = [];
       softNavShellCache.forEach((entry, path) => {
-        if (entry && entry.html) {
-          shells[path] = { html: entry.html, storedAt: entry.storedAt || Date.now() };
-        }
+        if (!entry || !entry.html) return;
+        const expiresAtMs = Number(entry.expiresAt || 0) > 0
+          ? Number(entry.expiresAt)
+          : now + PERSIST_SHELL_EXPIRES_AFTER_MS;
+        if (expiresAtMs <= now) return;
+        shells.push({
+          key: path,
+          html: entry.html,
+          pinned: !!entry.pinned,
+          cachedAtMs: Number(entry.storedAt || now),
+          lruAtMs: Number(entry.storedAt || now),
+          expiresAtMs,
+        });
       });
-      const widgets = {};
-      let widgetCount = 0;
+      const widgets = [];
       widgetResponseCache.forEach((entry, key) => {
-        if (widgetCount >= 20) return;
-        if (entry) {
-          widgets[key] = { payload: entry, storedAt: Date.now() };
-          widgetCount++;
-        }
+        if (!entry || !entry.payload) return;
+        const expiresAtMs = Number(entry.expiresAtMs || 0);
+        if (expiresAtMs > 0 && expiresAtMs <= now) return;
+        widgets.push({
+          key,
+          payload: entry.payload,
+          cachedAtMs: Number(entry.cachedAtMs || now),
+          staleAtMs: Number(entry.staleAtMs || 0),
+          expiresAtMs: expiresAtMs > 0 ? expiresAtMs : now + PERSIST_WIDGET_EXPIRES_AFTER_MS,
+          lruAtMs: Number(entry.lruAtMs || now),
+        });
       });
-      const blob = JSON.stringify({ version, shells, widgets, savedAt: Date.now() });
+
+      widgets.sort((a, b) => Number(b.lruAtMs || 0) - Number(a.lruAtMs || 0));
+      const limitedWidgets = widgets.slice(0, PERSIST_CACHE_WIDGET_MAX_ENTRIES);
+      let payload = {
+        version,
+        savedAtMs: now,
+        dashRefreshIntervalSeconds: DASH_REFRESH_INTERVAL_SECONDS,
+        shells,
+        widgets: limitedWidgets,
+      };
+      let blob = JSON.stringify(payload);
+      if (blob.length > PERSIST_CACHE_MAX_BYTES || (shells.length + limitedWidgets.length) > PERSIST_CACHE_MAX_ENTRIES) {
+        const trimmedWidgets = [...limitedWidgets];
+        while (
+          (blob.length > PERSIST_CACHE_MAX_BYTES || (shells.length + trimmedWidgets.length) > PERSIST_CACHE_MAX_ENTRIES)
+          && trimmedWidgets.length > 0
+        ) {
+          trimmedWidgets.pop();
+          _softNavDebug.persistEvictions += 1;
+          payload = {
+            version,
+            savedAtMs: now,
+            dashRefreshIntervalSeconds: DASH_REFRESH_INTERVAL_SECONDS,
+            shells,
+            widgets: trimmedWidgets,
+          };
+          blob = JSON.stringify(payload);
+        }
+      }
       if (blob.length > PERSIST_CACHE_MAX_BYTES) return;
-      localStorage.setItem(PERSIST_CACHE_KEY_PREFIX + "data", blob);
+      localStorage.setItem(PERSIST_CACHE_DATA_KEY, blob);
       localStorage.setItem(PERSIST_CACHE_VERSION_KEY, version);
+      localStorage.setItem(PERSIST_CACHE_INDEX_KEY, JSON.stringify({
+        version,
+        savedAtMs: now,
+        shellCount: shells.length,
+        widgetCount: payload.widgets.length,
+      }));
     } catch (_) {
       // Quota exceeded or private browsing — silently skip.
     }
@@ -6240,30 +6417,48 @@
       const currentVersion = _persistCacheVersionKey();
       const storedVersion = localStorage.getItem(PERSIST_CACHE_VERSION_KEY);
       if (storedVersion !== currentVersion) {
-        localStorage.removeItem(PERSIST_CACHE_KEY_PREFIX + "data");
+        localStorage.removeItem(PERSIST_CACHE_DATA_KEY);
+        localStorage.removeItem(PERSIST_CACHE_INDEX_KEY);
         localStorage.removeItem(PERSIST_CACHE_VERSION_KEY);
         return;
       }
-      const raw = localStorage.getItem(PERSIST_CACHE_KEY_PREFIX + "data");
+      const raw = localStorage.getItem(PERSIST_CACHE_DATA_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
-      const maxAge = SOFT_NAV_SHELL_CACHE_TTL_MS;
       const now = Date.now();
-      if (data.shells) {
-        for (const [path, entry] of Object.entries(data.shells)) {
-          if (now - (entry.storedAt || 0) > maxAge) continue;
-          if (!getSoftNavShellCache(path)) {
-            setSoftNavShellCache(path, entry.html);
-          }
+      const shells = Array.isArray(data?.shells) ? data.shells : [];
+      for (const entry of shells) {
+        const path = String(entry?.key || "");
+        const html = String(entry?.html || "");
+        if (!path || !html) continue;
+        const expiresAtMs = Number(entry?.expiresAtMs || 0);
+        if (expiresAtMs > 0 && now > expiresAtMs) {
+          _softNavDebug.persistExpired += 1;
+          continue;
+        }
+        if (!getSoftNavShellCache(path)) {
+          setSoftNavShellCache(path, html, { pinned: !!entry?.pinned });
         }
       }
-      if (data.widgets) {
-        const cacheMaxAge = DEFAULT_CACHE_MAX_AGE_MS;
-        for (const [key, entry] of Object.entries(data.widgets)) {
-          if (now - (entry.storedAt || 0) > cacheMaxAge) continue;
-          if (!widgetResponseCache.has(key) && entry.payload) {
-            widgetResponseCache.set(key, entry.payload);
-          }
+      const widgets = Array.isArray(data?.widgets) ? data.widgets : [];
+      for (const entry of widgets) {
+        const key = String(entry?.key || "");
+        const payload = entry?.payload;
+        if (!key || !payload) continue;
+        const expiresAtMs = Number(entry?.expiresAtMs || 0);
+        if (expiresAtMs > 0 && now > expiresAtMs) {
+          _softNavDebug.persistExpired += 1;
+          continue;
+        }
+        if (!widgetResponseCache.has(key)) {
+          const widgetId = key.split("::", 1)[0];
+          const cacheEntry = buildWidgetCacheEntry(widgetId, payload, {
+            cachedAtMs: Number(entry?.cachedAtMs || now),
+            staleAtMs: Number(entry?.staleAtMs || 0),
+            expiresAtMs: expiresAtMs > 0 ? expiresAtMs : now + PERSIST_WIDGET_EXPIRES_AFTER_MS,
+            source: "persist",
+          });
+          setLruCacheEntry(widgetResponseCache, WIDGET_RESPONSE_CACHE_MAX_ENTRIES, key, cacheEntry);
         }
       }
     } catch (_) {
@@ -6273,13 +6468,17 @@
 
   function persistCacheClear() {
     try {
-      localStorage.removeItem(PERSIST_CACHE_KEY_PREFIX + "data");
+      localStorage.removeItem(PERSIST_CACHE_DATA_KEY);
+      localStorage.removeItem(PERSIST_CACHE_INDEX_KEY);
       localStorage.removeItem(PERSIST_CACHE_VERSION_KEY);
+      localStorage.removeItem(PERSIST_CACHE_KEY_PREFIX + "data");
+      localStorage.removeItem(PERSIST_CACHE_KEY_PREFIX + "version");
     } catch (_) {}
   }
 
   let _warmupSchedulerStarted = false;
   let _warmupInFlight = false;
+  let _navigationReadinessTimer = null;
   let _rewarmupDebounceTimer = null;
   let _adaptiveShellPrefetchAttempted = 0;
   let _adaptiveShellPrefetchUsed = 0;
@@ -6348,7 +6547,11 @@
             if (Array.isArray(data.payloads)) {
               for (const entry of data.payloads) {
                 if (entry.cache_key && entry.response) {
-                  setLruCacheEntry(widgetResponseCache, WIDGET_RESPONSE_CACHE_MAX_ENTRIES, entry.cache_key, entry.response);
+                  const cacheKey = String(entry.cache_key);
+                  const [widgetId, signature = ""] = cacheKey.split("::");
+                  if (widgetId) {
+                    setWidgetCachedPayload(widgetId, signature, entry.response);
+                  }
                 }
               }
             }
@@ -6374,6 +6577,17 @@
         setTimeout(attemptWarmup, 500);
       }
     });
+  }
+
+  function initNavigationReadinessScheduler() {
+    if (_navigationReadinessTimer) return;
+    const cadenceMs = Math.max(15_000, DASH_REFRESH_INTERVAL_MS);
+    _navigationReadinessTimer = setInterval(() => {
+      if (document.hidden || _softNavInFlight || _pipelineSwitchInProgress) return;
+      _allShellPrefetchCompleted = false;
+      scheduleAllShellPrefetch();
+      scheduleRewarmup();
+    }, cadenceMs);
   }
 
   function scheduleRewarmup() {
@@ -6417,7 +6631,11 @@
             if (Array.isArray(data.payloads)) {
               for (const entry of data.payloads) {
                 if (entry.cache_key && entry.response) {
-                  setLruCacheEntry(widgetResponseCache, WIDGET_RESPONSE_CACHE_MAX_ENTRIES, entry.cache_key, entry.response);
+                  const cacheKey = String(entry.cache_key);
+                  const [widgetId, signature = ""] = cacheKey.split("::");
+                  if (widgetId) {
+                    setWidgetCachedPayload(widgetId, signature, entry.response);
+                  }
                 }
               }
             }
@@ -7359,12 +7577,12 @@
   });
 
   // ── Global health indicator (runs on every page) ──
-  const HEALTH_POLL_INTERVAL_MS = 45_000;
-  const HEALTH_RED_RECOVERY_POLL_INTERVAL_MS = 8_000;
-  const HEALTH_ON_PAGE_POLL_INTERVAL_MS = 20_000;
-  const HEALTH_ON_PAGE_RED_POLL_INTERVAL_MS = 5_000;
-  const HEALTH_CACHE_TTL_MS = 35_000;
-  const HEALTH_RED_CACHE_TTL_MS = 20_000;
+  const HEALTH_POLL_INTERVAL_MS = Math.max(8_000, DASH_REFRESH_INTERVAL_MS * 2);
+  const HEALTH_RED_RECOVERY_POLL_INTERVAL_MS = Math.max(5_000, Math.floor(DASH_REFRESH_INTERVAL_MS * 0.35));
+  const HEALTH_ON_PAGE_POLL_INTERVAL_MS = Math.max(10_000, Math.floor(DASH_REFRESH_INTERVAL_MS * 0.8));
+  const HEALTH_ON_PAGE_RED_POLL_INTERVAL_MS = Math.max(4_000, Math.floor(DASH_REFRESH_INTERVAL_MS * 0.25));
+  const HEALTH_CACHE_TTL_MS = Math.max(5_000, Math.floor(DASH_REFRESH_INTERVAL_MS * 1.2));
+  const HEALTH_RED_CACHE_TTL_MS = Math.max(4_000, Math.floor(DASH_REFRESH_INTERVAL_MS * 0.8));
   const HEALTH_CACHE_KEY = "riskdash:header-health-status:v1";
   const HEALTH_RED_CONFIRM_RETRIES = 3;
   const HEALTH_RED_CONFIRM_DELAY_MS = 2_000;
@@ -7768,7 +7986,7 @@
       mermaid.initialize({ startOnLoad: false, theme: "dark" });
     }
     if (PERSIST_CACHE_ENABLED) {
-      setInterval(persistCacheWrite, 30_000);
+      setInterval(persistCacheWrite, Math.max(15_000, DASH_REFRESH_INTERVAL_MS));
       window.addEventListener("beforeunload", persistCacheWrite);
     }
   });

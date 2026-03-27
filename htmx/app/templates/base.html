@@ -27,6 +27,7 @@
   data-default-protocol="{{ protocol }}"
   data-default-pair="{{ pair }}"
   data-nav-layout="{{ 'sidebar' if use_sidebar_nav else 'topbar' }}"
+  data-dash-refresh-interval-seconds="{{ cache_config.dash_refresh_interval_seconds if cache_config and cache_config.dash_refresh_interval_seconds is defined else 30 }}"
   data-cache-mode="{{ cache_config.cache_mode if cache_config else 'balanced' }}"
   data-warmup-enabled="{{ '1' if cache_config and cache_config.warmup_enabled else '0' }}"
   data-warmup-budget-seconds="{{ cache_config.warmup_budget_seconds if cache_config else 30 }}"
@@ -497,7 +498,7 @@
   <script src="/static/js/theme.js?v=2"></script>
   <script id="warmup-manifest" type="application/json">{{ warmup_manifest|tojson }}</script>
   {% if embedded_shells_json %}<script id="prefetched-shells" type="application/json">{{ embedded_shells_json|safe }}</script>{% endif %}
-  <script src="/static/js/charts.js?v=89"></script>
+  <script src="/static/js/charts.js?v=90"></script>
   <script>
   (function() {
     var btn = document.getElementById("video-guide-btn");

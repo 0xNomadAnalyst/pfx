@@ -408,6 +408,18 @@ def parse_args() -> argparse.Namespace:
         default="ge-activity-vol-usx,ge-tvl-share-usx",
         help="Comma-separated widget ids to report and gate as hotspots.",
     )
+    parser.add_argument(
+        "--expected-refresh-interval-seconds",
+        type=float,
+        default=-1.0,
+        help="Fail if API telemetry reports cadence outside tolerance (-1 disables).",
+    )
+    parser.add_argument(
+        "--refresh-interval-tolerance-seconds",
+        type=float,
+        default=2.0,
+        help="Allowed absolute delta for cadence compliance gate.",
+    )
     return parser.parse_args()
 
 
@@ -856,6 +868,8 @@ def main() -> int:
             "max_widget_5xx": args.max_widget_5xx,
             "max_widget_timeouts": args.max_widget_timeouts,
             "hotspot_widgets": sorted(hotspot_widgets),
+            "expected_refresh_interval_seconds": args.expected_refresh_interval_seconds,
+            "refresh_interval_tolerance_seconds": args.refresh_interval_tolerance_seconds,
         },
         "profile_runs": profile_runs,
         "hotspot_summary": hotspot_summary,
@@ -880,6 +894,16 @@ def main() -> int:
     widget_errors_max = max((int(v.get("errors", 0)) for v in hotspot_summary.values()), default=0)
     widget_5xx_max = max((int(v.get("errors_5xx", 0)) for v in hotspot_summary.values()), default=0)
     widget_timeouts_max = max((int(v.get("timeouts", 0)) for v in hotspot_summary.values()), default=0)
+    telemetry_refresh_samples = []
+    for run in profile_runs:
+        after = run.get("telemetry_after")
+        if isinstance(after, dict):
+            sample = after.get("refresh_interval_seconds")
+            if sample is not None:
+                try:
+                    telemetry_refresh_samples.append(float(sample))
+                except Exception:
+                    pass
     gate_failures: list[str] = []
     if args.max_widget_errors >= 0 and widget_errors_max > args.max_widget_errors:
         gate_failures.append(f"widget_errors_max={widget_errors_max} > max_widget_errors={args.max_widget_errors}")
@@ -887,6 +911,14 @@ def main() -> int:
         gate_failures.append(f"widget_5xx_max={widget_5xx_max} > max_widget_5xx={args.max_widget_5xx}")
     if args.max_widget_timeouts >= 0 and widget_timeouts_max > args.max_widget_timeouts:
         gate_failures.append(f"widget_timeouts_max={widget_timeouts_max} > max_widget_timeouts={args.max_widget_timeouts}")
+    if args.expected_refresh_interval_seconds >= 0 and telemetry_refresh_samples:
+        allowed_delta = max(0.0, float(args.refresh_interval_tolerance_seconds))
+        target = float(args.expected_refresh_interval_seconds)
+        max_delta = max(abs(sample - target) for sample in telemetry_refresh_samples)
+        if max_delta > allowed_delta:
+            gate_failures.append(
+                f"api_refresh_interval_delta_max={max_delta:.3f}s > tolerance={allowed_delta:.3f}s (target={target:.3f}, samples={telemetry_refresh_samples})"
+            )
     if args.fail_on_errors and failures:
         return 1
     if gate_failures:

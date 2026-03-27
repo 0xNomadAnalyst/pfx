@@ -131,7 +131,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "skeleton_min_display_ms": 0,
         "adaptive_dialdown_enabled": False,
         "adaptive_dialdown_hit_threshold": 0,
-        "persist_cache_enabled": False,
+        "persist_cache_enabled": True,
     },
     "aggressive": {
         "warmup_enabled": True,
@@ -163,7 +163,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "skeleton_min_display_ms": 150,
         "adaptive_dialdown_enabled": True,
         "adaptive_dialdown_hit_threshold": 0.2,
-        "persist_cache_enabled": False,
+        "persist_cache_enabled": True,
     },
 }
 
@@ -201,16 +201,40 @@ _CACHE_ENV_MAP: dict[str, tuple[str, type]] = {
 }
 
 
+def _parse_env_bool(raw: str) -> bool:
+    return str(raw).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _read_dash_refresh_interval_seconds(default: int = 30) -> int:
+    raw = os.getenv("DASH_REFRESH_INTERVAL_SECONDS")
+    if raw is None:
+        return default
+    try:
+        parsed = int(float(raw.strip()))
+    except Exception:
+        return default
+    return max(5, min(3600, parsed))
+
+
 def resolve_cache_config() -> dict:
     """Resolve cache config: mode profile as baseline, explicit env vars override."""
     mode = os.getenv("HTMX_CACHE_MODE", "balanced").lower().strip()
     profile = CACHE_PROFILES.get(mode, CACHE_PROFILES["balanced"]).copy()
+    dash_refresh_seconds = _read_dash_refresh_interval_seconds()
+
+    # Unified refresh cadence baseline. Explicit HTMX_REFRESH_* overrides
+    # below still take precedence when set.
+    profile["refresh_kpi_seconds"] = dash_refresh_seconds
+    profile["refresh_chart_seconds"] = dash_refresh_seconds
+    profile["refresh_table_seconds"] = dash_refresh_seconds
+    profile["dash_refresh_interval_seconds"] = dash_refresh_seconds
+
     for key, (env_name, converter) in _CACHE_ENV_MAP.items():
         if env_name not in os.environ:
             continue
         raw = os.environ[env_name]
         if converter is bool:
-            profile[key] = raw.strip().lower() in ("1", "true", "yes", "on")
+            profile[key] = _parse_env_bool(raw)
         elif converter is float:
             profile[key] = float(raw)
         else:
@@ -441,7 +465,7 @@ def _build_page_context(
                 "id": widget.id,
                 "title": widget.title,
                 "kind": widget.kind,
-                "refresh_interval_seconds": max(15, refresh_interval_seconds),
+                "refresh_interval_seconds": max(5, refresh_interval_seconds),
                 "endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, endpoint_page, endpoint_wid),
                 "css_class": widget.css_class,
                 "expandable": widget.expandable if widget.kind == "chart" else False,

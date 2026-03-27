@@ -118,6 +118,20 @@ async def run() -> None:
         help="Fail if any route abort_ratio (aborts/started) exceeds this (-1 disables)",
     )
     parser.add_argument("--max-hydration-orphans", type=int, default=-1, help="Fail if hydration traces remain unclosed (-1 disables)")
+    parser.add_argument("--min-restore-hit-rate", type=float, default=-1.0, help="Fail if persisted restore hit-rate falls below this (-1 disables)")
+    parser.add_argument("--max-persist-expired", type=int, default=-1, help="Fail if persisted cache expiry count exceeds this (-1 disables)")
+    parser.add_argument(
+        "--expected-refresh-interval-seconds",
+        type=float,
+        default=-1.0,
+        help="Fail if reported unified refresh interval differs from this target (-1 disables)",
+    )
+    parser.add_argument(
+        "--refresh-interval-tolerance-seconds",
+        type=float,
+        default=2.0,
+        help="Allowed absolute delta for cadence compliance gate",
+    )
     parser.add_argument("--headless", action="store_true")
     args = parser.parse_args()
 
@@ -267,6 +281,10 @@ async def run() -> None:
                     "widget_request_timeouts_delta": widget_timeout_delta,
                     "shell_cache_size": int(snap.get("shellCacheSize") or 0),
                     "shell_cache_capacity": int(snap.get("shellCacheCapacity") or 0),
+                    "persist_restore_hits": _safe_int(snap.get("persistRestoreHits")),
+                    "persist_restore_misses": _safe_int(snap.get("persistRestoreMisses")),
+                    "persist_expired": _safe_int(snap.get("persistExpired")),
+                    "refresh_interval_seconds": _safe_float(snap.get("refreshIntervalSeconds")),
                 }
                 samples.append(sample)
                 if path not in route_error_summary:
@@ -311,6 +329,12 @@ async def run() -> None:
                 "widget_settle_ms_p95": round(_percentile(settle_vals, 95), 2),
                 "in_flight_ms_avg": round(statistics.fmean(inflight_vals), 2) if inflight_vals else 0.0,
                 "in_flight_ms_p95": round(_percentile(inflight_vals, 95), 2),
+                "persist_restore_hits": _safe_int(final_snapshot.get("persistRestoreHits")),
+                "persist_restore_misses": _safe_int(final_snapshot.get("persistRestoreMisses")),
+                "persist_expired": _safe_int(final_snapshot.get("persistExpired")),
+                "persist_stale_served": _safe_int(final_snapshot.get("persistStaleServed")),
+                "persist_stale_refreshed": _safe_int(final_snapshot.get("persistStaleRefreshed")),
+                "refresh_interval_seconds": _safe_float(final_snapshot.get("refreshIntervalSeconds")),
             },
             "terminal_hydration_reasons_by_path": terminal_reasons,
             "route_error_summary": route_error_summary,
@@ -335,6 +359,12 @@ async def run() -> None:
         hydration_finishes = _safe_int(final_snapshot.get("hydrationFinishes"))
         hydration_skips = _safe_int(final_snapshot.get("hydrationSkips"))
         hydration_orphans = max(0, hydration_starts - (hydration_finishes + hydration_skips))
+        restore_hits = _safe_int(final_snapshot.get("persistRestoreHits"))
+        restore_misses = _safe_int(final_snapshot.get("persistRestoreMisses"))
+        restore_den = max(1, restore_hits + restore_misses)
+        restore_hit_rate = float(restore_hits) / float(restore_den)
+        persist_expired = _safe_int(final_snapshot.get("persistExpired"))
+        refresh_interval_seconds = _safe_float(final_snapshot.get("refreshIntervalSeconds"))
         failures = []
         if args.max_timeouts >= 0 and timeout_count > args.max_timeouts:
             failures.append(f"timeout_count={timeout_count} > max_timeouts={args.max_timeouts}")
@@ -350,6 +380,17 @@ async def run() -> None:
             )
         if args.max_hydration_orphans >= 0 and hydration_orphans > args.max_hydration_orphans:
             failures.append(f"hydration_orphans={hydration_orphans} > max_hydration_orphans={args.max_hydration_orphans}")
+        if args.min_restore_hit_rate >= 0 and restore_hit_rate < args.min_restore_hit_rate:
+            failures.append(f"restore_hit_rate={restore_hit_rate:.4f} < min_restore_hit_rate={args.min_restore_hit_rate}")
+        if args.max_persist_expired >= 0 and persist_expired > args.max_persist_expired:
+            failures.append(f"persist_expired={persist_expired} > max_persist_expired={args.max_persist_expired}")
+        if args.expected_refresh_interval_seconds >= 0:
+            allowed_delta = max(0.0, float(args.refresh_interval_tolerance_seconds))
+            actual_delta = abs(refresh_interval_seconds - float(args.expected_refresh_interval_seconds))
+            if actual_delta > allowed_delta:
+                failures.append(
+                    f"refresh_interval_seconds={refresh_interval_seconds:.3f} differs from expected={args.expected_refresh_interval_seconds} by {actual_delta:.3f}s (allowed {allowed_delta:.3f}s)"
+                )
         if failures:
             await browser.close()
             raise SystemExit("Phase benchmark assertions failed: " + "; ".join(failures))

@@ -11,6 +11,28 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
 
+
+def _seed_dash_refresh_derived_env() -> None:
+    """Derive API pacing defaults from DASH_REFRESH_INTERVAL_SECONDS.
+
+    Explicit API_* env vars remain authoritative and are never overridden.
+    """
+    raw = os.getenv("DASH_REFRESH_INTERVAL_SECONDS", "").strip()
+    if not raw:
+        return
+    try:
+        dash_seconds = max(5.0, min(3600.0, float(raw)))
+    except Exception:
+        return
+
+    os.environ.setdefault("API_CACHE_TTL_SECONDS", str(dash_seconds))
+    os.environ.setdefault("API_CACHE_SWR_SECONDS", str(max(5.0, round(dash_seconds * 0.5, 3))))
+    os.environ.setdefault("API_PREWARM_MAX_SECONDS", str(max(15.0, min(120.0, dash_seconds))))
+    os.environ.setdefault("HEALTH_STATUS_TTL_SECONDS", str(max(5.0, min(30.0, dash_seconds))))
+
+
+_seed_dash_refresh_derived_env()
+
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from starlette.middleware.gzip import GZipMiddleware  # noqa: E402

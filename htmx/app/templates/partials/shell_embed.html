@@ -8,6 +8,8 @@
   data-default-protocol="{{ protocol }}"
   data-default-pair="{{ pair }}"
   data-nav-layout="{{ 'sidebar' if use_sidebar_nav else 'topbar' }}"
+  data-dash-refresh-interval-seconds="{{ cache_config.dash_refresh_interval_seconds if cache_config and cache_config.dash_refresh_interval_seconds is defined else 30 }}"
+  data-cache-mode="{{ cache_config.cache_mode if cache_config else 'balanced' }}"
   data-warmup-budget-seconds="{{ cache_config.warmup_budget_seconds if cache_config else 30 }}"
   data-warmup-max-jobs="{{ cache_config.warmup_max_jobs if cache_config else 20 }}"
   data-warmup-concurrency="{{ cache_config.warmup_concurrency if cache_config else 3 }}"

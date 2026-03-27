@@ -177,8 +177,10 @@ class DataService:
         request_stats["latency_by_page"] = self._latency_rollup(request_stats.get("latency_by_page", {}))
         request_stats["latency_by_widget"] = self._latency_rollup(request_stats.get("latency_by_widget", {}))
         sql_snapshot = self.sql.get_telemetry_snapshot() if hasattr(self.sql, "get_telemetry_snapshot") else {}
+        refresh_interval_seconds = float(API_CACHE_CONFIG.get("DASH_REFRESH_INTERVAL_SECONDS", API_CACHE_CONFIG.get("API_CACHE_TTL_SECONDS", 30)))
         return {
             "enabled": self._telemetry_enabled,
+            "refresh_interval_seconds": refresh_interval_seconds,
             "request_stats": request_stats,
             "cache_stats": self.get_cache_stats(),
             "sql_pool_pressure": sql_snapshot,

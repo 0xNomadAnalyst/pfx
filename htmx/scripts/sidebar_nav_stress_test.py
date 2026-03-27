@@ -68,6 +68,20 @@ async def run() -> None:
         help="Fail if any route abort_ratio (aborts/started) exceeds this (-1 disables)",
     )
     parser.add_argument("--max-hydration-orphans", type=int, default=-1, help="Fail if hydration starts do not close cleanly (-1 disables)")
+    parser.add_argument("--min-restore-hit-rate", type=float, default=-1.0, help="Fail if persisted restore hit-rate falls below this (-1 disables)")
+    parser.add_argument("--max-persist-expired", type=int, default=-1, help="Fail if persisted cache expiry count exceeds this (-1 disables)")
+    parser.add_argument(
+        "--expected-refresh-interval-seconds",
+        type=float,
+        default=-1.0,
+        help="Fail if reported unified refresh interval differs from this target (-1 disables)",
+    )
+    parser.add_argument(
+        "--refresh-interval-tolerance-seconds",
+        type=float,
+        default=2.0,
+        help="Allowed absolute delta for cadence compliance gate",
+    )
     parser.add_argument("--headless", action="store_true")
     args = parser.parse_args()
 
@@ -151,6 +165,10 @@ async def run() -> None:
                 "errors_delta": max(0, errors_now - previous["widgetRequestErrors"]),
                 "timeouts_delta": max(0, timeout_now - previous["widgetRequestTimeouts"]),
                 "errors_5xx_delta": max(0, e5xx_now - previous["widgetRequest5xx"]),
+                "persist_restore_hits": _safe_int(snapshot.get("persistRestoreHits")),
+                "persist_restore_misses": _safe_int(snapshot.get("persistRestoreMisses")),
+                "persist_expired": _safe_int(snapshot.get("persistExpired")),
+                "refresh_interval_seconds": float(snapshot.get("refreshIntervalSeconds") or 0.0),
             }
             burst_summaries.append(burst_summary)
             previous = {
@@ -206,6 +224,11 @@ async def run() -> None:
             ),
             default=0.0,
         )
+        restore_hits = _safe_int(final_snapshot.get("persistRestoreHits"))
+        restore_misses = _safe_int(final_snapshot.get("persistRestoreMisses"))
+        restore_hit_rate = float(restore_hits) / float(max(1, restore_hits + restore_misses))
+        persist_expired = _safe_int(final_snapshot.get("persistExpired"))
+        refresh_interval_seconds = float(final_snapshot.get("refreshIntervalSeconds") or 0.0)
 
         violated = []
         if args.max_timeouts >= 0 and timeouts_total > args.max_timeouts:
@@ -224,6 +247,17 @@ async def run() -> None:
             violated.append(
                 f"hydration_orphans={hydration_orphans} > max_hydration_orphans={args.max_hydration_orphans}"
             )
+        if args.min_restore_hit_rate >= 0 and restore_hit_rate < args.min_restore_hit_rate:
+            violated.append(f"restore_hit_rate={restore_hit_rate:.4f} < min_restore_hit_rate={args.min_restore_hit_rate}")
+        if args.max_persist_expired >= 0 and persist_expired > args.max_persist_expired:
+            violated.append(f"persist_expired={persist_expired} > max_persist_expired={args.max_persist_expired}")
+        if args.expected_refresh_interval_seconds >= 0:
+            allowed_delta = max(0.0, float(args.refresh_interval_tolerance_seconds))
+            actual_delta = abs(refresh_interval_seconds - float(args.expected_refresh_interval_seconds))
+            if actual_delta > allowed_delta:
+                violated.append(
+                    f"refresh_interval_seconds={refresh_interval_seconds:.3f} differs from expected={args.expected_refresh_interval_seconds} by {actual_delta:.3f}s (allowed {allowed_delta:.3f}s)"
+                )
 
         if violated:
             await browser.close()
