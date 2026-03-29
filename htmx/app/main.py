@@ -15,6 +15,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from dotenv import load_dotenv
 
 from app.pages.common import PageConfig, build_widget_endpoint
+from app.shared_families import resolve_shared_data_family
 
 # ── Load env BEFORE page imports so PAGE_* flags are available ───────
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -479,6 +480,7 @@ def _build_page_context(
 
         endpoint_page = widget.source_page_id or page.api_page_id
         endpoint_wid = widget.source_widget_id or widget.id
+        shared_data_family = resolve_shared_data_family(endpoint_page, endpoint_wid)
         widget_bindings.append(
             {
                 "id": widget.id,
@@ -493,6 +495,7 @@ def _build_page_context(
                 "detail_table_endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, endpoint_page, widget.detail_table_id) if widget.detail_table_id else "",
                 "source_widget_id": widget.source_widget_id,
                 "protocol_override": widget.protocol_override,
+                "shared_data_family": shared_data_family,
             }
         )
 

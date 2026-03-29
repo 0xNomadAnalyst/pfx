@@ -94,6 +94,7 @@
     staleLabelClearedOnAbort: 0,
     staleLabelAutoCleared: 0,
     adaptiveDialdownTriggered: 0,
+    suppressedInFlightDuplicateRequest: 0,
   };
   function recordPerfMetric(metricKey, amount = 1) {
     if (!Object.prototype.hasOwnProperty.call(perfMetrics, metricKey)) return;
@@ -4361,7 +4362,7 @@
     const deferredCritical = [];
     const deferredOther = [];
     widgets.forEach((el) => {
-      const critical = isCriticalWidget(el.dataset.widgetId || "");
+      const critical = isCriticalWidget(el.dataset.widgetId || "") || isSharedFamilyWidgetElement(el);
       if (isWidgetLikelyVisible(el)) {
         if (critical) visibleCritical.push(el);
         else visibleOther.push(el);
@@ -4628,9 +4629,20 @@
     return `${widgetId}::${signature || ""}`;
   }
 
+  function isSharedFamilyWidgetElement(el) {
+    return !!(el && el.dataset && String(el.dataset.sharedDataFamily || "").trim());
+  }
+
+  function isSharedFamilyWidgetId(widgetId) {
+    if (!widgetId) return false;
+    const el = document.getElementById(`widget-${widgetId}`);
+    return isSharedFamilyWidgetElement(el);
+  }
+
   function isCriticalWidget(widgetId) {
     if (!widgetId) return false;
     if (CRITICAL_WIDGET_IDS.has(widgetId)) return true;
+    if (isSharedFamilyWidgetId(widgetId)) return true;
     return widgetId.startsWith("kpi-");
   }
 
@@ -7547,6 +7559,14 @@
       recordPerfMetric("suppressedDuplicateLoadTrigger");
       return;
     }
+    // Prevent periodic/secondary triggers from repeatedly replacing an already
+    // running request for the same widget. This avoids abort loops where one
+    // slower sibling in a shared data family never reaches render completion.
+    if (sourceEl.classList.contains("htmx-request") && sourceEl.dataset.forceRequest !== "1") {
+      event.preventDefault();
+      recordPerfMetric("suppressedInFlightDuplicateRequest");
+      return;
+    }
     if (_pipelineSwitchInProgress || document.hidden) {
       event.preventDefault();
       return;
@@ -7554,9 +7574,10 @@
     const isForced = sourceEl.dataset.forceRequest === "1";
     if (!isForced && Date.now() >= _interactiveRefreshUntil) {
       const widgetId = sourceEl.dataset.widgetId || "";
+      const sharedFamilyWidget = isSharedFamilyWidgetElement(sourceEl);
       const isOffscreen = !isCriticalWidget(widgetId) && !isWidgetLikelyVisible(sourceEl);
 
-      if (OFFSCREEN_PAUSE_ENABLED && isOffscreen) {
+      if (OFFSCREEN_PAUSE_ENABLED && isOffscreen && !sharedFamilyWidget) {
         event.preventDefault();
         sourceEl.dataset.offscreenDeferred = "1";
         recordPerfMetric("suppressedOffscreenPoll");
@@ -7565,7 +7586,7 @@
 
       if (sourceEl.dataset.hasLoadedOnce === "1") {
         const lastVisibleAt = Number(sourceEl.dataset.lastVisibleAt || 0);
-        const staleOffscreen = isOffscreen && (Date.now() - lastVisibleAt) > VIEWPORT_POLL_STALE_MS;
+        const staleOffscreen = isOffscreen && !sharedFamilyWidget && (Date.now() - lastVisibleAt) > VIEWPORT_POLL_STALE_MS;
         if (staleOffscreen) {
           event.preventDefault();
           recordPerfMetric("suppressedOffscreenPoll");
