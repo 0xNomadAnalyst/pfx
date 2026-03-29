@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import argparse
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,7 +16,10 @@ if str(HTMX_ROOT) not in sys.path:
     sys.path.insert(0, str(HTMX_ROOT))
 
 from app.pages.common import PageConfig, WidgetConfig  # noqa: E402
-from app.shared_families import SHARED_DATA_FAMILY_HINTS  # noqa: E402
+from app.shared_families import (  # noqa: E402
+    SHARED_DATA_FAMILY_HINTS,
+    has_intentional_shared_family_mapping,
+)
 
 
 OUT_PATH = REPO_ROOT / "htmx" / "config" / "widget_call_mappings.json"
@@ -125,12 +129,15 @@ def _widget_mapping(page: PageConfig, widget: WidgetConfig) -> dict[str, Any] | 
     }
 
 
-def _build_mapping() -> dict[str, Any]:
+def _load_pages() -> list[PageConfig]:
     pages: list[PageConfig] = []
     for module_name in PAGE_MODULES:
         mod = importlib.import_module(module_name)
         pages.append(mod.PAGE_CONFIG)
+    return pages
 
+
+def _build_mapping(pages: list[PageConfig]) -> dict[str, Any]:
     pages_out: list[dict[str, Any]] = []
     group_rows: list[dict[str, Any]] = []
 
@@ -205,8 +212,50 @@ def _build_mapping() -> dict[str, Any]:
     }
 
 
+def _find_missing_intentional_family_mappings(pages: list[PageConfig]) -> list[tuple[str, str, str]]:
+    ignored_kinds = {"section-header", "section-subheader", "placeholder"}
+    missing: set[tuple[str, str, str]] = set()
+    for page in pages:
+        for widget in page.widgets:
+            if widget.kind in ignored_kinds:
+                continue
+            source_page_id = widget.source_page_id or page.api_page_id
+            source_widget_id = widget.source_widget_id or widget.id
+            if not has_intentional_shared_family_mapping(source_page_id, source_widget_id):
+                missing.add((page.slug, source_page_id, source_widget_id))
+    return sorted(missing)
+
+
 def main() -> int:
-    payload = _build_mapping()
+    parser = argparse.ArgumentParser(description="Refresh widget->API mapping and validate shared-family intent.")
+    parser.add_argument(
+        "--verify-intentional-families",
+        action="store_true",
+        help="Exit non-zero when any active widget endpoint has no explicit shared-family intent.",
+    )
+    args = parser.parse_args()
+
+    pages = _load_pages()
+    payload = _build_mapping(pages)
+    missing = _find_missing_intentional_family_mappings(pages)
+
+    if missing:
+        print(
+            "[WARN] Shared-family intent missing for "
+            f"{len(missing)} widget endpoints."
+        )
+        for page_slug, source_page_id, source_widget_id in missing[:30]:
+            print(f"  - {page_slug}: {source_page_id}/{source_widget_id}")
+        if len(missing) > 30:
+            print(f"  ... and {len(missing) - 30} more")
+
+    if args.verify_intentional_families:
+        if missing:
+            print("[FAIL] Missing explicit shared-family intent entries.")
+            return 1
+        print("[PASS] All active widget endpoints have explicit shared-family intent.")
+        return 0
+
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"Wrote mapping: {OUT_PATH}")

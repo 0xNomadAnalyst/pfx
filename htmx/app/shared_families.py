@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Dict, Set, Tuple
 
 
 # Shared backend loader family hints keyed by (api_page_id, source_widget_id).
@@ -113,7 +113,16 @@ SHARED_DATA_FAMILY_HINTS: Dict[Tuple[str, str], str] = {
     ("risk-analysis", "ra-sensitivity-table"): "risk_stress_sensitivity",
 }
 
+# Endpoints intentionally left without a shared-family hint.
+# Use this to make "no family" an explicit decision rather than an omission.
+EXPLICIT_NO_SHARED_FAMILY_HINTS: Set[Tuple[str, str]] = set()
+
 
 def resolve_shared_data_family(api_page_id: str, source_widget_id: str) -> str:
     return SHARED_DATA_FAMILY_HINTS.get((str(api_page_id), str(source_widget_id)), "")
+
+
+def has_intentional_shared_family_mapping(api_page_id: str, source_widget_id: str) -> bool:
+    key = (str(api_page_id), str(source_widget_id))
+    return key in SHARED_DATA_FAMILY_HINTS or key in EXPLICIT_NO_SHARED_FAMILY_HINTS
 

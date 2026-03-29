@@ -94,10 +94,25 @@ async def _run_group_cycle(page, widget_ids: list[str], cycle_id: str, timeout_m
     return await page.evaluate(
         """async ({ widgetIds, cycleId, timeoutMs }) => {
           const existing = widgetIds.filter((wid) => !!document.getElementById(`widget-${wid}`));
-          existing.forEach((wid) => {
+          const visibleBefore = {};
+          const isVisible = (el) => {
+            if (!el) return false;
+            const rect = el.getBoundingClientRect();
+            const inVertical = rect.bottom > 0 && rect.top < window.innerHeight;
+            const inHorizontal = rect.right > 0 && rect.left < window.innerWidth;
+            return inVertical && inHorizontal;
+          };
+          for (const wid of existing) {
             const el = document.getElementById(`widget-${wid}`);
-            try { el?.scrollIntoView({ block: "center", inline: "nearest" }); } catch (_) {}
-          });
+            let nowVisible = false;
+            for (let i = 0; i < 4; i += 1) {
+              try { el?.scrollIntoView({ block: "center", inline: "nearest" }); } catch (_) {}
+              await new Promise((resolve) => setTimeout(resolve, 40));
+              nowVisible = isVisible(el);
+              if (nowVisible) break;
+            }
+            visibleBefore[wid] = nowVisible;
+          }
           if (!window.__widgetSyncProbe) {
             window.__widgetSyncProbe = { cycleId: "", events: [] };
           }
@@ -159,6 +174,7 @@ async def _run_group_cycle(page, widget_ids: list[str], cycle_id: str, timeout_m
                 elapsed_ms: performance.now() - startedAt,
                 widget_status: status,
                 existing_widget_ids: existing,
+              visible_before_refresh: visibleBefore,
                 timed_out: false,
               };
             }
@@ -170,6 +186,7 @@ async def _run_group_cycle(page, widget_ids: list[str], cycle_id: str, timeout_m
             elapsed_ms: performance.now() - startedAt,
             widget_status: summarize(),
             existing_widget_ids: existing,
+            visible_before_refresh: visibleBefore,
             timed_out: true,
           };
         }""",
@@ -310,6 +327,24 @@ async def run() -> int:
                     passed = False
                     reasons.append(f"widgets did not start request in cycle: {', '.join(missing)}")
 
+                terminal_types = {str(st.get("terminal_type") or "") for st in statuses.values()}
+                backend_error_types = {"response_error", "send_error", "timeout", "after_request_failed"}
+                failure_tags: list[str] = []
+                has_backend_error_signal = bool(render_errors) or bool(terminal_types & backend_error_types)
+                has_frontend_split_signal = (
+                    bool(render_stuck)
+                    or skew > float(args.max_completion_skew_ms)
+                    or (bool(missing) and bool(completed))
+                )
+                if result.get("timed_out") and not started:
+                    has_backend_error_signal = True
+                if has_backend_error_signal:
+                    failure_tags.append("backend_unavailable_or_timeout")
+                if has_frontend_split_signal:
+                    failure_tags.append("frontend_sync_split")
+                if (not has_backend_error_signal) and (not has_frontend_split_signal) and (not passed):
+                    failure_tags.append("unclassified")
+
                 group_out = {
                     "id": group.get("id"),
                     "page_slug": page_slug,
@@ -323,13 +358,16 @@ async def run() -> int:
                     "missing_widgets": missing,
                     "render_error_widgets": render_errors,
                     "render_stuck_widgets": render_stuck,
+                    "failure_tags": failure_tags,
+                    "visible_before_refresh": result.get("visible_before_refresh", {}),
                     "widget_status": statuses,
                     "passed": passed,
                     "reasons": reasons,
                 }
                 report["results"].append(group_out)
                 status = "PASS" if passed else "FAIL"
-                print(f"[{status}] {group_out['id']} | skew={group_out['skew_ms']}ms | missing={len(missing)}")
+                tag_text = f" | tags={','.join(failure_tags)}" if failure_tags else ""
+                print(f"[{status}] {group_out['id']} | skew={group_out['skew_ms']}ms | missing={len(missing)}{tag_text}")
                 if reasons:
                     print("  - " + "; ".join(reasons))
 
