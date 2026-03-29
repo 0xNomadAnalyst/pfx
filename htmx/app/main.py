@@ -461,7 +461,6 @@ def _build_page_context(
     last_chart_delay = 0.0
     dual_pool_pages = {"risk-analysis", "dexes", "exponent-yield"}
     lane_delay_by_group: dict[str, float] = {}
-    family_delay_by_group: dict[str, float] = {}
     health_table_index = 0
     health_chart_index = 0
     health_queue_pair_delay: float | None = None
@@ -516,16 +515,6 @@ def _build_page_context(
                     if widget.id == "health-queue-chart":
                         health_queue_pair_delay = load_delay_seconds
                     health_chart_index += 1
-
-        if shared_data_family and widget.kind in {"kpi", "chart", "table", "table-split"}:
-            # Shared-family alignment takes precedence over lane alignment.
-            # A second pass below applies the final family minimum to all members.
-            family_key = f"{endpoint_page}::{shared_data_family}"
-            if family_key in family_delay_by_group:
-                load_delay_seconds = min(load_delay_seconds, family_delay_by_group[family_key])
-                family_delay_by_group[family_key] = load_delay_seconds
-            else:
-                family_delay_by_group[family_key] = load_delay_seconds
 
         if widget.kind == "kpi":
             kpi_override = _CACHE_CONFIG["refresh_kpi_seconds"]

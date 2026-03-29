@@ -14,7 +14,7 @@ Goal: keep shared-family widgets visually and lifecycle-consistent while preserv
 
 ## What Is Implemented (Current State)
 
-This section reflects the latest implemented sequence (phases 0-7) and supersedes earlier notes.
+This section reflects the latest implemented sequence (phases 0-8) and supersedes earlier notes.
 
 1. Shared-family metadata propagated backend -> template -> frontend runtime.
 2. Delay precedence clarified: family alignment has explicit precedence over lane alignment.
@@ -29,6 +29,7 @@ This section reflects the latest implemented sequence (phases 0-7) and supersede
 11. Safety-first fault fixes landed: startup validation always runs, coordinator batch flush is rAF-aligned, and active reveal clear resets legacy batch state.
 12. SoC scaffolding landed with concern-scoped runtime modules and explicit contracts.
 13. Build-backed JS bundling is in place (`esbuild`) and templates now load `charts.bundle.js`.
+14. Critical reveal correctness fixes landed: terminal settle on application-level error paths, two-pass family delay backfill, and legacy batch flush parity with coordinator render path.
 
 ---
 
@@ -65,6 +66,7 @@ and emits to `widget_bindings`, consumed by the template.
 
 Lane alignment now applies only when there is **no** shared family for a widget.
 Family alignment is explicitly documented as higher priority.
+Shared-family delay assignment now uses a second-pass backfill so all family members receive the final family minimum delay (removing order dependence from the first pass).
 
 ### C) Startup drift validation
 
@@ -190,6 +192,21 @@ This pass addressed concrete faults while keeping rollout feature-flagged.
 - `window.__riskdashModuleContext` (shared state/constants/utils/apis)
 
 This keeps behavior stable while enabling concern-oriented edits/reviews in separate files.
+
+### G) Correctness hardening pass (phase 8)
+
+Addressed three defects in default-path behavior:
+
+- application-level error terminal settle:
+  - `htmx:afterRequest` now calls `_onTerminalRevealSettle(sourceEl, widgetId)` on
+    - empty response payload
+    - `payload.status !== "success"`
+    - JSON parse/processing `catch` path
+- legacy batch flush parity:
+  - `_flushBatchedReveal` now calls `_renderWidgetResponse(...)` (with `isConnected` guard) instead of direct `renderPayload(...)`
+- family delay backfill support in server context:
+  - widget bindings now include `source_page_id`
+  - final family minimum delay is backfilled across all family members after binding construction
 
 ---
 
@@ -329,6 +346,23 @@ Readiness decision:
 
 - coordinator remains **default-off**
 - further parity rounds required before any default-on promotion
+
+## Post-phase-8 targeted verification (latest)
+
+After phase-8 fixes, a targeted risk-family run was repeated against updated local server code:
+
+- target: `risk-analysis:risk_liq_curves_orca:default`
+- mode: default (`HTMX_UNIFIED_REVEAL_COORDINATOR_ENABLED=0`)
+
+Observed outcome:
+
+- still failed `frontend_sync_split` (high completion skew observed in this run)
+- missing-start symptom was not reproduced in this run, consistent with terminal-settle error-path hardening
+
+Interpretation:
+
+- phase-8 fixes address known correctness gaps, but additional reveal/response timing variability remains
+- coordinator remains **default-off** pending broader parity stability
 
 ---
 
