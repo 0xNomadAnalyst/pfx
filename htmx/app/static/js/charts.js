@@ -6913,6 +6913,12 @@
       _clearRevealCoordinatorState();
       return;
     }
+    _batchedRevealBuffer.clear();
+    _batchedRevealTargets.clear();
+    if (_batchedRevealTimer) {
+      try { clearTimeout(_batchedRevealTimer); } catch (_) {}
+      _batchedRevealTimer = null;
+    }
     _clearSharedFamilyRevealState();
   }
 
@@ -6975,6 +6981,21 @@
     _revealCoordinatorGroups.set(key, { entries: nextEntries, timer });
   }
 
+  function _flushRevealCoordinatorBatchBuffer() {
+    if (_revealCoordinatorBatchBuffer.size === 0) {
+      _revealCoordinatorBatchTargets.clear();
+      return;
+    }
+    requestAnimationFrame(() => {
+      _revealCoordinatorBatchBuffer.forEach((entry, wid) => {
+        _revealCoordinatorBatchBuffer.delete(wid);
+        if (!entry?.sourceEl?.isConnected) return;
+        _renderWidgetResponse(wid, entry.payload, entry.srcId, entry.sourceEl);
+      });
+      _revealCoordinatorBatchTargets.clear();
+    });
+  }
+
   function _settleRevealCoordinatorBatchTarget(widgetId) {
     if (!widgetId || !_revealCoordinatorBatchTargets.has(widgetId)) return;
     _revealCoordinatorBatchTargets.delete(widgetId);
@@ -6983,12 +7004,7 @@
         try { clearTimeout(_revealCoordinatorBatchTimer); } catch (_) {}
         _revealCoordinatorBatchTimer = null;
       }
-      _revealCoordinatorBatchBuffer.forEach((entry, wid) => {
-        _revealCoordinatorBatchBuffer.delete(wid);
-        if (!entry?.sourceEl?.isConnected) return;
-        _renderWidgetResponse(wid, entry.payload, entry.srcId, entry.sourceEl);
-      });
-      _revealCoordinatorBatchTargets.clear();
+      _flushRevealCoordinatorBatchBuffer();
     }
   }
 
@@ -7006,41 +7022,47 @@
     if (_revealCoordinatorBatchTargets.size > 0 && BATCHED_REVEAL_TIMEOUT_MS > 0) {
       _revealCoordinatorBatchTimer = setTimeout(() => {
         _revealCoordinatorBatchTimer = null;
-        _revealCoordinatorBatchBuffer.forEach((entry, wid) => {
-          _revealCoordinatorBatchBuffer.delete(wid);
-          if (!entry?.sourceEl?.isConnected) return;
-          _renderWidgetResponse(wid, entry.payload, entry.srcId, entry.sourceEl);
-        });
-        _revealCoordinatorBatchTargets.clear();
+        _flushRevealCoordinatorBatchBuffer();
       }, BATCHED_REVEAL_TIMEOUT_MS);
     }
   }
 
-  function _maybeFlushFamilyOnTerminal(sourceEl) {
+  function _flushFamilyWhenSettled(sourceEl, flushFamily) {
     const familyId = sharedFamilyId(sourceEl);
     if (!familyId) return;
     const familyInFlight = sharedFamilyWidgetElements(familyId)
       .some((el) => el.classList.contains("htmx-request"));
     if (!familyInFlight) {
-      _flushSharedFamilyReveal(familyId);
+      flushFamily(familyId);
+    }
+  }
+
+  function _maybeFlushFamilyOnTerminal(sourceEl) {
+    _flushFamilyWhenSettled(sourceEl, _flushSharedFamilyReveal);
+  }
+
+  function _maybeFlushCoordinatorFamilyOnTerminal(sourceEl) {
+    _flushFamilyWhenSettled(sourceEl, (familyId) => {
+      _flushRevealCoordinatorGroup(`family:${familyId}`);
+    });
+  }
+
+  function _settleActiveBatchTarget(widgetId = "") {
+    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
+      _settleRevealCoordinatorBatchTarget(widgetId);
+    } else {
+      _settleBatchedRevealTarget(widgetId);
     }
   }
 
   function _onTerminalRevealSettle(sourceEl, widgetId = "") {
     if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      const familyId = sharedFamilyId(sourceEl);
-      if (familyId) {
-        const familyWidgets = sharedFamilyWidgetElements(familyId);
-        const familyInFlight = familyWidgets.some((el) => el.classList.contains("htmx-request"));
-        if (!familyInFlight) {
-          _flushRevealCoordinatorGroup(`family:${familyId}`);
-        }
-      }
-      _settleRevealCoordinatorBatchTarget(widgetId);
+      _maybeFlushCoordinatorFamilyOnTerminal(sourceEl);
+      _settleActiveBatchTarget(widgetId);
       return;
     }
     _maybeFlushFamilyOnTerminal(sourceEl);
-    _settleBatchedRevealTarget(widgetId);
+    _settleActiveBatchTarget(widgetId);
   }
 
   function _isWidgetInActiveBatch(widgetId) {

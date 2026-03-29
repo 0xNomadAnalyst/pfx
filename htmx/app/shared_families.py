@@ -115,6 +115,8 @@ SHARED_DATA_FAMILY_HINTS: Dict[Tuple[str, str], str] = {
 
 # Endpoints intentionally left without a shared-family hint.
 # Use this to make "no family" an explicit decision rather than an omission.
+# Intentionally empty until an audited allowlist is reviewed and approved.
+# Keep this explicit to avoid silently bypassing intent verification.
 EXPLICIT_NO_SHARED_FAMILY_HINTS: Set[Tuple[str, str]] = set()
 
 

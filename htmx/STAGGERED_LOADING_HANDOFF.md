@@ -14,7 +14,7 @@ Goal: keep shared-family widgets visually and lifecycle-consistent while preserv
 
 ## What Is Implemented (Current State)
 
-This section reflects the latest implemented sequence (phases 1-6) and supersedes earlier notes.
+This section reflects the latest implemented sequence (phases 1-7) and supersedes earlier notes.
 
 1. Shared-family metadata propagated backend -> template -> frontend runtime.
 2. Delay precedence clarified: family alignment has explicit precedence over lane alignment.
@@ -26,6 +26,7 @@ This section reflects the latest implemented sequence (phases 1-6) and supersede
 8. Reveal control-flow refactored to a shared active-strategy path with reduced duplicate branching.
 9. Shared-family lookup now uses a per-refresh family index cache to avoid repeated full DOM scans.
 10. Startup mapping-intent warnings are now opt-in unless strict mode is enabled.
+11. Safety-first fault fixes landed: startup validation always runs, coordinator batch flush is rAF-aligned, and active reveal clear resets legacy batch state.
 
 ---
 
@@ -72,6 +73,7 @@ Added startup validation:
   - `HTMX_SHARED_FAMILY_WARN_INTENT=1`
 - optional strict failure via env:
   - `HTMX_SHARED_FAMILY_STRICT_INTENT=1`
+- validation now runs on startup regardless of `DEFAULT_PIPELINE` value
 
 ### D) Unified reveal feature flag wiring
 
@@ -152,6 +154,18 @@ Additional hardening/simplification in this pass:
   - `_sharedFamilyWidgetIndex`
   - invalidated on refresh/pipeline switch/soft-nav teardown
 
+### E) Safety-first hardening pass (phase 7)
+
+This pass addressed concrete faults while keeping rollout feature-flagged.
+
+- coordinator batch flush scheduling now mirrors legacy visual atomicity:
+  - coordinator batch flush uses `requestAnimationFrame(...)` before rendering buffered entries
+- active reveal state clear now resets legacy batch state on legacy path:
+  - `_batchedRevealBuffer`, `_batchedRevealTargets`, `_batchedRevealTimer`
+- terminal family in-flight check deduped through shared helper:
+  - `_flushFamilyWhenSettled(sourceEl, flushFamily)`
+  - reused by both legacy and coordinator terminal settle paths
+
 ---
 
 ## 5) Tooling and test harness updates
@@ -194,22 +208,40 @@ Improvements:
 - JavaScript syntax check passed for `charts.js` (`node --check`).
 - Lints for changed files reported no new issues.
 
-## Sync parity checks across profiles (dex swaps family)
+## Sync parity checks across flag modes (dex swaps family)
 
 Test target: `dexes` + `dex_swaps_timeseries`
 
-Profiles tested:
+Modes tested:
 
-- conservative
-- balanced
-- aggressive
-- aggressive + `HTMX_UNIFIED_REVEAL_COORDINATOR_ENABLED=1`
+- default mode (`HTMX_UNIFIED_REVEAL_COORDINATOR_ENABLED=0`) on `:8002`
+- flagged mode (`HTMX_UNIFIED_REVEAL_COORDINATOR_ENABLED=1`) on temporary `:8003`
 
 Observed outcome:
 
-- same failure pattern/tags across all four runs
+- same failure pattern/tags across both flag modes
 - failures classified as backend-side availability/timeout
-- indicates no additional regression from unified coordinator flag path under current backend conditions
+- indicates no additional frontend sync regression from coordinator flag path under current backend conditions
+
+## Additional targeted parity check (risk family)
+
+Test target: `risk-analysis` + `risk_liq_curves_orca` (`risk-analysis:risk_liq_curves_orca:default`)
+
+Modes tested:
+
+- default mode (`HTMX_UNIFIED_REVEAL_COORDINATOR_ENABLED=0`) on `:8002`
+- flagged mode (`HTMX_UNIFIED_REVEAL_COORDINATOR_ENABLED=1`) on temporary `:8003`
+
+Observed outcome:
+
+- both runs failed with `frontend_sync_split` classification
+- default mode failure: timed out with missing cycle starts for `ra-liq-depth-orca` and `ra-prob-orca`
+- flagged mode failure: no missing starts, but completion skew (`~6181ms`) and loading-stuck signals across family widgets
+
+Interpretation:
+
+- this targeted run does **not** support enabling coordinator mode by default yet
+- keep coordinator rollout feature-flagged and investigate risk-family settle/render timing before promotion
 
 ---
 

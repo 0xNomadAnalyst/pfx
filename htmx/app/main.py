@@ -335,22 +335,21 @@ templates = Jinja2Templates(directory="app/templates")
 @app.on_event("startup")
 def _apply_default_pipeline():
     """If DEFAULT_PIPELINE is set, tell the API server to switch on boot."""
-    if not DEFAULT_PIPELINE:
-        return
-    try:
-        body = json.dumps({"pipeline": DEFAULT_PIPELINE}).encode()
-        req = urllib.request.Request(
-            f"{API_BASE_URL}/api/v1/pipeline",
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            payload = json.loads(resp.read())
-            _pipeline_cache["value"] = payload
-            _pipeline_cache["expires_at"] = time.time() + 5.0
-    except Exception:
-        pass
+    if DEFAULT_PIPELINE:
+        try:
+            body = json.dumps({"pipeline": DEFAULT_PIPELINE}).encode()
+            req = urllib.request.Request(
+                f"{API_BASE_URL}/api/v1/pipeline",
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                payload = json.loads(resp.read())
+                _pipeline_cache["value"] = payload
+                _pipeline_cache["expires_at"] = time.time() + 5.0
+        except Exception:
+            pass
     _validate_shared_family_mapping_intent()
 
 
@@ -520,6 +519,8 @@ def _build_page_context(
 
         if shared_data_family and widget.kind in {"kpi", "chart", "table", "table-split"}:
             # Shared-family alignment takes precedence over lane alignment.
+            # This is a single-pass min convergence; family members can inherit
+            # progressively lower delays based on encounter order in page config.
             family_key = f"{endpoint_page}::{shared_data_family}"
             if family_key in family_delay_by_group:
                 load_delay_seconds = min(load_delay_seconds, family_delay_by_group[family_key])
