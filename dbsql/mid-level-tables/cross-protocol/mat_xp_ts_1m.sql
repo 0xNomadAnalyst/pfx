@@ -223,9 +223,11 @@ BEGIN
             END AS weighted_implied_apy
         FROM exponent.mat_exp_timeseries_1m m
         WHERE m.bucket_time >= v_refresh_from
-          AND m.vault_address NOT IN (
-              SELECT vault_address FROM exponent.mat_exp_last
-              WHERE COALESCE(is_expired, FALSE)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM exponent.mat_exp_last mel
+              WHERE mel.vault_address = m.vault_address
+                AND COALESCE(mel.is_expired, FALSE)
           )
         GROUP BY m.bucket_time
     ),

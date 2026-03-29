@@ -4313,6 +4313,15 @@
     });
   }
 
+  function _settleBatchedRevealTarget(widgetId) {
+    if (!BATCHED_REVEAL_ENABLED || !widgetId) return;
+    if (!_batchedRevealTargets.has(widgetId)) return;
+    _batchedRevealTargets.delete(widgetId);
+    if (_batchedRevealTargets.size === 0 || _batchedRevealBuffer.size >= _batchedRevealTargets.size) {
+      _flushBatchedReveal();
+    }
+  }
+
   function _drainConcurrencyQueue() {
     if (MAX_CONCURRENT_WIDGET_REQUESTS <= 0) return;
     while (_concurrencyQueue.length > 0 && _concurrencyInFlight < MAX_CONCURRENT_WIDGET_REQUESTS) {
@@ -7401,22 +7410,26 @@
     const remaining = minDelay > 0 && elapsed < minDelay ? minDelay - elapsed : 0;
 
     const doRender = () => {
-      _skeletonShownAt.delete(widgetId);
-      const signature = widgetFilterSignature(sourceEl);
-      const generatedAt = String(payload?.metadata?.generated_at || "");
-      const isIdenticalRefresh = (
-        sourceEl.dataset.hasLoadedOnce === "1"
-        && sourceEl.dataset.lastRenderedSignature === signature
-        && sourceEl.dataset.lastRenderedGeneratedAt === generatedAt
-      );
-      if (!isIdenticalRefresh) {
-        renderPayload(widgetId, payload, srcId);
+      try {
+        _skeletonShownAt.delete(widgetId);
+        const signature = widgetFilterSignature(sourceEl);
+        const generatedAt = String(payload?.metadata?.generated_at || "");
+        const isIdenticalRefresh = (
+          sourceEl.dataset.hasLoadedOnce === "1"
+          && sourceEl.dataset.lastRenderedSignature === signature
+          && sourceEl.dataset.lastRenderedGeneratedAt === generatedAt
+        );
+        if (!isIdenticalRefresh) {
+          renderPayload(widgetId, payload, srcId);
+        }
+        updateTimestamp(widgetId, payload?.metadata?.generated_at);
+        setWidgetCachedPayload(widgetId, signature, payload);
+        sourceEl.dataset.lastRenderedSignature = signature;
+        sourceEl.dataset.lastRenderedGeneratedAt = generatedAt;
+        sourceEl.dataset.hasLoadedOnce = "1";
+      } catch (error) {
+        setWidgetError(widgetId, String(error));
       }
-      updateTimestamp(widgetId, payload?.metadata?.generated_at);
-      setWidgetCachedPayload(widgetId, signature, payload);
-      sourceEl.dataset.lastRenderedSignature = signature;
-      sourceEl.dataset.lastRenderedGeneratedAt = generatedAt;
-      sourceEl.dataset.hasLoadedOnce = "1";
     };
 
     if (remaining > 0) {
@@ -7443,9 +7456,11 @@
       return;
     }
     if (_pipelineSwitchInProgress) {
+      _settleBatchedRevealTarget(widgetId);
       return;
     }
     if (!event.detail.successful) {
+      _settleBatchedRevealTarget(widgetId);
       return;
     }
     _renderingWidgetEl = sourceEl;
@@ -7464,9 +7479,7 @@
 
       if (BATCHED_REVEAL_ENABLED && _batchedRevealTargets.has(widgetId)) {
         _batchedRevealBuffer.set(widgetId, { widgetId, payload, srcId, sourceEl });
-        if (_batchedRevealBuffer.size >= _batchedRevealTargets.size) {
-          _flushBatchedReveal();
-        }
+        _settleBatchedRevealTarget(widgetId);
         return;
       }
 
@@ -7589,6 +7602,7 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
+    _settleBatchedRevealTarget(widgetId);
     setWidgetError(widgetId, detail);
   });
 
@@ -7608,6 +7622,7 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
+    _settleBatchedRevealTarget(widgetId);
     setWidgetError(widgetId, "cannot reach API");
   });
 
@@ -7627,6 +7642,7 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
+    _settleBatchedRevealTarget(widgetId);
     setWidgetError(widgetId, "request timeout");
   });
 
@@ -7650,6 +7666,7 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
+    _settleBatchedRevealTarget(widgetId);
     clearStaleTimestampLabel(widgetId);
   });
 

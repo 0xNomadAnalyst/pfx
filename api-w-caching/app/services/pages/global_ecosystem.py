@@ -40,6 +40,7 @@ class GlobalEcosystemPageService(BasePageService):
     _ONYC_SUPPLY_TTL = float(os.getenv("GE_ONYC_SUPPLY_TTL_SECONDS", "300"))
     _TS_TIMEOUT_MS = int(os.getenv("GE_TIMESERIES_TIMEOUT_MS", "60000"))
     _HOTSPOT_WIDGET_TTL = float(os.getenv("GE_HOTSPOT_WIDGET_TTL_SECONDS", "180"))
+    _CONSISTENT_SHARED_VIEW_REFRESH = os.getenv("API_CONSISTENT_SHARED_VIEW_REFRESH", "1") == "1"
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
@@ -97,6 +98,10 @@ class GlobalEcosystemPageService(BasePageService):
     # ------------------------------------------------------------------
     # Shared data loaders (cached)
     # ------------------------------------------------------------------
+    def _shared_swr_seconds(self) -> float | None:
+        # Keep shared view consumers in lock-step by avoiding SWR split-brain
+        # (some widgets stale, others refreshed) during the same nav cycle.
+        return 0.0 if self._CONSISTENT_SHARED_VIEW_REFRESH else None
 
     def _v_last(self) -> dict[str, Any]:
         return self._cached(
@@ -115,6 +120,7 @@ class GlobalEcosystemPageService(BasePageService):
                 "LIMIT 1"
             ) or [{}])[0],
             ttl_seconds=self._V_LAST_TTL,
+            swr_seconds=self._shared_swr_seconds(),
         )
 
     def _ts_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -142,7 +148,12 @@ class GlobalEcosystemPageService(BasePageService):
             )
 
         try:
-            rows = self._cached(cache_key, _load, ttl_seconds=self._TS_TTL)
+            rows = self._cached(
+                cache_key,
+                _load,
+                ttl_seconds=self._TS_TTL,
+                swr_seconds=self._shared_swr_seconds(),
+            )
             if rows:
                 with self._last_ts_lock:
                     self._last_ts_rows[last_window] = rows
@@ -171,7 +182,12 @@ class GlobalEcosystemPageService(BasePageService):
             )
             return rows[0] if rows else {}
 
-        return self._cached(cache_key, _load, ttl_seconds=self._INTERVAL_TTL)
+        return self._cached(
+            cache_key,
+            _load,
+            ttl_seconds=self._INTERVAL_TTL,
+            swr_seconds=self._shared_swr_seconds(),
+        )
 
     # ------------------------------------------------------------------
     # Issuance data loaders (SY/PT supply from DB, ONyc supply from RPC)

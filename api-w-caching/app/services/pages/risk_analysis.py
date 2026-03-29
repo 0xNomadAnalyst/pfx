@@ -22,6 +22,7 @@ class RiskAnalysisPageService(BasePageService):
     _SENSITIVITY_TTL_SECONDS = float(os.getenv("RA_SENSITIVITY_TTL_SECONDS", "120"))
     _VOL_TTL_SECONDS = float(os.getenv("RA_VOL_TTL_SECONDS", "300"))
     _V_LAST_TTL_SECONDS = float(os.getenv("RA_KAMINO_V_LAST_TTL_SECONDS", "120"))
+    _CONSISTENT_SHARED_VIEW_REFRESH = os.getenv("API_CONSISTENT_SHARED_VIEW_REFRESH", "1") == "1"
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
@@ -52,6 +53,9 @@ class RiskAnalysisPageService(BasePageService):
 
     _EMPTY_POOL_REF: dict[str, str] = {"token_pair": "", "token0_symbol": "", "token1_symbol": ""}
 
+    def _shared_swr_seconds(self) -> float | None:
+        return 0.0 if self._CONSISTENT_SHARED_VIEW_REFRESH else None
+
     def _pool_ref(self, protocol: str) -> dict[str, str]:
         """Fetch token_pair, token0_symbol, token1_symbol from the pool
         reference table for a given protocol.  Cached per protocol.
@@ -77,7 +81,12 @@ class RiskAnalysisPageService(BasePageService):
             return self._EMPTY_POOL_REF
 
         try:
-            return self._cached(cache_key, _load, ttl_seconds=self._POOL_REF_TTL_SECONDS)
+            return self._cached(
+                cache_key,
+                _load,
+                ttl_seconds=self._POOL_REF_TTL_SECONDS,
+                swr_seconds=self._shared_swr_seconds(),
+            )
         except Exception as exc:
             logger.warning("_pool_ref query failed for %s: %s", protocol, exc)
             return self._EMPTY_POOL_REF
@@ -121,7 +130,12 @@ class RiskAnalysisPageService(BasePageService):
             )
 
         try:
-            return self._cached(cache_key, _load, ttl_seconds=self._PVALUE_TTL_SECONDS)
+            return self._cached(
+                cache_key,
+                _load,
+                ttl_seconds=self._PVALUE_TTL_SECONDS,
+                swr_seconds=self._shared_swr_seconds(),
+            )
         except Exception as exc:
             logger.warning("_pvalue_rows query failed (%s/%s/%s): %s", protocol, event_type, interval, exc)
             return []
@@ -143,7 +157,12 @@ class RiskAnalysisPageService(BasePageService):
             )
 
         try:
-            return self._cached(cache_key, _load, ttl_seconds=self._TICK_DIST_TTL_SECONDS)
+            return self._cached(
+                cache_key,
+                _load,
+                ttl_seconds=self._TICK_DIST_TTL_SECONDS,
+                swr_seconds=self._shared_swr_seconds(),
+            )
         except Exception as exc:
             logger.warning("_tick_dist_rows query failed (%s): %s", protocol, exc)
             return []
@@ -158,7 +177,12 @@ class RiskAnalysisPageService(BasePageService):
             return rows[0] if rows else {}
 
         try:
-            return self._cached("ra::xp_last", _load, ttl_seconds=self._XP_LAST_TTL_SECONDS)
+            return self._cached(
+                "ra::xp_last",
+                _load,
+                ttl_seconds=self._XP_LAST_TTL_SECONDS,
+                swr_seconds=self._shared_swr_seconds(),
+            )
         except Exception as exc:
             logger.warning("_xp_last query failed: %s", exc)
             return {}
@@ -176,7 +200,12 @@ class RiskAnalysisPageService(BasePageService):
             return self._reserve_symbols_fallback()
 
         try:
-            return self._cached("ra::kamino_v_last", _load, ttl_seconds=self._V_LAST_TTL_SECONDS)
+            return self._cached(
+                "ra::kamino_v_last",
+                _load,
+                ttl_seconds=self._V_LAST_TTL_SECONDS,
+                swr_seconds=self._shared_swr_seconds(),
+            )
         except Exception as exc:
             logger.warning("_kamino_v_last_row v_last query failed: %s", exc)
             return self._reserve_symbols_fallback()
@@ -268,7 +297,12 @@ class RiskAnalysisPageService(BasePageService):
             )
 
         try:
-            return self._cached(cache_key, _load, ttl_seconds=self._SENSITIVITY_TTL_SECONDS)
+            return self._cached(
+                cache_key,
+                _load,
+                ttl_seconds=self._SENSITIVITY_TTL_SECONDS,
+                swr_seconds=self._shared_swr_seconds(),
+            )
         except Exception as exc:
             logger.warning("_sensitivity_rows query failed: %s", exc)
             return []
@@ -293,7 +327,12 @@ class RiskAnalysisPageService(BasePageService):
                     out[sym] = sd / ap * 100
             return out
 
-        return self._cached("ra::vol_7d", _load, ttl_seconds=self._VOL_TTL_SECONDS)
+        return self._cached(
+            "ra::vol_7d",
+            _load,
+            ttl_seconds=self._VOL_TTL_SECONDS,
+            swr_seconds=self._shared_swr_seconds(),
+        )
 
     # ------------------------------------------------------------------
     # Helpers
@@ -973,7 +1012,12 @@ class RiskAnalysisPageService(BasePageService):
             )
 
         try:
-            return self._cached(cache_key, _load, ttl_seconds=self._POOL_REF_TTL_SECONDS)
+            return self._cached(
+                cache_key,
+                _load,
+                ttl_seconds=self._POOL_REF_TTL_SECONDS,
+                swr_seconds=self._shared_swr_seconds(),
+            )
         except Exception as exc:
             logger.warning("_tracked_pools_for_symbol failed for %s: %s", symbol, exc)
             return []
@@ -1002,7 +1046,12 @@ class RiskAnalysisPageService(BasePageService):
             )
 
         try:
-            return self._cached(cache_key, _load, ttl_seconds=self._CASCADE_TTL_SECONDS)
+            return self._cached(
+                cache_key,
+                _load,
+                ttl_seconds=self._CASCADE_TTL_SECONDS,
+                swr_seconds=self._shared_swr_seconds(),
+            )
         except Exception as exc:
             logger.warning(
                 "_cascade_rows query failed (%s/%s/%s/%s): %s",

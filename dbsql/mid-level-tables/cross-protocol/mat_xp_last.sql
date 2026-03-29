@@ -43,6 +43,7 @@ CREATE OR REPLACE PROCEDURE cross_protocol.refresh_mat_xp_last()
 LANGUAGE plpgsql AS $$
 DECLARE
     v_onyc_mint TEXT := '5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5';
+    v_kam_market_address TEXT;
 
     v_dex_tvl     NUMERIC := 0;
     v_kam_tvl     NUMERIC := 0;
@@ -91,7 +92,13 @@ BEGIN
         ON lr.reserve_address = art.reserve_address
     WHERE art.token_mint = v_onyc_mint;
 
-    -- ── KAMINO: Weighted-avg supply/borrow APY + utilization from borrow-type reserves ──
+    SELECT market_address
+    INTO v_kam_market_address
+    FROM kamino_lend.aux_market_reserve_tokens
+    WHERE token_mint = v_onyc_mint
+    LIMIT 1;
+
+    -- ── KAMINO: Weighted averages + per-asset borrow APYs from borrow reserves ──
     SELECT
         CASE WHEN SUM(COALESCE(lr.collateral_total_supply, 0)) > 0
              THEN SUM(COALESCE(lr.supply_apy, 0) * COALESCE(lr.collateral_total_supply, 0))
@@ -104,35 +111,22 @@ BEGIN
         CASE WHEN SUM(COALESCE(lr.collateral_total_supply, 0)) > 0
              THEN SUM(COALESCE(lr.utilization_ratio, 0) * COALESCE(lr.collateral_total_supply, 0))
                   / SUM(COALESCE(lr.collateral_total_supply, 0))
-             ELSE NULL END
-    INTO v_kam_supply_apy, v_kam_borrow_apy, v_kam_util
+             ELSE NULL END,
+        MAX(lr.borrow_apy) FILTER (WHERE art.token_symbol = 'USDC'),
+        MAX(lr.borrow_apy) FILTER (WHERE art.token_symbol = 'USDG'),
+        MAX(lr.borrow_apy) FILTER (WHERE art.token_symbol = 'USDS')
+    INTO
+        v_kam_supply_apy,
+        v_kam_borrow_apy,
+        v_kam_util,
+        v_kam_usdc_borrow_apy,
+        v_kam_usdg_borrow_apy,
+        v_kam_usds_borrow_apy
     FROM kamino_lend.mat_klend_last_reserves lr
     JOIN kamino_lend.aux_market_reserve_tokens art
         ON lr.reserve_address = art.reserve_address
-    WHERE art.market_address = (
-            SELECT market_address FROM kamino_lend.aux_market_reserve_tokens
-            WHERE token_mint = v_onyc_mint LIMIT 1
-          )
+    WHERE art.market_address = v_kam_market_address
       AND art.reserve_type = 'borrow';
-
-    -- ── KAMINO: Per-asset borrow APYs ──
-    SELECT lr.borrow_apy INTO v_kam_usdc_borrow_apy
-    FROM kamino_lend.mat_klend_last_reserves lr
-    JOIN kamino_lend.aux_market_reserve_tokens art ON lr.reserve_address = art.reserve_address
-    WHERE art.token_symbol = 'USDC'
-      AND art.market_address = (SELECT market_address FROM kamino_lend.aux_market_reserve_tokens WHERE token_mint = v_onyc_mint LIMIT 1);
-
-    SELECT lr.borrow_apy INTO v_kam_usdg_borrow_apy
-    FROM kamino_lend.mat_klend_last_reserves lr
-    JOIN kamino_lend.aux_market_reserve_tokens art ON lr.reserve_address = art.reserve_address
-    WHERE art.token_symbol = 'USDG'
-      AND art.market_address = (SELECT market_address FROM kamino_lend.aux_market_reserve_tokens WHERE token_mint = v_onyc_mint LIMIT 1);
-
-    SELECT lr.borrow_apy INTO v_kam_usds_borrow_apy
-    FROM kamino_lend.mat_klend_last_reserves lr
-    JOIN kamino_lend.aux_market_reserve_tokens art ON lr.reserve_address = art.reserve_address
-    WHERE art.token_symbol = 'USDS'
-      AND art.market_address = (SELECT market_address FROM kamino_lend.aux_market_reserve_tokens WHERE token_mint = v_onyc_mint LIMIT 1);
 
     -- Kamino market risk summary from mat_klend_last_obligations
     SELECT
