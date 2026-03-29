@@ -36,6 +36,7 @@ SHOW_ASSET_FILTER = os.getenv("SHOW_ASSET_FILTER", "1") == "1"
 SHOW_REFRESH_BUTTON = os.getenv("SHOW_REFRESH_BUTTON", "1") == "1"
 NAV_LAYOUT_SIDEBAR = os.getenv("NAV_LAYOUT_SIDEBAR", "0") == "1"
 SHARED_FAMILY_STRICT_INTENT = os.getenv("HTMX_SHARED_FAMILY_STRICT_INTENT", "0") == "1"
+SHARED_FAMILY_WARN_INTENT = os.getenv("HTMX_SHARED_FAMILY_WARN_INTENT", "0") == "1"
 
 ALL_LAST_WINDOW_OPTIONS = ["1h", "4h", "6h", "24h", "7d", "30d", "90d"]
 _lw_raw = os.getenv("LAST_WINDOW_OPTIONS", "")
@@ -377,7 +378,8 @@ def _validate_shared_family_mapping_intent() -> None:
         "Add entries to SHARED_DATA_FAMILY_HINTS or EXPLICIT_NO_SHARED_FAMILY_HINTS. "
         f"Examples: {sample}"
     )
-    print(message)
+    if SHARED_FAMILY_WARN_INTENT or SHARED_FAMILY_STRICT_INTENT:
+        print(message)
     if SHARED_FAMILY_STRICT_INTENT:
         raise RuntimeError(message)
 
@@ -520,7 +522,8 @@ def _build_page_context(
             # Shared-family alignment takes precedence over lane alignment.
             family_key = f"{endpoint_page}::{shared_data_family}"
             if family_key in family_delay_by_group:
-                load_delay_seconds = family_delay_by_group[family_key]
+                load_delay_seconds = min(load_delay_seconds, family_delay_by_group[family_key])
+                family_delay_by_group[family_key] = load_delay_seconds
             else:
                 family_delay_by_group[family_key] = load_delay_seconds
 

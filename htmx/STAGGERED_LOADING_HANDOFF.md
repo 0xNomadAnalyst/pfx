@@ -14,7 +14,7 @@ Goal: keep shared-family widgets visually and lifecycle-consistent while preserv
 
 ## What Is Implemented (Current State)
 
-This section reflects the latest implemented sequence (phases 1-5) and supersedes earlier notes.
+This section reflects the latest implemented sequence (phases 1-6) and supersedes earlier notes.
 
 1. Shared-family metadata propagated backend -> template -> frontend runtime.
 2. Delay precedence clarified: family alignment has explicit precedence over lane alignment.
@@ -23,6 +23,9 @@ This section reflects the latest implemented sequence (phases 1-5) and supersede
 5. Sync test harness improved (visibility prep + failure tags).
 6. Startup/CI drift checks added for intentional shared-family mapping.
 7. Feature-flagged unified reveal coordinator added with legacy fallback path.
+8. Reveal control-flow refactored to a shared active-strategy path with reduced duplicate branching.
+9. Shared-family lookup now uses a per-refresh family index cache to avoid repeated full DOM scans.
+10. Startup mapping-intent warnings are now opt-in unless strict mode is enabled.
 
 ---
 
@@ -64,7 +67,9 @@ Family alignment is explicitly documented as higher priority.
 
 Added startup validation:
 
-- warns when active widget endpoints have no explicit family intent
+- can warn when active widget endpoints have no explicit family intent
+- warning is opt-in via:
+  - `HTMX_SHARED_FAMILY_WARN_INTENT=1`
 - optional strict failure via env:
   - `HTMX_SHARED_FAMILY_STRICT_INTENT=1`
 
@@ -123,6 +128,30 @@ Coordinator responsibilities:
 
 Legacy shared-family + batched reveal paths remain intact and are still default.
 
+### D) Active reveal strategy refactor (phase 6)
+
+Refactor goals were to reduce duplicated control-flow without changing default behavior.
+
+Implemented:
+
+- terminal settle handling unified behind:
+  - `_onTerminalRevealSettle(sourceEl, widgetId)`
+- active batch handling unified behind:
+  - `_beginActiveBatch(els)`
+  - `_bufferActiveBatch(widgetId, payload, srcId, sourceEl)`
+- active family buffering/flush unified behind:
+  - `_bufferActiveFamily(...)`
+  - `_flushActiveFamily(familyId)`
+- active reveal state reset unified behind:
+  - `_clearActiveRevealState()`
+
+Additional hardening/simplification in this pass:
+
+- batch settle condition simplified (flush when target set drains; removed early flush on buffer-size comparison)
+- repeated `sharedFamilyWidgetElements(...)` scans replaced by cached family index:
+  - `_sharedFamilyWidgetIndex`
+  - invalidated on refresh/pipeline switch/soft-nav teardown
+
 ---
 
 ## 5) Tooling and test harness updates
@@ -162,6 +191,7 @@ Improvements:
 ## Code quality
 
 - Python syntax checks passed for updated Python files.
+- JavaScript syntax check passed for `charts.js` (`node --check`).
 - Lints for changed files reported no new issues.
 
 ## Sync parity checks across profiles (dex swaps family)
@@ -231,4 +261,3 @@ A stricter bootstrap request suppression approach was previously tested and remo
 - `htmx/scripts/refresh_widget_call_mappings.py`
 - `htmx/config/widget_call_mappings.json`
 - `htmx/scripts/test_widget_sync_groups.py`
-

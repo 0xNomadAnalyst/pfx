@@ -4048,10 +4048,8 @@
       }
     });
     chartState.clear();
-    _clearSharedFamilyRevealState();
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _clearRevealCoordinatorState();
-    }
+    _clearActiveRevealState();
+    invalidateSharedFamilyWidgetIndex();
     detailTableCache.clear();
     pageActionCache.clear();
     widgetResponseCache.clear();
@@ -4334,7 +4332,7 @@
     if (!BATCHED_REVEAL_ENABLED || !widgetId) return;
     if (!_batchedRevealTargets.has(widgetId)) return;
     _batchedRevealTargets.delete(widgetId);
-    if (_batchedRevealTargets.size === 0 || _batchedRevealBuffer.size >= _batchedRevealTargets.size) {
+    if (_batchedRevealTargets.size === 0) {
       _flushBatchedReveal();
     }
   }
@@ -4373,10 +4371,8 @@
     const widgets = widgetElements();
     if (!widgets.length) return;
     markInteractiveRefreshWindow();
-    _clearSharedFamilyRevealState();
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _clearRevealCoordinatorState();
-    }
+    _clearActiveRevealState();
+    invalidateSharedFamilyWidgetIndex();
 
     if (!prioritizeViewport) {
       htmx.trigger(document.body, "dashboard-refresh");
@@ -4402,20 +4398,8 @@
     deferredCritical.sort(compareWidgetsByVisualPriority);
     deferredOther.sort(compareWidgetsByVisualPriority);
 
-    if (BATCHED_REVEAL_ENABLED && !UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _batchedRevealBuffer.clear();
-      _batchedRevealTargets.clear();
-      if (_batchedRevealTimer) clearTimeout(_batchedRevealTimer);
-      [...visibleCritical, ...visibleOther].forEach((el) => {
-        const wid = el.dataset.widgetId;
-        if (wid) _batchedRevealTargets.add(wid);
-      });
-      if (_batchedRevealTargets.size > 0 && BATCHED_REVEAL_TIMEOUT_MS > 0) {
-        _batchedRevealTimer = setTimeout(_flushBatchedReveal, BATCHED_REVEAL_TIMEOUT_MS);
-      }
-    }
-    if (BATCHED_REVEAL_ENABLED && UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _beginRevealCoordinatorBatch([...visibleCritical, ...visibleOther]);
+    if (BATCHED_REVEAL_ENABLED) {
+      _beginActiveBatch([...visibleCritical, ...visibleOther]);
     }
 
     if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
@@ -4669,7 +4653,21 @@
   function sharedFamilyWidgetElements(familyId) {
     const family = String(familyId || "").trim();
     if (!family) return [];
-    return widgetElements().filter((el) => sharedFamilyId(el) === family);
+    if (!_sharedFamilyWidgetIndex) {
+      _sharedFamilyWidgetIndex = new Map();
+      widgetElements().forEach((el) => {
+        const fid = sharedFamilyId(el);
+        if (!fid) return;
+        const arr = _sharedFamilyWidgetIndex.get(fid) || [];
+        arr.push(el);
+        _sharedFamilyWidgetIndex.set(fid, arr);
+      });
+    }
+    return _sharedFamilyWidgetIndex.get(family) || [];
+  }
+
+  function invalidateSharedFamilyWidgetIndex() {
+    _sharedFamilyWidgetIndex = null;
   }
 
   function isSharedFamilyWidgetId(widgetId) {
@@ -5433,10 +5431,8 @@
       }
     });
     chartState.clear();
-    _clearSharedFamilyRevealState();
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _clearRevealCoordinatorState();
-    }
+    _clearActiveRevealState();
+    invalidateSharedFamilyWidgetIndex();
     _pipelineSwitchInProgress = false;
     if (_activeHydrationTrace?.settleTimer) {
       clearTimeout(_activeHydrationTrace.settleTimer);
@@ -6877,6 +6873,7 @@
   let _adaptiveShellPrefetchUsed = 0;
   let _adaptiveDialdownTriggered = false;
   let _adaptiveDialdownConsecutiveLow = 0;
+  let _sharedFamilyWidgetIndex = null;
   const _batchedRevealBuffer = new Map();
   const _batchedRevealTargets = new Set();
   let _batchedRevealTimer = null;
@@ -6909,6 +6906,14 @@
       }
     });
     _revealCoordinatorGroups.clear();
+  }
+
+  function _clearActiveRevealState() {
+    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
+      _clearRevealCoordinatorState();
+      return;
+    }
+    _clearSharedFamilyRevealState();
   }
 
   function _flushSharedFamilyReveal(familyId) {
@@ -6973,10 +6978,7 @@
   function _settleRevealCoordinatorBatchTarget(widgetId) {
     if (!widgetId || !_revealCoordinatorBatchTargets.has(widgetId)) return;
     _revealCoordinatorBatchTargets.delete(widgetId);
-    if (
-      _revealCoordinatorBatchTargets.size === 0
-      || _revealCoordinatorBatchBuffer.size >= _revealCoordinatorBatchTargets.size
-    ) {
+    if (_revealCoordinatorBatchTargets.size === 0) {
       if (_revealCoordinatorBatchTimer) {
         try { clearTimeout(_revealCoordinatorBatchTimer); } catch (_) {}
         _revealCoordinatorBatchTimer = null;
@@ -7014,23 +7016,6 @@
     }
   }
 
-  function _revealCoordinatorOnTerminal(sourceEl, widgetId = "") {
-    if (!UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _maybeFlushFamilyOnTerminal(sourceEl);
-      _settleBatchedRevealTarget(widgetId);
-      return;
-    }
-    const familyId = sharedFamilyId(sourceEl);
-    if (familyId) {
-      const familyWidgets = sharedFamilyWidgetElements(familyId);
-      const familyInFlight = familyWidgets.some((el) => el.classList.contains("htmx-request"));
-      if (!familyInFlight) {
-        _flushRevealCoordinatorGroup(`family:${familyId}`);
-      }
-    }
-    _settleRevealCoordinatorBatchTarget(widgetId);
-  }
-
   function _maybeFlushFamilyOnTerminal(sourceEl) {
     const familyId = sharedFamilyId(sourceEl);
     if (!familyId) return;
@@ -7038,6 +7023,90 @@
       .some((el) => el.classList.contains("htmx-request"));
     if (!familyInFlight) {
       _flushSharedFamilyReveal(familyId);
+    }
+  }
+
+  function _onTerminalRevealSettle(sourceEl, widgetId = "") {
+    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
+      const familyId = sharedFamilyId(sourceEl);
+      if (familyId) {
+        const familyWidgets = sharedFamilyWidgetElements(familyId);
+        const familyInFlight = familyWidgets.some((el) => el.classList.contains("htmx-request"));
+        if (!familyInFlight) {
+          _flushRevealCoordinatorGroup(`family:${familyId}`);
+        }
+      }
+      _settleRevealCoordinatorBatchTarget(widgetId);
+      return;
+    }
+    _maybeFlushFamilyOnTerminal(sourceEl);
+    _settleBatchedRevealTarget(widgetId);
+  }
+
+  function _isWidgetInActiveBatch(widgetId) {
+    if (!BATCHED_REVEAL_ENABLED || !widgetId) return false;
+    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
+      return _revealCoordinatorBatchTargets.has(widgetId);
+    }
+    return _batchedRevealTargets.has(widgetId);
+  }
+
+  function _bufferActiveBatch(widgetId, payload, srcId, sourceEl) {
+    if (!BATCHED_REVEAL_ENABLED || !widgetId) return false;
+    if (!_isWidgetInActiveBatch(widgetId)) return false;
+    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
+      _revealCoordinatorBatchBuffer.set(widgetId, { widgetId, payload, srcId, sourceEl });
+      _settleRevealCoordinatorBatchTarget(widgetId);
+    } else {
+      _batchedRevealBuffer.set(widgetId, { widgetId, payload, srcId, sourceEl });
+      _settleBatchedRevealTarget(widgetId);
+    }
+    return true;
+  }
+
+  function _bufferActiveFamily(familyId, widgetId, payload, srcId, sourceEl) {
+    if (!familyId || !widgetId) return;
+    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
+      _bufferRevealCoordinatorGroup(
+        `family:${familyId}`,
+        widgetId,
+        payload,
+        srcId,
+        sourceEl,
+        SHARED_FAMILY_REVEAL_TIMEOUT_MS,
+      );
+      return;
+    }
+    _bufferSharedFamilyReveal(familyId, widgetId, payload, srcId, sourceEl);
+  }
+
+  function _flushActiveFamily(familyId) {
+    if (!familyId) return;
+    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
+      _flushRevealCoordinatorGroup(`family:${familyId}`);
+      return;
+    }
+    _flushSharedFamilyReveal(familyId);
+  }
+
+  function _beginActiveBatch(els) {
+    if (!BATCHED_REVEAL_ENABLED) return;
+    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
+      _beginRevealCoordinatorBatch(els);
+      return;
+    }
+    _batchedRevealBuffer.clear();
+    _batchedRevealTargets.clear();
+    if (_batchedRevealTimer) {
+      clearTimeout(_batchedRevealTimer);
+      _batchedRevealTimer = null;
+    }
+    els.forEach((el) => {
+      const wid = el?.dataset?.widgetId;
+      if (wid) _batchedRevealTargets.add(String(wid));
+    });
+    if (_batchedRevealTargets.size > 0 && BATCHED_REVEAL_TIMEOUT_MS > 0) {
+      _batchedRevealTimer = setTimeout(_flushBatchedReveal, BATCHED_REVEAL_TIMEOUT_MS);
     }
   }
 
@@ -7717,11 +7786,11 @@
       return;
     }
     if (_pipelineSwitchInProgress) {
-      _settleBatchedRevealTarget(widgetId);
+      _onTerminalRevealSettle(sourceEl, widgetId);
       return;
     }
     if (!event.detail.successful) {
-      _revealCoordinatorOnTerminal(sourceEl, widgetId);
+      _onTerminalRevealSettle(sourceEl, widgetId);
       return;
     }
     _renderingWidgetEl = sourceEl;
@@ -7738,43 +7807,7 @@
       }
       const srcId = resolveSourceWidgetId(sourceEl);
 
-      if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-        if (BATCHED_REVEAL_ENABLED && _revealCoordinatorBatchTargets.has(widgetId)) {
-          _revealCoordinatorBatchBuffer.set(widgetId, { widgetId, payload, srcId, sourceEl });
-          _settleRevealCoordinatorBatchTarget(widgetId);
-          return;
-        }
-        const familyId = sharedFamilyId(sourceEl);
-        if (familyId) {
-          const familyWidgets = sharedFamilyWidgetElements(familyId);
-          if (familyWidgets.length > 1) {
-            const familyInFlight = familyWidgets
-              .some((el) => el !== sourceEl && el.classList.contains("htmx-request"));
-            if (familyInFlight) {
-              _bufferRevealCoordinatorGroup(
-                `family:${familyId}`,
-                widgetId,
-                payload,
-                srcId,
-                sourceEl,
-                SHARED_FAMILY_REVEAL_TIMEOUT_MS,
-              );
-              return;
-            }
-            _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
-            _flushRevealCoordinatorGroup(`family:${familyId}`);
-            _settleRevealCoordinatorBatchTarget(widgetId);
-            return;
-          }
-        }
-        _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
-        _settleRevealCoordinatorBatchTarget(widgetId);
-        return;
-      }
-
-      if (BATCHED_REVEAL_ENABLED && _batchedRevealTargets.has(widgetId)) {
-        _batchedRevealBuffer.set(widgetId, { widgetId, payload, srcId, sourceEl });
-        _settleBatchedRevealTarget(widgetId);
+      if (_bufferActiveBatch(widgetId, payload, srcId, sourceEl)) {
         return;
       }
 
@@ -7785,16 +7818,18 @@
           const familyInFlight = familyWidgets
             .some((el) => el !== sourceEl && el.classList.contains("htmx-request"));
           if (familyInFlight) {
-            _bufferSharedFamilyReveal(familyId, widgetId, payload, srcId, sourceEl);
+            _bufferActiveFamily(familyId, widgetId, payload, srcId, sourceEl);
             return;
           }
           _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
-          _flushSharedFamilyReveal(familyId);
+          _flushActiveFamily(familyId);
+          _onTerminalRevealSettle(sourceEl, widgetId);
           return;
         }
       }
 
       _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
+      _onTerminalRevealSettle(sourceEl, widgetId);
     } catch (error) {
       setWidgetError(widgetId, String(error));
     } finally {
@@ -7922,7 +7957,7 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
-    _revealCoordinatorOnTerminal(sourceEl, widgetId);
+    _onTerminalRevealSettle(sourceEl, widgetId);
     setWidgetError(widgetId, detail);
   });
 
@@ -7942,7 +7977,7 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
-    _revealCoordinatorOnTerminal(sourceEl, widgetId);
+    _onTerminalRevealSettle(sourceEl, widgetId);
     setWidgetError(widgetId, "cannot reach API");
   });
 
@@ -7962,7 +7997,7 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
-    _revealCoordinatorOnTerminal(sourceEl, widgetId);
+    _onTerminalRevealSettle(sourceEl, widgetId);
     setWidgetError(widgetId, "request timeout");
   });
 
@@ -7986,7 +8021,7 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
-    _revealCoordinatorOnTerminal(sourceEl, widgetId);
+    _onTerminalRevealSettle(sourceEl, widgetId);
     clearStaleTimestampLabel(widgetId);
   });
 
