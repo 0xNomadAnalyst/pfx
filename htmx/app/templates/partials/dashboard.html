@@ -42,7 +42,7 @@
   hx-get="{{ widget.endpoint }}"
   hx-request='{"timeout":90000}'
   hx-trigger="load delay:{{ widget.load_delay_seconds }}s, dashboard-refresh from:body, impact-mode-change, flow-mode-change, distribution-mode-change, ohlcv-interval-change, {% if widget.id != 'health-queue-chart-2' %}health-schema-change from:body, health-attribute-change from:body, {% endif %}{% if widget.id == 'health-queue-chart-2' %}health-schema-change-2 from:body, health-attribute-change-2 from:body, {% endif %}health-base-schema-change from:body, risk-event-type-change from:body, risk-interval-change from:body, risk-liq-source-change from:body, risk-stress-asset-change from:body, every {{ widget.refresh_interval_seconds }}s"
-  hx-sync="this:replace"
+  hx-sync="this:queue last"
   hx-swap="none"
 >
   <div class="panel-header">

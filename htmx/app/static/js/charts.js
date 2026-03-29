@@ -40,6 +40,7 @@
   const REWARMUP_IDLE_DELAY_MS = readRuntimeInt("rewarmupIdleDelayMs", 0, 0, 30_000);
   const BATCHED_REVEAL_ENABLED = readRuntimeBool("batchedRevealEnabled", false);
   const BATCHED_REVEAL_TIMEOUT_MS = readRuntimeInt("batchedRevealTimeoutMs", 0, 0, 5_000);
+  const SHARED_FAMILY_REVEAL_TIMEOUT_MS = readRuntimeInt("sharedFamilyRevealTimeoutMs", 12_000, 0, 60_000);
   const MAX_CONCURRENT_WIDGET_REQUESTS = readRuntimeInt("maxConcurrentWidgetRequests", 0, 0, 50);
   const OFFSCREEN_PAUSE_ENABLED = readRuntimeBool("offscreenPauseEnabled", false);
   const SKELETON_MIN_DISPLAY_MS = readRuntimeInt("skeletonMinDisplayMs", 0, 0, 1_000);
@@ -95,6 +96,7 @@
     staleLabelAutoCleared: 0,
     adaptiveDialdownTriggered: 0,
     suppressedInFlightDuplicateRequest: 0,
+    suppressedInFlightForcedRequest: 0,
   };
   function recordPerfMetric(metricKey, amount = 1) {
     if (!Object.prototype.hasOwnProperty.call(perfMetrics, metricKey)) return;
@@ -4045,6 +4047,7 @@
       }
     });
     chartState.clear();
+    _clearSharedFamilyRevealState();
     detailTableCache.clear();
     pageActionCache.clear();
     widgetResponseCache.clear();
@@ -4280,6 +4283,13 @@
     if (!el || !el.classList.contains("widget-loader")) return;
     const endpoint = el.getAttribute("hx-get");
     if (!endpoint) return;
+    // Do not replace an active request for the same widget.
+    // Replacement requests produce status=0 aborts and can starve slower
+    // shared-family siblings in a perpetual loading state.
+    if (el.classList.contains("htmx-request")) {
+      recordPerfMetric("suppressedInFlightForcedRequest");
+      return;
+    }
     el.dataset.forceRequest = "1";
     htmx.ajax("GET", endpoint, {
       source: el,
@@ -4343,7 +4353,15 @@
     if (_concurrencyInFlight < MAX_CONCURRENT_WIDGET_REQUESTS) {
       requestWidgetNow(el);
     } else {
-      _concurrencyQueue.push(el);
+      const widgetId = String(el?.dataset?.widgetId || "");
+      const alreadyQueued = _concurrencyQueue.some((queued) => {
+        if (!queued) return false;
+        if (queued === el) return true;
+        return widgetId && String(queued?.dataset?.widgetId || "") === widgetId;
+      });
+      if (!alreadyQueued) {
+        _concurrencyQueue.push(el);
+      }
     }
   }
 
@@ -4351,7 +4369,7 @@
     const widgets = widgetElements();
     if (!widgets.length) return;
     markInteractiveRefreshWindow();
-    _concurrencyQueue.length = 0;
+    _clearSharedFamilyRevealState();
 
     if (!prioritizeViewport) {
       htmx.trigger(document.body, "dashboard-refresh");
@@ -4631,6 +4649,17 @@
 
   function isSharedFamilyWidgetElement(el) {
     return !!(el && el.dataset && String(el.dataset.sharedDataFamily || "").trim());
+  }
+
+  function sharedFamilyId(el) {
+    if (!el || !el.dataset) return "";
+    return String(el.dataset.sharedDataFamily || "").trim();
+  }
+
+  function sharedFamilyWidgetElements(familyId) {
+    const family = String(familyId || "").trim();
+    if (!family) return [];
+    return widgetElements().filter((el) => sharedFamilyId(el) === family);
   }
 
   function isSharedFamilyWidgetId(widgetId) {
@@ -5103,10 +5132,55 @@
     }
   }
 
+  function hasCachedWidgetPayloadForCurrentSignature(sourceEl) {
+    if (!sourceEl || !sourceEl.classList.contains("widget-loader")) return false;
+    const widgetId = sourceEl.dataset.widgetId || "";
+    if (!widgetId) return false;
+    const signature = widgetFilterSignature(sourceEl);
+    const sourceWidgetId = resolveSourceWidgetId(sourceEl);
+    let entry = getWidgetCacheEntry(widgetId, signature);
+    if (!entry && sourceWidgetId && sourceWidgetId !== widgetId) {
+      entry = getWidgetCacheEntry(sourceWidgetId, signature);
+    }
+    if (!entry) {
+      entry = getLatestWidgetCacheEntry(widgetId);
+    }
+    if (!entry && sourceWidgetId && sourceWidgetId !== widgetId) {
+      entry = getLatestWidgetCacheEntry(sourceWidgetId);
+    }
+    if (!entry || !entry.payload) return false;
+    return classifyWidgetCacheFreshness(widgetId, entry) !== "expired";
+  }
+
   function hydrateWidgetsFromCache() {
     const startedAt = performance.now();
     let hits = 0;
-    widgetElements().forEach((el) => {
+    const widgets = widgetElements();
+    const blockedByFamily = new Set();
+    const familyGroups = new Map();
+    widgets.forEach((el) => {
+      const familyId = sharedFamilyId(el);
+      if (!familyId) return;
+      if (!familyGroups.has(familyId)) {
+        familyGroups.set(familyId, []);
+      }
+      familyGroups.get(familyId).push(el);
+    });
+    familyGroups.forEach((members) => {
+      if (!Array.isArray(members) || members.length < 2) return;
+      const allFamilyMembersCached = members.every((el) => hasCachedWidgetPayloadForCurrentSignature(el));
+      if (allFamilyMembersCached) return;
+      members.forEach((el) => {
+        const wid = String(el?.dataset?.widgetId || "");
+        if (wid) blockedByFamily.add(wid);
+      });
+    });
+
+    widgets.forEach((el) => {
+      const wid = String(el?.dataset?.widgetId || "");
+      if (wid && blockedByFamily.has(wid)) {
+        return;
+      }
       if (renderCachedWidgetPayload(el)) {
         hits += 1;
       }
@@ -5349,6 +5423,7 @@
       }
     });
     chartState.clear();
+    _clearSharedFamilyRevealState();
     _pipelineSwitchInProgress = false;
     if (_activeHydrationTrace?.settleTimer) {
       clearTimeout(_activeHydrationTrace.settleTimer);
@@ -6792,7 +6867,46 @@
   const _batchedRevealBuffer = new Map();
   const _batchedRevealTargets = new Set();
   let _batchedRevealTimer = null;
+  const _sharedFamilyRevealBuffer = new Map();
+  const _sharedFamilyRevealTimers = new Map();
   const _skeletonShownAt = new Map();
+
+  function _clearSharedFamilyRevealState() {
+    _sharedFamilyRevealBuffer.clear();
+    _sharedFamilyRevealTimers.forEach((timer) => {
+      try { clearTimeout(timer); } catch (_) {}
+    });
+    _sharedFamilyRevealTimers.clear();
+  }
+
+  function _flushSharedFamilyReveal(familyId) {
+    const family = String(familyId || "").trim();
+    if (!family) return;
+    const timer = _sharedFamilyRevealTimers.get(family);
+    if (timer) {
+      try { clearTimeout(timer); } catch (_) {}
+      _sharedFamilyRevealTimers.delete(family);
+    }
+    const pending = [];
+    _sharedFamilyRevealBuffer.forEach((entry, widgetId) => {
+      if (entry && entry.familyId === family) {
+        pending.push([widgetId, entry]);
+      }
+    });
+    pending.forEach(([widgetId, entry]) => {
+      _sharedFamilyRevealBuffer.delete(widgetId);
+      _renderWidgetResponse(widgetId, entry.payload, entry.srcId, entry.sourceEl);
+    });
+  }
+
+  function _bufferSharedFamilyReveal(familyId, widgetId, payload, srcId, sourceEl) {
+    const family = String(familyId || "").trim();
+    if (!family || !widgetId) return;
+    _sharedFamilyRevealBuffer.set(widgetId, { familyId: family, payload, srcId, sourceEl });
+    if (_sharedFamilyRevealTimers.has(family) || SHARED_FAMILY_REVEAL_TIMEOUT_MS <= 0) return;
+    const timer = setTimeout(() => _flushSharedFamilyReveal(family), SHARED_FAMILY_REVEAL_TIMEOUT_MS);
+    _sharedFamilyRevealTimers.set(family, timer);
+  }
 
   async function runPerPageWarmup(
     manifest,
@@ -7474,6 +7588,14 @@
       return;
     }
     if (!event.detail.successful) {
+      const familyId = sharedFamilyId(sourceEl);
+      if (familyId) {
+        const familyInFlight = sharedFamilyWidgetElements(familyId)
+          .some((el) => el.classList.contains("htmx-request"));
+        if (!familyInFlight) {
+          _flushSharedFamilyReveal(familyId);
+        }
+      }
       _settleBatchedRevealTarget(widgetId);
       return;
     }
@@ -7495,6 +7617,22 @@
         _batchedRevealBuffer.set(widgetId, { widgetId, payload, srcId, sourceEl });
         _settleBatchedRevealTarget(widgetId);
         return;
+      }
+
+      const familyId = sharedFamilyId(sourceEl);
+      if (familyId) {
+        const familyWidgets = sharedFamilyWidgetElements(familyId);
+        if (familyWidgets.length > 1) {
+          const familyInFlight = familyWidgets
+            .some((el) => el !== sourceEl && el.classList.contains("htmx-request"));
+          if (familyInFlight) {
+            _bufferSharedFamilyReveal(familyId, widgetId, payload, srcId, sourceEl);
+            return;
+          }
+          _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
+          _flushSharedFamilyReveal(familyId);
+          return;
+        }
       }
 
       _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
@@ -7625,6 +7763,14 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
+    const responseErrorFamilyId = sharedFamilyId(sourceEl);
+    if (responseErrorFamilyId) {
+      const familyInFlight = sharedFamilyWidgetElements(responseErrorFamilyId)
+        .some((el) => el.classList.contains("htmx-request"));
+      if (!familyInFlight) {
+        _flushSharedFamilyReveal(responseErrorFamilyId);
+      }
+    }
     _settleBatchedRevealTarget(widgetId);
     setWidgetError(widgetId, detail);
   });
@@ -7645,6 +7791,14 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
+    const sendErrorFamilyId = sharedFamilyId(sourceEl);
+    if (sendErrorFamilyId) {
+      const familyInFlight = sharedFamilyWidgetElements(sendErrorFamilyId)
+        .some((el) => el.classList.contains("htmx-request"));
+      if (!familyInFlight) {
+        _flushSharedFamilyReveal(sendErrorFamilyId);
+      }
+    }
     _settleBatchedRevealTarget(widgetId);
     setWidgetError(widgetId, "cannot reach API");
   });
@@ -7665,6 +7819,14 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
+    const timeoutFamilyId = sharedFamilyId(sourceEl);
+    if (timeoutFamilyId) {
+      const familyInFlight = sharedFamilyWidgetElements(timeoutFamilyId)
+        .some((el) => el.classList.contains("htmx-request"));
+      if (!familyInFlight) {
+        _flushSharedFamilyReveal(timeoutFamilyId);
+      }
+    }
     _settleBatchedRevealTarget(widgetId);
     setWidgetError(widgetId, "request timeout");
   });
@@ -7689,6 +7851,14 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
+    const abortFamilyId = sharedFamilyId(sourceEl);
+    if (abortFamilyId) {
+      const familyInFlight = sharedFamilyWidgetElements(abortFamilyId)
+        .some((el) => el.classList.contains("htmx-request"));
+      if (!familyInFlight) {
+        _flushSharedFamilyReveal(abortFamilyId);
+      }
+    }
     _settleBatchedRevealTarget(widgetId);
     clearStaleTimestampLabel(widgetId);
   });
@@ -8498,6 +8668,15 @@
   });
 
   window.addEventListener("popstate", () => {
-    softNavigateToPage(`${window.location.pathname}${window.location.search || ""}`, { pushHistory: false });
+    const targetPath = `${window.location.pathname}${window.location.search || ""}`;
+    const normalizedTarget = normalizeSoftNavPath(targetPath);
+    const normalizedCurrent = _softNavCurrentPath();
+    // Some browsers can emit an initial popstate on first load. Avoid a
+    // no-op soft-nav refresh of the same route, which would abort in-flight
+    // widget loads and leave panels stuck in loading state.
+    if (!_softNavInFlight && !_softNavQueuedPath && normalizedTarget && normalizedTarget === normalizedCurrent) {
+      return;
+    }
+    softNavigateToPage(targetPath, { pushHistory: false });
   });
 })();

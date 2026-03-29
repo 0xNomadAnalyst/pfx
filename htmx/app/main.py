@@ -425,11 +425,16 @@ def _build_page_context(
     last_chart_delay = 0.0
     dual_pool_pages = {"risk-analysis", "dexes", "exponent-yield"}
     lane_delay_by_group: dict[str, float] = {}
+    family_delay_by_group: dict[str, float] = {}
     health_table_index = 0
     health_chart_index = 0
     health_queue_pair_delay: float | None = None
     widget_bindings = []
     for widget in widgets:
+        endpoint_page = widget.source_page_id or page.api_page_id
+        endpoint_wid = widget.source_widget_id or widget.id
+        shared_data_family = resolve_shared_data_family(endpoint_page, endpoint_wid)
+
         if widget.kind == "kpi":
             load_delay_seconds = kpi_index * 0.15
             kpi_index += 1
@@ -470,6 +475,13 @@ def _build_page_context(
                         health_queue_pair_delay = load_delay_seconds
                     health_chart_index += 1
 
+        if shared_data_family and widget.kind in {"kpi", "chart", "table", "table-split"}:
+            family_key = f"{endpoint_page}::{shared_data_family}"
+            if family_key in family_delay_by_group:
+                load_delay_seconds = family_delay_by_group[family_key]
+            else:
+                family_delay_by_group[family_key] = load_delay_seconds
+
         if widget.kind == "kpi":
             kpi_override = _CACHE_CONFIG["refresh_kpi_seconds"]
             refresh_interval_seconds = kpi_override if kpi_override > 0 else widget.refresh_interval_seconds
@@ -478,9 +490,6 @@ def _build_page_context(
         else:
             refresh_interval_seconds = _CACHE_CONFIG["refresh_chart_seconds"]
 
-        endpoint_page = widget.source_page_id or page.api_page_id
-        endpoint_wid = widget.source_widget_id or widget.id
-        shared_data_family = resolve_shared_data_family(endpoint_page, endpoint_wid)
         widget_bindings.append(
             {
                 "id": widget.id,
