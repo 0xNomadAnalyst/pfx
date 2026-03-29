@@ -4319,10 +4319,8 @@
     }
     requestAnimationFrame(() => {
       _batchedRevealBuffer.forEach(({ widgetId, payload, srcId, sourceEl }) => {
-        renderPayload(widgetId, payload, srcId);
-        updateTimestamp(widgetId, payload?.metadata?.generated_at);
-        setWidgetCachedPayload(widgetId, widgetFilterSignature(sourceEl), payload);
-        sourceEl.dataset.hasLoadedOnce = "1";
+        if (!sourceEl?.isConnected) return;
+        _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
       });
       _batchedRevealBuffer.clear();
       _batchedRevealTargets.clear();
@@ -7821,11 +7819,13 @@
       const raw = event.detail.xhr.responseText;
       if (!raw) {
         setWidgetError(widgetId, "no response from API");
+        _onTerminalRevealSettle(sourceEl, widgetId);
         return;
       }
       const payload = JSON.parse(raw);
       if (payload.status !== "success") {
         setWidgetError(widgetId, payload.detail || "request failed");
+        _onTerminalRevealSettle(sourceEl, widgetId);
         return;
       }
       const srcId = resolveSourceWidgetId(sourceEl);
@@ -7855,6 +7855,7 @@
       _onTerminalRevealSettle(sourceEl, widgetId);
     } catch (error) {
       setWidgetError(widgetId, String(error));
+      _onTerminalRevealSettle(sourceEl, widgetId);
     } finally {
       _renderingWidgetEl = null;
     }

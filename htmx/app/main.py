@@ -519,8 +519,7 @@ def _build_page_context(
 
         if shared_data_family and widget.kind in {"kpi", "chart", "table", "table-split"}:
             # Shared-family alignment takes precedence over lane alignment.
-            # This is a single-pass min convergence; family members can inherit
-            # progressively lower delays based on encounter order in page config.
+            # A second pass below applies the final family minimum to all members.
             family_key = f"{endpoint_page}::{shared_data_family}"
             if family_key in family_delay_by_group:
                 load_delay_seconds = min(load_delay_seconds, family_delay_by_group[family_key])
@@ -549,10 +548,34 @@ def _build_page_context(
                 "tooltip": widget.tooltip,
                 "detail_table_endpoint": build_widget_endpoint(BROWSER_API_BASE_URL, endpoint_page, widget.detail_table_id) if widget.detail_table_id else "",
                 "source_widget_id": widget.source_widget_id,
+                "source_page_id": endpoint_page,
                 "protocol_override": widget.protocol_override,
                 "shared_data_family": shared_data_family,
             }
         )
+
+    # Backfill final minimum load delay across all members of each shared family.
+    # This removes order dependence from the single-pass convergence above.
+    family_min_delay: dict[str, float] = {}
+    for binding in widget_bindings:
+        family = str(binding.get("shared_data_family") or "").strip()
+        if not family:
+            continue
+        family_page = str(binding.get("source_page_id") or page.api_page_id)
+        family_key = f"{family_page}::{family}"
+        current_delay = float(binding.get("load_delay_seconds") or 0.0)
+        if family_key in family_min_delay:
+            family_min_delay[family_key] = min(family_min_delay[family_key], current_delay)
+        else:
+            family_min_delay[family_key] = current_delay
+    for binding in widget_bindings:
+        family = str(binding.get("shared_data_family") or "").strip()
+        if not family:
+            continue
+        family_page = str(binding.get("source_page_id") or page.api_page_id)
+        family_key = f"{family_page}::{family}"
+        if family_key in family_min_delay:
+            binding["load_delay_seconds"] = family_min_delay[family_key]
 
     current_index = next((idx for idx, cfg in enumerate(PAGES) if cfg.slug == page.slug), 0)
     warmup_pages = PAGES[current_index + 1 :] + PAGES[:current_index]
