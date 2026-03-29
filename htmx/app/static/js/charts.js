@@ -111,6 +111,8 @@
     "health-queue-table",
     "health-trigger-table",
     "health-base-table",
+    "exponent-market-info-mkt1",
+    "exponent-market-info-mkt2",
   ]);
   const comparableLiquidityWidgets = new Set([
     "liquidity-distribution",

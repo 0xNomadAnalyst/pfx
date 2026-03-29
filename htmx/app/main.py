@@ -134,7 +134,10 @@ CACHE_PROFILES: dict[str, dict] = {
         "rewarmup_idle_delay_ms": 0,
         "batched_reveal_enabled": False,
         "batched_reveal_timeout_ms": 0,
-        "max_concurrent_widget_requests": 0,
+        # Keep balanced mode from flooding the API/DB pool on wide pages.
+        # Unlimited bursts can create long queueing tails where related widgets
+        # do not settle together even when they share underlying data.
+        "max_concurrent_widget_requests": 6,
         "offscreen_pause_enabled": False,
         "skeleton_min_display_ms": 0,
         "adaptive_dialdown_enabled": False,
