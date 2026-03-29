@@ -14,7 +14,7 @@ Goal: keep shared-family widgets visually and lifecycle-consistent while preserv
 
 ## What Is Implemented (Current State)
 
-This section reflects the latest implemented sequence (phases 1-7) and supersedes earlier notes.
+This section reflects the latest implemented sequence (phases 0-7) and supersedes earlier notes.
 
 1. Shared-family metadata propagated backend -> template -> frontend runtime.
 2. Delay precedence clarified: family alignment has explicit precedence over lane alignment.
@@ -27,6 +27,8 @@ This section reflects the latest implemented sequence (phases 1-7) and supersede
 9. Shared-family lookup now uses a per-refresh family index cache to avoid repeated full DOM scans.
 10. Startup mapping-intent warnings are now opt-in unless strict mode is enabled.
 11. Safety-first fault fixes landed: startup validation always runs, coordinator batch flush is rAF-aligned, and active reveal clear resets legacy batch state.
+12. SoC scaffolding landed with concern-scoped runtime modules and explicit contracts.
+13. Build-backed JS bundling is in place (`esbuild`) and templates now load `charts.bundle.js`.
 
 ---
 
@@ -98,6 +100,19 @@ Default remains `False` in all cache profiles (legacy behavior by default).
 
 ---
 
+## 3b) Template script loading (bundle transition)
+
+**Files:** `htmx/app/templates/base.html`, `htmx/app/templates/export.html`
+
+- script source migrated from:
+  - `/static/js/charts.js?...`
+- to:
+  - `/static/js/charts.bundle.js?...`
+
+Purpose: support phased SoC extraction through a build-backed entrypoint while preserving existing page behavior.
+
+---
+
 ## 4) Frontend reveal/cache coordination
 
 **File:** `htmx/app/static/js/charts.js`
@@ -166,6 +181,50 @@ This pass addressed concrete faults while keeping rollout feature-flagged.
   - `_flushFamilyWhenSettled(sourceEl, flushFamily)`
   - reused by both legacy and coordinator terminal settle paths
 
+### F) Concern-scoped module contracts (phase 2/5 bridge)
+
+`charts.js` now publishes explicit runtime contracts for concern-scoped modules:
+
+- `window.__riskdashModuleFactories` (module registration)
+- `window.__riskdashModules` (initialized module API surface)
+- `window.__riskdashModuleContext` (shared state/constants/utils/apis)
+
+This keeps behavior stable while enabling concern-oriented edits/reviews in separate files.
+
+---
+
+## 4b) Concern-scoped module files (SoC extraction path)
+
+**Directory:** `htmx/app/static/js/modules/`
+
+Added runtime module boundaries for:
+
+- `core.js`
+- `state.js`
+- `reveal.js`
+- `cache.js`
+- `render.js`
+- `soft-nav.js`
+- `warmup.js`
+- `filters.js`
+- `concurrency.js`
+
+These modules are initialized through contracts published by `charts.js`.
+
+---
+
+## 4c) Build-backed modularization
+
+**Files:** `htmx/package.json`, `htmx/scripts/build-charts.mjs`, `htmx/app/static/js/src/charts-entry.js`
+
+- build tool introduced: `esbuild`
+- bundle entry imports concern modules plus existing runtime:
+  - `app/static/js/src/charts-entry.js`
+- output bundle:
+  - `app/static/js/charts.bundle.js`
+- build command:
+  - `npm run build:charts` (from `htmx/`)
+
 ---
 
 ## 5) Tooling and test harness updates
@@ -206,7 +265,15 @@ Improvements:
 
 - Python syntax checks passed for updated Python files.
 - JavaScript syntax check passed for `charts.js` (`node --check`).
+- JavaScript syntax checks passed for new module files.
 - Lints for changed files reported no new issues.
+
+## Baseline size metrics (Phase 0)
+
+- `charts.js` bytes: `353,806`
+- `charts.js` lines: `8,866`
+- `charts.js` gzip bytes: `74,756`
+- generated `charts.bundle.js` size (non-minified): ~`352.7kb`
 
 ## Sync parity checks across flag modes (dex swaps family)
 
@@ -242,6 +309,26 @@ Interpretation:
 
 - this targeted run does **not** support enabling coordinator mode by default yet
 - keep coordinator rollout feature-flagged and investigate risk-family settle/render timing before promotion
+
+## Post-bundle parity snapshot (default vs flagged)
+
+Tested via temporary servers loading `charts.bundle.js`:
+
+- default mode (`:8004`)
+- flagged mode (`:8003`, `HTMX_UNIFIED_REVEAL_COORDINATOR_ENABLED=1`)
+
+Targets and outcomes:
+
+- `dexes` + `dex_swaps_timeseries`
+  - both modes: `backend_unavailable_or_timeout` (same as prior baseline)
+- `risk-analysis` + `risk_liq_curves_orca`
+  - default mode: `frontend_sync_split` (skew/loading-stuck)
+  - flagged mode: `backend_unavailable_or_timeout` in this run
+
+Readiness decision:
+
+- coordinator remains **default-off**
+- further parity rounds required before any default-on promotion
 
 ---
 
@@ -290,6 +377,11 @@ A stricter bootstrap request suppression approach was previously tested and remo
 - `htmx/app/main.py`
 - `htmx/app/templates/partials/dashboard.html`
 - `htmx/app/static/js/charts.js`
+- `htmx/app/static/js/charts.bundle.js`
+- `htmx/app/static/js/src/charts-entry.js`
+- `htmx/app/static/js/modules/`
 - `htmx/scripts/refresh_widget_call_mappings.py`
 - `htmx/config/widget_call_mappings.json`
 - `htmx/scripts/test_widget_sync_groups.py`
+- `htmx/package.json`
+- `htmx/scripts/build-charts.mjs`

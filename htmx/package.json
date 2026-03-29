@@ -1,0 +1,12 @@
+{
+  "name": "riskdash-frontend-build",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Build tooling for dashboard frontend assets.",
+  "scripts": {
+    "build:charts": "node ./scripts/build-charts.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

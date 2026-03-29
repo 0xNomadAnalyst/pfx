@@ -1,4 +1,5 @@
 (() => {
+  const __riskdashModuleFactories = window.__riskdashModuleFactories || {};
   const chartState = new Map();
   let protocolPairs = [];
   const FILTER_STORAGE_KEY = "dashboard.globalFilters.v1";
@@ -8863,4 +8864,77 @@
     }
     softNavigateToPage(targetPath, { pushHistory: false });
   });
+
+  // Publish concern-scoped contracts for external modules/tooling.
+  // This keeps runtime behavior unchanged while making domain boundaries explicit.
+  function registerModuleContracts() {
+    if (!__riskdashModuleFactories || typeof __riskdashModuleFactories !== "object") return;
+    const ctx = {
+      constants: {
+        BATCHED_REVEAL_ENABLED,
+        BATCHED_REVEAL_TIMEOUT_MS,
+        SHARED_FAMILY_REVEAL_TIMEOUT_MS,
+        UNIFIED_REVEAL_COORDINATOR_ENABLED,
+        MAX_CONCURRENT_WIDGET_REQUESTS,
+        PERSIST_CACHE_ENABLED,
+      },
+      state: {
+        chartState,
+        widgetResponseCache,
+        softNavShellCache,
+        softNavShellFetchInFlight,
+        perfMetrics,
+      },
+      utils: {
+        readRuntimeInt,
+        readRuntimeBool,
+        widgetElements,
+        sharedFamilyId,
+        sharedFamilyWidgetElements,
+      },
+      apis: {
+        triggerDashboardRefresh,
+        requestWidgetNow,
+        softNavigateToPage,
+        persistCacheWrite,
+      },
+      reveal: {
+        beginBatch: _beginActiveBatch,
+        clearState: _clearActiveRevealState,
+        onTerminalSettle: _onTerminalRevealSettle,
+      },
+      cache: {
+        hydrateWidgetsFromCache,
+        hasCachedWidgetPayloadForCurrentSignature,
+      },
+      render: {
+        renderPayload,
+      },
+      concurrency: {
+        requestManaged: _requestWidgetManaged,
+      },
+      filters: {
+        initFilters,
+      },
+      warmup: {
+        runPerPageWarmup,
+      },
+      softNav: {
+        teardownForSoftNavigation,
+        hydrateSoftNavPage,
+      },
+    };
+    const modules = {};
+    Object.entries(__riskdashModuleFactories).forEach(([name, initFactory]) => {
+      if (typeof initFactory !== "function") return;
+      try {
+        modules[name] = initFactory(ctx) || {};
+      } catch (error) {
+        console.warn(`[riskdash] module init failed: ${name}`, error);
+      }
+    });
+    window.__riskdashModules = modules;
+    window.__riskdashModuleContext = ctx;
+  }
+  registerModuleContracts();
 })();
