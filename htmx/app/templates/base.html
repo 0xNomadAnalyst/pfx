@@ -495,64 +495,16 @@
   <script src="/static/js/theme.js?v=2"></script>
   <script id="warmup-manifest" type="application/json">{{ warmup_manifest|tojson }}</script>
   {% if embedded_shells_json %}<script id="prefetched-shells" type="application/json">{{ embedded_shells_json|safe }}</script>{% endif %}
-  <script>
-    window.__loadRiskdashLegacyScripts = window.__loadRiskdashLegacyScripts || (function () {
-      var loaded = false;
-      var queue = [
-        "/static/js/core-engine.js?v=1",
-        "/static/js/state-engine.js?v=1",
-        "/static/js/cache-engine.js?v=1",
-        "/static/js/render-engine.js?v=1",
-        "/static/js/concurrency-engine.js?v=1",
-        "/static/js/filters-engine.js?v=1",
-        "/static/js/soft-nav-engine.js?v=1",
-        "/static/js/warmup-engine.js?v=1",
-        "/static/js/reveal-engine.js?v=1",
-        "/static/js/charts.js?v=95"
-      ];
-      function loadSequential(index) {
-        if (index >= queue.length) return;
-        var script = document.createElement("script");
-        script.src = queue[index];
-        script.async = false;
-        script.onload = function () { loadSequential(index + 1); };
-        script.onerror = function () { loadSequential(index + 1); };
-        document.head.appendChild(script);
-      }
-      return function loadLegacyScripts() {
-        if (loaded) return;
-        loaded = true;
-        loadSequential(0);
-      };
-    })();
-  </script>
-  <script
-    id="riskdash-bundle-script"
-    src="/static/js/charts.bundle.js?v=1"
-    onerror="window.__loadRiskdashLegacyScripts && window.__loadRiskdashLegacyScripts()"
-  ></script>
-  <script>
-    (function () {
-      var bundleScript = document.getElementById("riskdash-bundle-script");
-      if (!bundleScript) return;
-      var fallbackTimer = window.setTimeout(function () {
-        if (!window.__riskdashChartsLoaded && window.__loadRiskdashLegacyScripts) {
-          window.__loadRiskdashLegacyScripts();
-        }
-      }, 10000);
-      bundleScript.addEventListener("load", function () {
-        window.clearTimeout(fallbackTimer);
-        window.setTimeout(function () {
-          if (!window.__riskdashChartsLoaded && window.__loadRiskdashLegacyScripts) {
-            window.__loadRiskdashLegacyScripts();
-          }
-        }, 0);
-      });
-      bundleScript.addEventListener("error", function () {
-        window.clearTimeout(fallbackTimer);
-      });
-    })();
-  </script>
+  <script src="/static/js/core-engine.js?v=1"></script>
+  <script src="/static/js/state-engine.js?v=1"></script>
+  <script src="/static/js/cache-engine.js?v=1"></script>
+  <script src="/static/js/render-engine.js?v=1"></script>
+  <script src="/static/js/concurrency-engine.js?v=1"></script>
+  <script src="/static/js/filters-engine.js?v=1"></script>
+  <script src="/static/js/soft-nav-engine.js?v=1"></script>
+  <script src="/static/js/warmup-engine.js?v=1"></script>
+  <script src="/static/js/reveal-engine.js?v=1"></script>
+  <script src="/static/js/charts.js?v=97"></script>
   <script>
   (function() {
     var btn = document.getElementById("video-guide-btn");

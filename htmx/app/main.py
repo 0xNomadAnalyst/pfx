@@ -110,7 +110,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "persist_cache_enabled": False,
     },
     "balanced": {
-        "warmup_enabled": True,
+        "warmup_enabled": False,
         "warmup_budget_seconds": 30,
         "warmup_max_jobs": 30,
         "warmup_concurrency": 3,
@@ -142,7 +142,7 @@ CACHE_PROFILES: dict[str, dict] = {
         # Keep balanced mode from flooding the API/DB pool on wide pages.
         # Unlimited bursts can create long queueing tails where related widgets
         # do not settle together even when they share underlying data.
-        "max_concurrent_widget_requests": 6,
+        "max_concurrent_widget_requests": 4,
         "offscreen_pause_enabled": False,
         "skeleton_min_display_ms": 0,
         "adaptive_dialdown_enabled": False,

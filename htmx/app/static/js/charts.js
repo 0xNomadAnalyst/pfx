@@ -5095,31 +5095,37 @@
     }
   }
 
-  const _cacheEngine = (typeof window.__createRiskdashCacheEngine === "function")
-    ? window.__createRiskdashCacheEngine({
-        widgetElements,
-        sharedFamilyId,
-        renderCachedWidgetPayload,
-        widgetFilterSignature,
-        resolveSourceWidgetId,
-        getWidgetCacheEntry,
-        getLatestWidgetCacheEntry,
-        classifyWidgetCacheFreshness,
-        softNavDebug: _softNavDebug,
-        softNavDebugEvent: _softNavDebugEvent,
-      })
-    : null;
+  let _cacheEngine = null;
+  function _ensureCacheEngine() {
+    if (_cacheEngine) return _cacheEngine;
+    if (typeof window.__createRiskdashCacheEngine !== "function") return null;
+    _cacheEngine = window.__createRiskdashCacheEngine({
+      widgetElements,
+      sharedFamilyId,
+      renderCachedWidgetPayload,
+      widgetFilterSignature,
+      resolveSourceWidgetId,
+      getWidgetCacheEntry,
+      getLatestWidgetCacheEntry,
+      classifyWidgetCacheFreshness,
+      softNavDebug: _softNavDebug,
+      softNavDebugEvent: _softNavDebugEvent,
+    });
+    return _cacheEngine;
+  }
 
   function hasCachedWidgetPayloadForCurrentSignature(sourceEl) {
-    if (_cacheEngine?.hasCachedWidgetPayloadForCurrentSignature) {
-      return _cacheEngine.hasCachedWidgetPayloadForCurrentSignature(sourceEl);
+    const cacheEngine = _ensureCacheEngine();
+    if (cacheEngine?.hasCachedWidgetPayloadForCurrentSignature) {
+      return cacheEngine.hasCachedWidgetPayloadForCurrentSignature(sourceEl);
     }
     return false;
   }
 
   function hydrateWidgetsFromCache() {
-    if (_cacheEngine?.hydrateWidgetsFromCache) {
-      return _cacheEngine.hydrateWidgetsFromCache();
+    const cacheEngine = _ensureCacheEngine();
+    if (cacheEngine?.hydrateWidgetsFromCache) {
+      return cacheEngine.hydrateWidgetsFromCache();
     }
     return 0;
   }
@@ -7369,6 +7375,20 @@
     _concurrencyEngine?.onRequestStarted?.();
   });
 
+  function _markWidgetRequestTerminal(sourceEl) {
+    if (!sourceEl || !sourceEl.classList || !sourceEl.classList.contains("widget-loader")) return false;
+    const requestId = String(sourceEl.dataset.navRequestId || "");
+    const lastTerminalId = String(sourceEl.dataset.lastTerminalRequestId || "");
+    if (requestId && lastTerminalId === requestId) return false;
+    if (requestId) {
+      sourceEl.dataset.lastTerminalRequestId = requestId;
+    }
+    _widgetRequestsInFlight = Math.max(0, _widgetRequestsInFlight - 1);
+    if (_activeHydrationTrace) _scheduleHydrationSettleCheck(_activeHydrationTrace);
+    _concurrencyEngine?.onRequestTerminal?.();
+    return true;
+  }
+
   const _renderEngine = (typeof window.__createRiskdashRenderEngine === "function")
     ? window.__createRiskdashRenderEngine({
         skeletonMinDisplayMs: SKELETON_MIN_DISPLAY_MS,
@@ -7399,10 +7419,8 @@
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
-    _widgetRequestsInFlight = Math.max(0, _widgetRequestsInFlight - 1);
+    _markWidgetRequestTerminal(sourceEl);
     _softNavDebug.widgetRequestsCompleted += 1;
-    if (_activeHydrationTrace) _scheduleHydrationSettleCheck(_activeHydrationTrace);
-    _concurrencyEngine?.onRequestTerminal?.();
     const widgetId = sourceEl.dataset.widgetId;
     if (!widgetId) {
       return;
@@ -7557,6 +7575,7 @@
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
+    _markWidgetRequestTerminal(sourceEl);
     const widgetId = sourceEl.dataset.widgetId;
     if (!widgetId) {
       return;
@@ -7591,6 +7610,7 @@
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
+    _markWidgetRequestTerminal(sourceEl);
     const widgetId = sourceEl.dataset.widgetId;
     if (!widgetId) {
       return;
@@ -7611,6 +7631,7 @@
     if (!sourceEl || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
+    _markWidgetRequestTerminal(sourceEl);
     const widgetId = sourceEl.dataset.widgetId;
     if (!widgetId) {
       return;
@@ -7631,10 +7652,8 @@
     if (!sourceEl || !sourceEl.classList || !sourceEl.classList.contains("widget-loader")) {
       return;
     }
-    _widgetRequestsInFlight = Math.max(0, _widgetRequestsInFlight - 1);
+    _markWidgetRequestTerminal(sourceEl);
     _softNavDebug.widgetRequestsAborted += 1;
-    if (_activeHydrationTrace) _scheduleHydrationSettleCheck(_activeHydrationTrace);
-    _concurrencyEngine?.onRequestTerminal?.();
     const widgetId = sourceEl.dataset.widgetId;
     if (!widgetId) return;
     _softNavDebugEvent("widget_request_abort", {
