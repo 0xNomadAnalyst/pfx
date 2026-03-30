@@ -8,7 +8,10 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-import httpx
+try:
+    import httpx
+except ModuleNotFoundError:
+    httpx = None  # type: ignore[assignment]
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -863,11 +866,13 @@ def switch_pipeline_proxy(request: Request):
 
 
 _proxy_timeout = float(os.getenv("HTMX_API_PROXY_TIMEOUT_SECONDS", "60"))
-_httpx_client: httpx.AsyncClient | None = None
+_httpx_client = None
 
 
-def _get_httpx_client() -> httpx.AsyncClient:
+def _get_httpx_client():
     global _httpx_client
+    if httpx is None:
+        return None
     if _httpx_client is None or _httpx_client.is_closed:
         _httpx_client = httpx.AsyncClient(
             base_url=f"{API_BASE_URL}/api/v1",
@@ -879,17 +884,24 @@ def _get_httpx_client() -> httpx.AsyncClient:
 
 @app.on_event("shutdown")
 async def _close_httpx_client():
-    if _httpx_client and not _httpx_client.is_closed:
+    if _httpx_client and hasattr(_httpx_client, "aclose") and not _httpx_client.is_closed:
         await _httpx_client.aclose()
+
+
+def _proxy_v1_sync(target_url: str, method: str, body: bytes | None, content_type: str, timeout: float) -> tuple[bytes, str, int]:
+    req = urllib.request.Request(target_url, data=body or None, method=method)
+    req.add_header("Content-Type", content_type)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        content = resp.read()
+        ct = resp.headers.get("content-type", "application/json")
+        status = int(getattr(resp, "status", 200))
+        return content, ct, status
 
 
 @app.api_route("/api/v1/{path:path}", methods=["GET", "POST"])
 async def api_v1_proxy(path: str, request: Request):
     """Forward all /api/v1/* widget requests to the internal API server."""
     qs = request.url.query
-    target = f"/{path}"
-    if qs:
-        target = f"{target}?{qs}"
 
     if request.method.upper() == "GET" and path == "meta":
         now = time.time()
@@ -903,12 +915,23 @@ async def api_v1_proxy(path: str, request: Request):
     if method in ("POST", "PUT", "PATCH"):
         body = await request.body()
 
+    content_type = request.headers.get("content-type", "application/json")
     client = _get_httpx_client()
-    headers = {"content-type": request.headers.get("content-type", "application/json")}
+
     try:
-        resp = await client.request(method, target, content=body, headers=headers)
-        content = resp.content
-        ct = resp.headers.get("content-type", "application/json")
+        if client is not None:
+            target = f"/{path}"
+            if qs:
+                target = f"{target}?{qs}"
+            resp = await client.request(method, target, content=body, headers={"content-type": content_type})
+            content, ct, status = resp.content, resp.headers.get("content-type", "application/json"), resp.status_code
+        else:
+            target = f"{API_BASE_URL}/api/v1/{path}"
+            if qs:
+                target = f"{target}?{qs}"
+            content, ct, status = await asyncio.to_thread(
+                _proxy_v1_sync, target, method, body, content_type, _proxy_timeout,
+            )
 
         if request.method.upper() == "GET" and path == "meta":
             try:
@@ -918,11 +941,11 @@ async def api_v1_proxy(path: str, request: Request):
             except Exception:
                 pass
         return Response(
-            content=content, media_type=ct, status_code=resp.status_code,
+            content=content, media_type=ct, status_code=status,
             headers={"Cache-Control": "no-store"},
         )
-    except httpx.HTTPStatusError as exc:
-        return JSONResponse(content={"error": "API request failed"}, status_code=exc.response.status_code)
+    except urllib.error.HTTPError as exc:
+        return JSONResponse(content={"error": "API request failed"}, status_code=exc.code)
     except Exception:
         return JSONResponse(content={"error": "API unavailable"}, status_code=502)
 
