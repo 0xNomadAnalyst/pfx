@@ -1,4 +1,9 @@
 (() => {
+  if (window.__riskdashChartsBootstrapped) {
+    window.__riskdashChartsLoaded = true;
+    return;
+  }
+  window.__riskdashChartsBootstrapped = true;
   const _stateEngine = (typeof window.__createRiskdashStateEngine === "function")
     ? window.__createRiskdashStateEngine()
     : null;
