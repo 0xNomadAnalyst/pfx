@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 import json
 import os
@@ -889,24 +890,36 @@ async def api_v1_proxy(path: str, request: Request):
     req.add_header("Content-Type", request.headers.get("content-type", "application/json"))
     proxy_timeout = float(os.getenv("HTMX_API_PROXY_TIMEOUT_SECONDS", "60"))
     try:
-        with urllib.request.urlopen(req, timeout=proxy_timeout) as resp:
-            content = resp.read()
-            ct = resp.headers.get("content-type", "application/json")
-            if request.method.upper() == "GET" and path == "meta":
-                try:
-                    payload = json.loads(content)
-                    with _meta_proxy_lock:
-                        _meta_proxy_cache[qs] = (time.time() + META_PROXY_TTL_SECONDS, payload)
-                except Exception:
-                    pass
-            return Response(
-                content=content, media_type=ct, status_code=resp.status,
-                headers={"Cache-Control": "no-store"},
-            )
+        # urlopen is blocking; run it in a worker thread so one slow proxy call
+        # does not stall the ASGI event loop and serialize all widget requests.
+        content, ct, status = await asyncio.to_thread(
+            _proxy_v1_request_sync,
+            req,
+            proxy_timeout,
+        )
+        if request.method.upper() == "GET" and path == "meta":
+            try:
+                payload = json.loads(content)
+                with _meta_proxy_lock:
+                    _meta_proxy_cache[qs] = (time.time() + META_PROXY_TTL_SECONDS, payload)
+            except Exception:
+                pass
+        return Response(
+            content=content, media_type=ct, status_code=status,
+            headers={"Cache-Control": "no-store"},
+        )
     except urllib.error.HTTPError as exc:
         return JSONResponse(content={"error": "API request failed"}, status_code=exc.code)
     except Exception:
         return JSONResponse(content={"error": "API unavailable"}, status_code=502)
+
+
+def _proxy_v1_request_sync(req: urllib.request.Request, timeout: float) -> tuple[bytes, str, int]:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        content = resp.read()
+        content_type = resp.headers.get("content-type", "application/json")
+        status = int(getattr(resp, "status", 200))
+        return content, content_type, status
 
 
 @app.get("/api/health-status")
