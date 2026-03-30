@@ -1,0 +1,21 @@
+{
+  "name": "htmx",
+  "version": "1.0.0",
+  "description": "This app renders the dashboard UI with Jinja templates and refreshes widget data via HTMX calls to the API service.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build:charts": "node scripts/build-charts.mjs",
+    "build": "npm run build:charts",
+    "test": "echo \"No JS tests configured\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "esbuild": "^0.27.4"
+  }
+}

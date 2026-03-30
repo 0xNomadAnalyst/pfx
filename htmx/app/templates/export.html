@@ -253,7 +253,42 @@
   </main>
 
   <script src="/static/js/theme.js?v=2"></script>
-  <script src="/static/js/charts.js?v=50"></script>
+  <script>
+    window.__loadRiskdashLegacyScripts = window.__loadRiskdashLegacyScripts || (function () {
+      var loaded = false;
+      return function () {
+        if (loaded) return;
+        loaded = true;
+        [
+          "/static/js/core-engine.js?v=1",
+          "/static/js/state-engine.js?v=1",
+          "/static/js/cache-engine.js?v=1",
+          "/static/js/render-engine.js?v=1",
+          "/static/js/concurrency-engine.js?v=1",
+          "/static/js/filters-engine.js?v=1",
+          "/static/js/soft-nav-engine.js?v=1",
+          "/static/js/warmup-engine.js?v=1",
+          "/static/js/reveal-engine.js?v=1",
+          "/static/js/charts.js?v=52"
+        ].forEach(function (src) {
+          var script = document.createElement("script");
+          script.src = src;
+          document.head.appendChild(script);
+        });
+      };
+    })();
+  </script>
+  <script
+    src="/static/js/charts.bundle.js?v=1"
+    onerror="window.__loadRiskdashLegacyScripts && window.__loadRiskdashLegacyScripts()"
+  ></script>
+  <script>
+    window.setTimeout(function () {
+      if (!window.__riskdashChartsLoaded && window.__loadRiskdashLegacyScripts) {
+        window.__loadRiskdashLegacyScripts();
+      }
+    }, 1500);
+  </script>
   <script>
   (function () {
     var chartSelect = document.getElementById("chart-select");

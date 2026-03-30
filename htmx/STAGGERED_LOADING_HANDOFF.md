@@ -14,7 +14,7 @@ Goal: keep shared-family widgets visually and lifecycle-consistent while preserv
 
 ## What Is Implemented (Current State)
 
-This section reflects the latest implemented sequence (phases 0-8) and supersedes earlier notes.
+This section reflects the latest implemented sequence (phases 0-9) and supersedes earlier notes.
 
 1. Shared-family metadata propagated backend -> template -> frontend runtime.
 2. Delay precedence clarified: family alignment has explicit precedence over lane alignment.
@@ -27,9 +27,10 @@ This section reflects the latest implemented sequence (phases 0-8) and supersede
 9. Shared-family lookup now uses a per-refresh family index cache to avoid repeated full DOM scans.
 10. Startup mapping-intent warnings are now opt-in unless strict mode is enabled.
 11. Safety-first fault fixes landed: startup validation always runs, coordinator batch flush is rAF-aligned, and active reveal clear resets legacy batch state.
-12. SoC scaffolding landed with concern-scoped runtime modules and explicit contracts.
-13. Build-backed JS bundling is in place (`esbuild`) and templates now load `charts.bundle.js`.
-14. Critical reveal correctness fixes landed: terminal settle on application-level error paths, two-pass family delay backfill, and legacy batch flush parity with coordinator render path.
+12. Critical reveal correctness fixes landed: terminal settle on application-level error paths, two-pass family delay backfill, and legacy batch flush parity with coordinator render path.
+13. Batch-vs-family split risk was reduced by excluding shared-family widgets from viewport batch targets.
+14. Real SoC extraction expanded beyond reveal: live runtime logic has been split into domain engines consumed by `charts.js` orchestration wrappers.
+15. Bundle end-state introduced with rollback-safe template loading: bundle-first (`charts.bundle.js`) with auto-fallback to legacy multi-script loading if bundle load/boot fails.
 
 ---
 
@@ -102,16 +103,15 @@ Default remains `False` in all cache profiles (legacy behavior by default).
 
 ---
 
-## 3b) Template script loading (bundle transition)
+## 3b) Template script loading (current)
 
 **Files:** `htmx/app/templates/base.html`, `htmx/app/templates/export.html`
 
-- script source migrated from:
-  - `/static/js/charts.js?...`
-- to:
-  - `/static/js/charts.bundle.js?...`
-
-Purpose: support phased SoC extraction through a build-backed entrypoint while preserving existing page behavior.
+- templates now load bundle-first:
+  - `/static/js/charts.bundle.js?v=1`
+- rollback-safe fallback is in place:
+  - on bundle load error, or if runtime marker is missing after timeout, templates dynamically load legacy scripts (`core/state/cache/render/concurrency/filters/soft-nav/warmup/reveal + charts.js`)
+- this keeps rollback path available while enabling the optimized bundled runtime by default.
 
 ---
 
@@ -183,15 +183,18 @@ This pass addressed concrete faults while keeping rollout feature-flagged.
   - `_flushFamilyWhenSettled(sourceEl, flushFamily)`
   - reused by both legacy and coordinator terminal settle paths
 
-### F) Concern-scoped module contracts (phase 2/5 bridge)
+### F) Post-review corrective pass (phase 8)
 
-`charts.js` now publishes explicit runtime contracts for concern-scoped modules:
+Follow-up fixes based on implementation review:
 
-- `window.__riskdashModuleFactories` (module registration)
-- `window.__riskdashModules` (initialized module API surface)
-- `window.__riskdashModuleContext` (shared state/constants/utils/apis)
-
-This keeps behavior stable while enabling concern-oriented edits/reviews in separate files.
+- terminal-settle coverage fixed on application-level error paths in `htmx:afterRequest`:
+  - empty payload (`!raw`)
+  - non-success API payload (`payload.status !== "success"`)
+  - JSON/processing `catch` path
+- legacy batch flush now uses `_renderWidgetResponse(...)` with `isConnected` guard for parity with coordinator semantics
+- family in-flight helper now excludes `sourceEl` consistently:
+  - `_flushFamilyWhenSettled(...).some((el) => el !== sourceEl && el.classList.contains("htmx-request"))`
+- viewport batch targets now exclude shared-family widgets so family members follow one reveal mechanism
 
 ### G) Correctness hardening pass (phase 8)
 
@@ -208,39 +211,33 @@ Addressed three defects in default-path behavior:
   - widget bindings now include `source_page_id`
   - final family minimum delay is backfilled across all family members after binding construction
 
----
+### H) SoC extraction status (real)
 
-## 4b) Concern-scoped module files (SoC extraction path)
+Live runtime logic is now extracted into:
 
-**Directory:** `htmx/app/static/js/modules/`
+- `htmx/app/static/js/reveal-engine.js`
+- `htmx/app/static/js/core-engine.js`
+- `htmx/app/static/js/state-engine.js`
+- `htmx/app/static/js/cache-engine.js`
+- `htmx/app/static/js/render-engine.js`
+- `htmx/app/static/js/concurrency-engine.js`
+- `htmx/app/static/js/filters-engine.js`
+- `htmx/app/static/js/soft-nav-engine.js`
+- `htmx/app/static/js/warmup-engine.js`
 
-Added runtime module boundaries for:
+Scope moved out of `charts.js` includes:
 
-- `core.js`
-- `state.js`
-- `reveal.js`
-- `cache.js`
-- `render.js`
-- `soft-nav.js`
-- `warmup.js`
-- `filters.js`
-- `concurrency.js`
+- reveal buffering/coordinator/settle state machine
+- runtime readers + shared-family widget index caching helpers
+- protocol-pair shared state holder
+- family-aware cache-hydration gate + cache-availability checks
+- guarded widget response render pipeline
+- concurrency queue orchestration + in-flight accounting hooks
+- persisted/global-filter read/write/apply flow
+- soft-nav helper path normalization + UI path discovery/highlight sync
+- warmup and rewarmup scheduler orchestration
 
-These modules are initialized through contracts published by `charts.js`.
-
----
-
-## 4c) Build-backed modularization
-
-**Files:** `htmx/package.json`, `htmx/scripts/build-charts.mjs`, `htmx/app/static/js/src/charts-entry.js`
-
-- build tool introduced: `esbuild`
-- bundle entry imports concern modules plus existing runtime:
-  - `app/static/js/src/charts-entry.js`
-- output bundle:
-  - `app/static/js/charts.bundle.js`
-- build command:
-  - `npm run build:charts` (from `htmx/`)
+`charts.js` remains the composition/orchestration layer with thin delegations into domain engines.
 
 ---
 
@@ -280,17 +277,17 @@ Improvements:
 
 ## Code quality
 
-- Python syntax checks passed for updated Python files.
-- JavaScript syntax check passed for `charts.js` (`node --check`).
-- JavaScript syntax checks passed for new module files.
+- JavaScript syntax checks passed for `charts.js` and extracted engine modules (`node --check`).
+- Bundle build passes via `npm run build:charts` (esbuild).
 - Lints for changed files reported no new issues.
 
-## Baseline size metrics (Phase 0)
+## Size metrics (post-extraction)
 
-- `charts.js` bytes: `353,806`
-- `charts.js` lines: `8,866`
-- `charts.js` gzip bytes: `74,756`
-- generated `charts.bundle.js` size (non-minified): ~`352.7kb`
+- `charts.js` bytes: `339,001`
+- `charts.js` lines: `8,464`
+- `charts.js` gzip bytes: `72,332`
+- `charts.bundle.js` bytes: `175,022`
+- `charts.bundle.js` gzip bytes: `53,253`
 
 ## Sync parity checks across flag modes (dex swaps family)
 
@@ -327,41 +324,21 @@ Interpretation:
 - this targeted run does **not** support enabling coordinator mode by default yet
 - keep coordinator rollout feature-flagged and investigate risk-family settle/render timing before promotion
 
-## Post-bundle parity snapshot (default vs flagged)
+## Post-phase-9 targeted verification (latest)
 
-Tested via temporary servers loading `charts.bundle.js`:
+After phase-9 extraction/bundle wiring, targeted runs were repeated against updated local server code (`:8007`):
 
-- default mode (`:8004`)
-- flagged mode (`:8003`, `HTMX_UNIFIED_REVEAL_COORDINATOR_ENABLED=1`)
-
-Targets and outcomes:
-
-- `dexes` + `dex_swaps_timeseries`
-  - both modes: `backend_unavailable_or_timeout` (same as prior baseline)
-- `risk-analysis` + `risk_liq_curves_orca`
-  - default mode: `frontend_sync_split` (skew/loading-stuck)
-  - flagged mode: `backend_unavailable_or_timeout` in this run
-
-Readiness decision:
-
-- coordinator remains **default-off**
-- further parity rounds required before any default-on promotion
-
-## Post-phase-8 targeted verification (latest)
-
-After phase-8 fixes, a targeted risk-family run was repeated against updated local server code:
+- target: `dexes:dex_swaps_timeseries`
+- mode: default
+- result: failed with `backend_unavailable_or_timeout` tags (widgets did not start request in cycle)
 
 - target: `risk-analysis:risk_liq_curves_orca:default`
-- mode: default (`HTMX_UNIFIED_REVEAL_COORDINATOR_ENABLED=0`)
-
-Observed outcome:
-
-- still failed `frontend_sync_split` (high completion skew observed in this run)
-- missing-start symptom was not reproduced in this run, consistent with terminal-settle error-path hardening
+- mode: default
+- result: failed with `frontend_sync_split` tag (stuck loading + missing request starts in cycle)
 
 Interpretation:
 
-- phase-8 fixes address known correctness gaps, but additional reveal/response timing variability remains
+- extraction/bundle changes did not eliminate pre-existing parity instability in these sample runs
 - coordinator remains **default-off** pending broader parity stability
 
 ---
@@ -392,15 +369,19 @@ A stricter bootstrap request suppression approach was previously tested and remo
    - query timing instrumentation and timeout path analysis
    - DB contention / pool behavior under concurrent page loads
 
-2. **Mapping intent completion**
+1. **Mapping intent completion**
    - either populate missing entries in `SHARED_DATA_FAMILY_HINTS`
    - or explicitly place intentional exclusions into `EXPLICIT_NO_SHARED_FAMILY_HINTS`
 
-3. **Coordinator rollout strategy**
+1. **Coordinator rollout strategy**
    - run additional parity checks on risk/system-health families
    - if stable, consider enabling unified coordinator by profile
 
-4. **Optional UX policy**
+1. **Bundle rollout follow-through**
+   - keep bundle-first + legacy fallback for one stabilization window
+   - remove fallback block after parity and backend stability gates pass
+
+1. **Optional UX policy**
    - family-level unified error surface when any sibling fails
 
 ---
@@ -410,12 +391,23 @@ A stricter bootstrap request suppression approach was previously tested and remo
 - `htmx/app/shared_families.py`
 - `htmx/app/main.py`
 - `htmx/app/templates/partials/dashboard.html`
+- `htmx/app/templates/base.html`
+- `htmx/app/templates/export.html`
+- `htmx/app/static/js/core-engine.js`
+- `htmx/app/static/js/state-engine.js`
+- `htmx/app/static/js/cache-engine.js`
+- `htmx/app/static/js/render-engine.js`
+- `htmx/app/static/js/concurrency-engine.js`
+- `htmx/app/static/js/filters-engine.js`
+- `htmx/app/static/js/soft-nav-engine.js`
+- `htmx/app/static/js/warmup-engine.js`
+- `htmx/app/static/js/reveal-engine.js`
 - `htmx/app/static/js/charts.js`
 - `htmx/app/static/js/charts.bundle.js`
-- `htmx/app/static/js/src/charts-entry.js`
-- `htmx/app/static/js/modules/`
+- `htmx/app/static/js/src/charts-bundle-entry.mjs`
+- `htmx/scripts/build-charts.mjs`
+- `htmx/package.json`
+- `htmx/package-lock.json`
 - `htmx/scripts/refresh_widget_call_mappings.py`
 - `htmx/config/widget_call_mappings.json`
 - `htmx/scripts/test_widget_sync_groups.py`
-- `htmx/package.json`
-- `htmx/scripts/build-charts.mjs`

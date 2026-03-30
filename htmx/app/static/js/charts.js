@@ -1,19 +1,29 @@
 (() => {
-  const chartState = new Map();
-  let protocolPairs = [];
+  const _stateEngine = (typeof window.__createRiskdashStateEngine === "function")
+    ? window.__createRiskdashStateEngine()
+    : null;
+  const chartState = _stateEngine?.chartState || new Map();
+  let protocolPairs = _stateEngine?.getProtocolPairs?.() || [];
+  function setProtocolPairs(next) {
+    protocolPairs = Array.isArray(next) ? next : [];
+    _stateEngine?.setProtocolPairs?.(protocolPairs);
+  }
   const FILTER_STORAGE_KEY = "dashboard.globalFilters.v1";
   const PRICE_BASIS_STORAGE_KEY = "dashboard.priceBasis.v1";
-  function readRuntimeInt(datasetKey, fallback, min = 0, max = Number.MAX_SAFE_INTEGER) {
+  const _coreEngine = (typeof window.__createRiskdashCoreEngine === "function")
+    ? window.__createRiskdashCoreEngine()
+    : null;
+  const readRuntimeInt = _coreEngine?.readRuntimeInt || function (datasetKey, fallback, min = 0, max = Number.MAX_SAFE_INTEGER) {
     const raw = document.body?.dataset?.[datasetKey];
     const parsed = Number(raw);
     if (!Number.isFinite(parsed)) return fallback;
     return Math.min(max, Math.max(min, Math.floor(parsed)));
-  }
-  function readRuntimeBool(datasetKey, fallback = false) {
+  };
+  const readRuntimeBool = _coreEngine?.readRuntimeBool || function (datasetKey, fallback = false) {
     const raw = String(document.body?.dataset?.[datasetKey] || "").toLowerCase().trim();
     if (!raw) return fallback;
     return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
-  }
+  };
   const DETAIL_TABLE_CACHE_TTL_MS = 30_000;
   const PAGE_ACTION_CACHE_TTL_MS = 60_000;
   const DETAIL_TABLE_CACHE_MAX_ENTRIES = 40;
@@ -4075,7 +4085,7 @@
       _finishHydrationTrace(_activeHydrationTrace, { terminalReason: "cancelled_nav" });
     }
     _widgetRequestsInFlight = 0;
-    protocolPairs = [];
+    setProtocolPairs([]);
     const mkt1 = document.getElementById("mkt1-select");
     const mkt2 = document.getElementById("mkt2-select");
     if (mkt1) mkt1.innerHTML = '<option value="">switching…</option>';
@@ -4093,7 +4103,7 @@
       const qs = pl ? `?_pipeline=${encodeURIComponent(pl)}` : "";
       const response = await fetch(`${getApiBaseUrl()}/api/v1/meta${qs}`, { cache: "no-store" });
       const payload = await response.json();
-      protocolPairs = payload.protocol_pairs || [];
+      setProtocolPairs(payload.protocol_pairs || []);
 
       if (protocolSelect && pairSelect) {
         let selectedProtocol = (defaults && defaults.protocol) || protocolSelect.value || currentProtocol();
@@ -4120,7 +4130,7 @@
       if (protocolSelect && pairSelect) {
         const sp = (defaults && defaults.protocol) || currentProtocol();
         const spr = (defaults && defaults.pair) || currentPair();
-        protocolPairs = [{ protocol: sp, pair: spr }];
+        setProtocolPairs([{ protocol: sp, pair: spr }]);
         applyGlobalFilters(sp, spr, currentLastWindow(), false);
       }
     }
@@ -4257,6 +4267,9 @@
   }
 
   function widgetElements() {
+    if (_coreEngine?.widgetElements) {
+      return _coreEngine.widgetElements();
+    }
     return Array.from(document.querySelectorAll(".widget-loader"));
   }
 
@@ -4304,65 +4317,23 @@
     }, 1000);
   }
 
-  let _concurrencyInFlight = 0;
-  const _concurrencyQueue = [];
-
-  function _flushBatchedReveal() {
-    if (_batchedRevealTimer) {
-      clearTimeout(_batchedRevealTimer);
-      _batchedRevealTimer = null;
-    }
-    if (_batchedRevealBuffer.size === 0) {
-      _batchedRevealTargets.clear();
-      return;
-    }
-    requestAnimationFrame(() => {
-      _batchedRevealBuffer.forEach(({ widgetId, payload, srcId, sourceEl }) => {
-        if (!sourceEl?.isConnected) return;
-        _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
-      });
-      _batchedRevealBuffer.clear();
-      _batchedRevealTargets.clear();
-    });
-  }
-
-  function _settleBatchedRevealTarget(widgetId) {
-    if (!BATCHED_REVEAL_ENABLED || !widgetId) return;
-    if (!_batchedRevealTargets.has(widgetId)) return;
-    _batchedRevealTargets.delete(widgetId);
-    if (_batchedRevealTargets.size === 0) {
-      _flushBatchedReveal();
-    }
-  }
+  const _concurrencyEngine = (typeof window.__createRiskdashConcurrencyEngine === "function")
+    ? window.__createRiskdashConcurrencyEngine({
+        maxConcurrentWidgetRequests: MAX_CONCURRENT_WIDGET_REQUESTS,
+        requestWidgetNow,
+      })
+    : null;
 
   function _drainConcurrencyQueue() {
-    if (MAX_CONCURRENT_WIDGET_REQUESTS <= 0) return;
-    while (_concurrencyQueue.length > 0 && _concurrencyInFlight < MAX_CONCURRENT_WIDGET_REQUESTS) {
-      const next = _concurrencyQueue.shift();
-      if (next && next.isConnected) {
-        requestWidgetNow(next);
-      }
-    }
+    _concurrencyEngine?.drainConcurrencyQueue?.();
   }
 
   function _requestWidgetManaged(el) {
-    if (MAX_CONCURRENT_WIDGET_REQUESTS <= 0) {
-      requestWidgetNow(el);
+    if (_concurrencyEngine?.requestWidgetManaged) {
+      _concurrencyEngine.requestWidgetManaged(el);
       return;
     }
-    if (_concurrencyInFlight < MAX_CONCURRENT_WIDGET_REQUESTS) {
-      requestWidgetNow(el);
-    } else {
-      const widgetId = String(el?.dataset?.widgetId || "");
-      const alreadyQueued = _concurrencyQueue.some((queued) => {
-        if (!queued) return false;
-        if (queued === el) return true;
-        return widgetId && String(queued?.dataset?.widgetId || "") === widgetId;
-      });
-      if (!alreadyQueued) {
-        _concurrencyQueue.push(el);
-      }
-    }
+    requestWidgetNow(el);
   }
 
   function triggerDashboardRefresh({ prioritizeViewport = true } = {}) {
@@ -4648,28 +4619,22 @@
   }
 
   function sharedFamilyId(el) {
+    if (_coreEngine?.sharedFamilyId) {
+      return _coreEngine.sharedFamilyId(el);
+    }
     if (!el || !el.dataset) return "";
     return String(el.dataset.sharedDataFamily || "").trim();
   }
 
   function sharedFamilyWidgetElements(familyId) {
-    const family = String(familyId || "").trim();
-    if (!family) return [];
-    if (!_sharedFamilyWidgetIndex) {
-      _sharedFamilyWidgetIndex = new Map();
-      widgetElements().forEach((el) => {
-        const fid = sharedFamilyId(el);
-        if (!fid) return;
-        const arr = _sharedFamilyWidgetIndex.get(fid) || [];
-        arr.push(el);
-        _sharedFamilyWidgetIndex.set(fid, arr);
-      });
+    if (_coreEngine?.sharedFamilyWidgetElements) {
+      return _coreEngine.sharedFamilyWidgetElements(familyId);
     }
-    return _sharedFamilyWidgetIndex.get(family) || [];
+    return [];
   }
 
   function invalidateSharedFamilyWidgetIndex() {
-    _sharedFamilyWidgetIndex = null;
+    _coreEngine?.invalidateSharedFamilyWidgetIndex?.();
   }
 
   function isSharedFamilyWidgetId(widgetId) {
@@ -4793,13 +4758,15 @@
     _interactiveRefreshUntil = Date.now() + Math.max(0, ms);
   }
 
+  const _softNavEngine = (typeof window.__createRiskdashSoftNavEngine === "function")
+    ? window.__createRiskdashSoftNavEngine()
+    : null;
+
   function normalizeSoftNavPath(path) {
-    try {
-      const u = new URL(path, window.location.origin);
-      return `${u.pathname}${u.search || ""}`;
-    } catch (_) {
-      return path || "";
+    if (_softNavEngine?.normalizeSoftNavPath) {
+      return _softNavEngine.normalizeSoftNavPath(path);
     }
+    return path || "";
   }
 
   function ensureSoftNavShellCacheCapacity(minEntries = SOFT_NAV_SHELL_CACHE_MAX_ENTRIES) {
@@ -4809,33 +4776,14 @@
   }
 
   function collectSoftNavPathsFromUi() {
-    const paths = [];
-    const pageSelect = document.getElementById("page-select");
-    if (pageSelect && pageSelect.options?.length) {
-      Array.from(pageSelect.options).forEach((opt) => {
-        const normalized = normalizeSoftNavPath(opt.value || "");
-        if (normalized && !paths.includes(normalized)) paths.push(normalized);
-      });
+    if (_softNavEngine?.collectSoftNavPathsFromUi) {
+      return _softNavEngine.collectSoftNavPathsFromUi();
     }
-    document.querySelectorAll("#sidebar-nav .sidebar-nav-link[data-sidebar-path]").forEach((link) => {
-      const normalized = normalizeSoftNavPath(link.getAttribute("data-sidebar-path") || "");
-      if (normalized && !paths.includes(normalized)) paths.push(normalized);
-    });
-    return paths;
+    return [];
   }
 
   function syncSidebarHighlight(targetPath) {
-    const normalizedTarget = normalizeSoftNavPath(
-      targetPath || `${window.location.pathname}${window.location.search || ""}`,
-    );
-    const liveLinks = Array.from(document.querySelectorAll("#sidebar-nav .sidebar-nav-link[data-sidebar-path]"));
-    liveLinks.forEach((l) => {
-      const linkPath = normalizeSoftNavPath(l.getAttribute("data-sidebar-path") || "");
-      const match = !!normalizedTarget && !!linkPath && linkPath === normalizedTarget;
-      l.classList.toggle("is-active", match);
-      if (match) l.setAttribute("aria-current", "page");
-      else l.removeAttribute("aria-current");
-    });
+    _softNavEngine?.syncSidebarHighlight?.(targetPath);
   }
 
   function isPinnedSoftNavPath(path) {
@@ -5142,71 +5090,33 @@
     }
   }
 
+  const _cacheEngine = (typeof window.__createRiskdashCacheEngine === "function")
+    ? window.__createRiskdashCacheEngine({
+        widgetElements,
+        sharedFamilyId,
+        renderCachedWidgetPayload,
+        widgetFilterSignature,
+        resolveSourceWidgetId,
+        getWidgetCacheEntry,
+        getLatestWidgetCacheEntry,
+        classifyWidgetCacheFreshness,
+        softNavDebug: _softNavDebug,
+        softNavDebugEvent: _softNavDebugEvent,
+      })
+    : null;
+
   function hasCachedWidgetPayloadForCurrentSignature(sourceEl) {
-    if (!sourceEl || !sourceEl.classList.contains("widget-loader")) return false;
-    const widgetId = sourceEl.dataset.widgetId || "";
-    if (!widgetId) return false;
-    const signature = widgetFilterSignature(sourceEl);
-    const sourceWidgetId = resolveSourceWidgetId(sourceEl);
-    let entry = getWidgetCacheEntry(widgetId, signature);
-    if (!entry && sourceWidgetId && sourceWidgetId !== widgetId) {
-      entry = getWidgetCacheEntry(sourceWidgetId, signature);
+    if (_cacheEngine?.hasCachedWidgetPayloadForCurrentSignature) {
+      return _cacheEngine.hasCachedWidgetPayloadForCurrentSignature(sourceEl);
     }
-    if (!entry) {
-      entry = getLatestWidgetCacheEntry(widgetId);
-    }
-    if (!entry && sourceWidgetId && sourceWidgetId !== widgetId) {
-      entry = getLatestWidgetCacheEntry(sourceWidgetId);
-    }
-    if (!entry || !entry.payload) return false;
-    return classifyWidgetCacheFreshness(widgetId, entry) !== "expired";
+    return false;
   }
 
   function hydrateWidgetsFromCache() {
-    const startedAt = performance.now();
-    let hits = 0;
-    const widgets = widgetElements();
-    const blockedByFamily = new Set();
-    const familyGroups = new Map();
-    widgets.forEach((el) => {
-      const familyId = sharedFamilyId(el);
-      if (!familyId) return;
-      if (!familyGroups.has(familyId)) {
-        familyGroups.set(familyId, []);
-      }
-      familyGroups.get(familyId).push(el);
-    });
-    familyGroups.forEach((members) => {
-      if (!Array.isArray(members) || members.length < 2) return;
-      const allFamilyMembersCached = members.every((el) => hasCachedWidgetPayloadForCurrentSignature(el));
-      if (allFamilyMembersCached) return;
-      members.forEach((el) => {
-        const wid = String(el?.dataset?.widgetId || "");
-        if (wid) blockedByFamily.add(wid);
-      });
-    });
-
-    widgets.forEach((el) => {
-      const wid = String(el?.dataset?.widgetId || "");
-      if (wid && blockedByFamily.has(wid)) {
-        return;
-      }
-      if (renderCachedWidgetPayload(el)) {
-        hits += 1;
-      }
-    });
-    if (hits > 0) {
-      const latencyMs = Math.max(0, performance.now() - startedAt);
-      _softNavDebug.persistRestoreToVisibleMs = latencyMs;
-      const samples = Array.isArray(_softNavDebug.persistRestoreToVisibleSamples)
-        ? _softNavDebug.persistRestoreToVisibleSamples
-        : [];
-      samples.push(latencyMs);
-      if (samples.length > 50) samples.splice(0, samples.length - 50);
-      _softNavDebug.persistRestoreToVisibleSamples = samples;
-      _softNavDebugEvent("persist_restore_visible", { hits, latencyMs });
+    if (_cacheEngine?.hydrateWidgetsFromCache) {
+      return _cacheEngine.hydrateWidgetsFromCache();
     }
-    return hits;
+    return 0;
   }
 
   function isMarketDisabled(widgetId) {
@@ -5218,66 +5128,34 @@
     return false;
   }
 
+  const _filtersEngine = (typeof window.__createRiskdashFiltersEngine === "function")
+    ? window.__createRiskdashFiltersEngine({
+        storageKey: FILTER_STORAGE_KEY,
+        readCurrentProtocol: currentProtocol,
+        readCurrentPair: currentPair,
+        readCurrentLastWindow: currentLastWindow,
+        triggerDashboardRefresh,
+        scheduleRewarmup,
+      })
+    : null;
+
   function readPersistedFilters() {
-    try {
-      const raw = window.localStorage.getItem(FILTER_STORAGE_KEY);
-      if (!raw) {
-        return null;
-      }
-      const parsed = JSON.parse(raw);
-      return {
-        protocol: typeof parsed?.protocol === "string" ? parsed.protocol : "",
-        pair: typeof parsed?.pair === "string" ? parsed.pair : "",
-        lastWindow: typeof parsed?.lastWindow === "string" ? parsed.lastWindow : "",
-      };
-    } catch (_) {
-      return null;
+    if (_filtersEngine?.readPersistedFilters) {
+      return _filtersEngine.readPersistedFilters();
     }
+    return null;
   }
 
   function persistFilters(protocol, pair, lastWindow) {
-    try {
-      window.localStorage.setItem(
-        FILTER_STORAGE_KEY,
-        JSON.stringify({
-          protocol: protocol || "",
-          pair: pair || "",
-          lastWindow: lastWindow || "",
-        })
-      );
-    } catch (_) {
-      // Ignore storage failures (private mode / quota).
-    }
+    _filtersEngine?.persistFilters?.(protocol, pair, lastWindow);
   }
 
   function applyGlobalFilters(protocol, pair, lastWindow, shouldRefresh = true) {
-    if (protocol) {
-      const protocolSelect = document.getElementById("protocol-select");
-      if (protocolSelect) {
-        protocolSelect.value = protocol;
-      }
+    if (_filtersEngine?.applyGlobalFilters) {
+      _filtersEngine.applyGlobalFilters(protocol, pair, lastWindow, shouldRefresh);
+      return;
     }
-    if (pair) {
-      const pairSelect = document.getElementById("pair-select");
-      if (pairSelect) {
-        pairSelect.value = pair;
-      }
-    }
-    if (lastWindow) {
-      const lastWindowSelect = document.getElementById("last-window-select");
-      if (lastWindowSelect) {
-        lastWindowSelect.value = lastWindow;
-      }
-    }
-    persistFilters(
-      protocol || currentProtocol(),
-      pair || currentPair(),
-      lastWindow || currentLastWindow()
-    );
-    if (shouldRefresh) {
-      triggerDashboardRefresh({ prioritizeViewport: true });
-      scheduleRewarmup();
-    }
+    triggerDashboardRefresh({ prioritizeViewport: true });
   }
 
   function setSelectOptions(selectEl, values, selected, includeNone) {
@@ -6285,14 +6163,14 @@
         const metaQs = plMeta ? `?_pipeline=${encodeURIComponent(plMeta)}` : "";
         const response = await fetch(`${getApiBaseUrl()}/api/v1/meta${metaQs}`, { cache: "no-store" });
         const payload = await response.json();
-        protocolPairs = payload.protocol_pairs || [];
+        setProtocolPairs(payload.protocol_pairs || []);
         const protocols = payload.protocols || protocolPairs.map((item) => item.protocol);
         setSelectOptions(protocolSelect, protocols, selectedProtocol);
         selectedProtocol = protocolSelect.value || selectedProtocol;
         setSelectOptions(pairSelect, pairsForProtocol(selectedProtocol), selectedPair);
         selectedPair = pairSelect.value || selectedPair;
       } catch (_) {
-        protocolPairs = [{ protocol: selectedProtocol, pair: selectedPair }];
+        setProtocolPairs([{ protocol: selectedProtocol, pair: selectedPair }]);
       }
     } else if (assetSelect) {
       try {
@@ -6300,7 +6178,7 @@
         const metaQs = plMeta ? `?_pipeline=${encodeURIComponent(plMeta)}` : "";
         const response = await fetch(`${getApiBaseUrl()}/api/v1/meta${metaQs}`, { cache: "no-store" });
         const payload = await response.json();
-        protocolPairs = payload.protocol_pairs || [];
+        setProtocolPairs(payload.protocol_pairs || []);
         const assets = [...new Set(protocolPairs.map((pp) => pp.pair.split("-")[0]))];
         const selectedAsset = assetSelect.value || assets[0] || "";
         setSelectOptions(assetSelect, assets, selectedAsset);
@@ -6313,7 +6191,7 @@
         const metaQs = plMeta ? `?_pipeline=${encodeURIComponent(plMeta)}` : "";
         const response = await fetch(`${getApiBaseUrl()}/api/v1/meta${metaQs}`, { cache: "no-store" });
         const payload = await response.json();
-        protocolPairs = payload.protocol_pairs || [];
+        setProtocolPairs(payload.protocol_pairs || []);
       } catch (_) {}
     }
 
@@ -6875,263 +6753,41 @@
   let _adaptiveShellPrefetchUsed = 0;
   let _adaptiveDialdownTriggered = false;
   let _adaptiveDialdownConsecutiveLow = 0;
-  let _sharedFamilyWidgetIndex = null;
-  const _batchedRevealBuffer = new Map();
-  const _batchedRevealTargets = new Set();
-  let _batchedRevealTimer = null;
-  const _sharedFamilyRevealBuffer = new Map();
-  const _sharedFamilyRevealTimers = new Map();
-  const _revealCoordinatorGroups = new Map();
-  const _revealCoordinatorBatchTargets = new Set();
-  const _revealCoordinatorBatchBuffer = new Map();
-  let _revealCoordinatorBatchTimer = null;
   const _skeletonShownAt = new Map();
-
-  function _clearSharedFamilyRevealState() {
-    _sharedFamilyRevealBuffer.clear();
-    _sharedFamilyRevealTimers.forEach((timer) => {
-      try { clearTimeout(timer); } catch (_) {}
-    });
-    _sharedFamilyRevealTimers.clear();
-  }
-
-  function _clearRevealCoordinatorState() {
-    _revealCoordinatorBatchTargets.clear();
-    _revealCoordinatorBatchBuffer.clear();
-    if (_revealCoordinatorBatchTimer) {
-      try { clearTimeout(_revealCoordinatorBatchTimer); } catch (_) {}
-      _revealCoordinatorBatchTimer = null;
-    }
-    _revealCoordinatorGroups.forEach((group) => {
-      if (group?.timer) {
-        try { clearTimeout(group.timer); } catch (_) {}
-      }
-    });
-    _revealCoordinatorGroups.clear();
-  }
+  const _revealEngine = (typeof window.__createRiskdashRevealEngine === "function")
+    ? window.__createRiskdashRevealEngine({
+      batchedRevealEnabled: BATCHED_REVEAL_ENABLED,
+      batchedRevealTimeoutMs: BATCHED_REVEAL_TIMEOUT_MS,
+      sharedFamilyRevealTimeoutMs: SHARED_FAMILY_REVEAL_TIMEOUT_MS,
+      unifiedRevealCoordinatorEnabled: UNIFIED_REVEAL_COORDINATOR_ENABLED,
+      sharedFamilyId,
+      sharedFamilyWidgetElements,
+      renderWidgetResponse: _renderWidgetResponse,
+    })
+    : null;
 
   function _clearActiveRevealState() {
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _clearRevealCoordinatorState();
-      return;
-    }
-    _batchedRevealBuffer.clear();
-    _batchedRevealTargets.clear();
-    if (_batchedRevealTimer) {
-      try { clearTimeout(_batchedRevealTimer); } catch (_) {}
-      _batchedRevealTimer = null;
-    }
-    _clearSharedFamilyRevealState();
-  }
-
-  function _flushSharedFamilyReveal(familyId) {
-    const family = String(familyId || "").trim();
-    if (!family) return;
-    const timer = _sharedFamilyRevealTimers.get(family);
-    if (timer) {
-      try { clearTimeout(timer); } catch (_) {}
-      _sharedFamilyRevealTimers.delete(family);
-    }
-    const pending = [];
-    _sharedFamilyRevealBuffer.forEach((entry, widgetId) => {
-      if (entry && entry.familyId === family) {
-        pending.push([widgetId, entry]);
-      }
-    });
-    pending.forEach(([widgetId, entry]) => {
-      _sharedFamilyRevealBuffer.delete(widgetId);
-      if (!entry?.sourceEl?.isConnected) return;
-      _renderWidgetResponse(widgetId, entry.payload, entry.srcId, entry.sourceEl);
-    });
-  }
-
-  function _bufferSharedFamilyReveal(familyId, widgetId, payload, srcId, sourceEl) {
-    const family = String(familyId || "").trim();
-    if (!family || !widgetId) return;
-    _sharedFamilyRevealBuffer.set(widgetId, { familyId: family, payload, srcId, sourceEl });
-    if (_sharedFamilyRevealTimers.has(family) || SHARED_FAMILY_REVEAL_TIMEOUT_MS <= 0) return;
-    const timer = setTimeout(() => _flushSharedFamilyReveal(family), SHARED_FAMILY_REVEAL_TIMEOUT_MS);
-    _sharedFamilyRevealTimers.set(family, timer);
-  }
-
-  function _flushRevealCoordinatorGroup(groupKey) {
-    const key = String(groupKey || "").trim();
-    if (!key) return;
-    const group = _revealCoordinatorGroups.get(key);
-    if (!group) return;
-    if (group.timer) {
-      try { clearTimeout(group.timer); } catch (_) {}
-    }
-    _revealCoordinatorGroups.delete(key);
-    const entries = Array.isArray(group.entries) ? group.entries : [];
-    entries.forEach((entry) => {
-      if (!entry?.sourceEl?.isConnected) return;
-      _renderWidgetResponse(entry.widgetId, entry.payload, entry.srcId, entry.sourceEl);
-    });
-  }
-
-  function _bufferRevealCoordinatorGroup(groupKey, widgetId, payload, srcId, sourceEl, timeoutMs) {
-    const key = String(groupKey || "").trim();
-    if (!key || !widgetId) return;
-    const existing = _revealCoordinatorGroups.get(key) || { entries: [], timer: 0 };
-    const nextEntries = Array.isArray(existing.entries) ? existing.entries.filter((entry) => entry.widgetId !== widgetId) : [];
-    nextEntries.push({ widgetId, payload, srcId, sourceEl });
-    let timer = existing.timer || 0;
-    if (!timer && Number(timeoutMs || 0) > 0) {
-      timer = setTimeout(() => _flushRevealCoordinatorGroup(key), Number(timeoutMs));
-    }
-    _revealCoordinatorGroups.set(key, { entries: nextEntries, timer });
-  }
-
-  function _flushRevealCoordinatorBatchBuffer() {
-    if (_revealCoordinatorBatchBuffer.size === 0) {
-      _revealCoordinatorBatchTargets.clear();
-      return;
-    }
-    requestAnimationFrame(() => {
-      _revealCoordinatorBatchBuffer.forEach((entry, wid) => {
-        _revealCoordinatorBatchBuffer.delete(wid);
-        if (!entry?.sourceEl?.isConnected) return;
-        _renderWidgetResponse(wid, entry.payload, entry.srcId, entry.sourceEl);
-      });
-      _revealCoordinatorBatchTargets.clear();
-    });
-  }
-
-  function _settleRevealCoordinatorBatchTarget(widgetId) {
-    if (!widgetId || !_revealCoordinatorBatchTargets.has(widgetId)) return;
-    _revealCoordinatorBatchTargets.delete(widgetId);
-    if (_revealCoordinatorBatchTargets.size === 0) {
-      if (_revealCoordinatorBatchTimer) {
-        try { clearTimeout(_revealCoordinatorBatchTimer); } catch (_) {}
-        _revealCoordinatorBatchTimer = null;
-      }
-      _flushRevealCoordinatorBatchBuffer();
-    }
-  }
-
-  function _beginRevealCoordinatorBatch(els) {
-    _revealCoordinatorBatchTargets.clear();
-    _revealCoordinatorBatchBuffer.clear();
-    if (_revealCoordinatorBatchTimer) {
-      try { clearTimeout(_revealCoordinatorBatchTimer); } catch (_) {}
-      _revealCoordinatorBatchTimer = null;
-    }
-    els.forEach((el) => {
-      const wid = el?.dataset?.widgetId;
-      if (wid) _revealCoordinatorBatchTargets.add(String(wid));
-    });
-    if (_revealCoordinatorBatchTargets.size > 0 && BATCHED_REVEAL_TIMEOUT_MS > 0) {
-      _revealCoordinatorBatchTimer = setTimeout(() => {
-        _revealCoordinatorBatchTimer = null;
-        _flushRevealCoordinatorBatchBuffer();
-      }, BATCHED_REVEAL_TIMEOUT_MS);
-    }
-  }
-
-  function _flushFamilyWhenSettled(sourceEl, flushFamily) {
-    const familyId = sharedFamilyId(sourceEl);
-    if (!familyId) return;
-    const familyInFlight = sharedFamilyWidgetElements(familyId)
-      .some((el) => el !== sourceEl && el.classList.contains("htmx-request"));
-    if (!familyInFlight) {
-      flushFamily(familyId);
-    }
-  }
-
-  function _maybeFlushFamilyOnTerminal(sourceEl) {
-    _flushFamilyWhenSettled(sourceEl, _flushSharedFamilyReveal);
-  }
-
-  function _maybeFlushCoordinatorFamilyOnTerminal(sourceEl) {
-    _flushFamilyWhenSettled(sourceEl, (familyId) => {
-      _flushRevealCoordinatorGroup(`family:${familyId}`);
-    });
-  }
-
-  function _settleActiveBatchTarget(widgetId = "") {
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _settleRevealCoordinatorBatchTarget(widgetId);
-    } else {
-      _settleBatchedRevealTarget(widgetId);
-    }
+    _revealEngine?.clearActiveRevealState?.();
   }
 
   function _onTerminalRevealSettle(sourceEl, widgetId = "") {
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _maybeFlushCoordinatorFamilyOnTerminal(sourceEl);
-      _settleActiveBatchTarget(widgetId);
-      return;
-    }
-    _maybeFlushFamilyOnTerminal(sourceEl);
-    _settleActiveBatchTarget(widgetId);
-  }
-
-  function _isWidgetInActiveBatch(widgetId) {
-    if (!BATCHED_REVEAL_ENABLED || !widgetId) return false;
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      return _revealCoordinatorBatchTargets.has(widgetId);
-    }
-    return _batchedRevealTargets.has(widgetId);
+    _revealEngine?.onTerminalRevealSettle?.(sourceEl, widgetId);
   }
 
   function _bufferActiveBatch(widgetId, payload, srcId, sourceEl) {
-    if (!BATCHED_REVEAL_ENABLED || !widgetId) return false;
-    if (!_isWidgetInActiveBatch(widgetId)) return false;
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _revealCoordinatorBatchBuffer.set(widgetId, { widgetId, payload, srcId, sourceEl });
-      _settleRevealCoordinatorBatchTarget(widgetId);
-    } else {
-      _batchedRevealBuffer.set(widgetId, { widgetId, payload, srcId, sourceEl });
-      _settleBatchedRevealTarget(widgetId);
-    }
-    return true;
+    return !!_revealEngine?.bufferActiveBatch?.(widgetId, payload, srcId, sourceEl);
   }
 
   function _bufferActiveFamily(familyId, widgetId, payload, srcId, sourceEl) {
-    if (!familyId || !widgetId) return;
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _bufferRevealCoordinatorGroup(
-        `family:${familyId}`,
-        widgetId,
-        payload,
-        srcId,
-        sourceEl,
-        SHARED_FAMILY_REVEAL_TIMEOUT_MS,
-      );
-      return;
-    }
-    _bufferSharedFamilyReveal(familyId, widgetId, payload, srcId, sourceEl);
+    _revealEngine?.bufferActiveFamily?.(familyId, widgetId, payload, srcId, sourceEl);
   }
 
   function _flushActiveFamily(familyId) {
-    if (!familyId) return;
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _flushRevealCoordinatorGroup(`family:${familyId}`);
-      return;
-    }
-    _flushSharedFamilyReveal(familyId);
+    _revealEngine?.flushActiveFamily?.(familyId);
   }
 
   function _beginActiveBatch(els) {
-    if (!BATCHED_REVEAL_ENABLED) return;
-    if (UNIFIED_REVEAL_COORDINATOR_ENABLED) {
-      _beginRevealCoordinatorBatch(els);
-      return;
-    }
-    _batchedRevealBuffer.clear();
-    _batchedRevealTargets.clear();
-    if (_batchedRevealTimer) {
-      clearTimeout(_batchedRevealTimer);
-      _batchedRevealTimer = null;
-    }
-    els.forEach((el) => {
-      const wid = el?.dataset?.widgetId;
-      if (wid) _batchedRevealTargets.add(String(wid));
-    });
-    if (_batchedRevealTargets.size > 0 && BATCHED_REVEAL_TIMEOUT_MS > 0) {
-      _batchedRevealTimer = setTimeout(_flushBatchedReveal, BATCHED_REVEAL_TIMEOUT_MS);
-    }
+    _revealEngine?.beginActiveBatch?.(els);
   }
 
   async function runPerPageWarmup(
@@ -7383,89 +7039,42 @@
     onGuideStateChange();
   }
 
+  const _warmupEngine = (typeof window.__createRiskdashWarmupEngine === "function")
+    ? window.__createRiskdashWarmupEngine({
+        warmupEnabled: WARMUP_ENABLED,
+        rewarmupOnFilterChange: REWARMUP_ON_FILTER_CHANGE,
+        rewarmupIdleDelayMs: REWARMUP_IDLE_DELAY_MS,
+        warmupSessionKey: WARMUP_SESSION_KEY,
+        getWarmupSchedulerStarted: () => _warmupSchedulerStarted,
+        setWarmupSchedulerStarted: (next) => { _warmupSchedulerStarted = !!next; },
+        hasWarmupRunThisSession,
+        markWarmupRunThisSession,
+        readWarmupManifest,
+        isWarmupInFlight: () => _warmupInFlight,
+        isPipelineSwitchInProgress: () => _pipelineSwitchInProgress,
+        runPerPageWarmup,
+        getNavigationReadinessTimer: () => _navigationReadinessTimer,
+        setNavigationReadinessTimer: (next) => { _navigationReadinessTimer = next; },
+        isSoftNavInFlight: () => _softNavInFlight,
+        normalizeSoftNavPath,
+        setAllShellPrefetchCompleted: (next) => { _allShellPrefetchCompleted = !!next; },
+        scheduleAllShellPrefetch,
+        isAdaptiveDialdownTriggered: () => _adaptiveDialdownTriggered,
+        getRewarmupDebounceTimer: () => _rewarmupDebounceTimer,
+        setRewarmupDebounceTimer: (next) => { _rewarmupDebounceTimer = next; },
+      })
+    : null;
+
   function initWarmupScheduler() {
-    if (!WARMUP_ENABLED) return;
-    if (_warmupSchedulerStarted) return;
-    _warmupSchedulerStarted = true;
-    if (hasWarmupRunThisSession()) return;
-
-    const manifest = readWarmupManifest();
-    if (!manifest.length) return;
-
-    let userInteracted = false;
-    const markInteraction = () => {
-      userInteracted = true;
-      // Kick warmup soon after first interaction instead of waiting for
-      // visibility changes, so likely next routes get preloaded while
-      // the user is still on the current page.
-      setTimeout(attemptWarmup, 150);
-    };
-    document.addEventListener("pointerdown", markInteraction, { once: true });
-    document.addEventListener("keydown", markInteraction, { once: true });
-
-    const attemptWarmup = async () => {
-      if (_warmupInFlight || hasWarmupRunThisSession()) return;
-      if (document.hidden || _pipelineSwitchInProgress) return;
-      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-      const effectiveType = String(connection?.effectiveType || "").toLowerCase();
-      const saveData = connection?.saveData === true;
-      if (saveData || effectiveType === "slow-2g" || effectiveType === "2g") {
-        markWarmupRunThisSession();
-        return;
-      }
-
-      if (!manifest.length) {
-        markWarmupRunThisSession();
-        return;
-      }
-
-      try {
-        await runPerPageWarmup(manifest, { includeActivePage: true, reason: "startup" });
-      } catch (_) {
-        // Best-effort background optimization.
-      }
-    };
-
-    setTimeout(attemptWarmup, 4000);
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) {
-        setTimeout(attemptWarmup, 500);
-      }
-    });
+    _warmupEngine?.initWarmupScheduler?.();
   }
 
   function initNavigationReadinessScheduler() {
-    if (_navigationReadinessTimer) return;
-    const cadenceMs = 120_000;
-    _navigationReadinessTimer = setInterval(() => {
-      if (document.hidden || _softNavInFlight || _pipelineSwitchInProgress) return;
-      const currentPath = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
-      _allShellPrefetchCompleted = false;
-      scheduleAllShellPrefetch(currentPath ? [currentPath] : []);
-    }, cadenceMs);
+    _warmupEngine?.initNavigationReadinessScheduler?.();
   }
 
   function scheduleRewarmup() {
-    if (!REWARMUP_ON_FILTER_CHANGE || !WARMUP_ENABLED) return;
-    if (_adaptiveDialdownTriggered) return;
-    if (_rewarmupDebounceTimer !== null) {
-      clearTimeout(_rewarmupDebounceTimer);
-    }
-    const delay = REWARMUP_IDLE_DELAY_MS > 0 ? REWARMUP_IDLE_DELAY_MS : 3000;
-    _rewarmupDebounceTimer = setTimeout(async () => {
-      _rewarmupDebounceTimer = null;
-      if (_warmupInFlight || document.hidden || _pipelineSwitchInProgress) return;
-      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-      if (conn && (conn.saveData || String(conn.effectiveType || "").toLowerCase() === "slow-2g" || String(conn.effectiveType || "").toLowerCase() === "2g")) return;
-      try { sessionStorage.removeItem(WARMUP_SESSION_KEY); } catch (_) {}
-      const manifest = readWarmupManifest();
-      if (!manifest.length) return;
-      try {
-        await runPerPageWarmup(manifest, { includeActivePage: true, reason: "filter-rewarm" });
-      } catch (_) {
-        // Best-effort background re-warmup.
-      }
-    }, delay);
+    _warmupEngine?.scheduleRewarmup?.();
   }
 
   function evaluateAdaptiveDialdown() {
@@ -7752,44 +7361,31 @@
     _widgetRequestsInFlight += 1;
     _softNavDebug.widgetRequestsStarted += 1;
     if (_activeHydrationTrace) _scheduleHydrationSettleCheck(_activeHydrationTrace);
-    if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
-      _concurrencyInFlight++;
-    }
+    _concurrencyEngine?.onRequestStarted?.();
   });
 
+  const _renderEngine = (typeof window.__createRiskdashRenderEngine === "function")
+    ? window.__createRiskdashRenderEngine({
+        skeletonMinDisplayMs: SKELETON_MIN_DISPLAY_MS,
+        skeletonShownAt: _skeletonShownAt,
+        widgetFilterSignature,
+        renderPayload,
+        updateTimestamp,
+        setWidgetCachedPayload,
+        setWidgetError,
+      })
+    : null;
+
   function _renderWidgetResponse(widgetId, payload, srcId, sourceEl) {
-    const skeletonStart = _skeletonShownAt.get(widgetId);
-    const minDelay = SKELETON_MIN_DISPLAY_MS;
-    const elapsed = skeletonStart ? Date.now() - skeletonStart : minDelay;
-    const remaining = minDelay > 0 && elapsed < minDelay ? minDelay - elapsed : 0;
-
-    const doRender = () => {
-      try {
-        _skeletonShownAt.delete(widgetId);
-        const signature = widgetFilterSignature(sourceEl);
-        const generatedAt = String(payload?.metadata?.generated_at || "");
-        const isIdenticalRefresh = (
-          sourceEl.dataset.hasLoadedOnce === "1"
-          && sourceEl.dataset.lastRenderedSignature === signature
-          && sourceEl.dataset.lastRenderedGeneratedAt === generatedAt
-        );
-        if (!isIdenticalRefresh) {
-          renderPayload(widgetId, payload, srcId);
-        }
-        updateTimestamp(widgetId, payload?.metadata?.generated_at);
-        setWidgetCachedPayload(widgetId, signature, payload);
-        sourceEl.dataset.lastRenderedSignature = signature;
-        sourceEl.dataset.lastRenderedGeneratedAt = generatedAt;
-        sourceEl.dataset.hasLoadedOnce = "1";
-      } catch (error) {
-        setWidgetError(widgetId, String(error));
-      }
-    };
-
-    if (remaining > 0) {
-      setTimeout(doRender, remaining);
-    } else {
-      doRender();
+    if (_renderEngine?.renderWidgetResponse) {
+      _renderEngine.renderWidgetResponse(widgetId, payload, srcId, sourceEl);
+      return;
+    }
+    try {
+      renderPayload(widgetId, payload, srcId);
+      updateTimestamp(widgetId, payload?.metadata?.generated_at);
+    } catch (error) {
+      setWidgetError(widgetId, String(error));
     }
   }
 
@@ -7801,10 +7397,7 @@
     _widgetRequestsInFlight = Math.max(0, _widgetRequestsInFlight - 1);
     _softNavDebug.widgetRequestsCompleted += 1;
     if (_activeHydrationTrace) _scheduleHydrationSettleCheck(_activeHydrationTrace);
-    if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
-      _concurrencyInFlight = Math.max(0, _concurrencyInFlight - 1);
-      _drainConcurrencyQueue();
-    }
+    _concurrencyEngine?.onRequestTerminal?.();
     const widgetId = sourceEl.dataset.widgetId;
     if (!widgetId) {
       return;
@@ -8036,10 +7629,7 @@
     _widgetRequestsInFlight = Math.max(0, _widgetRequestsInFlight - 1);
     _softNavDebug.widgetRequestsAborted += 1;
     if (_activeHydrationTrace) _scheduleHydrationSettleCheck(_activeHydrationTrace);
-    if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
-      _concurrencyInFlight = Math.max(0, _concurrencyInFlight - 1);
-      _drainConcurrencyQueue();
-    }
+    _concurrencyEngine?.onRequestTerminal?.();
     const widgetId = sourceEl.dataset.widgetId;
     if (!widgetId) return;
     _softNavDebugEvent("widget_request_abort", {
@@ -8868,5 +8458,7 @@
     }
     softNavigateToPage(targetPath, { pushHistory: false });
   });
+
+  window.__riskdashChartsLoaded = true;
 
 })();
