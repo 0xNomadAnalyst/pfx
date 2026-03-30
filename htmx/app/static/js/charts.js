@@ -4299,27 +4299,43 @@
     return rectA.left - rectB.left;
   }
 
-  function requestWidgetNow(el) {
-    if (!el || !el.classList.contains("widget-loader")) return;
+  function _issueWidgetAjax(el) {
     const endpoint = el.getAttribute("hx-get");
     if (!endpoint) return;
-    // Do not replace an active request for the same widget.
-    // Replacement requests produce status=0 aborts and can starve slower
-    // shared-family siblings in a perpetual loading state.
-    if (el.classList.contains("htmx-request")) {
-      recordPerfMetric("suppressedInFlightForcedRequest");
-      return;
-    }
+    if (!el.isConnected) return;
     el.dataset.forceRequest = "1";
-    htmx.ajax("GET", endpoint, {
-      source: el,
-      swap: "none",
-      values: buildWidgetRequestParams(el),
-      timeout: 90_000,
-    });
+    try {
+      const p = htmx.ajax("GET", endpoint, {
+        source: el,
+        swap: "none",
+        values: buildWidgetRequestParams(el),
+        timeout: 90_000,
+      });
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } catch (_) {}
     setTimeout(() => {
       if (el.dataset) delete el.dataset.forceRequest;
     }, 1000);
+  }
+
+  function requestWidgetNow(el) {
+    if (!el || !el.classList.contains("widget-loader")) return;
+    if (!el.getAttribute("hx-get")) return;
+    if (el.classList.contains("htmx-request")) {
+      if (el.dataset._pendingRetry) return;
+      el.dataset._pendingRetry = "1";
+      recordPerfMetric("queuedBehindInFlightRequest");
+      const poll = setInterval(() => {
+        if (!el.isConnected || !el.classList.contains("htmx-request")) {
+          clearInterval(poll);
+          if (el.dataset) delete el.dataset._pendingRetry;
+          if (el.isConnected) _issueWidgetAjax(el);
+        }
+      }, 200);
+      setTimeout(() => { clearInterval(poll); if (el.dataset) delete el.dataset._pendingRetry; }, 60_000);
+      return;
+    }
+    _issueWidgetAjax(el);
   }
 
   const _concurrencyEngine = (typeof window.__createRiskdashConcurrencyEngine === "function")

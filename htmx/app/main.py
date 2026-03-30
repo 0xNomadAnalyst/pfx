@@ -8,6 +8,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -861,16 +862,32 @@ def switch_pipeline_proxy(request: Request):
         return JSONResponse(content={"error": "Pipeline switch unavailable"}, status_code=502)
 
 
+_proxy_timeout = float(os.getenv("HTMX_API_PROXY_TIMEOUT_SECONDS", "60"))
+_httpx_client: httpx.AsyncClient | None = None
+
+
+def _get_httpx_client() -> httpx.AsyncClient:
+    global _httpx_client
+    if _httpx_client is None or _httpx_client.is_closed:
+        _httpx_client = httpx.AsyncClient(
+            base_url=f"{API_BASE_URL}/api/v1",
+            timeout=httpx.Timeout(_proxy_timeout, connect=5.0),
+            limits=httpx.Limits(max_connections=40, max_keepalive_connections=20),
+        )
+    return _httpx_client
+
+
+@app.on_event("shutdown")
+async def _close_httpx_client():
+    if _httpx_client and not _httpx_client.is_closed:
+        await _httpx_client.aclose()
+
+
 @app.api_route("/api/v1/{path:path}", methods=["GET", "POST"])
 async def api_v1_proxy(path: str, request: Request):
-    """Forward all /api/v1/* widget requests to the internal API server.
-
-    Widget endpoint URLs are rendered into the page HTML and fetched by the
-    browser, so they must resolve via the public UI host.  The internal API
-    listens only on 127.0.0.1 and is not directly reachable by browsers.
-    """
+    """Forward all /api/v1/* widget requests to the internal API server."""
     qs = request.url.query
-    target = f"{API_BASE_URL}/api/v1/{path}"
+    target = f"/{path}"
     if qs:
         target = f"{target}?{qs}"
 
@@ -886,17 +903,13 @@ async def api_v1_proxy(path: str, request: Request):
     if method in ("POST", "PUT", "PATCH"):
         body = await request.body()
 
-    req = urllib.request.Request(target, data=body or None, method=method)
-    req.add_header("Content-Type", request.headers.get("content-type", "application/json"))
-    proxy_timeout = float(os.getenv("HTMX_API_PROXY_TIMEOUT_SECONDS", "60"))
+    client = _get_httpx_client()
+    headers = {"content-type": request.headers.get("content-type", "application/json")}
     try:
-        # urlopen is blocking; run it in a worker thread so one slow proxy call
-        # does not stall the ASGI event loop and serialize all widget requests.
-        content, ct, status = await asyncio.to_thread(
-            _proxy_v1_request_sync,
-            req,
-            proxy_timeout,
-        )
+        resp = await client.request(method, target, content=body, headers=headers)
+        content = resp.content
+        ct = resp.headers.get("content-type", "application/json")
+
         if request.method.upper() == "GET" and path == "meta":
             try:
                 payload = json.loads(content)
@@ -905,21 +918,13 @@ async def api_v1_proxy(path: str, request: Request):
             except Exception:
                 pass
         return Response(
-            content=content, media_type=ct, status_code=status,
+            content=content, media_type=ct, status_code=resp.status_code,
             headers={"Cache-Control": "no-store"},
         )
-    except urllib.error.HTTPError as exc:
-        return JSONResponse(content={"error": "API request failed"}, status_code=exc.code)
+    except httpx.HTTPStatusError as exc:
+        return JSONResponse(content={"error": "API request failed"}, status_code=exc.response.status_code)
     except Exception:
         return JSONResponse(content={"error": "API unavailable"}, status_code=502)
-
-
-def _proxy_v1_request_sync(req: urllib.request.Request, timeout: float) -> tuple[bytes, str, int]:
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        content = resp.read()
-        content_type = resp.headers.get("content-type", "application/json")
-        status = int(getattr(resp, "status", 200))
-        return content, content_type, status
 
 
 @app.get("/api/health-status")
