@@ -65,6 +65,11 @@ async def _install_probe(page) -> None:
             if (!el || !el.classList || !el.classList.contains("widget-loader")) return;
             pushEvent("abort", el.dataset.widgetId || "");
           });
+          document.body.addEventListener("riskdash:widget-painted", (event) => {
+            const widgetId = event?.detail?.widgetId || "";
+            if (!widgetId) return;
+            pushEvent("painted", widgetId, { paintT: event.detail.t });
+          });
         }"""
     )
 
@@ -147,10 +152,15 @@ async def _run_group_cycle(page, widget_ids: list[str], cycle_id: str, timeout_m
               const startedEv = perWidget.length ? perWidget.slice().reverse().find((ev) => ev.type === "started") : null;
               const completedEv = perWidget.length ? perWidget.slice().reverse().find((ev) => ev.type === "completed") : null;
               const terminalEv = perWidget.length ? perWidget.slice().reverse().find((ev) => isTerminalType(ev.type)) : null;
+              const paintedEv = perWidget.length ? perWidget.slice().reverse().find((ev) => ev.type === "painted") : null;
               const updatedText = String(document.getElementById(`updated-${wid}`)?.textContent || "");
+              const paintedAtMs = paintedEv ? Number(paintedEv.paintT || paintedEv.t || 0) : null;
+              const completedAtMs = completedEv ? Number(completedEv.t || 0) : null;
               status[wid] = {
                 started_at_ms: startedEv ? Number(startedEv.t || 0) : null,
-                completed_at_ms: completedEv ? Number(completedEv.t || 0) : null,
+                completed_at_ms: completedAtMs,
+                painted_at_ms: paintedAtMs,
+                render_lag_ms: (completedAtMs && paintedAtMs) ? Math.round(paintedAtMs - completedAtMs) : null,
                 terminal_type: terminalEv ? String(terminalEv.type || "") : "",
                 updated_text: updatedText,
                 loading_visible: updatedText.toLowerCase().includes("loading..."),
@@ -203,6 +213,33 @@ def _skew_ms(widget_status: dict[str, Any]) -> float:
     if len(completed) < 2:
         return 0.0
     return max(completed) - min(completed)
+
+
+def _paint_skew_ms(widget_status: dict[str, Any]) -> float:
+    painted = [
+        float(entry["painted_at_ms"])
+        for entry in widget_status.values()
+        if entry.get("painted_at_ms") is not None
+    ]
+    if len(painted) < 2:
+        return 0.0
+    return max(painted) - min(painted)
+
+
+def _render_lag_stats(widget_status: dict[str, Any]) -> dict[str, Any]:
+    lags = [
+        float(entry["render_lag_ms"])
+        for entry in widget_status.values()
+        if entry.get("render_lag_ms") is not None
+    ]
+    if not lags:
+        return {"min": None, "max": None, "mean": None, "count": 0}
+    return {
+        "min": round(min(lags), 1),
+        "max": round(max(lags), 1),
+        "mean": round(sum(lags) / len(lags), 1),
+        "count": len(lags),
+    }
 
 
 async def run() -> int:
@@ -345,6 +382,9 @@ async def run() -> int:
                 if (not has_backend_error_signal) and (not has_frontend_split_signal) and (not passed):
                     failure_tags.append("unclassified")
 
+                paint_skew = _paint_skew_ms(statuses)
+                lag_stats = _render_lag_stats(statuses)
+
                 group_out = {
                     "id": group.get("id"),
                     "page_slug": page_slug,
@@ -352,6 +392,8 @@ async def run() -> int:
                     "data_family": group.get("data_family"),
                     "cohort_key": group.get("cohort_key"),
                     "skew_ms": round(skew, 2),
+                    "paint_skew_ms": round(paint_skew, 2),
+                    "render_lag": lag_stats,
                     "timed_out": bool(result.get("timed_out")),
                     "completed_widgets": completed,
                     "started_widgets": started,
@@ -367,7 +409,8 @@ async def run() -> int:
                 report["results"].append(group_out)
                 status = "PASS" if passed else "FAIL"
                 tag_text = f" | tags={','.join(failure_tags)}" if failure_tags else ""
-                print(f"[{status}] {group_out['id']} | skew={group_out['skew_ms']}ms | missing={len(missing)}{tag_text}")
+                lag_text = f" | render_lag={lag_stats['mean']}ms" if lag_stats["mean"] is not None else ""
+                print(f"[{status}] {group_out['id']} | skew={group_out['skew_ms']}ms | paint_skew={group_out['paint_skew_ms']}ms{lag_text} | missing={len(missing)}{tag_text}")
                 if reasons:
                     print("  - " + "; ".join(reasons))
 

@@ -7417,14 +7417,28 @@
       })
     : null;
 
+  function _emitWidgetPainted(widgetId) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.body.dispatchEvent(
+          new CustomEvent("riskdash:widget-painted", {
+            detail: { widgetId, t: performance.now() },
+          })
+        );
+      });
+    });
+  }
+
   function _renderWidgetResponse(widgetId, payload, srcId, sourceEl) {
     if (_renderEngine?.renderWidgetResponse) {
       _renderEngine.renderWidgetResponse(widgetId, payload, srcId, sourceEl);
+      _emitWidgetPainted(widgetId);
       return;
     }
     try {
       renderPayload(widgetId, payload, srcId);
       updateTimestamp(widgetId, payload?.metadata?.generated_at);
+      _emitWidgetPainted(widgetId);
     } catch (error) {
       setWidgetError(widgetId, String(error));
     }

@@ -31,6 +31,18 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8001")
 # Base URL embedded in page HTML for browser HTMX widget fetches.
 # Defaults to "" (relative URLs) so the browser calls the UI host, which
 # proxies to the internal API.  Override only if the API is publicly exposed.
+#
+# Proxy bypass evaluation (2026-03):
+#   Setting BROWSER_API_BASE_URL to the API server directly (e.g.
+#   "http://localhost:8001" for local dev) eliminates the UI proxy hop and
+#   saves ~5-15ms per widget request.  Requirements for production use:
+#     1. API port must be reachable from the browser (currently only port 8002
+#        is exposed in the Railway/Docker deployment).
+#     2. CORS_ALLOWED_ORIGINS on the API must include the UI origin.
+#     3. The pipeline switch POST would need a CORS-safe path on the API.
+#   For local development, set both env vars:
+#     BROWSER_API_BASE_URL=http://localhost:8001
+#     CORS_ALLOWED_ORIGINS=http://localhost:8002
 BROWSER_API_BASE_URL = os.getenv("BROWSER_API_BASE_URL", "")
 APP_TITLE = "Solana DeFi Ecosystem Dashboard"
 ENABLE_PIPELINE_SWITCHER = os.getenv("ENABLE_PIPELINE_SWITCHER", "0") == "1"
@@ -67,6 +79,9 @@ HTMX_HEALTH_TABLE_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_BASE_D
 HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS", "0.12"))
 HTMX_HEALTH_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_BASE_DELAY_SECONDS", "0.35"))
 HTMX_HEALTH_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_STEP_DELAY_SECONDS", "0.18"))
+HTMX_KPI_STEP_DELAY_SECONDS = float(os.getenv("HTMX_KPI_STEP_DELAY_SECONDS", "0.05"))
+HTMX_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_CHART_BASE_DELAY_SECONDS", "0.3"))
+HTMX_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_CHART_STEP_DELAY_SECONDS", "0.15"))
 
 # ── Cache mode profiles ──────────────────────────────────────────────
 # conservative = freshness-first, no speculation (frequent refresh, no preload)
@@ -476,14 +491,14 @@ def _build_page_context(
         shared_data_family = resolve_shared_data_family(endpoint_page, endpoint_wid)
 
         if widget.kind == "kpi":
-            load_delay_seconds = kpi_index * 0.15
+            load_delay_seconds = kpi_index * HTMX_KPI_STEP_DELAY_SECONDS
             kpi_index += 1
         else:
             is_right = "chart-right" in (widget.css_class or "") or "-mkt2" in (widget.css_class or "")
             if is_right:
                 load_delay_seconds = last_chart_delay
             else:
-                load_delay_seconds = 1.5 + non_kpi_index * 0.6
+                load_delay_seconds = HTMX_CHART_BASE_DELAY_SECONDS + non_kpi_index * HTMX_CHART_STEP_DELAY_SECONDS
                 non_kpi_index += 1
             last_chart_delay = load_delay_seconds
 
