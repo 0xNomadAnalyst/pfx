@@ -173,7 +173,10 @@ class SqlAdapter:
         conn = pool.getconn()
         checkout_wait_ms = (time.perf_counter() - checkout_started) * 1000.0
         self._record_pool_checkout(pool, checkout_wait_ms)
+        needs_rollback = statement_timeout_ms is not None
         try:
+            if not needs_rollback:
+                conn.autocommit = True
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 if statement_timeout_ms is not None:
                     cur.execute(f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}")
@@ -197,7 +200,9 @@ class SqlAdapter:
             raise
         finally:
             if not conn.closed:
-                conn.rollback()
+                if needs_rollback:
+                    conn.rollback()
+                conn.autocommit = False
                 pool.putconn(conn)
             else:
                 pool.putconn(conn, close=True)

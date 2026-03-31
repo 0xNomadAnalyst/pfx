@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+
 import logging
 import os
 from threading import Event, RLock
@@ -56,7 +56,7 @@ class QueryCache:
         return max(ttl, 0.0)
 
     def get(self, key: str, *, allow_stale: bool = False) -> Any | None:
-        now_ts = datetime.now(UTC).timestamp()
+        now_ts = time.time()
         with self._lock:
             entry = self._cache.get(key)
             if entry is None:
@@ -84,7 +84,7 @@ class QueryCache:
     ) -> Any:
         ttl = self._ttl_seconds if ttl_seconds is None else ttl_seconds
         ttl = self._apply_jitter(ttl)
-        expires_at = datetime.now(UTC).timestamp() + ttl
+        expires_at = time.time() + ttl
         stale_expires_at = expires_at + max(swr_seconds, 0.0)
         with self._lock:
             self._cache[key] = (expires_at, stale_expires_at, value)
