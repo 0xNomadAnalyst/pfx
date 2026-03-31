@@ -7487,9 +7487,14 @@
       if (familyId) {
         const familyWidgets = sharedFamilyWidgetElements(familyId);
         if (familyWidgets.length > 1) {
-          const familyInFlight = familyWidgets
-            .some((el) => el !== sourceEl && el.classList.contains("htmx-request"));
-          if (familyInFlight) {
+          const familyPending = familyWidgets
+            .some((el) => {
+              if (el === sourceEl) return false;
+              if (el.classList.contains("htmx-request")) return true;
+              if (el.dataset.hasLoadedOnce !== "1") return true;
+              return false;
+            });
+          if (familyPending) {
             _bufferActiveFamily(familyId, widgetId, payload, srcId, sourceEl);
             return;
           }

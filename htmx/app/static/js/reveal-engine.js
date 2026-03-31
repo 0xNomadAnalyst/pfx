@@ -195,9 +195,14 @@
     function flushFamilyWhenSettled(sourceEl, flushFamily) {
       const familyId = sharedFamilyId(sourceEl);
       if (!familyId) return;
-      const familyInFlight = sharedFamilyWidgetElements(familyId)
-        .some((el) => el !== sourceEl && el.classList.contains("htmx-request"));
-      if (!familyInFlight) {
+      const familyPending = sharedFamilyWidgetElements(familyId)
+        .some((el) => {
+          if (el === sourceEl) return false;
+          if (el.classList.contains("htmx-request")) return true;
+          if (el.dataset?.hasLoadedOnce !== "1") return true;
+          return false;
+        });
+      if (!familyPending) {
         flushFamily(familyId);
       }
     }
