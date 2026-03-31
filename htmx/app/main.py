@@ -80,8 +80,9 @@ HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_STEP_D
 HTMX_HEALTH_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_BASE_DELAY_SECONDS", "0.35"))
 HTMX_HEALTH_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_STEP_DELAY_SECONDS", "0.18"))
 HTMX_KPI_STEP_DELAY_SECONDS = float(os.getenv("HTMX_KPI_STEP_DELAY_SECONDS", "0.05"))
-HTMX_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_CHART_BASE_DELAY_SECONDS", "0.3"))
+HTMX_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_CHART_BASE_DELAY_SECONDS", "1.0"))
 HTMX_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_CHART_STEP_DELAY_SECONDS", "0.15"))
+HTMX_FAMILY_MEMBER_STAGGER_SECONDS = float(os.getenv("HTMX_FAMILY_MEMBER_STAGGER_SECONDS", "0.02"))
 
 # ── Cache mode profiles ──────────────────────────────────────────────
 # conservative = freshness-first, no speculation (frequent refresh, no preload)
@@ -577,6 +578,7 @@ def _build_page_context(
             family_min_delay[family_key] = min(family_min_delay[family_key], current_delay)
         else:
             family_min_delay[family_key] = current_delay
+    family_member_index: dict[str, int] = {}
     for binding in widget_bindings:
         family = str(binding.get("shared_data_family") or "").strip()
         if not family:
@@ -584,7 +586,9 @@ def _build_page_context(
         family_page = str(binding.get("source_page_id") or page.api_page_id)
         family_key = f"{family_page}::{family}"
         if family_key in family_min_delay:
-            binding["load_delay_seconds"] = family_min_delay[family_key]
+            idx = family_member_index.get(family_key, 0)
+            binding["load_delay_seconds"] = family_min_delay[family_key] + idx * HTMX_FAMILY_MEMBER_STAGGER_SECONDS
+            family_member_index[family_key] = idx + 1
 
     current_index = next((idx for idx, cfg in enumerate(PAGES) if cfg.slug == page.slug), 0)
     warmup_pages = PAGES[current_index + 1 :] + PAGES[:current_index]

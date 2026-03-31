@@ -26,8 +26,9 @@ HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_STEP_D
 HTMX_HEALTH_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_BASE_DELAY_SECONDS", "0.35"))
 HTMX_HEALTH_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_STEP_DELAY_SECONDS", "0.18"))
 HTMX_KPI_STEP_DELAY_SECONDS = float(os.getenv("HTMX_KPI_STEP_DELAY_SECONDS", "0.05"))
-HTMX_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_CHART_BASE_DELAY_SECONDS", "0.3"))
+HTMX_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_CHART_BASE_DELAY_SECONDS", "1.0"))
 HTMX_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_CHART_STEP_DELAY_SECONDS", "0.15"))
+HTMX_FAMILY_MEMBER_STAGGER_SECONDS = float(os.getenv("HTMX_FAMILY_MEMBER_STAGGER_SECONDS", "0.02"))
 
 _PAGE_MODULES = [
     ("PAGE_COVER",            "app.pages.cover",                   "0"),
@@ -166,6 +167,7 @@ def _compute_delays(page: PageConfig) -> list[dict]:
             family_min_delay[family_key] = min(family_min_delay[family_key], current)
         else:
             family_min_delay[family_key] = current
+    family_member_index: dict[str, int] = {}
     for b in bindings:
         family = str(b.get("shared_data_family") or "").strip()
         if not family:
@@ -173,7 +175,9 @@ def _compute_delays(page: PageConfig) -> list[dict]:
         ep_page = page.api_page_id
         family_key = f"{ep_page}::{family}"
         if family_key in family_min_delay:
-            b["load_delay_seconds"] = family_min_delay[family_key]
+            idx = family_member_index.get(family_key, 0)
+            b["load_delay_seconds"] = family_min_delay[family_key] + idx * HTMX_FAMILY_MEMBER_STAGGER_SECONDS
+            family_member_index[family_key] = idx + 1
 
     return bindings
 
