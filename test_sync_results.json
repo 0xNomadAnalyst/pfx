@@ -1,0 +1,2580 @@
+{
+  "mapping_file": "htmx\\config\\widget_call_mappings.json",
+  "base_url": "http://127.0.0.1:8002",
+  "max_completion_skew_ms": 1200.0,
+  "results": [
+    {
+      "id": "dexes:dex_liquidity_last_row:proto:orca",
+      "page_slug": "dexes",
+      "route": "/dexes",
+      "data_family": "dex_liquidity_last_row",
+      "cohort_key": "proto:orca",
+      "skew_ms": 10.0,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "orca-kpi-average-impact",
+        "orca-kpi-impact-500k",
+        "orca-kpi-largest-impact",
+        "orca-kpi-pool-balance",
+        "orca-kpi-reserves",
+        "orca-kpi-tvl"
+      ],
+      "started_widgets": [
+        "orca-kpi-average-impact",
+        "orca-kpi-impact-500k",
+        "orca-kpi-largest-impact",
+        "orca-kpi-pool-balance",
+        "orca-kpi-reserves",
+        "orca-kpi-tvl"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "orca-kpi-average-impact",
+        "orca-kpi-impact-500k",
+        "orca-kpi-largest-impact",
+        "orca-kpi-pool-balance",
+        "orca-kpi-reserves",
+        "orca-kpi-tvl"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "orca-kpi-average-impact": true,
+        "orca-kpi-impact-500k": true,
+        "orca-kpi-largest-impact": true,
+        "orca-kpi-pool-balance": true,
+        "orca-kpi-reserves": true,
+        "orca-kpi-tvl": true
+      },
+      "widget_status": {
+        "orca-kpi-average-impact": {
+          "started_at_ms": 11622,
+          "completed_at_ms": 11642,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "orca-kpi-impact-500k": {
+          "started_at_ms": 11621,
+          "completed_at_ms": 11633,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "orca-kpi-largest-impact": {
+          "started_at_ms": 11621.300000011921,
+          "completed_at_ms": 11638.699999988079,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "orca-kpi-pool-balance": {
+          "started_at_ms": 11621.599999964237,
+          "completed_at_ms": 11637.099999964237,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "orca-kpi-reserves": {
+          "started_at_ms": 11621.099999964237,
+          "completed_at_ms": 11635,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "orca-kpi-tvl": {
+          "started_at_ms": 11620.399999976158,
+          "completed_at_ms": 11632,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: orca-kpi-average-impact, orca-kpi-impact-500k, orca-kpi-largest-impact, orca-kpi-pool-balance, orca-kpi-reserves, orca-kpi-tvl"
+      ]
+    },
+    {
+      "id": "dexes:dex_liquidity_last_row:proto:ray",
+      "page_slug": "dexes",
+      "route": "/dexes",
+      "data_family": "dex_liquidity_last_row",
+      "cohort_key": "proto:ray",
+      "skew_ms": 14.8,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ray-kpi-average-impact",
+        "ray-kpi-impact-500k",
+        "ray-kpi-largest-impact",
+        "ray-kpi-pool-balance",
+        "ray-kpi-reserves",
+        "ray-kpi-tvl"
+      ],
+      "started_widgets": [
+        "ray-kpi-average-impact",
+        "ray-kpi-impact-500k",
+        "ray-kpi-largest-impact",
+        "ray-kpi-pool-balance",
+        "ray-kpi-reserves",
+        "ray-kpi-tvl"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "ray-kpi-average-impact",
+        "ray-kpi-impact-500k",
+        "ray-kpi-largest-impact",
+        "ray-kpi-pool-balance",
+        "ray-kpi-reserves",
+        "ray-kpi-tvl"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "ray-kpi-average-impact": true,
+        "ray-kpi-impact-500k": true,
+        "ray-kpi-largest-impact": true,
+        "ray-kpi-pool-balance": true,
+        "ray-kpi-reserves": true,
+        "ray-kpi-tvl": true
+      },
+      "widget_status": {
+        "ray-kpi-average-impact": {
+          "started_at_ms": 12024.899999976158,
+          "completed_at_ms": 12058.899999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ray-kpi-impact-500k": {
+          "started_at_ms": 12024.599999964237,
+          "completed_at_ms": 12045,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ray-kpi-largest-impact": {
+          "started_at_ms": 12024.800000011921,
+          "completed_at_ms": 12058.099999964237,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ray-kpi-pool-balance": {
+          "started_at_ms": 12024.899999976158,
+          "completed_at_ms": 12058.599999964237,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ray-kpi-reserves": {
+          "started_at_ms": 12024.599999964237,
+          "completed_at_ms": 12047,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ray-kpi-tvl": {
+          "started_at_ms": 12024.399999976158,
+          "completed_at_ms": 12044.099999964237,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: ray-kpi-average-impact, ray-kpi-impact-500k, ray-kpi-largest-impact, ray-kpi-pool-balance, ray-kpi-reserves, ray-kpi-tvl"
+      ]
+    },
+    {
+      "id": "dexes:dex_liquidity_tick_dist:proto:orca",
+      "page_slug": "dexes",
+      "route": "/dexes",
+      "data_family": "dex_liquidity_tick_dist",
+      "cohort_key": "proto:orca",
+      "skew_ms": 5.2,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "orca-liquidity-change-heatmap",
+        "orca-liquidity-depth",
+        "orca-liquidity-distribution"
+      ],
+      "started_widgets": [
+        "orca-liquidity-change-heatmap",
+        "orca-liquidity-depth",
+        "orca-liquidity-distribution"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "orca-liquidity-change-heatmap",
+        "orca-liquidity-depth",
+        "orca-liquidity-distribution"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "orca-liquidity-change-heatmap": true,
+        "orca-liquidity-depth": true,
+        "orca-liquidity-distribution": true
+      },
+      "widget_status": {
+        "orca-liquidity-change-heatmap": {
+          "started_at_ms": 12274.699999988079,
+          "completed_at_ms": 12315,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "orca-liquidity-depth": {
+          "started_at_ms": 12274.599999964237,
+          "completed_at_ms": 12314,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "orca-liquidity-distribution": {
+          "started_at_ms": 12274.5,
+          "completed_at_ms": 12309.800000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: orca-liquidity-change-heatmap, orca-liquidity-depth, orca-liquidity-distribution"
+      ]
+    },
+    {
+      "id": "dexes:dex_liquidity_tick_dist:proto:ray",
+      "page_slug": "dexes",
+      "route": "/dexes",
+      "data_family": "dex_liquidity_tick_dist",
+      "cohort_key": "proto:ray",
+      "skew_ms": 0.9,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ray-liquidity-change-heatmap",
+        "ray-liquidity-depth",
+        "ray-liquidity-distribution"
+      ],
+      "started_widgets": [
+        "ray-liquidity-change-heatmap",
+        "ray-liquidity-depth",
+        "ray-liquidity-distribution"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "ray-liquidity-change-heatmap",
+        "ray-liquidity-depth",
+        "ray-liquidity-distribution"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "ray-liquidity-change-heatmap": true,
+        "ray-liquidity-depth": true,
+        "ray-liquidity-distribution": true
+      },
+      "widget_status": {
+        "ray-liquidity-change-heatmap": {
+          "started_at_ms": 12536.599999964237,
+          "completed_at_ms": 12595,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ray-liquidity-depth": {
+          "started_at_ms": 12536.599999964237,
+          "completed_at_ms": 12594.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ray-liquidity-distribution": {
+          "started_at_ms": 12536.399999976158,
+          "completed_at_ms": 12594.099999964237,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: ray-liquidity-change-heatmap, ray-liquidity-depth, ray-liquidity-distribution"
+      ]
+    },
+    {
+      "id": "dexes:dex_liquidity_timeseries:proto:orca",
+      "page_slug": "dexes",
+      "route": "/dexes",
+      "data_family": "dex_liquidity_timeseries",
+      "cohort_key": "proto:orca",
+      "skew_ms": 0.7,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "orca-trade-impact-toggle",
+        "orca-usdc-lp-flows",
+        "orca-usdc-pool-share-concentration"
+      ],
+      "started_widgets": [
+        "orca-trade-impact-toggle",
+        "orca-usdc-lp-flows",
+        "orca-usdc-pool-share-concentration"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "orca-trade-impact-toggle",
+        "orca-usdc-lp-flows",
+        "orca-usdc-pool-share-concentration"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "orca-trade-impact-toggle": true,
+        "orca-usdc-lp-flows": true,
+        "orca-usdc-pool-share-concentration": true
+      },
+      "widget_status": {
+        "orca-trade-impact-toggle": {
+          "started_at_ms": 12786,
+          "completed_at_ms": 12856.599999964237,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "orca-usdc-lp-flows": {
+          "started_at_ms": 12786.199999988079,
+          "completed_at_ms": 12857.300000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "orca-usdc-pool-share-concentration": {
+          "started_at_ms": 12785.699999988079,
+          "completed_at_ms": 12856.899999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: orca-trade-impact-toggle, orca-usdc-lp-flows, orca-usdc-pool-share-concentration"
+      ]
+    },
+    {
+      "id": "dexes:dex_liquidity_timeseries:proto:ray",
+      "page_slug": "dexes",
+      "route": "/dexes",
+      "data_family": "dex_liquidity_timeseries",
+      "cohort_key": "proto:ray",
+      "skew_ms": 29.5,
+      "paint_skew_ms": 3.6,
+      "render_lag": {
+        "min": -295.0,
+        "max": -268.0,
+        "mean": -277.3,
+        "count": 3
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ray-trade-impact-toggle",
+        "ray-usdc-lp-flows",
+        "ray-usdc-pool-share-concentration"
+      ],
+      "started_widgets": [
+        "ray-trade-impact-toggle",
+        "ray-usdc-lp-flows",
+        "ray-usdc-pool-share-concentration"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [],
+      "failure_tags": [],
+      "visible_before_refresh": {
+        "ray-trade-impact-toggle": true,
+        "ray-usdc-lp-flows": true,
+        "ray-usdc-pool-share-concentration": true
+      },
+      "widget_status": {
+        "ray-trade-impact-toggle": {
+          "started_at_ms": 13244,
+          "completed_at_ms": 13624.699999988079,
+          "painted_at_ms": 13357.099999964237,
+          "render_lag_ms": -268,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:03",
+          "loading_visible": false
+        },
+        "ray-usdc-lp-flows": {
+          "started_at_ms": 13244.099999964237,
+          "completed_at_ms": 13653.899999976158,
+          "painted_at_ms": 13358.699999988079,
+          "render_lag_ms": -295,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:03",
+          "loading_visible": false
+        },
+        "ray-usdc-pool-share-concentration": {
+          "started_at_ms": 13243.899999976158,
+          "completed_at_ms": 13624.399999976158,
+          "painted_at_ms": 13355.099999964237,
+          "render_lag_ms": -269,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:03",
+          "loading_visible": false
+        }
+      },
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "id": "dexes:dex_swaps_last_row:proto:orca",
+      "page_slug": "dexes",
+      "route": "/dexes",
+      "data_family": "dex_swaps_last_row",
+      "cohort_key": "proto:orca",
+      "skew_ms": 3.2,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "orca-kpi-largest-usx-buy",
+        "orca-kpi-largest-usx-sell",
+        "orca-kpi-max-1h-buy-pressure",
+        "orca-kpi-max-1h-sell-pressure",
+        "orca-kpi-price-min-max",
+        "orca-kpi-price-std-dev",
+        "orca-kpi-swap-count-24h",
+        "orca-kpi-swap-volume-24h",
+        "orca-kpi-vwap-buy-sell",
+        "orca-kpi-vwap-spread"
+      ],
+      "started_widgets": [
+        "orca-kpi-largest-usx-buy",
+        "orca-kpi-largest-usx-sell",
+        "orca-kpi-max-1h-buy-pressure",
+        "orca-kpi-max-1h-sell-pressure",
+        "orca-kpi-price-min-max",
+        "orca-kpi-price-std-dev",
+        "orca-kpi-swap-count-24h",
+        "orca-kpi-swap-volume-24h",
+        "orca-kpi-vwap-buy-sell",
+        "orca-kpi-vwap-spread"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [],
+      "failure_tags": [],
+      "visible_before_refresh": {
+        "orca-kpi-largest-usx-buy": true,
+        "orca-kpi-largest-usx-sell": true,
+        "orca-kpi-max-1h-buy-pressure": true,
+        "orca-kpi-max-1h-sell-pressure": true,
+        "orca-kpi-price-min-max": true,
+        "orca-kpi-price-std-dev": true,
+        "orca-kpi-swap-count-24h": true,
+        "orca-kpi-swap-volume-24h": true,
+        "orca-kpi-vwap-buy-sell": true,
+        "orca-kpi-vwap-spread": true
+      },
+      "widget_status": {
+        "orca-kpi-largest-usx-buy": {
+          "started_at_ms": 14436.899999976158,
+          "completed_at_ms": 14760,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:05",
+          "loading_visible": false
+        },
+        "orca-kpi-largest-usx-sell": {
+          "started_at_ms": 14437.099999964237,
+          "completed_at_ms": 14761.199999988079,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:05",
+          "loading_visible": false
+        },
+        "orca-kpi-max-1h-buy-pressure": {
+          "started_at_ms": 14437.399999976158,
+          "completed_at_ms": 14761.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:05",
+          "loading_visible": false
+        },
+        "orca-kpi-max-1h-sell-pressure": {
+          "started_at_ms": 14437.5,
+          "completed_at_ms": 14761.899999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:05",
+          "loading_visible": false
+        },
+        "orca-kpi-price-min-max": {
+          "started_at_ms": 14436.199999988079,
+          "completed_at_ms": 14759.199999988079,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:05",
+          "loading_visible": false
+        },
+        "orca-kpi-price-std-dev": {
+          "started_at_ms": 14436.399999976158,
+          "completed_at_ms": 14759.599999964237,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:05",
+          "loading_visible": false
+        },
+        "orca-kpi-swap-count-24h": {
+          "started_at_ms": 14436.099999964237,
+          "completed_at_ms": 14759,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:05",
+          "loading_visible": false
+        },
+        "orca-kpi-swap-volume-24h": {
+          "started_at_ms": 14435.899999976158,
+          "completed_at_ms": 14758.699999988079,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:05",
+          "loading_visible": false
+        },
+        "orca-kpi-vwap-buy-sell": {
+          "started_at_ms": 14436.199999988079,
+          "completed_at_ms": 14759.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:05",
+          "loading_visible": false
+        },
+        "orca-kpi-vwap-spread": {
+          "started_at_ms": 14436.5,
+          "completed_at_ms": 14759.800000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:05",
+          "loading_visible": false
+        }
+      },
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "id": "dexes:dex_swaps_last_row:proto:ray",
+      "page_slug": "dexes",
+      "route": "/dexes",
+      "data_family": "dex_swaps_last_row",
+      "cohort_key": "proto:ray",
+      "skew_ms": 10.4,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ray-kpi-largest-usx-buy",
+        "ray-kpi-largest-usx-sell",
+        "ray-kpi-max-1h-buy-pressure",
+        "ray-kpi-max-1h-sell-pressure",
+        "ray-kpi-price-min-max",
+        "ray-kpi-price-std-dev",
+        "ray-kpi-swap-count-24h",
+        "ray-kpi-swap-volume-24h",
+        "ray-kpi-vwap-buy-sell",
+        "ray-kpi-vwap-spread"
+      ],
+      "started_widgets": [
+        "ray-kpi-largest-usx-buy",
+        "ray-kpi-largest-usx-sell",
+        "ray-kpi-max-1h-buy-pressure",
+        "ray-kpi-max-1h-sell-pressure",
+        "ray-kpi-price-min-max",
+        "ray-kpi-price-std-dev",
+        "ray-kpi-swap-count-24h",
+        "ray-kpi-swap-volume-24h",
+        "ray-kpi-vwap-buy-sell",
+        "ray-kpi-vwap-spread"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [],
+      "failure_tags": [],
+      "visible_before_refresh": {
+        "ray-kpi-largest-usx-buy": true,
+        "ray-kpi-largest-usx-sell": true,
+        "ray-kpi-max-1h-buy-pressure": true,
+        "ray-kpi-max-1h-sell-pressure": true,
+        "ray-kpi-price-min-max": true,
+        "ray-kpi-price-std-dev": true,
+        "ray-kpi-swap-count-24h": true,
+        "ray-kpi-swap-volume-24h": true,
+        "ray-kpi-vwap-buy-sell": true,
+        "ray-kpi-vwap-spread": true
+      },
+      "widget_status": {
+        "ray-kpi-largest-usx-buy": {
+          "started_at_ms": 15517.399999976158,
+          "completed_at_ms": 15806.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "ray-kpi-largest-usx-sell": {
+          "started_at_ms": 15517.5,
+          "completed_at_ms": 15806.199999988079,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "ray-kpi-max-1h-buy-pressure": {
+          "started_at_ms": 15517.599999964237,
+          "completed_at_ms": 15806.699999988079,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "ray-kpi-max-1h-sell-pressure": {
+          "started_at_ms": 15517.699999988079,
+          "completed_at_ms": 15815.699999988079,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "ray-kpi-price-min-max": {
+          "started_at_ms": 15517,
+          "completed_at_ms": 15805.699999988079,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "ray-kpi-price-std-dev": {
+          "started_at_ms": 15517.099999964237,
+          "completed_at_ms": 15806,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "ray-kpi-swap-count-24h": {
+          "started_at_ms": 15516.800000011921,
+          "completed_at_ms": 15805.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "ray-kpi-swap-volume-24h": {
+          "started_at_ms": 15516.599999964237,
+          "completed_at_ms": 15805.300000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "ray-kpi-vwap-buy-sell": {
+          "started_at_ms": 15517,
+          "completed_at_ms": 15805.899999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "ray-kpi-vwap-spread": {
+          "started_at_ms": 15517.300000011921,
+          "completed_at_ms": 15806.399999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        }
+      },
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "id": "dexes:dex_swaps_timeseries:proto:orca",
+      "page_slug": "dexes",
+      "route": "/dexes",
+      "data_family": "dex_swaps_timeseries",
+      "cohort_key": "proto:orca",
+      "skew_ms": 0.6,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": 89.0,
+        "max": 89.0,
+        "mean": 89.0,
+        "count": 3
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "orca-swaps-flows-toggle",
+        "orca-swaps-price-impacts",
+        "orca-swaps-spread-volatility"
+      ],
+      "started_widgets": [
+        "orca-swaps-flows-toggle",
+        "orca-swaps-price-impacts",
+        "orca-swaps-spread-volatility"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [],
+      "failure_tags": [],
+      "visible_before_refresh": {
+        "orca-swaps-flows-toggle": true,
+        "orca-swaps-price-impacts": true,
+        "orca-swaps-spread-volatility": true
+      },
+      "widget_status": {
+        "orca-swaps-flows-toggle": {
+          "started_at_ms": 16150.699999988079,
+          "completed_at_ms": 16511.899999976158,
+          "painted_at_ms": 16601,
+          "render_lag_ms": 89,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "orca-swaps-price-impacts": {
+          "started_at_ms": 16150.699999988079,
+          "completed_at_ms": 16512.5,
+          "painted_at_ms": 16601,
+          "render_lag_ms": 89,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        },
+        "orca-swaps-spread-volatility": {
+          "started_at_ms": 16150.800000011921,
+          "completed_at_ms": 16512.19999998808,
+          "painted_at_ms": 16601,
+          "render_lag_ms": 89,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:06",
+          "loading_visible": false
+        }
+      },
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "id": "dexes:dex_swaps_timeseries:proto:ray",
+      "page_slug": "dexes",
+      "route": "/dexes",
+      "data_family": "dex_swaps_timeseries",
+      "cohort_key": "proto:ray",
+      "skew_ms": 34.4,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ray-swaps-flows-toggle",
+        "ray-swaps-price-impacts",
+        "ray-swaps-spread-volatility"
+      ],
+      "started_widgets": [
+        "ray-swaps-flows-toggle",
+        "ray-swaps-price-impacts",
+        "ray-swaps-spread-volatility"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [],
+      "failure_tags": [],
+      "visible_before_refresh": {
+        "ray-swaps-flows-toggle": true,
+        "ray-swaps-price-impacts": true,
+        "ray-swaps-spread-volatility": true
+      },
+      "widget_status": {
+        "ray-swaps-flows-toggle": {
+          "started_at_ms": 16853.80000001192,
+          "completed_at_ms": 17205.899999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:07",
+          "loading_visible": false
+        },
+        "ray-swaps-price-impacts": {
+          "started_at_ms": 16853.899999976158,
+          "completed_at_ms": 17205.69999998808,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:07",
+          "loading_visible": false
+        },
+        "ray-swaps-spread-volatility": {
+          "started_at_ms": 16854.099999964237,
+          "completed_at_ms": 17240.099999964237,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "updated 18:35:07",
+          "loading_visible": false
+        }
+      },
+      "passed": true,
+      "reasons": []
+    },
+    {
+      "id": "exponent-yield:exponent_timeseries_mkt1:market:mkt1",
+      "page_slug": "exponent-yield",
+      "route": "/exponent-yield",
+      "data_family": "exponent_timeseries_mkt1",
+      "cohort_key": "market:mkt1",
+      "skew_ms": 48.7,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "exponent-divergence-mkt1",
+        "exponent-pt-swap-flows-mkt1",
+        "exponent-realized-rates-mkt1",
+        "exponent-token-strip-flows-mkt1",
+        "exponent-vault-sy-balance-mkt1",
+        "exponent-yield-trading-liq-mkt1",
+        "exponent-yt-staked-mkt1"
+      ],
+      "started_widgets": [
+        "exponent-divergence-mkt1",
+        "exponent-pt-swap-flows-mkt1",
+        "exponent-realized-rates-mkt1",
+        "exponent-token-strip-flows-mkt1",
+        "exponent-vault-sy-balance-mkt1",
+        "exponent-yield-trading-liq-mkt1",
+        "exponent-yt-staked-mkt1"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "exponent-divergence-mkt1",
+        "exponent-pt-swap-flows-mkt1",
+        "exponent-realized-rates-mkt1",
+        "exponent-token-strip-flows-mkt1",
+        "exponent-vault-sy-balance-mkt1",
+        "exponent-yield-trading-liq-mkt1",
+        "exponent-yt-staked-mkt1"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "exponent-divergence-mkt1": true,
+        "exponent-pt-swap-flows-mkt1": true,
+        "exponent-realized-rates-mkt1": true,
+        "exponent-token-strip-flows-mkt1": true,
+        "exponent-vault-sy-balance-mkt1": true,
+        "exponent-yield-trading-liq-mkt1": true,
+        "exponent-yt-staked-mkt1": true
+      },
+      "widget_status": {
+        "exponent-divergence-mkt1": {
+          "started_at_ms": 1034.4000000357628,
+          "completed_at_ms": 1107,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-pt-swap-flows-mkt1": {
+          "started_at_ms": 1032.6000000238419,
+          "completed_at_ms": 1079.9000000357628,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-realized-rates-mkt1": {
+          "started_at_ms": 1034.1000000238419,
+          "completed_at_ms": 1100.2000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-token-strip-flows-mkt1": {
+          "started_at_ms": 1030.9000000357628,
+          "completed_at_ms": 1058.300000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-vault-sy-balance-mkt1": {
+          "started_at_ms": 1031.1000000238419,
+          "completed_at_ms": 1064.6000000238419,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-yield-trading-liq-mkt1": {
+          "started_at_ms": 1033.2000000476837,
+          "completed_at_ms": 1089.7000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-yt-staked-mkt1": {
+          "started_at_ms": 1031.7000000476837,
+          "completed_at_ms": 1070.1000000238419,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: exponent-divergence-mkt1, exponent-pt-swap-flows-mkt1, exponent-realized-rates-mkt1, exponent-token-strip-flows-mkt1, exponent-vault-sy-balance-mkt1, exponent-yield-trading-liq-mkt1, exponent-yt-staked-mkt1"
+      ]
+    },
+    {
+      "id": "exponent-yield:exponent_timeseries_mkt2:market:mkt2",
+      "page_slug": "exponent-yield",
+      "route": "/exponent-yield",
+      "data_family": "exponent_timeseries_mkt2",
+      "cohort_key": "market:mkt2",
+      "skew_ms": 50.3,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "exponent-divergence-mkt2",
+        "exponent-pt-swap-flows-mkt2",
+        "exponent-realized-rates-mkt2",
+        "exponent-token-strip-flows-mkt2",
+        "exponent-vault-sy-balance-mkt2",
+        "exponent-yield-trading-liq-mkt2",
+        "exponent-yt-staked-mkt2"
+      ],
+      "started_widgets": [
+        "exponent-divergence-mkt2",
+        "exponent-pt-swap-flows-mkt2",
+        "exponent-realized-rates-mkt2",
+        "exponent-token-strip-flows-mkt2",
+        "exponent-vault-sy-balance-mkt2",
+        "exponent-yield-trading-liq-mkt2",
+        "exponent-yt-staked-mkt2"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "exponent-divergence-mkt2",
+        "exponent-pt-swap-flows-mkt2",
+        "exponent-realized-rates-mkt2",
+        "exponent-token-strip-flows-mkt2",
+        "exponent-vault-sy-balance-mkt2",
+        "exponent-yield-trading-liq-mkt2",
+        "exponent-yt-staked-mkt2"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "exponent-divergence-mkt2": true,
+        "exponent-pt-swap-flows-mkt2": true,
+        "exponent-realized-rates-mkt2": true,
+        "exponent-token-strip-flows-mkt2": true,
+        "exponent-vault-sy-balance-mkt2": true,
+        "exponent-yield-trading-liq-mkt2": true,
+        "exponent-yt-staked-mkt2": true
+      },
+      "widget_status": {
+        "exponent-divergence-mkt2": {
+          "started_at_ms": 1438.800000011921,
+          "completed_at_ms": 1513.1000000238419,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-pt-swap-flows-mkt2": {
+          "started_at_ms": 1437.1000000238419,
+          "completed_at_ms": 1485.6000000238419,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-realized-rates-mkt2": {
+          "started_at_ms": 1438.6000000238419,
+          "completed_at_ms": 1512.1000000238419,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-token-strip-flows-mkt2": {
+          "started_at_ms": 1435.300000011921,
+          "completed_at_ms": 1462.800000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-vault-sy-balance-mkt2": {
+          "started_at_ms": 1435.6000000238419,
+          "completed_at_ms": 1465.9000000357628,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-yield-trading-liq-mkt2": {
+          "started_at_ms": 1437.800000011921,
+          "completed_at_ms": 1496.6000000238419,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-yt-staked-mkt2": {
+          "started_at_ms": 1436.2000000476837,
+          "completed_at_ms": 1478.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: exponent-divergence-mkt2, exponent-pt-swap-flows-mkt2, exponent-realized-rates-mkt2, exponent-token-strip-flows-mkt2, exponent-vault-sy-balance-mkt2, exponent-yield-trading-liq-mkt2, exponent-yt-staked-mkt2"
+      ]
+    },
+    {
+      "id": "exponent-yield:exponent_v_last:default",
+      "page_slug": "exponent-yield",
+      "route": "/exponent-yield",
+      "data_family": "exponent_v_last",
+      "cohort_key": "default",
+      "skew_ms": 3.0,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "exponent-pie-tvl",
+        "exponent-timeline"
+      ],
+      "started_widgets": [
+        "exponent-pie-tvl",
+        "exponent-timeline"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "exponent-pie-tvl",
+        "exponent-timeline"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "exponent-pie-tvl": true,
+        "exponent-timeline": true
+      },
+      "widget_status": {
+        "exponent-pie-tvl": {
+          "started_at_ms": 1603.9000000357628,
+          "completed_at_ms": 1615,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "exponent-timeline": {
+          "started_at_ms": 1604.2000000476837,
+          "completed_at_ms": 1618,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: exponent-pie-tvl, exponent-timeline"
+      ]
+    },
+    {
+      "id": "exponent-yield:exponent_v_last:market:mkt1",
+      "page_slug": "exponent-yield",
+      "route": "/exponent-yield",
+      "data_family": "exponent_v_last",
+      "cohort_key": "market:mkt1",
+      "skew_ms": 56.5,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "exponent-market-info-mkt1",
+        "kpi-amm-deployment-ratio-mkt1",
+        "kpi-amm-depth-mkt1",
+        "kpi-apy-impact-pt-trade-mkt1",
+        "kpi-base-token-yield-mkt1",
+        "kpi-current-fixed-yield-mkt1",
+        "kpi-fixed-variable-spread-mkt1",
+        "kpi-locked-base-tokens-mkt1",
+        "kpi-pt-base-price-mkt1",
+        "kpi-pt-vol-24h-mkt1",
+        "kpi-sy-base-collateral-mkt1",
+        "kpi-sy-coll-ratio-mkt1",
+        "kpi-yt-staked-share-mkt1"
+      ],
+      "started_widgets": [
+        "exponent-market-info-mkt1",
+        "kpi-amm-deployment-ratio-mkt1",
+        "kpi-amm-depth-mkt1",
+        "kpi-apy-impact-pt-trade-mkt1",
+        "kpi-base-token-yield-mkt1",
+        "kpi-current-fixed-yield-mkt1",
+        "kpi-fixed-variable-spread-mkt1",
+        "kpi-locked-base-tokens-mkt1",
+        "kpi-pt-base-price-mkt1",
+        "kpi-pt-vol-24h-mkt1",
+        "kpi-sy-base-collateral-mkt1",
+        "kpi-sy-coll-ratio-mkt1",
+        "kpi-yt-staked-share-mkt1"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "exponent-market-info-mkt1",
+        "kpi-amm-deployment-ratio-mkt1",
+        "kpi-amm-depth-mkt1",
+        "kpi-apy-impact-pt-trade-mkt1",
+        "kpi-base-token-yield-mkt1",
+        "kpi-current-fixed-yield-mkt1",
+        "kpi-fixed-variable-spread-mkt1",
+        "kpi-locked-base-tokens-mkt1",
+        "kpi-pt-base-price-mkt1",
+        "kpi-pt-vol-24h-mkt1",
+        "kpi-sy-base-collateral-mkt1",
+        "kpi-sy-coll-ratio-mkt1",
+        "kpi-yt-staked-share-mkt1"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "exponent-market-info-mkt1": true,
+        "kpi-amm-deployment-ratio-mkt1": true,
+        "kpi-amm-depth-mkt1": true,
+        "kpi-apy-impact-pt-trade-mkt1": true,
+        "kpi-base-token-yield-mkt1": true,
+        "kpi-current-fixed-yield-mkt1": true,
+        "kpi-fixed-variable-spread-mkt1": true,
+        "kpi-locked-base-tokens-mkt1": true,
+        "kpi-pt-base-price-mkt1": true,
+        "kpi-pt-vol-24h-mkt1": true,
+        "kpi-sy-base-collateral-mkt1": true,
+        "kpi-sy-coll-ratio-mkt1": true,
+        "kpi-yt-staked-share-mkt1": true
+      },
+      "widget_status": {
+        "exponent-market-info-mkt1": {
+          "started_at_ms": 2287.100000023842,
+          "completed_at_ms": 2301.300000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-amm-deployment-ratio-mkt1": {
+          "started_at_ms": 2292.100000023842,
+          "completed_at_ms": 2343.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-amm-depth-mkt1": {
+          "started_at_ms": 2291.800000011921,
+          "completed_at_ms": 2343.300000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-apy-impact-pt-trade-mkt1": {
+          "started_at_ms": 2291.400000035763,
+          "completed_at_ms": 2333.2000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-base-token-yield-mkt1": {
+          "started_at_ms": 2292.600000023842,
+          "completed_at_ms": 2352.300000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-current-fixed-yield-mkt1": {
+          "started_at_ms": 2292.400000035763,
+          "completed_at_ms": 2350.400000035763,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-fixed-variable-spread-mkt1": {
+          "started_at_ms": 2292.900000035763,
+          "completed_at_ms": 2357.800000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-locked-base-tokens-mkt1": {
+          "started_at_ms": 2287.300000011921,
+          "completed_at_ms": 2302.7000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-pt-base-price-mkt1": {
+          "started_at_ms": 2291,
+          "completed_at_ms": 2331.800000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-pt-vol-24h-mkt1": {
+          "started_at_ms": 2291.100000023842,
+          "completed_at_ms": 2327.400000035763,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-sy-base-collateral-mkt1": {
+          "started_at_ms": 2289.2000000476837,
+          "completed_at_ms": 2309.400000035763,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-sy-coll-ratio-mkt1": {
+          "started_at_ms": 2289.400000035763,
+          "completed_at_ms": 2309.7000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-yt-staked-share-mkt1": {
+          "started_at_ms": 2290.400000035763,
+          "completed_at_ms": 2320.100000023842,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: exponent-market-info-mkt1, kpi-amm-deployment-ratio-mkt1, kpi-amm-depth-mkt1, kpi-apy-impact-pt-trade-mkt1, kpi-base-token-yield-mkt1, kpi-current-fixed-yield-mkt1, kpi-fixed-variable-spread-mkt1, kpi-locked-base-tokens-mkt1, kpi-pt-base-price-mkt1, kpi-pt-vol-24h-mkt1, kpi-sy-base-collateral-mkt1, kpi-sy-coll-ratio-mkt1, kpi-yt-staked-share-mkt1"
+      ]
+    },
+    {
+      "id": "exponent-yield:exponent_v_last:market:mkt2",
+      "page_slug": "exponent-yield",
+      "route": "/exponent-yield",
+      "data_family": "exponent_v_last",
+      "cohort_key": "market:mkt2",
+      "skew_ms": 93.0,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "exponent-market-info-mkt2",
+        "kpi-amm-deployment-ratio-mkt2",
+        "kpi-amm-depth-mkt2",
+        "kpi-apy-impact-pt-trade-mkt2",
+        "kpi-base-token-yield-mkt2",
+        "kpi-current-fixed-yield-mkt2",
+        "kpi-fixed-variable-spread-mkt2",
+        "kpi-locked-base-tokens-mkt2",
+        "kpi-pt-base-price-mkt2",
+        "kpi-pt-vol-24h-mkt2",
+        "kpi-sy-base-collateral-mkt2",
+        "kpi-sy-coll-ratio-mkt2",
+        "kpi-yt-staked-share-mkt2"
+      ],
+      "started_widgets": [
+        "exponent-market-info-mkt2",
+        "kpi-amm-deployment-ratio-mkt2",
+        "kpi-amm-depth-mkt2",
+        "kpi-apy-impact-pt-trade-mkt2",
+        "kpi-base-token-yield-mkt2",
+        "kpi-current-fixed-yield-mkt2",
+        "kpi-fixed-variable-spread-mkt2",
+        "kpi-locked-base-tokens-mkt2",
+        "kpi-pt-base-price-mkt2",
+        "kpi-pt-vol-24h-mkt2",
+        "kpi-sy-base-collateral-mkt2",
+        "kpi-sy-coll-ratio-mkt2",
+        "kpi-yt-staked-share-mkt2"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "exponent-market-info-mkt2",
+        "kpi-amm-deployment-ratio-mkt2",
+        "kpi-amm-depth-mkt2",
+        "kpi-apy-impact-pt-trade-mkt2",
+        "kpi-base-token-yield-mkt2",
+        "kpi-current-fixed-yield-mkt2",
+        "kpi-fixed-variable-spread-mkt2",
+        "kpi-locked-base-tokens-mkt2",
+        "kpi-pt-base-price-mkt2",
+        "kpi-pt-vol-24h-mkt2",
+        "kpi-sy-base-collateral-mkt2",
+        "kpi-sy-coll-ratio-mkt2",
+        "kpi-yt-staked-share-mkt2"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "exponent-market-info-mkt2": true,
+        "kpi-amm-deployment-ratio-mkt2": true,
+        "kpi-amm-depth-mkt2": true,
+        "kpi-apy-impact-pt-trade-mkt2": true,
+        "kpi-base-token-yield-mkt2": true,
+        "kpi-current-fixed-yield-mkt2": true,
+        "kpi-fixed-variable-spread-mkt2": true,
+        "kpi-locked-base-tokens-mkt2": true,
+        "kpi-pt-base-price-mkt2": true,
+        "kpi-pt-vol-24h-mkt2": true,
+        "kpi-sy-base-collateral-mkt2": true,
+        "kpi-sy-coll-ratio-mkt2": true,
+        "kpi-yt-staked-share-mkt2": true
+      },
+      "widget_status": {
+        "exponent-market-info-mkt2": {
+          "started_at_ms": 2952.300000011921,
+          "completed_at_ms": 2973.600000023842,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-amm-deployment-ratio-mkt2": {
+          "started_at_ms": 2955.2000000476837,
+          "completed_at_ms": 3063.600000023842,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-amm-depth-mkt2": {
+          "started_at_ms": 2955,
+          "completed_at_ms": 3062.300000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-apy-impact-pt-trade-mkt2": {
+          "started_at_ms": 2954.600000023842,
+          "completed_at_ms": 3052.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-base-token-yield-mkt2": {
+          "started_at_ms": 2955.800000011921,
+          "completed_at_ms": 3064.7000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-current-fixed-yield-mkt2": {
+          "started_at_ms": 2955.7000000476837,
+          "completed_at_ms": 3065.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-fixed-variable-spread-mkt2": {
+          "started_at_ms": 2956,
+          "completed_at_ms": 3066.600000023842,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-locked-base-tokens-mkt2": {
+          "started_at_ms": 2952.5,
+          "completed_at_ms": 3045.2000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-pt-base-price-mkt2": {
+          "started_at_ms": 2954.300000011921,
+          "completed_at_ms": 3051.2000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-pt-vol-24h-mkt2": {
+          "started_at_ms": 2954.400000035763,
+          "completed_at_ms": 3057.400000035763,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-sy-base-collateral-mkt2": {
+          "started_at_ms": 2952.7000000476837,
+          "completed_at_ms": 3044.300000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-sy-coll-ratio-mkt2": {
+          "started_at_ms": 2952.900000035763,
+          "completed_at_ms": 3050.2000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-yt-staked-share-mkt2": {
+          "started_at_ms": 2953.800000011921,
+          "completed_at_ms": 3049.400000035763,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: exponent-market-info-mkt2, kpi-amm-deployment-ratio-mkt2, kpi-amm-depth-mkt2, kpi-apy-impact-pt-trade-mkt2, kpi-base-token-yield-mkt2, kpi-current-fixed-yield-mkt2, kpi-fixed-variable-spread-mkt2, kpi-locked-base-tokens-mkt2, kpi-pt-base-price-mkt2, kpi-pt-vol-24h-mkt2, kpi-sy-base-collateral-mkt2, kpi-sy-coll-ratio-mkt2, kpi-yt-staked-share-mkt2"
+      ]
+    },
+    {
+      "id": "global-ecosystem:global_interval_row:default",
+      "page_slug": "global-ecosystem",
+      "route": "/global-ecosystem",
+      "data_family": "global_interval_row",
+      "cohort_key": "default",
+      "skew_ms": 6.8,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ge-activity-bar",
+        "ge-activity-pct"
+      ],
+      "started_widgets": [
+        "ge-activity-bar",
+        "ge-activity-pct"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "ge-activity-bar",
+        "ge-activity-pct"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "ge-activity-bar": true,
+        "ge-activity-pct": true
+      },
+      "widget_status": {
+        "ge-activity-bar": {
+          "started_at_ms": 321.69999998807907,
+          "completed_at_ms": 353,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ge-activity-pct": {
+          "started_at_ms": 322.19999998807907,
+          "completed_at_ms": 359.7999999523163,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: ge-activity-bar, ge-activity-pct"
+      ]
+    },
+    {
+      "id": "global-ecosystem:global_issuance_snapshot:default",
+      "page_slug": "global-ecosystem",
+      "route": "/global-ecosystem",
+      "data_family": "global_issuance_snapshot",
+      "cohort_key": "default",
+      "skew_ms": 4.0,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ge-issuance-bar",
+        "ge-issuance-pie"
+      ],
+      "started_widgets": [
+        "ge-issuance-bar",
+        "ge-issuance-pie"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "ge-issuance-bar",
+        "ge-issuance-pie"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "ge-issuance-bar": true,
+        "ge-issuance-pie": true
+      },
+      "widget_status": {
+        "ge-issuance-bar": {
+          "started_at_ms": 491.19999998807907,
+          "completed_at_ms": 503.2999999523163,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ge-issuance-pie": {
+          "started_at_ms": 491.69999998807907,
+          "completed_at_ms": 507.2999999523163,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: ge-issuance-bar, ge-issuance-pie"
+      ]
+    },
+    {
+      "id": "global-ecosystem:global_timeseries:default",
+      "page_slug": "global-ecosystem",
+      "route": "/global-ecosystem",
+      "data_family": "global_timeseries",
+      "cohort_key": "default",
+      "skew_ms": 19.5,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ge-activity-share",
+        "ge-activity-vol",
+        "ge-availability-time",
+        "ge-tvl-share",
+        "ge-tvl-time",
+        "ge-yields-vs-time"
+      ],
+      "started_widgets": [
+        "ge-activity-share",
+        "ge-activity-vol",
+        "ge-availability-time",
+        "ge-tvl-share",
+        "ge-tvl-time",
+        "ge-yields-vs-time"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "ge-activity-share",
+        "ge-activity-vol",
+        "ge-availability-time",
+        "ge-tvl-share",
+        "ge-tvl-time",
+        "ge-yields-vs-time"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "ge-activity-share": true,
+        "ge-activity-vol": true,
+        "ge-availability-time": true,
+        "ge-tvl-share": true,
+        "ge-tvl-time": true,
+        "ge-yields-vs-time": true
+      },
+      "widget_status": {
+        "ge-activity-share": {
+          "started_at_ms": 847,
+          "completed_at_ms": 885.6999999880791,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ge-activity-vol": {
+          "started_at_ms": 846.7999999523163,
+          "completed_at_ms": 882,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ge-availability-time": {
+          "started_at_ms": 846,
+          "completed_at_ms": 869.3999999761581,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ge-tvl-share": {
+          "started_at_ms": 846.7999999523163,
+          "completed_at_ms": 883.1999999880791,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ge-tvl-time": {
+          "started_at_ms": 846.6999999880791,
+          "completed_at_ms": 881.3999999761581,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ge-yields-vs-time": {
+          "started_at_ms": 845.7999999523163,
+          "completed_at_ms": 866.1999999880791,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: ge-activity-share, ge-activity-vol, ge-availability-time, ge-tvl-share, ge-tvl-time, ge-yields-vs-time"
+      ]
+    },
+    {
+      "id": "global-ecosystem:global_v_last:default",
+      "page_slug": "global-ecosystem",
+      "route": "/global-ecosystem",
+      "data_family": "global_v_last",
+      "cohort_key": "default",
+      "skew_ms": 15.2,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ge-availability-bar",
+        "ge-current-yields",
+        "ge-tvl-bar",
+        "ge-tvl-pie"
+      ],
+      "started_widgets": [
+        "ge-availability-bar",
+        "ge-current-yields",
+        "ge-tvl-bar",
+        "ge-tvl-pie"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "ge-availability-bar",
+        "ge-current-yields",
+        "ge-tvl-bar",
+        "ge-tvl-pie"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "ge-availability-bar": true,
+        "ge-current-yields": true,
+        "ge-tvl-bar": true,
+        "ge-tvl-pie": true
+      },
+      "widget_status": {
+        "ge-availability-bar": {
+          "started_at_ms": 1093.5,
+          "completed_at_ms": 1121,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ge-current-yields": {
+          "started_at_ms": 1093,
+          "completed_at_ms": 1120.3999999761581,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ge-tvl-bar": {
+          "started_at_ms": 1093.8999999761581,
+          "completed_at_ms": 1133.2999999523163,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ge-tvl-pie": {
+          "started_at_ms": 1094.0999999642372,
+          "completed_at_ms": 1135.5999999642372,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: ge-availability-bar, ge-current-yields, ge-tvl-bar, ge-tvl-pie"
+      ]
+    },
+    {
+      "id": "kamino:kamino_sensitivity:default",
+      "page_slug": "kamino",
+      "route": "/kamino",
+      "data_family": "kamino_sensitivity",
+      "cohort_key": "default",
+      "skew_ms": 50.8,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "kamino-stress-debt",
+        "kpi-debt-at-risk-1s",
+        "kpi-debt-at-risk-2s",
+        "kpi-stress-buffer"
+      ],
+      "started_widgets": [
+        "kamino-stress-debt",
+        "kpi-debt-at-risk-1s",
+        "kpi-debt-at-risk-2s",
+        "kpi-stress-buffer"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "kamino-stress-debt",
+        "kpi-debt-at-risk-1s",
+        "kpi-debt-at-risk-2s",
+        "kpi-stress-buffer"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "kamino-stress-debt": true,
+        "kpi-debt-at-risk-1s": true,
+        "kpi-debt-at-risk-2s": true,
+        "kpi-stress-buffer": true
+      },
+      "widget_status": {
+        "kamino-stress-debt": {
+          "started_at_ms": 3150.199999988079,
+          "completed_at_ms": 3201.899999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-debt-at-risk-1s": {
+          "started_at_ms": 3150.5,
+          "completed_at_ms": 3243.899999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-debt-at-risk-2s": {
+          "started_at_ms": 3150.5,
+          "completed_at_ms": 3252.699999988079,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kpi-stress-buffer": {
+          "started_at_ms": 3150.399999976158,
+          "completed_at_ms": 3240.600000023842,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: kamino-stress-debt, kpi-debt-at-risk-1s, kpi-debt-at-risk-2s, kpi-stress-buffer"
+      ]
+    },
+    {
+      "id": "kamino:kamino_timeseries:default",
+      "page_slug": "kamino",
+      "route": "/kamino",
+      "data_family": "kamino_timeseries",
+      "cohort_key": "default",
+      "skew_ms": 27.2,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "kamino-liability-flows",
+        "kamino-liquidations",
+        "kamino-ltv-hf-timeseries",
+        "kamino-utilization-timeseries"
+      ],
+      "started_widgets": [
+        "kamino-liability-flows",
+        "kamino-liquidations",
+        "kamino-ltv-hf-timeseries",
+        "kamino-utilization-timeseries"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "kamino-liability-flows",
+        "kamino-liquidations",
+        "kamino-ltv-hf-timeseries",
+        "kamino-utilization-timeseries"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "kamino-liability-flows": true,
+        "kamino-liquidations": true,
+        "kamino-ltv-hf-timeseries": true,
+        "kamino-utilization-timeseries": true
+      },
+      "widget_status": {
+        "kamino-liability-flows": {
+          "started_at_ms": 3504.600000023842,
+          "completed_at_ms": 3583.399999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kamino-liquidations": {
+          "started_at_ms": 3506.300000011921,
+          "completed_at_ms": 3598.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kamino-ltv-hf-timeseries": {
+          "started_at_ms": 3504.399999976158,
+          "completed_at_ms": 3574.100000023842,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "kamino-utilization-timeseries": {
+          "started_at_ms": 3504.199999988079,
+          "completed_at_ms": 3571.300000011921,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: kamino-liability-flows, kamino-liquidations, kamino-ltv-hf-timeseries, kamino-utilization-timeseries"
+      ]
+    },
+    {
+      "id": "risk-analysis:risk_liq_curves_orca:default",
+      "page_slug": "risk-analysis",
+      "route": "/risk-analysis",
+      "data_family": "risk_liq_curves_orca",
+      "cohort_key": "default",
+      "skew_ms": 4.5,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ra-liq-depth-orca",
+        "ra-liq-dist-orca",
+        "ra-prob-orca"
+      ],
+      "started_widgets": [
+        "ra-liq-depth-orca",
+        "ra-liq-dist-orca",
+        "ra-prob-orca"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "ra-liq-depth-orca",
+        "ra-liq-dist-orca",
+        "ra-prob-orca"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "ra-liq-depth-orca": true,
+        "ra-liq-dist-orca": true,
+        "ra-prob-orca": true
+      },
+      "widget_status": {
+        "ra-liq-depth-orca": {
+          "started_at_ms": 371.9000000357628,
+          "completed_at_ms": 413.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ra-liq-dist-orca": {
+          "started_at_ms": 371.5,
+          "completed_at_ms": 418,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ra-prob-orca": {
+          "started_at_ms": 372.2000000476837,
+          "completed_at_ms": 413.80000001192093,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: ra-liq-depth-orca, ra-liq-dist-orca, ra-prob-orca"
+      ]
+    },
+    {
+      "id": "risk-analysis:risk_liq_curves_ray:default",
+      "page_slug": "risk-analysis",
+      "route": "/risk-analysis",
+      "data_family": "risk_liq_curves_ray",
+      "cohort_key": "default",
+      "skew_ms": 8.2,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ra-liq-depth-ray",
+        "ra-liq-dist-ray",
+        "ra-prob-ray"
+      ],
+      "started_widgets": [
+        "ra-liq-depth-ray",
+        "ra-liq-dist-ray",
+        "ra-prob-ray"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "ra-liq-depth-ray",
+        "ra-liq-dist-ray",
+        "ra-prob-ray"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "ra-liq-depth-ray": true,
+        "ra-liq-dist-ray": true,
+        "ra-prob-ray": true
+      },
+      "widget_status": {
+        "ra-liq-depth-ray": {
+          "started_at_ms": 588.8000000119209,
+          "completed_at_ms": 630.8000000119209,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ra-liq-dist-ray": {
+          "started_at_ms": 588.5,
+          "completed_at_ms": 631.4000000357628,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ra-prob-ray": {
+          "started_at_ms": 589,
+          "completed_at_ms": 639,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: ra-liq-depth-ray, ra-liq-dist-ray, ra-prob-ray"
+      ]
+    },
+    {
+      "id": "risk-analysis:risk_xp_curves_orca:default",
+      "page_slug": "risk-analysis",
+      "route": "/risk-analysis",
+      "data_family": "risk_xp_curves_orca",
+      "cohort_key": "default",
+      "skew_ms": 8.9,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ra-xp-depth-orca",
+        "ra-xp-dist-orca"
+      ],
+      "started_widgets": [
+        "ra-xp-depth-orca",
+        "ra-xp-dist-orca"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "ra-xp-depth-orca",
+        "ra-xp-dist-orca"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "ra-xp-depth-orca": true,
+        "ra-xp-dist-orca": true
+      },
+      "widget_status": {
+        "ra-xp-depth-orca": {
+          "started_at_ms": 759.6000000238419,
+          "completed_at_ms": 823.1000000238419,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ra-xp-dist-orca": {
+          "started_at_ms": 759.1000000238419,
+          "completed_at_ms": 814.2000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: ra-xp-depth-orca, ra-xp-dist-orca"
+      ]
+    },
+    {
+      "id": "risk-analysis:risk_xp_curves_ray:default",
+      "page_slug": "risk-analysis",
+      "route": "/risk-analysis",
+      "data_family": "risk_xp_curves_ray",
+      "cohort_key": "default",
+      "skew_ms": 22.3,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "ra-xp-depth-ray",
+        "ra-xp-dist-ray"
+      ],
+      "started_widgets": [
+        "ra-xp-depth-ray",
+        "ra-xp-dist-ray"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "ra-xp-depth-ray",
+        "ra-xp-dist-ray"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "ra-xp-depth-ray": true,
+        "ra-xp-dist-ray": true
+      },
+      "widget_status": {
+        "ra-xp-depth-ray": {
+          "started_at_ms": 944.3000000119209,
+          "completed_at_ms": 1025.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "ra-xp-dist-ray": {
+          "started_at_ms": 944.1000000238419,
+          "completed_at_ms": 1003.2000000476837,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: ra-xp-depth-ray, ra-xp-dist-ray"
+      ]
+    },
+    {
+      "id": "system-health:health_base_chart:default",
+      "page_slug": "system-health",
+      "route": "/system-health",
+      "data_family": "health_base_chart",
+      "cohort_key": "default",
+      "skew_ms": 4.1,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "health-base-chart-accounts",
+        "health-base-chart-events"
+      ],
+      "started_widgets": [
+        "health-base-chart-accounts",
+        "health-base-chart-events"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "health-base-chart-accounts",
+        "health-base-chart-events"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "health-base-chart-accounts": true,
+        "health-base-chart-events": true
+      },
+      "widget_status": {
+        "health-base-chart-accounts": {
+          "started_at_ms": 4182.699999988079,
+          "completed_at_ms": 4207,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "health-base-chart-events": {
+          "started_at_ms": 4182.5,
+          "completed_at_ms": 4202.899999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: health-base-chart-accounts, health-base-chart-events"
+      ]
+    },
+    {
+      "id": "system-health:health_queue_chart:default",
+      "page_slug": "system-health",
+      "route": "/system-health",
+      "data_family": "health_queue_chart",
+      "cohort_key": "default",
+      "skew_ms": 0.4,
+      "paint_skew_ms": 0.0,
+      "render_lag": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "count": 0
+      },
+      "timed_out": false,
+      "completed_widgets": [
+        "health-queue-chart",
+        "health-queue-chart-2"
+      ],
+      "started_widgets": [
+        "health-queue-chart",
+        "health-queue-chart-2"
+      ],
+      "missing_widgets": [],
+      "render_error_widgets": [],
+      "render_stuck_widgets": [
+        "health-queue-chart",
+        "health-queue-chart-2"
+      ],
+      "failure_tags": [
+        "frontend_sync_split"
+      ],
+      "visible_before_refresh": {
+        "health-queue-chart": true,
+        "health-queue-chart-2": true
+      },
+      "widget_status": {
+        "health-queue-chart": {
+          "started_at_ms": 4347.800000011921,
+          "completed_at_ms": 4368.5,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        },
+        "health-queue-chart-2": {
+          "started_at_ms": 4348,
+          "completed_at_ms": 4368.899999976158,
+          "painted_at_ms": null,
+          "render_lag_ms": null,
+          "terminal_type": "completed",
+          "updated_text": "loading...",
+          "loading_visible": true
+        }
+      },
+      "passed": false,
+      "reasons": [
+        "widgets still show loading after completion: health-queue-chart, health-queue-chart-2"
+      ]
+    }
+  ],
+  "skipped_pages": [
+    {
+      "page_slug": "dex-liquidity",
+      "route": "/dex-liquidity",
+      "reason": "route returned HTTP 404"
+    },
+    {
+      "page_slug": "dex-swaps",
+      "route": "/dex-swaps",
+      "reason": "route returned HTTP 404"
+    }
+  ],
+  "summary": {
+    "group_count": 27,
+    "passed_count": 5,
+    "failed_count": 22,
+    "skipped_page_count": 2
+  }
+}

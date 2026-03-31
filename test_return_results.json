@@ -1,0 +1,114 @@
+{
+  "scenarios": [
+    {
+      "label": "immediate_return",
+      "method": "sidebar",
+      "page_a": "/global-ecosystem",
+      "page_b": "/cover",
+      "dwell_on_b_s": 0.0,
+      "settled_on_return": true,
+      "time_to_visual_complete_s": 0.938,
+      "flash": {
+        "settled": true,
+        "elapsed_s": 0.109,
+        "samples": 3,
+        "flash_detected": false,
+        "flash_onset_s": null,
+        "flash_duration_s": 0.0,
+        "peak_loading_count": 0
+      },
+      "loading_on_return_immediate": 0,
+      "loaded_on_return_immediate": 15,
+      "loading_on_return_final": 0,
+      "total_widgets": 15,
+      "shell_cache_hits": 2,
+      "shell_cache_misses": 0,
+      "persist_restore_hits": 15
+    },
+    {
+      "label": "dwell_return",
+      "method": "sidebar",
+      "page_a": "/global-ecosystem",
+      "page_b": "/cover",
+      "dwell_on_b_s": 3.0,
+      "settled_on_return": true,
+      "time_to_visual_complete_s": 0.687,
+      "flash": {
+        "settled": true,
+        "elapsed_s": 0.094,
+        "samples": 3,
+        "flash_detected": false,
+        "flash_onset_s": null,
+        "flash_duration_s": 0.0,
+        "peak_loading_count": 0
+      },
+      "loading_on_return_immediate": 0,
+      "loaded_on_return_immediate": 15,
+      "loading_on_return_final": 0,
+      "total_widgets": 15,
+      "shell_cache_hits": 4,
+      "shell_cache_misses": 0,
+      "persist_restore_hits": 30
+    },
+    {
+      "label": "back_button",
+      "method": "back_button",
+      "page_a": "/global-ecosystem",
+      "page_b": "/cover",
+      "settled_on_return": true,
+      "path_correct": true,
+      "actual_path": "/global-ecosystem",
+      "time_to_visual_complete_s": 0.562,
+      "flash": {
+        "settled": true,
+        "elapsed_s": 0.078,
+        "samples": 3,
+        "flash_detected": false,
+        "flash_onset_s": null,
+        "flash_duration_s": 0.0,
+        "peak_loading_count": 0
+      },
+      "loading_on_return_final": 0,
+      "total_widgets": 0,
+      "shell_cache_hits": 5
+    },
+    {
+      "label": "multi_hop_return",
+      "method": "sidebar",
+      "error": "page B (/dexes) did not settle"
+    },
+    {
+      "label": "rapid_roundtrip",
+      "method": "sidebar_rapid",
+      "settled_on_return": true,
+      "flash": {
+        "settled": true,
+        "elapsed_s": 0.062,
+        "samples": 3,
+        "flash_detected": false,
+        "flash_onset_s": null,
+        "flash_duration_s": 0.0,
+        "peak_loading_count": 0
+      },
+      "loading_on_return_final": 0,
+      "total_widgets": 0,
+      "shell_cache_hits": 14
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 4,
+    "failed": 1,
+    "time_to_visual_complete": {
+      "min_s": 0.562,
+      "max_s": 0.938,
+      "mean_s": 0.729,
+      "median_s": 0.687
+    },
+    "loading_flash": {
+      "scenarios_with_flash": 0,
+      "max_flash_duration_s": 0,
+      "max_peak_loading": 0
+    }
+  }
+}
