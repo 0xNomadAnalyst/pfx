@@ -20,7 +20,6 @@ from starlette.middleware.gzip import GZipMiddleware
 from dotenv import load_dotenv
 
 from app.pages.common import PageConfig, build_widget_endpoint
-from app.shared_families import has_intentional_shared_family_mapping, resolve_shared_data_family
 
 # ── Load env BEFORE page imports so PAGE_* flags are available ───────
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -52,9 +51,6 @@ DEFAULT_PRICE_BASIS = os.getenv("DEFAULT_PRICE_BASIS", "default")
 SHOW_ASSET_FILTER = os.getenv("SHOW_ASSET_FILTER", "1") == "1"
 SHOW_REFRESH_BUTTON = os.getenv("SHOW_REFRESH_BUTTON", "1") == "1"
 NAV_LAYOUT_SIDEBAR = os.getenv("NAV_LAYOUT_SIDEBAR", "0") == "1"
-SHARED_FAMILY_STRICT_INTENT = os.getenv("HTMX_SHARED_FAMILY_STRICT_INTENT", "0") == "1"
-SHARED_FAMILY_WARN_INTENT = os.getenv("HTMX_SHARED_FAMILY_WARN_INTENT", "0") == "1"
-
 ALL_LAST_WINDOW_OPTIONS = ["1h", "4h", "6h", "24h", "7d", "30d", "90d"]
 _lw_raw = os.getenv("LAST_WINDOW_OPTIONS", "")
 LAST_WINDOW_OPTIONS: list[str] = (
@@ -82,7 +78,6 @@ HTMX_HEALTH_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_STEP_D
 HTMX_KPI_STEP_DELAY_SECONDS = float(os.getenv("HTMX_KPI_STEP_DELAY_SECONDS", "0.05"))
 HTMX_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_CHART_BASE_DELAY_SECONDS", "1.0"))
 HTMX_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_CHART_STEP_DELAY_SECONDS", "0.15"))
-HTMX_FAMILY_MEMBER_STAGGER_SECONDS = float(os.getenv("HTMX_FAMILY_MEMBER_STAGGER_SECONDS", "0.02"))
 
 # ── Cache mode profiles ──────────────────────────────────────────────
 # conservative = freshness-first, no speculation (frequent refresh, no preload)
@@ -120,9 +115,6 @@ CACHE_PROFILES: dict[str, dict] = {
         "shell_prefetch_concurrency": 1,
         "rewarmup_on_filter_change": False,
         "rewarmup_idle_delay_ms": 0,
-        "batched_reveal_enabled": False,
-        "batched_reveal_timeout_ms": 0,
-        "unified_reveal_coordinator_enabled": False,
         "max_concurrent_widget_requests": 3,
         "offscreen_pause_enabled": False,
         "skeleton_min_display_ms": 0,
@@ -131,7 +123,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "persist_cache_enabled": False,
     },
     "balanced": {
-        "warmup_enabled": False,
+        "warmup_enabled": True,
         "warmup_budget_seconds": 30,
         "warmup_max_jobs": 30,
         "warmup_concurrency": 3,
@@ -157,13 +149,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "shell_prefetch_concurrency": 1,
         "rewarmup_on_filter_change": False,
         "rewarmup_idle_delay_ms": 0,
-        "batched_reveal_enabled": False,
-        "batched_reveal_timeout_ms": 0,
-        "unified_reveal_coordinator_enabled": False,
-        # Keep balanced mode from flooding the API/DB pool on wide pages.
-        # Unlimited bursts can create long queueing tails where related widgets
-        # do not settle together even when they share underlying data.
-        "max_concurrent_widget_requests": 4,
+        "max_concurrent_widget_requests": 0,
         "offscreen_pause_enabled": False,
         "skeleton_min_display_ms": 0,
         "adaptive_dialdown_enabled": False,
@@ -197,9 +183,6 @@ CACHE_PROFILES: dict[str, dict] = {
         "shell_prefetch_concurrency": 3,
         "rewarmup_on_filter_change": True,
         "rewarmup_idle_delay_ms": 3_000,
-        "batched_reveal_enabled": True,
-        "batched_reveal_timeout_ms": 400,
-        "unified_reveal_coordinator_enabled": False,
         "max_concurrent_widget_requests": 5,
         "offscreen_pause_enabled": True,
         "skeleton_min_display_ms": 150,
@@ -236,9 +219,6 @@ _CACHE_ENV_MAP: dict[str, tuple[str, type]] = {
     "shell_prefetch_concurrency": ("HTMX_SHELL_PREFETCH_CONCURRENCY", int),
     "rewarmup_on_filter_change": ("HTMX_REWARMUP_ON_FILTER_CHANGE", bool),
     "rewarmup_idle_delay_ms": ("HTMX_REWARMUP_IDLE_DELAY_MS", int),
-    "batched_reveal_enabled": ("HTMX_BATCHED_REVEAL_ENABLED", bool),
-    "batched_reveal_timeout_ms": ("HTMX_BATCHED_REVEAL_TIMEOUT_MS", int),
-    "unified_reveal_coordinator_enabled": ("HTMX_UNIFIED_REVEAL_COORDINATOR_ENABLED", bool),
     "max_concurrent_widget_requests": ("HTMX_MAX_CONCURRENT_WIDGET_REQUESTS", int),
     "offscreen_pause_enabled": ("HTMX_OFFSCREEN_PAUSE_ENABLED", bool),
     "skeleton_min_display_ms": ("HTMX_SKELETON_MIN_DISPLAY_MS", int),
@@ -371,37 +351,6 @@ def _apply_default_pipeline():
                 _pipeline_cache["expires_at"] = time.time() + 5.0
         except Exception:
             pass
-    _validate_shared_family_mapping_intent()
-
-
-def _validate_shared_family_mapping_intent() -> None:
-    ignored_kinds = {"section-header", "section-subheader", "placeholder"}
-    missing: list[tuple[str, str, str]] = []
-    for page in PAGES:
-        endpoint_page_id = page.api_page_id
-        for widget in page.widgets:
-            if widget.kind in ignored_kinds:
-                continue
-            source_page_id = widget.source_page_id or endpoint_page_id
-            source_widget_id = widget.source_widget_id or widget.id
-            if not has_intentional_shared_family_mapping(source_page_id, source_widget_id):
-                missing.append((page.slug, source_page_id, source_widget_id))
-    if not missing:
-        return
-    unique_missing = sorted(set(missing))
-    sample = ", ".join(
-        f"{slug}:{page_id}/{wid}" for slug, page_id, wid in unique_missing[:8]
-    )
-    message = (
-        "[WARN] Shared-family intent missing for "
-        f"{len(unique_missing)} widget endpoints. "
-        "Add entries to SHARED_DATA_FAMILY_HINTS or EXPLICIT_NO_SHARED_FAMILY_HINTS. "
-        f"Examples: {sample}"
-    )
-    if SHARED_FAMILY_WARN_INTENT or SHARED_FAMILY_STRICT_INTENT:
-        print(message)
-    if SHARED_FAMILY_STRICT_INTENT:
-        raise RuntimeError(message)
 
 
 @app.middleware("http")
@@ -489,7 +438,6 @@ def _build_page_context(
     for widget in widgets:
         endpoint_page = widget.source_page_id or page.api_page_id
         endpoint_wid = widget.source_widget_id or widget.id
-        shared_data_family = resolve_shared_data_family(endpoint_page, endpoint_wid)
 
         if widget.kind == "kpi":
             load_delay_seconds = kpi_index * HTMX_KPI_STEP_DELAY_SECONDS
@@ -503,12 +451,9 @@ def _build_page_context(
                 non_kpi_index += 1
             last_chart_delay = load_delay_seconds
 
-        # For dual-pool layouts, lane-based delay alignment is only used when
-        # the widget does not belong to an explicit shared data family.
         if (
             page.slug in dual_pool_pages
             and widget.kind in {"kpi", "chart", "table", "table-split"}
-            and not shared_data_family
         ):
             lane_key = _lane_group_key(widget)
             if _is_secondary_lane(widget) and lane_key in lane_delay_by_group:
@@ -560,35 +505,8 @@ def _build_page_context(
                 "source_widget_id": widget.source_widget_id,
                 "source_page_id": endpoint_page,
                 "protocol_override": widget.protocol_override,
-                "shared_data_family": shared_data_family,
             }
         )
-
-    # Backfill final minimum load delay across all members of each shared family.
-    # This removes order dependence from the single-pass convergence above.
-    family_min_delay: dict[str, float] = {}
-    for binding in widget_bindings:
-        family = str(binding.get("shared_data_family") or "").strip()
-        if not family:
-            continue
-        family_page = str(binding.get("source_page_id") or page.api_page_id)
-        family_key = f"{family_page}::{family}"
-        current_delay = float(binding.get("load_delay_seconds") or 0.0)
-        if family_key in family_min_delay:
-            family_min_delay[family_key] = min(family_min_delay[family_key], current_delay)
-        else:
-            family_min_delay[family_key] = current_delay
-    family_member_index: dict[str, int] = {}
-    for binding in widget_bindings:
-        family = str(binding.get("shared_data_family") or "").strip()
-        if not family:
-            continue
-        family_page = str(binding.get("source_page_id") or page.api_page_id)
-        family_key = f"{family_page}::{family}"
-        if family_key in family_min_delay:
-            idx = family_member_index.get(family_key, 0)
-            binding["load_delay_seconds"] = family_min_delay[family_key] + idx * HTMX_FAMILY_MEMBER_STAGGER_SECONDS
-            family_member_index[family_key] = idx + 1
 
     current_index = next((idx for idx, cfg in enumerate(PAGES) if cfg.slug == page.slug), 0)
     warmup_pages = PAGES[current_index + 1 :] + PAGES[:current_index]

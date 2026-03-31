@@ -2,7 +2,6 @@
   function createRiskdashCacheEngine(deps) {
     const {
       widgetElements,
-      sharedFamilyId,
       renderCachedWidgetPayload,
       widgetFilterSignature,
       resolveSourceWidgetId,
@@ -37,32 +36,8 @@
       const startedAt = performance.now();
       let hits = 0;
       const widgets = widgetElements();
-      const blockedByFamily = new Set();
-      const familyGroups = new Map();
-      widgets.forEach((el) => {
-        const familyId = sharedFamilyId(el);
-        if (!familyId) return;
-        if (!familyGroups.has(familyId)) {
-          familyGroups.set(familyId, []);
-        }
-        familyGroups.get(familyId).push(el);
-      });
-      familyGroups.forEach((members) => {
-        if (!Array.isArray(members) || members.length < 2) return;
-        const cachedCount = members.filter((el) => hasCachedWidgetPayloadForCurrentSignature(el)).length;
-        if (cachedCount === members.length) return;
-        if (cachedCount > 0) return;
-        members.forEach((el) => {
-          const wid = String(el?.dataset?.widgetId || "");
-          if (wid) blockedByFamily.add(wid);
-        });
-      });
 
       widgets.forEach((el) => {
-        const wid = String(el?.dataset?.widgetId || "");
-        if (wid && blockedByFamily.has(wid)) {
-          return;
-        }
         if (renderCachedWidgetPayload(el)) {
           hits += 1;
         }

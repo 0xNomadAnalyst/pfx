@@ -53,10 +53,6 @@
   const SHELL_PREFETCH_CONCURRENCY = readRuntimeInt("shellPrefetchConcurrency", 1, 1, 10);
   const REWARMUP_ON_FILTER_CHANGE = readRuntimeBool("rewarmupOnFilterChange", false);
   const REWARMUP_IDLE_DELAY_MS = readRuntimeInt("rewarmupIdleDelayMs", 0, 0, 30_000);
-  const BATCHED_REVEAL_ENABLED = readRuntimeBool("batchedRevealEnabled", false);
-  const BATCHED_REVEAL_TIMEOUT_MS = readRuntimeInt("batchedRevealTimeoutMs", 0, 0, 5_000);
-  const SHARED_FAMILY_REVEAL_TIMEOUT_MS = readRuntimeInt("sharedFamilyRevealTimeoutMs", 12_000, 0, 60_000);
-  const UNIFIED_REVEAL_COORDINATOR_ENABLED = readRuntimeBool("unifiedRevealCoordinatorEnabled", false);
   const MAX_CONCURRENT_WIDGET_REQUESTS = readRuntimeInt("maxConcurrentWidgetRequests", 0, 0, 50);
   const OFFSCREEN_PAUSE_ENABLED = readRuntimeBool("offscreenPauseEnabled", false);
   const SKELETON_MIN_DISPLAY_MS = readRuntimeInt("skeletonMinDisplayMs", 0, 0, 1_000);
@@ -4063,8 +4059,6 @@
       }
     });
     chartState.clear();
-    _clearActiveRevealState();
-    invalidateSharedFamilyWidgetIndex();
     detailTableCache.clear();
     pageActionCache.clear();
     widgetResponseCache.clear();
@@ -4361,8 +4355,6 @@
     const widgets = widgetElements();
     if (!widgets.length) return;
     markInteractiveRefreshWindow();
-    _clearActiveRevealState();
-    invalidateSharedFamilyWidgetIndex();
 
     if (!prioritizeViewport) {
       htmx.trigger(document.body, "dashboard-refresh");
@@ -4373,7 +4365,7 @@
     const deferredCritical = [];
     const deferredOther = [];
     widgets.forEach((el) => {
-      const critical = isCriticalWidget(el.dataset.widgetId || "") || isSharedFamilyWidgetElement(el);
+      const critical = isCriticalWidget(el.dataset.widgetId || "");
       if (isWidgetLikelyVisible(el)) {
         if (critical) visibleCritical.push(el);
         else visibleOther.push(el);
@@ -4387,14 +4379,6 @@
     visibleOther.sort(compareWidgetsByVisualPriority);
     deferredCritical.sort(compareWidgetsByVisualPriority);
     deferredOther.sort(compareWidgetsByVisualPriority);
-
-    if (BATCHED_REVEAL_ENABLED) {
-      // Keep family-coordinated widgets out of viewport batch targets so all
-      // family members follow a single reveal mechanism.
-      const batchCandidates = [...visibleCritical, ...visibleOther]
-        .filter((el) => !isSharedFamilyWidgetElement(el));
-      _beginActiveBatch(batchCandidates);
-    }
 
     if (MAX_CONCURRENT_WIDGET_REQUESTS > 0) {
       const reservedSlots = Math.min(3, MAX_CONCURRENT_WIDGET_REQUESTS);
@@ -4635,39 +4619,9 @@
     return `${widgetId}::${signature || ""}`;
   }
 
-  function isSharedFamilyWidgetElement(el) {
-    return !!(el && el.dataset && String(el.dataset.sharedDataFamily || "").trim());
-  }
-
-  function sharedFamilyId(el) {
-    if (_coreEngine?.sharedFamilyId) {
-      return _coreEngine.sharedFamilyId(el);
-    }
-    if (!el || !el.dataset) return "";
-    return String(el.dataset.sharedDataFamily || "").trim();
-  }
-
-  function sharedFamilyWidgetElements(familyId) {
-    if (_coreEngine?.sharedFamilyWidgetElements) {
-      return _coreEngine.sharedFamilyWidgetElements(familyId);
-    }
-    return [];
-  }
-
-  function invalidateSharedFamilyWidgetIndex() {
-    _coreEngine?.invalidateSharedFamilyWidgetIndex?.();
-  }
-
-  function isSharedFamilyWidgetId(widgetId) {
-    if (!widgetId) return false;
-    const el = document.getElementById(`widget-${widgetId}`);
-    return isSharedFamilyWidgetElement(el);
-  }
-
   function isCriticalWidget(widgetId) {
     if (!widgetId) return false;
     if (CRITICAL_WIDGET_IDS.has(widgetId)) return true;
-    if (isSharedFamilyWidgetId(widgetId)) return true;
     return widgetId.startsWith("kpi-");
   }
 
@@ -5121,7 +5075,6 @@
     if (typeof window.__createRiskdashCacheEngine !== "function") return null;
     _cacheEngine = window.__createRiskdashCacheEngine({
       widgetElements,
-      sharedFamilyId,
       renderCachedWidgetPayload,
       widgetFilterSignature,
       resolveSourceWidgetId,
@@ -5348,8 +5301,6 @@
       }
     });
     chartState.clear();
-    _clearActiveRevealState();
-    invalidateSharedFamilyWidgetIndex();
     _pipelineSwitchInProgress = false;
     if (_activeHydrationTrace?.settleTimer) {
       clearTimeout(_activeHydrationTrace.settleTimer);
@@ -6800,42 +6751,6 @@
   let _adaptiveDialdownTriggered = false;
   let _adaptiveDialdownConsecutiveLow = 0;
   const _skeletonShownAt = new Map();
-  const _revealEngine = (typeof window.__createRiskdashRevealEngine === "function")
-    ? window.__createRiskdashRevealEngine({
-      batchedRevealEnabled: BATCHED_REVEAL_ENABLED,
-      batchedRevealTimeoutMs: BATCHED_REVEAL_TIMEOUT_MS,
-      sharedFamilyRevealTimeoutMs: SHARED_FAMILY_REVEAL_TIMEOUT_MS,
-      unifiedRevealCoordinatorEnabled: UNIFIED_REVEAL_COORDINATOR_ENABLED,
-      sharedFamilyId,
-      sharedFamilyWidgetElements,
-      renderWidgetResponse: _renderWidgetResponse,
-    })
-    : null;
-
-  function _clearActiveRevealState() {
-    _revealEngine?.clearActiveRevealState?.();
-  }
-
-  function _onTerminalRevealSettle(sourceEl, widgetId = "") {
-    _revealEngine?.onTerminalRevealSettle?.(sourceEl, widgetId);
-  }
-
-  function _bufferActiveBatch(widgetId, payload, srcId, sourceEl) {
-    return !!_revealEngine?.bufferActiveBatch?.(widgetId, payload, srcId, sourceEl);
-  }
-
-  function _bufferActiveFamily(familyId, widgetId, payload, srcId, sourceEl) {
-    _revealEngine?.bufferActiveFamily?.(familyId, widgetId, payload, srcId, sourceEl);
-  }
-
-  function _flushActiveFamily(familyId) {
-    _revealEngine?.flushActiveFamily?.(familyId);
-  }
-
-  function _beginActiveBatch(els) {
-    _revealEngine?.beginActiveBatch?.(els);
-  }
-
   async function runPerPageWarmup(
     manifest,
     { includeActivePage = true, reason = "warmup", preempt = false, activePageOnly = false } = {},
@@ -7475,11 +7390,9 @@
       return;
     }
     if (_pipelineSwitchInProgress) {
-      _onTerminalRevealSettle(sourceEl, widgetId);
       return;
     }
     if (!event.detail.successful) {
-      _onTerminalRevealSettle(sourceEl, widgetId);
       return;
     }
     _renderingWidgetEl = sourceEl;
@@ -7487,48 +7400,17 @@
       const raw = event.detail.xhr.responseText;
       if (!raw) {
         setWidgetError(widgetId, "no response from API");
-        _onTerminalRevealSettle(sourceEl, widgetId);
         return;
       }
       const payload = JSON.parse(raw);
       if (payload.status !== "success") {
         setWidgetError(widgetId, payload.detail || "request failed");
-        _onTerminalRevealSettle(sourceEl, widgetId);
         return;
       }
       const srcId = resolveSourceWidgetId(sourceEl);
-
-      if (_bufferActiveBatch(widgetId, payload, srcId, sourceEl)) {
-        return;
-      }
-
-      const familyId = sharedFamilyId(sourceEl);
-      if (familyId) {
-        const familyWidgets = sharedFamilyWidgetElements(familyId);
-        if (familyWidgets.length > 1) {
-          const familyPending = familyWidgets
-            .some((el) => {
-              if (el === sourceEl) return false;
-              if (el.classList.contains("htmx-request")) return true;
-              if (el.dataset.hasLoadedOnce !== "1") return true;
-              return false;
-            });
-          if (familyPending) {
-            _bufferActiveFamily(familyId, widgetId, payload, srcId, sourceEl);
-            return;
-          }
-          _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
-          _flushActiveFamily(familyId);
-          _onTerminalRevealSettle(sourceEl, widgetId);
-          return;
-        }
-      }
-
       _renderWidgetResponse(widgetId, payload, srcId, sourceEl);
-      _onTerminalRevealSettle(sourceEl, widgetId);
     } catch (error) {
       setWidgetError(widgetId, String(error));
-      _onTerminalRevealSettle(sourceEl, widgetId);
     } finally {
       _renderingWidgetEl = null;
     }
@@ -7589,8 +7471,7 @@
       return;
     }
     // Prevent periodic/secondary triggers from repeatedly replacing an already
-    // running request for the same widget. This avoids abort loops where one
-    // slower sibling in a shared data family never reaches render completion.
+    // running request for the same widget.
     if (sourceEl.classList.contains("htmx-request") && sourceEl.dataset.forceRequest !== "1") {
       event.preventDefault();
       recordPerfMetric("suppressedInFlightDuplicateRequest");
@@ -7603,10 +7484,9 @@
     const isForced = sourceEl.dataset.forceRequest === "1";
     if (!isForced && Date.now() >= _interactiveRefreshUntil) {
       const widgetId = sourceEl.dataset.widgetId || "";
-      const sharedFamilyWidget = isSharedFamilyWidgetElement(sourceEl);
       const isOffscreen = !isCriticalWidget(widgetId) && !isWidgetLikelyVisible(sourceEl);
 
-      if (OFFSCREEN_PAUSE_ENABLED && isOffscreen && !sharedFamilyWidget) {
+      if (OFFSCREEN_PAUSE_ENABLED && isOffscreen) {
         event.preventDefault();
         sourceEl.dataset.offscreenDeferred = "1";
         recordPerfMetric("suppressedOffscreenPoll");
@@ -7615,7 +7495,7 @@
 
       if (sourceEl.dataset.hasLoadedOnce === "1") {
         const lastVisibleAt = Number(sourceEl.dataset.lastVisibleAt || 0);
-        const staleOffscreen = isOffscreen && !sharedFamilyWidget && (Date.now() - lastVisibleAt) > VIEWPORT_POLL_STALE_MS;
+        const staleOffscreen = isOffscreen && (Date.now() - lastVisibleAt) > VIEWPORT_POLL_STALE_MS;
         if (staleOffscreen) {
           event.preventDefault();
           recordPerfMetric("suppressedOffscreenPoll");
@@ -7655,7 +7535,6 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
-    _onTerminalRevealSettle(sourceEl, widgetId);
     setWidgetError(widgetId, detail);
   });
 
@@ -7676,7 +7555,6 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
-    _onTerminalRevealSettle(sourceEl, widgetId);
     setWidgetError(widgetId, "cannot reach API");
   });
 
@@ -7697,7 +7575,6 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
-    _onTerminalRevealSettle(sourceEl, widgetId);
     setWidgetError(widgetId, "request timeout");
   });
 
@@ -7716,7 +7593,6 @@
       requestId: sourceEl.dataset.navRequestId || "",
       currentPath: `${window.location.pathname}${window.location.search || ""}`,
     });
-    _onTerminalRevealSettle(sourceEl, widgetId);
     clearStaleTimestampLabel(widgetId);
   });
 

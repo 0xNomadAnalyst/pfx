@@ -44,8 +44,7 @@
   data-shell-prefetch-concurrency="{{ cache_config.shell_prefetch_concurrency if cache_config else 1 }}"
   data-rewarmup-on-filter-change="{{ '1' if cache_config and cache_config.rewarmup_on_filter_change else '0' }}"
   data-rewarmup-idle-delay-ms="{{ cache_config.rewarmup_idle_delay_ms if cache_config else 0 }}"
-  data-batched-reveal-enabled="{{ '1' if cache_config and cache_config.batched_reveal_enabled else '0' }}"
-  data-batched-reveal-timeout-ms="{{ cache_config.batched_reveal_timeout_ms if cache_config else 0 }}"
+
   data-max-concurrent-widget-requests="{{ cache_config.max_concurrent_widget_requests if cache_config else 0 }}"
   data-offscreen-pause-enabled="{{ '1' if cache_config and cache_config.offscreen_pause_enabled else '0' }}"
   data-skeleton-min-display-ms="{{ cache_config.skeleton_min_display_ms if cache_config else 0 }}"
@@ -495,16 +494,7 @@
   <script src="/static/js/theme.js?v=2"></script>
   <script id="warmup-manifest" type="application/json">{{ warmup_manifest|tojson }}</script>
   {% if embedded_shells_json %}<script id="prefetched-shells" type="application/json">{{ embedded_shells_json|safe }}</script>{% endif %}
-  <script src="/static/js/core-engine.js?v=1"></script>
-  <script src="/static/js/state-engine.js?v=1"></script>
-  <script src="/static/js/cache-engine.js?v=1"></script>
-  <script src="/static/js/render-engine.js?v=1"></script>
-  <script src="/static/js/concurrency-engine.js?v=1"></script>
-  <script src="/static/js/filters-engine.js?v=1"></script>
-  <script src="/static/js/soft-nav-engine.js?v=1"></script>
-  <script src="/static/js/warmup-engine.js?v=1"></script>
-  <script src="/static/js/reveal-engine.js?v=1"></script>
-  <script src="/static/js/charts.js?v=97"></script>
+  <script src="/static/js/charts.bundle.js?v=98"></script>
   <script>
   (function() {
     var btn = document.getElementById("video-guide-btn");

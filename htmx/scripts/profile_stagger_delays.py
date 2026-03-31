@@ -19,7 +19,6 @@ HTMX_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(HTMX_ROOT))
 
 from app.pages.common import PageConfig  # noqa: E402
-from app.shared_families import resolve_shared_data_family  # noqa: E402
 
 HTMX_HEALTH_TABLE_BASE_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_BASE_DELAY_SECONDS", "0.08"))
 HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_TABLE_STEP_DELAY_SECONDS", "0.12"))
@@ -28,8 +27,6 @@ HTMX_HEALTH_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_HEALTH_CHART_STEP_D
 HTMX_KPI_STEP_DELAY_SECONDS = float(os.getenv("HTMX_KPI_STEP_DELAY_SECONDS", "0.05"))
 HTMX_CHART_BASE_DELAY_SECONDS = float(os.getenv("HTMX_CHART_BASE_DELAY_SECONDS", "1.0"))
 HTMX_CHART_STEP_DELAY_SECONDS = float(os.getenv("HTMX_CHART_STEP_DELAY_SECONDS", "0.15"))
-HTMX_FAMILY_MEMBER_STAGGER_SECONDS = float(os.getenv("HTMX_FAMILY_MEMBER_STAGGER_SECONDS", "0.02"))
-
 _PAGE_MODULES = [
     ("PAGE_COVER",            "app.pages.cover",                   "0"),
     ("PAGE_GLOBAL_ECOSYSTEM", "app.pages.global",                   "1"),
@@ -102,7 +99,6 @@ def _compute_delays(page: PageConfig) -> list[dict]:
     for widget in widgets:
         endpoint_page = widget.source_page_id or page.api_page_id
         endpoint_wid = widget.source_widget_id or widget.id
-        shared_data_family = resolve_shared_data_family(endpoint_page, endpoint_wid)
 
         if widget.kind == "kpi":
             load_delay_seconds = kpi_index * HTMX_KPI_STEP_DELAY_SECONDS
@@ -119,7 +115,6 @@ def _compute_delays(page: PageConfig) -> list[dict]:
         if (
             page.slug in dual_pool_pages
             and widget.kind in {"kpi", "chart", "table", "table-split"}
-            and not shared_data_family
         ):
             lane_key = _lane_group_key(widget)
             if _is_secondary_lane(widget) and lane_key in lane_delay_by_group:
@@ -152,32 +147,7 @@ def _compute_delays(page: PageConfig) -> list[dict]:
             "id": widget.id,
             "kind": widget.kind,
             "load_delay_seconds": load_delay_seconds,
-            "shared_data_family": shared_data_family,
         })
-
-    family_min_delay: dict[str, float] = {}
-    for b in bindings:
-        family = str(b.get("shared_data_family") or "").strip()
-        if not family:
-            continue
-        ep_page = page.api_page_id
-        family_key = f"{ep_page}::{family}"
-        current = float(b["load_delay_seconds"])
-        if family_key in family_min_delay:
-            family_min_delay[family_key] = min(family_min_delay[family_key], current)
-        else:
-            family_min_delay[family_key] = current
-    family_member_index: dict[str, int] = {}
-    for b in bindings:
-        family = str(b.get("shared_data_family") or "").strip()
-        if not family:
-            continue
-        ep_page = page.api_page_id
-        family_key = f"{ep_page}::{family}"
-        if family_key in family_min_delay:
-            idx = family_member_index.get(family_key, 0)
-            b["load_delay_seconds"] = family_min_delay[family_key] + idx * HTMX_FAMILY_MEMBER_STAGGER_SECONDS
-            family_member_index[family_key] = idx + 1
 
     return bindings
 
@@ -220,10 +190,9 @@ def main():
         if kpi_delays:
             print(f"   Last KPI request at:   {page_summary['last_kpi_fires_at_s']}s")
 
-        print(f"   {'Widget ID':<45} {'Kind':<12} {'Delay (s)':>10}  Family")
+        print(f"   {'Widget ID':<45} {'Kind':<12} {'Delay (s)':>10}")
         for b in sorted(bindings, key=lambda x: x["load_delay_seconds"]):
-            fam = b.get("shared_data_family") or ""
-            print(f"   {b['id']:<45} {b['kind']:<12} {b['load_delay_seconds']:>10.2f}  {fam}")
+            print(f"   {b['id']:<45} {b['kind']:<12} {b['load_delay_seconds']:>10.2f}")
         print()
 
     print("\n==============================================")
