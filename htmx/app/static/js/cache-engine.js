@@ -49,8 +49,9 @@
       });
       familyGroups.forEach((members) => {
         if (!Array.isArray(members) || members.length < 2) return;
-        const allFamilyMembersCached = members.every((el) => hasCachedWidgetPayloadForCurrentSignature(el));
-        if (allFamilyMembersCached) return;
+        const cachedCount = members.filter((el) => hasCachedWidgetPayloadForCurrentSignature(el)).length;
+        if (cachedCount === members.length) return;
+        if (cachedCount > 0) return;
         members.forEach((el) => {
           const wid = String(el?.dataset?.widgetId || "");
           if (wid) blockedByFamily.add(wid);

@@ -4820,7 +4820,6 @@
       pinned
       || existing?.pinned
       || isPinnedSoftNavPath(normalizedPath)
-      || source === "live"
     );
     if (softNavShellCache.has(normalizedPath)) softNavShellCache.delete(normalizedPath);
     softNavShellCache.set(normalizedPath, {
@@ -4877,8 +4876,13 @@
     const path = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
     if (!path) return;
     try {
+      const hasInflight = _widgetRequestsInFlight > 0
+        || document.querySelectorAll(".widget-loader.htmx-request").length > 0;
+      const anyLoaded = document.querySelector('.widget-loader[data-has-loaded-once="1"]');
+      if (hasInflight && !anyLoaded) return;
       const html = `<!DOCTYPE html>\n${document.documentElement.outerHTML}`;
-      setSoftNavShellCache(path, html, { pinned: isPinnedSoftNavPath(path), source: "live" });
+      const source = hasInflight ? "live-partial" : "live";
+      setSoftNavShellCache(path, html, { pinned: isPinnedSoftNavPath(path), source });
     } catch (_) {
       // Best-effort shell snapshot.
     }
@@ -5139,9 +5143,15 @@
   }
 
   function hydrateWidgetsFromCache() {
+    const seq = _softNavTraceSeq;
+    if (_hydrationAppliedForNavSeq === seq && seq > 0) {
+      return _lastNavCacheHits;
+    }
     const cacheEngine = _ensureCacheEngine();
     if (cacheEngine?.hydrateWidgetsFromCache) {
-      return cacheEngine.hydrateWidgetsFromCache();
+      const hits = cacheEngine.hydrateWidgetsFromCache();
+      if (hits > 0) _hydrationAppliedForNavSeq = seq;
+      return hits;
     }
     return 0;
   }
@@ -5435,6 +5445,8 @@
   let _softNavController = null;
   let _softNavCurrentPath = "";
   let _softNavQueuedPath = "";
+  let _lastNavCacheHits = 0;
+  let _hydrationAppliedForNavSeq = 0;
   let _softNavTraceSeq = 0;
   let _softNavActiveTraceId = "";
   let _softNavLastCompletedTraceId = "";
@@ -6078,6 +6090,7 @@
     const { signal } = _softNavController;
     _softNavInFlight = true;
     _softNavCurrentPath = navPath;
+    _lastNavCacheHits = 0;
     _softNavActiveTraceId = _nextNavTraceId(navPath);
     _softNavDebug.activeNavTraceId = _softNavActiveTraceId;
     _softNavCurrentStartMs = performance.now();
@@ -6097,6 +6110,7 @@
         if (shellAppliedFromCache) {
           _recordShellVisible(navPath);
           const restoredHits = hydrateWidgetsFromCache();
+          _lastNavCacheHits = restoredHits;
           if (restoredHits <= 0) {
             schedulePriorityActiveWarmup("nav-cache-hit-without-payload");
           }
@@ -6113,7 +6127,12 @@
       showSoftNavPending(navPath);
     } else {
       if (!hasSupersedingNav(navPath)) {
-        scheduleDeferredSoftNavHydration(navPath);
+        const cacheWasCold = (_lastNavCacheHits || 0) <= 0;
+        if (cacheWasCold) {
+          void hydrateSoftNavPage(navPath);
+        } else {
+          scheduleDeferredSoftNavHydration(navPath);
+        }
         void refreshSoftNavShellCache(navPath, SOFT_NAV_SHELL_REFRESH_DELAY_MS);
       }
       _finishSoftNav();
@@ -8508,7 +8527,7 @@
   window.addEventListener("popstate", () => {
     const targetPath = `${window.location.pathname}${window.location.search || ""}`;
     const normalizedTarget = normalizeSoftNavPath(targetPath);
-    const normalizedCurrent = _softNavCurrentPath();
+    const normalizedCurrent = normalizeSoftNavPath(_softNavCurrentPath);
     // Some browsers can emit an initial popstate on first load. Avoid a
     // no-op soft-nav refresh of the same route, which would abort in-flight
     // widget loads and leave panels stuck in loading state.
