@@ -44,11 +44,16 @@
       drainConcurrencyQueue();
     }
 
+    function resetQueue() {
+      concurrencyQueue.length = 0;
+    }
+
     return {
       drainConcurrencyQueue,
       requestWidgetManaged,
       onRequestStarted,
       onRequestTerminal,
+      resetQueue,
     };
   }
 

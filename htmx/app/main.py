@@ -149,7 +149,7 @@ CACHE_PROFILES: dict[str, dict] = {
         "shell_prefetch_concurrency": 1,
         "rewarmup_on_filter_change": False,
         "rewarmup_idle_delay_ms": 0,
-        "max_concurrent_widget_requests": 6,
+        "max_concurrent_widget_requests": 0,
         "offscreen_pause_enabled": False,
         "skeleton_min_display_ms": 0,
         "adaptive_dialdown_enabled": False,

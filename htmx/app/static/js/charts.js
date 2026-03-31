@@ -107,8 +107,6 @@
     staleLabelClearedOnAbort: 0,
     staleLabelAutoCleared: 0,
     adaptiveDialdownTriggered: 0,
-    suppressedInFlightDuplicateRequest: 0,
-    suppressedInFlightForcedRequest: 0,
   };
   function recordPerfMetric(metricKey, amount = 1) {
     if (!Object.prototype.hasOwnProperty.call(perfMetrics, metricKey)) return;
@@ -4293,10 +4291,10 @@
     return rectA.left - rectB.left;
   }
 
-  function _issueWidgetAjax(el) {
+  function requestWidgetNow(el) {
+    if (!el || !el.classList.contains("widget-loader")) return;
     const endpoint = el.getAttribute("hx-get");
     if (!endpoint) return;
-    if (!el.isConnected) return;
     el.dataset.forceRequest = "1";
     try {
       const p = htmx.ajax("GET", endpoint, {
@@ -4310,26 +4308,6 @@
     setTimeout(() => {
       if (el.dataset) delete el.dataset.forceRequest;
     }, 1000);
-  }
-
-  function requestWidgetNow(el) {
-    if (!el || !el.classList.contains("widget-loader")) return;
-    if (!el.getAttribute("hx-get")) return;
-    if (el.classList.contains("htmx-request")) {
-      if (el.dataset._pendingRetry) return;
-      el.dataset._pendingRetry = "1";
-      recordPerfMetric("queuedBehindInFlightRequest");
-      const poll = setInterval(() => {
-        if (!el.isConnected || !el.classList.contains("htmx-request")) {
-          clearInterval(poll);
-          if (el.dataset) delete el.dataset._pendingRetry;
-          if (el.isConnected) _issueWidgetAjax(el);
-        }
-      }, 200);
-      setTimeout(() => { clearInterval(poll); if (el.dataset) delete el.dataset._pendingRetry; }, 60_000);
-      return;
-    }
-    _issueWidgetAjax(el);
   }
 
   const _concurrencyEngine = (typeof window.__createRiskdashConcurrencyEngine === "function")
@@ -4355,6 +4333,7 @@
     const widgets = widgetElements();
     if (!widgets.length) return;
     markInteractiveRefreshWindow();
+    _concurrencyEngine?.resetQueue?.();
 
     if (!prioritizeViewport) {
       htmx.trigger(document.body, "dashboard-refresh");
@@ -7351,28 +7330,14 @@
       })
     : null;
 
-  function _emitWidgetPainted(widgetId) {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        document.body.dispatchEvent(
-          new CustomEvent("riskdash:widget-painted", {
-            detail: { widgetId, t: performance.now() },
-          })
-        );
-      });
-    });
-  }
-
   function _renderWidgetResponse(widgetId, payload, srcId, sourceEl) {
     if (_renderEngine?.renderWidgetResponse) {
       _renderEngine.renderWidgetResponse(widgetId, payload, srcId, sourceEl);
-      _emitWidgetPainted(widgetId);
       return;
     }
     try {
       renderPayload(widgetId, payload, srcId);
       updateTimestamp(widgetId, payload?.metadata?.generated_at);
-      _emitWidgetPainted(widgetId);
     } catch (error) {
       setWidgetError(widgetId, String(error));
     }
@@ -7468,13 +7433,6 @@
       event.preventDefault();
       sourceEl.dataset.suppressNextLoadRequest = "0";
       recordPerfMetric("suppressedDuplicateLoadTrigger");
-      return;
-    }
-    // Prevent periodic/secondary triggers from repeatedly replacing an already
-    // running request for the same widget.
-    if (sourceEl.classList.contains("htmx-request") && sourceEl.dataset.forceRequest !== "1") {
-      event.preventDefault();
-      recordPerfMetric("suppressedInFlightDuplicateRequest");
       return;
     }
     if (_pipelineSwitchInProgress || document.hidden) {
