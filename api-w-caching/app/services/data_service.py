@@ -382,8 +382,8 @@ class DataService:
                 # start, so only prewarm it when explicitly enabled.
                 if include_heavy_global_ts:
                     global_jobs.append(("global-ecosystem", "ge-issuance-time", params))
-                global_jobs.append(("global-ecosystem", "ge-activity-pct-usx", params))
-                global_jobs.append(("global-ecosystem", "ge-yield-generation", params))
+                global_jobs.append(("global-ecosystem", "ge-activity-pct", params))
+                global_jobs.append(("global-ecosystem", "ge-current-yields", params))
                 if os.getenv("API_PREWARM_GLOBAL_HOTSPOTS_ENABLED", "1") == "1":
                     global_jobs.append(("global-ecosystem", "ge-activity-vol-usx", params))
                     global_jobs.append(("global-ecosystem", "ge-tvl-share-usx", params))
