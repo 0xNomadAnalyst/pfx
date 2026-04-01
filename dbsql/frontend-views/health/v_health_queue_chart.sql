@@ -57,7 +57,8 @@ BEGIN
                    WHEN 'Failures'    THEN qh.consecutive_failures::double precision
                END
         FROM dexes.queue_health qh
-        WHERE qh.time > _cutoff;
+        WHERE qh.time > _cutoff
+          AND qh.total_operations > 0;
 
     ELSIF p_schema = 'exponent' THEN
         INSERT INTO _qch_raw
@@ -69,7 +70,8 @@ BEGIN
                    WHEN 'Failures'    THEN qh.consecutive_failures::double precision
                END
         FROM exponent.queue_health qh
-        WHERE qh.time > _cutoff;
+        WHERE qh.time > _cutoff
+          AND qh.total_operations > 0;
 
     ELSIF p_schema = 'kamino_lend' THEN
         INSERT INTO _qch_raw
@@ -81,7 +83,8 @@ BEGIN
                    WHEN 'Failures'    THEN qh.consecutive_failures::double precision
                END
         FROM kamino_lend.queue_health qh
-        WHERE qh.time > _cutoff;
+        WHERE qh.time > _cutoff
+          AND qh.total_operations > 0;
 
     END IF;
 
