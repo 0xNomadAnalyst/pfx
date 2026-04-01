@@ -6,9 +6,12 @@ from typing import Annotated
 
 import logging
 
+from decimal import Decimal
+
+import orjson
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, Field
+from starlette.responses import Response
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +22,12 @@ from app.services.sql_adapter import SqlAdapter
 
 router = APIRouter()
 _service = DataService(SqlAdapter())
+
+
+def _json_default(obj: object) -> object:
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError(f"Type is not JSON serializable: {type(obj).__name__}")
 _pipeline_switch_lock = threading.Lock()
 
 _raw_stats = os.getenv("API_CACHE_STATS_ENABLED")
@@ -182,7 +191,7 @@ def get_widget(
     price_basis: Annotated[str, Query()] = "default",
     _pipeline: Annotated[str, Query(alias="_pipeline")] = "",
     svc: DataService = Depends(get_data_service),
-) -> ORJSONResponse:
+):
     _ensure_pipeline_for_request(_pipeline)
     params = {
         "protocol": protocol,
@@ -221,7 +230,8 @@ def get_widget(
             "current_path": request.headers.get("X-Riskdash-Current-Path", ""),
         }
         payload = svc.get_widget_data(page=page, widget_id=widget, params=params, trace_ctx=trace_ctx)
-        return ORJSONResponse(content=payload)
+        body = orjson.dumps(payload, default=_json_default)
+        return Response(content=body, media_type="application/json")
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Widget not found") from exc
     except Exception as exc:

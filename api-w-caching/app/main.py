@@ -35,7 +35,6 @@ _seed_dash_refresh_derived_env()
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
-from fastapi.responses import ORJSONResponse  # noqa: E402
 from starlette.middleware.gzip import GZipMiddleware  # noqa: E402
 
 from app.api.routes import get_data_service, router  # noqa: E402
@@ -73,7 +72,6 @@ app = FastAPI(
     description="Frontend-agnostic widget API for the HTMX dashboard.",
     version="0.1.0",
     lifespan=lifespan,
-    default_response_class=ORJSONResponse,
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
