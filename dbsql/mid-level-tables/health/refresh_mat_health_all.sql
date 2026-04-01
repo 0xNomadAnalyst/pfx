@@ -11,11 +11,24 @@ CREATE SCHEMA IF NOT EXISTS health;
 CREATE OR REPLACE PROCEDURE health.refresh_mat_health_all()
 LANGUAGE plpgsql AS $$
 BEGIN
+    -- Each COMMIT makes the preceding sub-procedure durable, so a failure
+    -- in a later step (e.g. OOM in base_hourly) cannot roll back earlier work.
     CALL health.refresh_mat_health_cagg_status();
+    COMMIT;
+
     CALL health.refresh_mat_health_queue_benchmarks();
+    COMMIT;
+
     CALL health.refresh_mat_health_trigger_stats();
+    COMMIT;
+
     CALL health.refresh_mat_health_base_activity();
-    CALL health.refresh_mat_health_base_hourly();
+    COMMIT;
+
     CALL health.refresh_mat_health_insert_timing();
+    COMMIT;
+
+    -- base_hourly last: heaviest step and most likely to OOM.
+    CALL health.refresh_mat_health_base_hourly();
 END;
 $$;

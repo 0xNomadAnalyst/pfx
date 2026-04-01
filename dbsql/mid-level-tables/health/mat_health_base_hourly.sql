@@ -35,6 +35,8 @@ DECLARE
     _cutoff TIMESTAMPTZ := NOW() - INTERVAL '8 days';
     _from   TIMESTAMPTZ := NOW() - INTERVAL '2 hours';
 BEGIN
+    SET LOCAL work_mem = '32MB';
+
     DELETE FROM health.mat_health_base_hourly WHERE hour >= _from;
 
     -- Retention: drop data older than 8 days
@@ -80,7 +82,8 @@ BEGIN
                 _tbl.tcol, _from,
                 _tbl.tcol
             );
-        EXCEPTION WHEN undefined_table THEN
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'base_hourly: %.% failed: %', _tbl.s, _tbl.tbl, SQLERRM;
             CONTINUE;
         END;
     END LOOP;
