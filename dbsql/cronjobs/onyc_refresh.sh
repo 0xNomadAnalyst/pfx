@@ -43,8 +43,18 @@ RISK_REFRESH_MULT="${RISK_REFRESH_MULT:-60}"
 # Mat data retention (for cleanup of old materialized rows)
 MAT_RETENTION_DAYS="${MAT_RETENTION_DAYS:-100}"
 
-# Max consecutive failures before exit
+# Max consecutive failures before exponential backoff (not exit)
 MAX_CONSECUTIVE_FAILURES="${MAX_CONSECUTIVE_FAILURES:-10}"
+
+# Sequential fallback: after this many consecutive failures, switch mat table
+# refreshes from parallel to sequential to reduce DB memory pressure.
+SEQUENTIAL_FALLBACK_THRESHOLD="${SEQUENTIAL_FALLBACK_THRESHOLD:-3}"
+
+# After this many consecutive successes in sequential mode, promote back to parallel.
+SEQUENTIAL_PROMOTE_THRESHOLD="${SEQUENTIAL_PROMOTE_THRESHOLD:-20}"
+
+# Backoff ceiling in seconds (when stuck in failure loop)
+BACKOFF_MAX_SECONDS="${BACKOFF_MAX_SECONDS:-300}"
 
 # One-shot mode: run one full cycle (aux + CAGGs + mat + risk + health) then exit.
 # Set ONYC_SINGLE_RUN=1 or pass --once
@@ -81,6 +91,8 @@ echo "$LOG_PREFIX CAGG window: ${CAGG_REFRESH_WINDOW}"
 echo "$LOG_PREFIX Aux sync: every ${AUX_REFRESH_MULT} cycles ($((MAT_REFRESH_INTERVAL_S * AUX_REFRESH_MULT))s)"
 echo "$LOG_PREFIX Health check: every ${HEALTH_CHECK_MULT} cycles ($((MAT_REFRESH_INTERVAL_S * HEALTH_CHECK_MULT))s)"
 echo "$LOG_PREFIX Risk analytics: every ${RISK_REFRESH_MULT} cycles ($((MAT_REFRESH_INTERVAL_S * RISK_REFRESH_MULT))s)"
+echo "$LOG_PREFIX Sequential fallback after ${SEQUENTIAL_FALLBACK_THRESHOLD} failures, promote after ${SEQUENTIAL_PROMOTE_THRESHOLD} successes"
+echo "$LOG_PREFIX Backoff ceiling: ${BACKOFF_MAX_SECONDS}s"
 echo "$LOG_PREFIX Database: ${PGHOST}:${PGPORT}/${PGDATABASE}"
 
 echo "$LOG_PREFIX Testing database connection..."
@@ -206,6 +218,45 @@ EOF
     [ $fail -ne 0 ] && return 1
 
     # --- Phase 2b: cross-protocol (depends on domain mat tables) ---
+    psql "$DB_CONNECTION" <<EOF
+CALL cross_protocol.refresh_mat_xp_all();
+EOF
+}
+
+# =====================================================
+# Tier 1 — Phase 2 (sequential): Mat table + health refresh
+# =====================================================
+# Fallback mode when parallel execution causes OOM. Runs each domain
+# sequentially so only one heavy session competes for DB memory at a time.
+# Slower (~4x) but survives memory-constrained conditions.
+refresh_mat_tables_sequential() {
+    echo "$LOG_PREFIX Running mat tables in SEQUENTIAL mode (reduced memory)"
+
+    psql "$DB_CONNECTION" <<EOF
+CALL ${DEX_SCHEMA}.refresh_mat_dex_timeseries_1m();
+CALL ${DEX_SCHEMA}.refresh_mat_dex_ohlcv_1m();
+CALL ${DEX_SCHEMA}.refresh_mat_dex_last();
+EOF
+    [ $? -ne 0 ] && return 1
+
+    psql "$DB_CONNECTION" <<EOF
+CALL ${KAMINO_SCHEMA}.refresh_mat_klend_timeseries_1m();
+CALL ${KAMINO_SCHEMA}.refresh_mat_klend_last();
+CALL ${KAMINO_SCHEMA}.refresh_mat_klend_config();
+EOF
+    [ $? -ne 0 ] && return 1
+
+    psql "$DB_CONNECTION" <<EOF
+CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_timeseries_1m();
+CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_last();
+EOF
+    [ $? -ne 0 ] && return 1
+
+    psql "$DB_CONNECTION" <<EOF
+CALL health.refresh_mat_health_all();
+EOF
+    [ $? -ne 0 ] && return 1
+
     psql "$DB_CONNECTION" <<EOF
 CALL cross_protocol.refresh_mat_xp_all();
 EOF
@@ -460,7 +511,10 @@ EOF
 # =====================================================
 cycle_count=0
 failure_count=0
+sequential_success_count=0
 last_cleanup_date=""
+execution_mode="parallel"   # "parallel" or "sequential"
+backoff_seconds=0
 
 run_one_cycle() {
     cycle_count=$((cycle_count + 1))
@@ -469,28 +523,66 @@ run_one_cycle() {
 
     # --- Tier 2: Aux tables (every AUX_REFRESH_MULT cycles) ---
     if [ $((cycle_count % AUX_REFRESH_MULT)) -eq 1 ]; then
-        echo "$LOG_PREFIX [$ts] Cycle #${cycle_count} — aux sync + CAGGs + mat tables"
+        echo "$LOG_PREFIX [$ts] Cycle #${cycle_count} [$execution_mode] — aux sync + CAGGs + mat tables"
         if refresh_aux_tables 2>&1; then
             echo "$LOG_PREFIX Aux tables synced"
         else
             echo "$LOG_PREFIX Aux table sync failed (non-fatal)"
         fi
     else
-        echo "$LOG_PREFIX [$ts] Cycle #${cycle_count} — CAGGs + mat tables"
+        echo "$LOG_PREFIX [$ts] Cycle #${cycle_count} [$execution_mode] — CAGGs + mat tables"
     fi
 
     # --- Tier 1: CAGGs (Phase 1) then mat tables + health (Phase 2) ---
-    if refresh_caggs 2>&1 && refresh_mat_tables 2>&1; then
+    local mat_ok=0
+    if [ "$execution_mode" = "parallel" ]; then
+        refresh_caggs 2>&1 && refresh_mat_tables 2>&1 && mat_ok=1
+    else
+        refresh_caggs 2>&1 && refresh_mat_tables_sequential 2>&1 && mat_ok=1
+    fi
+
+    if [ "$mat_ok" -eq 1 ]; then
         failure_count=0
+        backoff_seconds=0
         elapsed_s=$(($(date +%s) - cycle_start))
         echo "$LOG_PREFIX Cycle #${cycle_count} completed in ${elapsed_s}s"
+
+        # Track sequential successes for promotion back to parallel
+        if [ "$execution_mode" = "sequential" ]; then
+            sequential_success_count=$((sequential_success_count + 1))
+            if [ "$sequential_success_count" -ge "$SEQUENTIAL_PROMOTE_THRESHOLD" ]; then
+                echo "$LOG_PREFIX ${sequential_success_count} consecutive sequential successes — promoting to parallel"
+                execution_mode="parallel"
+                sequential_success_count=0
+            fi
+        fi
     else
         failure_count=$((failure_count + 1))
+        sequential_success_count=0
         echo "$LOG_PREFIX Cycle #${cycle_count} FAILED (${failure_count}/${MAX_CONSECUTIVE_FAILURES})"
-        if [ "$failure_count" -ge "$MAX_CONSECUTIVE_FAILURES" ]; then
-            echo "$LOG_PREFIX Too many consecutive failures — exiting"
-            return 1
+
+        # Demote to sequential after threshold failures
+        if [ "$execution_mode" = "parallel" ] && [ "$failure_count" -ge "$SEQUENTIAL_FALLBACK_THRESHOLD" ]; then
+            echo "$LOG_PREFIX Demoting to sequential mode after ${failure_count} parallel failures"
+            execution_mode="sequential"
+            failure_count=0
         fi
+
+        # If even sequential mode is failing, apply exponential backoff
+        if [ "$execution_mode" = "sequential" ] && [ "$failure_count" -ge "$MAX_CONSECUTIVE_FAILURES" ]; then
+            if [ "$backoff_seconds" -eq 0 ]; then
+                backoff_seconds="$MAT_REFRESH_INTERVAL_S"
+            else
+                backoff_seconds=$((backoff_seconds * 2))
+            fi
+            if [ "$backoff_seconds" -gt "$BACKOFF_MAX_SECONDS" ]; then
+                backoff_seconds="$BACKOFF_MAX_SECONDS"
+            fi
+            echo "$LOG_PREFIX Sequential mode exhausted — backing off ${backoff_seconds}s before retry"
+            sleep "$backoff_seconds"
+            failure_count=0
+        fi
+
         return 2
     fi
 
@@ -519,7 +611,6 @@ run_one_cycle() {
 }
 
 if [ "$ONYC_SINGLE_RUN" = "1" ]; then
-    # Single run: one full cycle (aux + CAGGs + mat; risk/health only if cycle would include them)
     run_one_cycle
     exit $?
 fi
@@ -528,9 +619,7 @@ echo "$LOG_PREFIX Entering main loop..."
 
 while true; do
     run_one_cycle
-    r=$?
-    [ "$r" -eq 1 ] && exit 1
-    # --- Sleep until next cycle (cycle_start was set at start of run_one_cycle) ---
+    # Never exit permanently — backoff handles sustained failures
     elapsed_s=$(($(date +%s) - cycle_start))
     sleep_time=$((MAT_REFRESH_INTERVAL_S - elapsed_s))
     if [ "$sleep_time" -gt 0 ]; then
