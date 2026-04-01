@@ -1825,6 +1825,7 @@
 
     let instance = chartState.get(widgetId)?.instance;
     if (!instance) {
+      el.innerHTML = "";
       instance = echarts.init(el);
     }
 
@@ -5852,6 +5853,11 @@
     initRiskStressAssetToggles();
     initCascadePoolToggle();
     htmx.process(document.body);
+    widgetElements().forEach((el) => {
+      if (el.dataset.hasLoadedOnce !== "1") {
+        el.dataset.suppressNextLoadRequest = "0";
+      }
+    });
     _scheduleHydrationSettleCheck(trace);
     _finishHydrationTrace(trace);
     return true;
