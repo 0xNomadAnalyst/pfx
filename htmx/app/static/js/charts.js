@@ -71,8 +71,8 @@
   const PERSIST_CACHE_WIDGET_ENTRY_PREFIX = `${PERSIST_CACHE_KEY_PREFIX}widget:${PERSIST_CACHE_VERSION}:`;
   const PERSIST_CACHE_SHELL_ENTRY_PREFIX = `${PERSIST_CACHE_KEY_PREFIX}shell:${PERSIST_CACHE_VERSION}:`;
   const PERSIST_CACHE_MAX_BYTES = readRuntimeInt("persistCacheMaxBytes", 2 * 1024 * 1024, 262_144, 8 * 1024 * 1024);
-  const PERSIST_CACHE_MAX_ENTRIES = readRuntimeInt("persistCacheMaxEntries", 220, 50, 1200);
-  const PERSIST_CACHE_WIDGET_MAX_ENTRIES = readRuntimeInt("persistCacheWidgetMaxEntries", 180, 20, 1000);
+  const PERSIST_CACHE_MAX_ENTRIES = readRuntimeInt("persistCacheMaxEntries", 220, 50, 2000);
+  const PERSIST_CACHE_WIDGET_MAX_ENTRIES = readRuntimeInt("persistCacheWidgetMaxEntries", 180, 20, 2000);
   const PERSIST_WIDGET_STALE_AFTER_MS = Math.max(5_000, DASH_REFRESH_INTERVAL_MS);
   // Keep last-known widget payloads available much longer so users can return
   // instantly after dwelling on other pages; stale state still triggers refresh.
@@ -91,7 +91,7 @@
   const softNavShellPrefetchStats = new Map();
   let softNavShellCacheCapacity = SOFT_NAV_SHELL_CACHE_MAX_ENTRIES;
   const PINNED_SOFT_NAV_PATHS = new Set(["/global-ecosystem", "/cover"]);
-  const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = readRuntimeInt("widgetResponseCacheMaxEntries", 100, 10, 500);
+  const WIDGET_RESPONSE_CACHE_MAX_ENTRIES = readRuntimeInt("widgetResponseCacheMaxEntries", 100, 10, 2000);
   const widgetResponseCache = new Map();
   const perfMetrics = {
     softNavShellCacheHit: 0,
@@ -4806,6 +4806,15 @@
     return cached.html;
   }
 
+  function _syncSelectAttributesForSnapshot() {
+    document.querySelectorAll("select").forEach((sel) => {
+      for (const opt of sel.options) {
+        if (opt.selected) opt.setAttribute("selected", "");
+        else opt.removeAttribute("selected");
+      }
+    });
+  }
+
   function snapshotCurrentPageShellForSoftNavCache() {
     const path = normalizeSoftNavPath(`${window.location.pathname}${window.location.search || ""}`);
     if (!path) return;
@@ -4814,6 +4823,7 @@
         || document.querySelectorAll(".widget-loader.htmx-request").length > 0;
       const anyLoaded = document.querySelector('.widget-loader[data-has-loaded-once="1"]');
       if (hasInflight && !anyLoaded) return;
+      _syncSelectAttributesForSnapshot();
       const html = `<!DOCTYPE html>\n${document.documentElement.outerHTML}`;
       const source = hasInflight ? "live-partial" : "live";
       setSoftNavShellCache(path, html, { pinned: isPinnedSoftNavPath(path), source });

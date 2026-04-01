@@ -320,6 +320,22 @@ MIN_SUPPORTED_VIEWPORT_WIDTH = 882
 if _CACHE_CONFIG["soft_nav_shell_cache_max_entries"] < len(PAGES):
     _CACHE_CONFIG["soft_nav_shell_cache_max_entries"] = len(PAGES)
 
+# Ensure widget cache can hold all data widgets across every page with headroom
+# for filter-variant entries.  Without this the LRU evicts earlier pages' entries
+# when the user cycles through many widget-heavy pages.
+_DATA_KINDS = {"kpi", "chart", "table", "table-split"}
+_total_data_widgets = sum(
+    1 for page in PAGES for w in page.widgets if w.kind in _DATA_KINDS
+)
+_min_widget_cache = max(_total_data_widgets * 3, 200)
+if _CACHE_CONFIG["widget_response_cache_max_entries"] < _min_widget_cache:
+    _CACHE_CONFIG["widget_response_cache_max_entries"] = _min_widget_cache
+if _CACHE_CONFIG.get("persist_cache_widget_max_entries", 0) < _min_widget_cache:
+    _CACHE_CONFIG["persist_cache_widget_max_entries"] = _min_widget_cache
+_min_persist_total = _min_widget_cache + len(PAGES) + 20
+if _CACHE_CONFIG.get("persist_cache_max_entries", 0) < _min_persist_total:
+    _CACHE_CONFIG["persist_cache_max_entries"] = _min_persist_total
+
 app = FastAPI(
     title="HTMX Risk Dashboard",
     description="Server-rendered dashboard using HTMX + ECharts.",
