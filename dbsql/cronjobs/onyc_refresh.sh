@@ -232,30 +232,26 @@ EOF
 refresh_mat_tables_sequential() {
     echo "$LOG_PREFIX Running mat tables in SEQUENTIAL mode (reduced memory)"
 
-    psql "$DB_CONNECTION" <<EOF
+    psql "$DB_CONNECTION" <<EOF || return 1
 CALL ${DEX_SCHEMA}.refresh_mat_dex_timeseries_1m();
 CALL ${DEX_SCHEMA}.refresh_mat_dex_ohlcv_1m();
 CALL ${DEX_SCHEMA}.refresh_mat_dex_last();
 EOF
-    [ $? -ne 0 ] && return 1
 
-    psql "$DB_CONNECTION" <<EOF
+    psql "$DB_CONNECTION" <<EOF || return 1
 CALL ${KAMINO_SCHEMA}.refresh_mat_klend_timeseries_1m();
 CALL ${KAMINO_SCHEMA}.refresh_mat_klend_last();
 CALL ${KAMINO_SCHEMA}.refresh_mat_klend_config();
 EOF
-    [ $? -ne 0 ] && return 1
 
-    psql "$DB_CONNECTION" <<EOF
+    psql "$DB_CONNECTION" <<EOF || return 1
 CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_timeseries_1m();
 CALL ${EXPONENT_SCHEMA}.refresh_mat_exp_last();
 EOF
-    [ $? -ne 0 ] && return 1
 
-    psql "$DB_CONNECTION" <<EOF
+    psql "$DB_CONNECTION" <<EOF || return 1
 CALL health.refresh_mat_health_all();
 EOF
-    [ $? -ne 0 ] && return 1
 
     psql "$DB_CONNECTION" <<EOF
 CALL cross_protocol.refresh_mat_xp_all();
