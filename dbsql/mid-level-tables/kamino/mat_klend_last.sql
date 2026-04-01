@@ -85,6 +85,11 @@ CREATE TABLE IF NOT EXISTS kamino_lend.mat_klend_last_obligations (
     total_borrow_capacity_remaining      NUMERIC,
     market_capacity_utilization_pct      NUMERIC,
 
+    -- Pre-computed from src_obligations_last / cagg_activities_5s
+    zero_borrow_count                    BIGINT DEFAULT 0,
+    zero_borrow_capacity                 NUMERIC DEFAULT 0,
+    last_liquidation_days_ago            NUMERIC,
+
     last_updated                         TIMESTAMPTZ,
     refreshed_at                         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -190,6 +195,24 @@ BEGIN
         NOW()
     FROM kamino_lend.cagg_obligations_agg_5s o
     WHERE o.bucket = (SELECT MAX(bucket) FROM kamino_lend.cagg_obligations_agg_5s);
+
+    -- 2b. Pre-compute zero-borrow and last-liquidation into obligations row
+    UPDATE kamino_lend.mat_klend_last_obligations SET
+        zero_borrow_count = (
+            SELECT COUNT(*)
+            FROM kamino_lend.src_obligations_last
+            WHERE deposited_value_sf > 0 AND c_user_total_borrow < 1
+        ),
+        zero_borrow_capacity = (
+            SELECT ROUND(SUM(allowed_borrow_value_sf / POWER(2, 60))::NUMERIC, 0)
+            FROM kamino_lend.src_obligations_last
+            WHERE deposited_value_sf > 0 AND c_user_total_borrow < 1
+        ),
+        last_liquidation_days_ago = (
+            SELECT ROUND(EXTRACT(EPOCH FROM NOW() - MAX(bucket))::NUMERIC / 86400.0, 0)
+            FROM kamino_lend.cagg_activities_5s
+            WHERE liquidate_borrowing_sum > 0
+        );
 
     -- 3. Activities: 24h and 30d rollups
     TRUNCATE kamino_lend.mat_klend_last_activities;

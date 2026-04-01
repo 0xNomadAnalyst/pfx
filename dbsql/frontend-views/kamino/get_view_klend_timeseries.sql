@@ -203,6 +203,32 @@ BEGIN
         FROM kamino_lend.mat_klend_activity_ts_1m a
         WHERE a.bucket_time >= from_ts AND a.bucket_time <= to_ts
         GROUP BY time_bucket(v_interval, a.bucket_time), a.symbol
+    ),
+    act_pivoted AS (
+        SELECT
+            bt,
+            MAX(deposit_sum)     FILTER (WHERE symbol = v_brw1_symbol) AS brw1_deposit_sum,
+            MAX(deposit_count)   FILTER (WHERE symbol = v_brw1_symbol) AS brw1_deposit_count,
+            MAX(withdraw_sum)    FILTER (WHERE symbol = v_brw1_symbol) AS brw1_withdraw_sum,
+            MAX(withdraw_count)  FILTER (WHERE symbol = v_brw1_symbol) AS brw1_withdraw_count,
+            MAX(borrow_sum)      FILTER (WHERE symbol = v_brw1_symbol) AS brw1_borrow_sum,
+            MAX(borrow_count)    FILTER (WHERE symbol = v_brw1_symbol) AS brw1_borrow_count,
+            MAX(repay_sum)       FILTER (WHERE symbol = v_brw1_symbol) AS brw1_repay_sum,
+            MAX(repay_count)     FILTER (WHERE symbol = v_brw1_symbol) AS brw1_repay_count,
+            MAX(liquidate_sum)   FILTER (WHERE symbol = v_brw1_symbol) AS brw1_liquidate_sum,
+            MAX(liquidate_count) FILTER (WHERE symbol = v_brw1_symbol) AS brw1_liquidate_count,
+            MAX(deposit_sum)     FILTER (WHERE symbol = v_brw2_symbol) AS brw2_deposit_sum,
+            MAX(deposit_count)   FILTER (WHERE symbol = v_brw2_symbol) AS brw2_deposit_count,
+            MAX(withdraw_sum)    FILTER (WHERE symbol = v_brw2_symbol) AS brw2_withdraw_sum,
+            MAX(withdraw_count)  FILTER (WHERE symbol = v_brw2_symbol) AS brw2_withdraw_count,
+            MAX(borrow_sum)      FILTER (WHERE symbol = v_brw2_symbol) AS brw2_borrow_sum,
+            MAX(borrow_count)    FILTER (WHERE symbol = v_brw2_symbol) AS brw2_borrow_count,
+            MAX(repay_sum)       FILTER (WHERE symbol = v_brw2_symbol) AS brw2_repay_sum,
+            MAX(repay_count)     FILTER (WHERE symbol = v_brw2_symbol) AS brw2_repay_count,
+            MAX(liquidate_sum)   FILTER (WHERE symbol = v_brw2_symbol) AS brw2_liquidate_sum,
+            MAX(liquidate_count) FILTER (WHERE symbol = v_brw2_symbol) AS brw2_liquidate_count
+        FROM activity_rebucketed
+        GROUP BY bt
     )
     SELECT
         p.bt,
@@ -235,37 +261,42 @@ BEGIN
         v_coll1_symbol,
         ROUND(p.coll1_collateral::NUMERIC, 0),
         ROUND(p.coll_all_collateral::NUMERIC, 0),
-        -- Brw1 activities
-        ROUND(COALESCE((SELECT deposit_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0)::NUMERIC, 0),
-        COALESCE((SELECT deposit_count FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0)::BIGINT,
-        ROUND(COALESCE((SELECT withdraw_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0)::NUMERIC, 0),
-        COALESCE((SELECT withdraw_count FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0)::BIGINT,
-        ROUND(COALESCE((SELECT borrow_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0)::NUMERIC, 0),
-        COALESCE((SELECT borrow_count FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0)::BIGINT,
-        ROUND(COALESCE((SELECT repay_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0)::NUMERIC, 0),
-        COALESCE((SELECT repay_count FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0)::BIGINT,
-        ROUND(COALESCE((SELECT liquidate_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0)::NUMERIC, 0),
-        COALESCE((SELECT liquidate_count FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0)::BIGINT,
-        ROUND((COALESCE((SELECT deposit_sum + repay_sum + liquidate_sum - withdraw_sum - borrow_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw1_symbol), 0))::NUMERIC, 0),
-        -- Brw2 activities
-        ROUND(COALESCE((SELECT deposit_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0)::NUMERIC, 0),
-        COALESCE((SELECT deposit_count FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0)::BIGINT,
-        ROUND(COALESCE((SELECT withdraw_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0)::NUMERIC, 0),
-        COALESCE((SELECT withdraw_count FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0)::BIGINT,
-        ROUND(COALESCE((SELECT borrow_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0)::NUMERIC, 0),
-        COALESCE((SELECT borrow_count FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0)::BIGINT,
-        ROUND(COALESCE((SELECT repay_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0)::NUMERIC, 0),
-        COALESCE((SELECT repay_count FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0)::BIGINT,
-        ROUND(COALESCE((SELECT liquidate_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0)::NUMERIC, 0),
-        COALESCE((SELECT liquidate_count FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0)::BIGINT,
-        ROUND((COALESCE((SELECT deposit_sum + repay_sum + liquidate_sum - withdraw_sum - borrow_sum FROM activity_rebucketed WHERE bt = p.bt AND symbol = v_brw2_symbol), 0))::NUMERIC, 0),
-        -- Aggregate activities (market value — use brw1 and brw2 prices)
-        ROUND(COALESCE((SELECT SUM(deposit_sum * CASE WHEN aa.symbol = v_brw1_symbol THEN p.brw1_price WHEN aa.symbol = v_brw2_symbol THEN p.brw2_price ELSE 1 END) FROM activity_rebucketed aa WHERE aa.bt = p.bt), 0)::NUMERIC, 0),
-        ROUND(COALESCE((SELECT SUM(withdraw_sum * CASE WHEN aa.symbol = v_brw1_symbol THEN p.brw1_price WHEN aa.symbol = v_brw2_symbol THEN p.brw2_price ELSE 1 END) FROM activity_rebucketed aa WHERE aa.bt = p.bt), 0)::NUMERIC, 0),
-        ROUND(COALESCE((SELECT SUM(borrow_sum * CASE WHEN aa.symbol = v_brw1_symbol THEN p.brw1_price WHEN aa.symbol = v_brw2_symbol THEN p.brw2_price ELSE 1 END) FROM activity_rebucketed aa WHERE aa.bt = p.bt), 0)::NUMERIC, 0),
-        ROUND(COALESCE((SELECT SUM(repay_sum * CASE WHEN aa.symbol = v_brw1_symbol THEN p.brw1_price WHEN aa.symbol = v_brw2_symbol THEN p.brw2_price ELSE 1 END) FROM activity_rebucketed aa WHERE aa.bt = p.bt), 0)::NUMERIC, 0),
-        ROUND(COALESCE((SELECT SUM(liquidate_sum * CASE WHEN aa.symbol = v_brw1_symbol THEN p.brw1_price WHEN aa.symbol = v_brw2_symbol THEN p.brw2_price ELSE 1 END) FROM activity_rebucketed aa WHERE aa.bt = p.bt), 0)::NUMERIC, 0),
-        ROUND(COALESCE((SELECT SUM((deposit_sum + repay_sum + liquidate_sum - withdraw_sum - borrow_sum) * CASE WHEN aa.symbol = v_brw1_symbol THEN p.brw1_price WHEN aa.symbol = v_brw2_symbol THEN p.brw2_price ELSE 1 END) FROM activity_rebucketed aa WHERE aa.bt = p.bt), 0)::NUMERIC, 0),
+        -- Brw1 activities (from pre-pivoted CTE)
+        ROUND(COALESCE(ap.brw1_deposit_sum, 0)::NUMERIC, 0),
+        COALESCE(ap.brw1_deposit_count, 0)::BIGINT,
+        ROUND(COALESCE(ap.brw1_withdraw_sum, 0)::NUMERIC, 0),
+        COALESCE(ap.brw1_withdraw_count, 0)::BIGINT,
+        ROUND(COALESCE(ap.brw1_borrow_sum, 0)::NUMERIC, 0),
+        COALESCE(ap.brw1_borrow_count, 0)::BIGINT,
+        ROUND(COALESCE(ap.brw1_repay_sum, 0)::NUMERIC, 0),
+        COALESCE(ap.brw1_repay_count, 0)::BIGINT,
+        ROUND(COALESCE(ap.brw1_liquidate_sum, 0)::NUMERIC, 0),
+        COALESCE(ap.brw1_liquidate_count, 0)::BIGINT,
+        ROUND((COALESCE(ap.brw1_deposit_sum, 0) + COALESCE(ap.brw1_repay_sum, 0) + COALESCE(ap.brw1_liquidate_sum, 0)
+             - COALESCE(ap.brw1_withdraw_sum, 0) - COALESCE(ap.brw1_borrow_sum, 0))::NUMERIC, 0),
+        -- Brw2 activities (from pre-pivoted CTE)
+        ROUND(COALESCE(ap.brw2_deposit_sum, 0)::NUMERIC, 0),
+        COALESCE(ap.brw2_deposit_count, 0)::BIGINT,
+        ROUND(COALESCE(ap.brw2_withdraw_sum, 0)::NUMERIC, 0),
+        COALESCE(ap.brw2_withdraw_count, 0)::BIGINT,
+        ROUND(COALESCE(ap.brw2_borrow_sum, 0)::NUMERIC, 0),
+        COALESCE(ap.brw2_borrow_count, 0)::BIGINT,
+        ROUND(COALESCE(ap.brw2_repay_sum, 0)::NUMERIC, 0),
+        COALESCE(ap.brw2_repay_count, 0)::BIGINT,
+        ROUND(COALESCE(ap.brw2_liquidate_sum, 0)::NUMERIC, 0),
+        COALESCE(ap.brw2_liquidate_count, 0)::BIGINT,
+        ROUND((COALESCE(ap.brw2_deposit_sum, 0) + COALESCE(ap.brw2_repay_sum, 0) + COALESCE(ap.brw2_liquidate_sum, 0)
+             - COALESCE(ap.brw2_withdraw_sum, 0) - COALESCE(ap.brw2_borrow_sum, 0))::NUMERIC, 0),
+        -- Aggregate activities (market value — price-weighted from brw1 + brw2)
+        ROUND((COALESCE(ap.brw1_deposit_sum * p.brw1_price, 0) + COALESCE(ap.brw2_deposit_sum * p.brw2_price, 0))::NUMERIC, 0),
+        ROUND((COALESCE(ap.brw1_withdraw_sum * p.brw1_price, 0) + COALESCE(ap.brw2_withdraw_sum * p.brw2_price, 0))::NUMERIC, 0),
+        ROUND((COALESCE(ap.brw1_borrow_sum * p.brw1_price, 0) + COALESCE(ap.brw2_borrow_sum * p.brw2_price, 0))::NUMERIC, 0),
+        ROUND((COALESCE(ap.brw1_repay_sum * p.brw1_price, 0) + COALESCE(ap.brw2_repay_sum * p.brw2_price, 0))::NUMERIC, 0),
+        ROUND((COALESCE(ap.brw1_liquidate_sum * p.brw1_price, 0) + COALESCE(ap.brw2_liquidate_sum * p.brw2_price, 0))::NUMERIC, 0),
+        ROUND((COALESCE((COALESCE(ap.brw1_deposit_sum, 0) + COALESCE(ap.brw1_repay_sum, 0) + COALESCE(ap.brw1_liquidate_sum, 0)
+             - COALESCE(ap.brw1_withdraw_sum, 0) - COALESCE(ap.brw1_borrow_sum, 0)) * p.brw1_price, 0)
+             + COALESCE((COALESCE(ap.brw2_deposit_sum, 0) + COALESCE(ap.brw2_repay_sum, 0) + COALESCE(ap.brw2_liquidate_sum, 0)
+             - COALESCE(ap.brw2_withdraw_sum, 0) - COALESCE(ap.brw2_borrow_sum, 0)) * p.brw2_price, 0))::NUMERIC, 0),
         -- Obligations
         o.obligation_query_id,
         ROUND(o.market_cap_util, 1),
@@ -277,7 +308,7 @@ BEGIN
         ROUND((COALESCE(o.unhealthy_debt, 0) + COALESCE(o.bad_debt, 0))::NUMERIC, 0),
         ROUND(CASE
             WHEN (COALESCE(o.unhealthy_debt, 0) + COALESCE(o.bad_debt, 0)) > 0
-            THEN COALESCE((SELECT SUM(liquidate_sum * CASE WHEN aa.symbol = v_brw1_symbol THEN p.brw1_price WHEN aa.symbol = v_brw2_symbol THEN p.brw2_price ELSE 1 END) FROM activity_rebucketed aa WHERE aa.bt = p.bt), 0)
+            THEN (COALESCE(ap.brw1_liquidate_sum * p.brw1_price, 0) + COALESCE(ap.brw2_liquidate_sum * p.brw2_price, 0))
                  / (COALESCE(o.unhealthy_debt, 0) + COALESCE(o.bad_debt, 0)) * 100
             ELSE NULL
         END::NUMERIC, 2),
@@ -286,6 +317,7 @@ BEGIN
         p.mkt_address
     FROM pivoted p
     LEFT JOIN obligation_rebucketed o ON o.bt = p.bt
+    LEFT JOIN act_pivoted ap ON ap.bt = p.bt
     ORDER BY p.bt;
 END;
 $$ LANGUAGE plpgsql STABLE;

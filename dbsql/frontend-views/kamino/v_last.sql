@@ -82,21 +82,6 @@ coll_arr AS (
         array_agg(c.symbol ORDER BY c.symbol) AS symbols_arr
     FROM collateral_reserves c
     CROSS JOIN coll_agg agg
-),
-zero_borrow_usage AS (
-    SELECT
-        COUNT(*)::BIGINT AS zero_borrow_count,
-        ROUND(SUM(allowed_borrow_value_sf / POWER(2, 60))::NUMERIC, 0) AS zero_borrow_capacity
-    FROM kamino_lend.src_obligations_last
-    WHERE deposited_value_sf > 0
-      AND c_user_total_borrow < 1
-),
-last_liq AS (
-    SELECT ROUND(
-        EXTRACT(EPOCH FROM NOW() - MAX(bucket))::NUMERIC / 86400.0, 0
-    ) AS days_ago
-    FROM kamino_lend.cagg_activities_5s
-    WHERE liquidate_borrowing_sum > 0
 )
 SELECT
     brw_arr.utilization_pct_arr         AS reserve_brw_all_utilization_pct_array,
@@ -117,9 +102,9 @@ SELECT
     ROUND(obl.unhealthy_debt_pct, 2)    AS obl_debt_total_unhealthy_pct,
     coll_arr.shares_pct_arr             AS reserve_coll_all_shares_pct_array,
     coll_arr.symbols_arr                AS reserve_coll_all_symbols_array,
-    COALESCE(zb.zero_borrow_count, 0::BIGINT)
+    COALESCE(obl.zero_borrow_count, 0::BIGINT)
                                         AS obl_debt_borrow_zero_use_count,
-    COALESCE(zb.zero_borrow_capacity, 0::NUMERIC)
+    COALESCE(obl.zero_borrow_capacity, 0::NUMERIC)
                                         AS obl_debt_borrow_zero_use_capacity,
     brw_arr.borrow_apy_arr              AS reserve_brw_all_borrow_apy_array,
     brw_arr.supply_apy_arr              AS reserve_brw_all_supply_apy_array,
@@ -130,7 +115,7 @@ SELECT
     brw_arr.withdraw_vol_24h_arr        AS reserve_brw_all_withdraw_vol_24h_array,
     brw_arr.deposit_vol_24h_arr         AS reserve_brw_all_deposit_vol_24h_array,
     brw_arr.liquidated_avg_size_arr     AS reserve_brw_all_liquidated_avg_size_array,
-    ll.days_ago                         AS last_liquidation_days_ago,
+    obl.last_liquidation_days_ago       AS last_liquidation_days_ago,
     ROUND((ca.total_coll_mktval
            - COALESCE(obl.total_liquidatable_value, 0))::NUMERIC, 0)
                                         AS reserve_coll_all_collateral_less_liquidatable_mktval,
@@ -154,6 +139,4 @@ FROM brw_agg ba
 CROSS JOIN coll_agg ca
 CROSS JOIN brw_arr
 CROSS JOIN coll_arr
-CROSS JOIN zero_borrow_usage zb
-LEFT JOIN obl ON TRUE
-LEFT JOIN last_liq ll ON TRUE;
+LEFT JOIN obl ON TRUE;

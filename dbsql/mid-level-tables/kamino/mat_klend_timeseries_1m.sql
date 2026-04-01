@@ -50,6 +50,9 @@ CREATE INDEX IF NOT EXISTS idx_mat_klend_reserve_ts_1m_symbol
 CREATE INDEX IF NOT EXISTS idx_mat_klend_reserve_ts_1m_type
     ON kamino_lend.mat_klend_reserve_ts_1m (reserve_type, bucket_time DESC);
 
+CREATE INDEX IF NOT EXISTS idx_mat_klend_reserve_ts_1m_bt
+    ON kamino_lend.mat_klend_reserve_ts_1m (bucket_time, reserve_address);
+
 -- ========================
 -- Obligation timeseries (one row per bucket — market-level aggregates)
 -- ========================
@@ -109,6 +112,9 @@ SELECT create_hypertable(
 
 CREATE INDEX IF NOT EXISTS idx_mat_klend_activity_ts_1m_symbol
     ON kamino_lend.mat_klend_activity_ts_1m (symbol, bucket_time DESC);
+
+CREATE INDEX IF NOT EXISTS idx_mat_klend_activity_ts_1m_bt_symbol
+    ON kamino_lend.mat_klend_activity_ts_1m (bucket_time, symbol);
 
 -- ---------------------------------------------------------------------------
 -- Refresh procedure: incremental for all three sub-tables
