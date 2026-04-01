@@ -7,11 +7,11 @@ from typing import Annotated
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-from app.api.schemas import WidgetResponse
 from app.services.cache_config import API_CACHE_CONFIG
 from app.services.data_service import DataService
 from app.services import pipeline_config
@@ -148,8 +148,8 @@ def get_meta(
         raise HTTPException(status_code=500, detail="Meta query failed") from exc
 
 
-@router.get("/api/v1/{page}/{widget}", response_model=WidgetResponse)
-@router.get("/api/v1/pages/{page}/widgets/{widget}", response_model=WidgetResponse)
+@router.get("/api/v1/{page}/{widget}")
+@router.get("/api/v1/pages/{page}/widgets/{widget}")
 def get_widget(
     request: Request,
     page: str,
@@ -182,7 +182,7 @@ def get_widget(
     price_basis: Annotated[str, Query()] = "default",
     _pipeline: Annotated[str, Query(alias="_pipeline")] = "",
     svc: DataService = Depends(get_data_service),
-) -> WidgetResponse:
+) -> ORJSONResponse:
     _ensure_pipeline_for_request(_pipeline)
     params = {
         "protocol": protocol,
@@ -221,10 +221,10 @@ def get_widget(
             "current_path": request.headers.get("X-Riskdash-Current-Path", ""),
         }
         payload = svc.get_widget_data(page=page, widget_id=widget, params=params, trace_ctx=trace_ctx)
-        return WidgetResponse(**payload)
+        return ORJSONResponse(content=payload)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Widget not found") from exc
-    except Exception as exc:  # pragma: no cover - defensive path
+    except Exception as exc:
         logger.error("Widget query failed page=%s widget=%s: %s", page, widget, exc)
         raise HTTPException(status_code=500, detail="Widget query failed") from exc
 

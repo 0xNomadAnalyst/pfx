@@ -4,14 +4,21 @@ import time
 import logging
 import hashlib
 import re
-from decimal import Decimal
 from typing import Any
 
 import psycopg2
+import psycopg2.extensions
 import psycopg2.extras
 from psycopg2.pool import ThreadedConnectionPool
 
 logger = logging.getLogger(__name__)
+
+_DEC2FLOAT = psycopg2.extensions.new_type(
+    psycopg2.extensions.DECIMAL.values,
+    "DEC2FLOAT",
+    lambda value, curs: float(value) if value is not None else None,
+)
+psycopg2.extensions.register_type(_DEC2FLOAT)
 
 
 class SqlAdapter:
@@ -296,15 +303,7 @@ class SqlAdapter:
 
     @staticmethod
     def _normalize_row(row: dict[str, Any]) -> dict[str, Any]:
-        normalized: dict[str, Any] = {}
-        for key, value in row.items():
-            if isinstance(value, Decimal):
-                normalized[key] = float(value)
-            elif isinstance(value, list):
-                normalized[key] = [float(item) if isinstance(item, Decimal) else item for item in value]
-            else:
-                normalized[key] = value
-        return normalized
+        return dict(row)
 
     def _record_pool_checkout(self, pool: ThreadedConnectionPool, checkout_wait_ms: float) -> None:
         if not self._telemetry_enabled:

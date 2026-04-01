@@ -393,44 +393,24 @@ class DataService:
         else:
             warmup_jobs.extend(global_jobs)
 
-        warmup_concurrency = int(os.getenv("API_PREWARM_CONCURRENCY", "4"))
-        warmup_concurrency = max(1, min(warmup_concurrency, 12))
         failures = 0
         completed = 0
-        skipped = 0
-
-        def _run_warmup_job(job: tuple[str, str, dict[str, Any]]) -> bool:
+        for page, widget_id, params in warmup_jobs:
             if max_seconds > 0 and (time.perf_counter() - started) >= max_seconds:
-                return False
-            page, widget_id, params = job
-            self.get_widget_data(page=page, widget_id=widget_id, params=params)
-            return True
-
-        with ThreadPoolExecutor(max_workers=warmup_concurrency) as executor:
-            futures = {}
-            for job in warmup_jobs:
-                if max_seconds > 0 and (time.perf_counter() - started) >= max_seconds:
-                    skipped += len(warmup_jobs) - len(futures) - skipped
-                    break
-                fut = executor.submit(_run_warmup_job, job)
-                futures[fut] = job
-
-            for fut in as_completed(futures):
-                job = futures[fut]
-                try:
-                    ok = fut.result()
-                    if ok:
-                        completed += 1
-                    else:
-                        skipped += 1
-                except Exception as exc:
-                    failures += 1
-                    logger.warning("Warmup failed for %s/%s: %s", job[0], job[1], exc)
-
-        logger.info(
-            "Warmup complete: %s/%s jobs, %s failures, %s skipped (concurrency=%s)",
-            completed, len(warmup_jobs), failures, skipped, warmup_concurrency,
-        )
+                logger.info(
+                    "Warmup budget reached after %s jobs in %.2fs (limit %.2fs)",
+                    completed,
+                    time.perf_counter() - started,
+                    max_seconds,
+                )
+                break
+            try:
+                self.get_widget_data(page=page, widget_id=widget_id, params=params)
+                completed += 1
+            except Exception as exc:
+                failures += 1
+                logger.warning("Warmup failed for %s/%s: %s", page, widget_id, exc)
+        logger.info("Warmup complete: %s/%s jobs, %s failures", completed, len(warmup_jobs), failures)
 
     def list_widgets(self, page: str | None = None) -> list[str]:
         page_key = page or self._default_page
