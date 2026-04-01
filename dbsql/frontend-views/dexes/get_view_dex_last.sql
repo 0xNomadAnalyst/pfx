@@ -163,8 +163,8 @@ BEGIN
         FROM src_acct_tickarray_queries q
         WHERE (protocol_param IS NULL OR q.protocol = protocol_param)
           AND (pair_param IS NULL OR LOWER(q.token_pair) = LOWER(pair_param))
-          AND (lookback_param IS NULL OR q.time >= v_lookback_start)
-        ORDER BY q.pool_address, q.time DESC
+          AND (lookback_param IS NULL OR q.block_time >= v_lookback_start)
+        ORDER BY q.pool_address, q.block_time DESC
     LOOP
         v_liq_query_id := r_pool.query_id;
         v_pool_address := r_pool.pool_address;
@@ -185,8 +185,8 @@ BEGIN
             v_t1_reserve
         FROM src_acct_vaults v
         WHERE v.pool_address = v_pool_address
-          AND (lookback_param IS NULL OR v.time >= v_lookback_start)
-        ORDER BY v.time DESC
+          AND (lookback_param IS NULL OR v.block_time >= v_lookback_start)
+        ORDER BY v.block_time DESC
         LIMIT 1;
 
         SELECT
@@ -257,7 +257,7 @@ BEGIN
         WHERE s.pool_address = v_pool_address
           AND s.event_type = 'swap'
           AND lookback_param IS NOT NULL
-          AND s.time >= v_lookback_start
+          AND s.meta_block_time >= v_lookback_start
     ),
     max_individual_swaps AS (
         SELECT

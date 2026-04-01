@@ -69,7 +69,7 @@ BEGIN
     FROM dexes.src_acct_tickarray_queries q
     WHERE q.protocol = p_protocol
       AND q.token_pair = p_pair
-    ORDER BY q.time DESC
+    ORDER BY q.block_time DESC
     LIMIT 1;
 
     IF v_pool_address IS NULL THEN

@@ -264,9 +264,9 @@ BEGIN
         INTO v_prior_query_id, v_prior_price_t1_per_t0
         FROM src_acct_tickarray_queries q
         WHERE q.pool_address = _r.pool_address
-          AND q.time <= _r.query_time - p_delta_time
+          AND q.block_time <= _r.query_time - p_delta_time
           AND q.query_id <> _r.query_id
-        ORDER BY q.time DESC
+        ORDER BY q.block_time DESC
         LIMIT 1;
 
         RETURN QUERY

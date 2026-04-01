@@ -160,7 +160,7 @@ BEGIN
                 COALESCE(s.env_token1_decimals, ptr.token1_decimals, 6) AS token1_decimals
             FROM dexes.src_tx_events s
             INNER JOIN dexes.pool_tokens_reference ptr ON s.pool_address = ptr.pool_address
-            WHERE s.time >= NOW() - %L::INTERVAL
+            WHERE s.meta_block_time >= NOW() - %L::INTERVAL
                 AND s.protocol = %L
                 AND s.event_type = ANY(string_to_array(%L, ','))
                 AND s.token_pair = %L
