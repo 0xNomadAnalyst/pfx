@@ -49,16 +49,20 @@ EXCLUDED_TOKENS = {
         "category": "stablecoin",
         "note": "DAI (Wormhole) — MakerDAO, Ethereum-native decentralised stablecoin",
     },
-    "7kbnvuGBxxj8AG9qp8Scn56muWGaRaFqxg1FsRp3PaFT": {
-        "symbol": "UXD",
-        "category": "stablecoin",
-        "note": "UXD Protocol — delta-neutral stablecoin",
-    },
-    "A1KLoBrKBde8Ty9qtNQUtq3C2ortoC3u7twggz7sEto6": {
-        "symbol": "USDY",
-        "category": "stablecoin",
-        "note": "Ondo USDY — tokenised US Treasury yield stablecoin",
-    },
+
+    # potentially relevant
+    # "7kbnvuGBxxj8AG9qp8Scn56muWGaRaFqxg1FsRp3PaFT": {
+    #     "symbol": "UXD",
+    #     "category": "stablecoin",
+    #     "note": "UXD Protocol — delta-neutral stablecoin",
+    # },
+
+    # potentially relevant
+    # "A1KLoBrKBde8Ty9qtNQUtq3C2ortoC3u7twggz7sEto6": {
+    #     "symbol": "USDY",
+    #     "category": "stablecoin",
+    #     "note": "Ondo USDY — tokenised US Treasury yield stablecoin",
+    # },
 
     # -- Base-layer assets ----------------------------------------------------
     "So11111111111111111111111111111111111111112": {
@@ -88,11 +92,14 @@ EXCLUDED_TOKENS = {
         "category": "lst",
         "note": "Marinade staked SOL — largest Solana LST by market share",
     },
-    "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn": {
-        "symbol": "JitoSOL",
-        "category": "lst",
-        "note": "Jito staked SOL — MEV-boosted LST",
-    },
+
+    # potentially relevant
+    # "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn": {
+    #     "symbol": "JitoSOL",
+    #     "category": "lst",
+    #     "note": "Jito staked SOL — MEV-boosted LST",
+    # },
+
     "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj": {
         "symbol": "stSOL",
         "category": "lst",
@@ -103,11 +110,13 @@ EXCLUDED_TOKENS = {
         "category": "lst",
         "note": "BlazeStake staked SOL",
     },
-    "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm": {
-        "symbol": "INF",
-        "category": "lst",
-        "note": "Sanctum Infinity — multi-LST basket token",
-    },
+
+    # potentially relevant
+    # "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm": {
+    #     "symbol": "INF",
+    #     "category": "lst",
+    #     "note": "Sanctum Infinity — multi-LST basket token",
+    # },
 
     # -- Source protocol governance tokens ------------------------------------
     "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE": {
