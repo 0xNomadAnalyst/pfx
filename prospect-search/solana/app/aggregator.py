@@ -29,6 +29,8 @@ def aggregate(raw: pd.DataFrame) -> pd.DataFrame:
 
     # --- normalise token identity ---
     df["token_mint"] = df["token_mint"].astype(str).str.strip()
+    df["token_symbol"] = df["token_symbol"].astype(str).str.strip()
+    df.loc[df["token_symbol"] == "nan", "token_symbol"] = ""
     df = df[df["token_mint"].str.len() > 0]
 
     # --- filter exclusions ---
@@ -39,8 +41,8 @@ def aggregate(raw: pd.DataFrame) -> pd.DataFrame:
         log.warning("All rows excluded after filtering")
         return pd.DataFrame()
 
-    # Resolve canonical symbol per mint (most frequent non-empty symbol)
     symbol_map = _canonical_symbols(df)
+    symbol_stats = _symbol_quality_stats(df)
 
     grouped = df.groupby("token_mint", sort=False)
 
@@ -90,12 +92,26 @@ def aggregate(raw: pd.DataFrame) -> pd.DataFrame:
         # --- counterpart context (DEX only) ---
         rec["top_dex_counterparts"] = _top_counterparts(grp, mint)
 
+        # --- symbol quality ---
+        stats = symbol_stats.get(mint, {})
+        rec["source_count_with_symbol"] = stats.get("source_count", 0)
+        rec["symbol_confidence"] = _classify_symbol_confidence(
+            symbol=rec["token_symbol"],
+            source_count=stats.get("source_count", 0),
+            symbols_agree=stats.get("symbols_agree", True),
+        )
+        rec["has_complete_metadata"] = _has_complete_metadata(rec)
+
         records.append(rec)
 
     result = pd.DataFrame(records)
     log.info("Aggregator: %d unique tokens after filtering", len(result))
     return result
 
+
+# ======================================================================
+# Helpers
+# ======================================================================
 
 def _canonical_symbols(df: pd.DataFrame) -> dict[str, str]:
     """Pick the most-frequent non-empty symbol for each mint."""
@@ -108,6 +124,72 @@ def _canonical_symbols(df: pd.DataFrame) -> dict[str, str]:
         else:
             mapping[mint] = Counter(syms).most_common(1)[0][0]
     return mapping
+
+
+def _symbol_quality_stats(df: pd.DataFrame) -> dict[str, dict]:
+    """
+    For each mint, compute:
+      - source_count: number of distinct protocols that provided a non-empty
+        symbol for this mint.
+      - symbols_agree: True if every non-empty symbol string matches (after
+        uppercasing and stripping).  False if different sources disagree.
+    """
+    stats: dict[str, dict] = {}
+    for mint, grp in df.groupby("token_mint"):
+        with_symbol = grp.dropna(subset=["token_symbol"])
+        with_symbol = with_symbol[with_symbol["token_symbol"].str.len() > 0]
+
+        source_count = with_symbol["protocol"].nunique()
+        unique_symbols = set(
+            with_symbol["token_symbol"].str.strip().str.upper().unique()
+        )
+        symbols_agree = len(unique_symbols) <= 1
+
+        stats[mint] = {
+            "source_count": source_count,
+            "symbols_agree": symbols_agree,
+        }
+    return stats
+
+
+def _classify_symbol_confidence(
+    symbol: str,
+    source_count: int,
+    symbols_agree: bool,
+) -> str:
+    """
+    Classify symbol trustworthiness for downstream filtering.
+
+    Returns one of:
+      high   — 2+ independent protocol APIs agree on the symbol
+      medium — exactly 1 protocol API provided the symbol (standard for
+               single-protocol tokens; the symbol is typically reliable)
+      low    — symbol present but no protocol API provided it natively
+               (resolved via Metaplex fallback)
+      none   — no symbol resolved at all
+    """
+    if not symbol:
+        return "none"
+    if source_count >= 2 and symbols_agree:
+        return "high"
+    if source_count >= 1:
+        return "medium"
+    return "low"
+
+
+def _has_complete_metadata(rec: dict) -> bool:
+    """
+    Whether this token has enough structured data for a downstream process
+    to act on without manual inspection.
+
+    Requires:
+      - A resolved symbol (any confidence level except "none")
+      - Economically non-trivial: either multi-protocol presence (which
+        independently validates the token) OR aggregate TVL >= $100K
+    """
+    if not rec["token_symbol"] or rec["symbol_confidence"] == "none":
+        return False
+    return rec["protocol_count"] >= 2 or rec["total_tvl_usd"] >= 100_000
 
 
 def _top_counterparts(grp: pd.DataFrame, mint: str) -> str:

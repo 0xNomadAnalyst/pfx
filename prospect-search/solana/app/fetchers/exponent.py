@@ -3,6 +3,17 @@ Exponent yield-tokenisation fetcher.
 GET https://web-api.exponent.finance/api/markets
 
 Returns one row per market, keyed on the underlying asset (vault.mintAsset).
+
+Symbol resolution strategy (in priority order):
+  1. vault.underlyingSymbol / vault.assetSymbol  (rarely present)
+  2. Extracted from metadata.ptTicker  (e.g. "PT-mUSDC" -> "mUSDC")
+  3. Extracted from metadata.ptName    (e.g. "PT-xSOL-14JUN25" -> "xSOL")
+  4. Cross-fetcher backfill in main.py (Orca/Raydium/Meteora/Kamino data)
+  5. Falls back to empty string — the aggregator resolves from other protocols
+
+Many newer Exponent markets ship with empty ptTicker/ptName.  The cross-fetcher
+backfill (step 4) is the main mechanism that resolves these, using the mint→symbol
+mapping already available from the DEX and lending fetchers.
 """
 
 import logging
@@ -35,6 +46,23 @@ def fetch() -> pd.DataFrame:
         log.warning("Exponent: unexpected response type %s", type(markets))
         return pd.DataFrame()
 
+    # Pass 1: collect all markets and build a mint→symbol map from those that
+    # DO have ptTicker, so we can share it with markets that don't.
+    mint_symbol_map: dict[str, str] = {}
+    for mkt in markets:
+        vault = mkt.get("vault", {})
+        metadata = mkt.get("metadata", {})
+        mint = vault.get("mintAsset") or vault.get("quoteMint") or ""
+        sym = (
+            vault.get("underlyingSymbol")
+            or vault.get("assetSymbol")
+            or _symbol_from_metadata(metadata)
+            or ""
+        )
+        if mint and sym and mint not in mint_symbol_map:
+            mint_symbol_map[mint] = sym
+
+    # Pass 2: build rows, using the map for markets missing symbols.
     rows: list[dict] = []
     for mkt in markets:
         vault = mkt.get("vault", {})
@@ -43,7 +71,7 @@ def fetch() -> pd.DataFrame:
 
         tvl = _float(stats.get("liquidityPoolTvl"))
         if tvl is not None:
-            tvl = tvl / (10 ** (vault.get("decimals", 6)))  # raw -> normalised
+            tvl = tvl / (10 ** (vault.get("decimals", 6)))
         if tvl is None or tvl < config.MIN_TVL_USD:
             continue
 
@@ -54,14 +82,12 @@ def fetch() -> pd.DataFrame:
         underlying_symbol = (
             vault.get("underlyingSymbol")
             or vault.get("assetSymbol")
-            or _symbol_from_pt_ticker(metadata.get("ptTicker", ""))
-            or ""
+            or _symbol_from_metadata(metadata)
+            or mint_symbol_map.get(underlying_mint, "")
         )
 
-        market_name = metadata.get("ptName") or metadata.get("ptTicker") or vault.get("niceName") or ""
         platform = vault.get("platform", "")
-        if platform:
-            market_name = f"{market_name} ({platform})"
+        market_name = _build_market_name(metadata, vault, underlying_symbol, platform)
 
         rows.append({
             "token_symbol": underlying_symbol,
@@ -74,15 +100,47 @@ def fetch() -> pd.DataFrame:
             "pool_name": market_name,
         })
 
-    log.info("Exponent: fetched %d market rows", len(rows))
+    log.info("Exponent: fetched %d market rows (%d with symbol, %d without)",
+             len(rows),
+             sum(1 for r in rows if r["token_symbol"]),
+             sum(1 for r in rows if not r["token_symbol"]))
     return pd.DataFrame(rows)
 
 
-def _symbol_from_pt_ticker(pt_ticker: str) -> str | None:
-    """Extract underlying symbol from PT ticker like 'PT-mUSDC' -> 'mUSDC'."""
+def _symbol_from_metadata(metadata: dict) -> str | None:
+    """Extract underlying symbol from ptTicker or ptName."""
+    pt_ticker = metadata.get("ptTicker", "")
     if pt_ticker.startswith("PT-"):
         return pt_ticker[3:]
+
+    pt_name = metadata.get("ptName", "")
+    if pt_name.startswith("PT-"):
+        # "PT-xSOL-14JUN25" -> "xSOL"
+        parts = pt_name[3:].split("-")
+        if parts:
+            return parts[0]
+
     return None
+
+
+def _build_market_name(metadata: dict, vault: dict, symbol: str, platform: str) -> str:
+    """
+    Build an informative market name even when ptName/ptTicker are empty.
+    """
+    pt_name = metadata.get("ptName") or metadata.get("ptTicker") or ""
+    if pt_name:
+        return f"{pt_name} ({platform})" if platform else pt_name
+
+    nice_name = vault.get("niceName", "")
+    if nice_name:
+        return f"{nice_name} ({platform})" if platform else nice_name
+
+    # Fallback: construct from symbol and platform
+    if symbol and platform:
+        return f"{symbol} yield ({platform})"
+    if platform:
+        return f"yield ({platform})"
+    return ""
 
 
 def _float(val) -> float | None:
