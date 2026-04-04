@@ -461,16 +461,24 @@
     </div>
     <div class="bottombar-right">
       <span class="bottombar-label">Powered by</span>
+      {% if show_footer_partner_shyft %}
       <a href="https://shyft.to/" target="_blank" rel="noopener noreferrer" class="bottombar-partner" aria-label="Shyft">
         <img class="bottombar-logo bottombar-logo--shyft bottombar-logo--for-light" src="/static/images/shyft_logo_light.svg" alt="Shyft" />
         <img class="bottombar-logo bottombar-logo--shyft bottombar-logo--for-dark" src="/static/images/shyft_logo_dark.svg" alt="" aria-hidden="true" />
       </a>
+      {% endif %}
+      {% if show_footer_partner_shyft and show_footer_partner_tigerdata %}
       <span class="bottombar-sep">|</span>
+      {% endif %}
+      {% if show_footer_partner_tigerdata %}
       <a href="https://www.tigerdata.com/" target="_blank" rel="noopener noreferrer" class="bottombar-partner" aria-label="Tiger Data">
         <img class="bottombar-logo bottombar-logo--tigerdata bottombar-logo--for-light" src="/static/images/tigerdata_horizontal_black.png" alt="Tiger Data" />
         <img class="bottombar-logo bottombar-logo--tigerdata bottombar-logo--for-dark" src="/static/images/tigerdata_horizontal_yellow.png" alt="" aria-hidden="true" />
       </a>
+      {% endif %}
+      {% if show_footer_partner_shyft or show_footer_partner_tigerdata %}
       <span class="bottombar-sep">|</span>
+      {% endif %}
       <a
         href="/static/downloads/RMcKinley-FinancialSystemsAnalyst-Platform.pdf"
         target="_blank"

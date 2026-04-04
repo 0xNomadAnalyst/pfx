@@ -50,6 +50,9 @@ SHOW_PRICE_BASIS = os.getenv("SHOW_PRICE_BASIS", "1") == "1"
 DEFAULT_PRICE_BASIS = os.getenv("DEFAULT_PRICE_BASIS", "default")
 SHOW_ASSET_FILTER = os.getenv("SHOW_ASSET_FILTER", "1") == "1"
 SHOW_REFRESH_BUTTON = os.getenv("SHOW_REFRESH_BUTTON", "1") == "1"
+# Footer "Powered by" partner marks (1=show, 0=hide).
+SHOW_FOOTER_PARTNER_SHYFT = os.getenv("SHOW_FOOTER_PARTNER_SHYFT", "1") == "1"
+SHOW_FOOTER_PARTNER_TIGERDATA = os.getenv("SHOW_FOOTER_PARTNER_TIGERDATA", "0") == "1"
 NAV_LAYOUT_SIDEBAR = os.getenv("NAV_LAYOUT_SIDEBAR", "0") == "1"
 ALL_LAST_WINDOW_OPTIONS = ["1h", "4h", "6h", "24h", "7d", "30d", "90d"]
 _lw_raw = os.getenv("LAST_WINDOW_OPTIONS", "")
@@ -641,6 +644,8 @@ def _build_page_context(
         "min_supported_viewport_width": MIN_SUPPORTED_VIEWPORT_WIDTH,
         "request_mobile": request_mobile,
         "show_refresh_button": SHOW_REFRESH_BUTTON,
+        "show_footer_partner_shyft": SHOW_FOOTER_PARTNER_SHYFT,
+        "show_footer_partner_tigerdata": SHOW_FOOTER_PARTNER_TIGERDATA,
         "show_view_selector": not NAV_LAYOUT_SIDEBAR,
         "use_sidebar_nav": NAV_LAYOUT_SIDEBAR,
         "warmup_manifest": warmup_manifest,
