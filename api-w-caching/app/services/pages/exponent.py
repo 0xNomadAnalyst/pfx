@@ -17,6 +17,7 @@ class ExponentPageService(BasePageService):
     _V_LAST_TTL_SECONDS = float(os.getenv("EXPONENT_V_LAST_TTL_SECONDS", "120"))
     _TIMESERIES_TTL_SECONDS = float(os.getenv("EXPONENT_TIMESERIES_TTL_SECONDS", "120"))
     _MARKET_ASSETS_TTL_SECONDS = float(os.getenv("EXPONENT_MARKET_ASSETS_TTL_SECONDS", "300"))
+    _V_LAST_TIMEOUT_MS = 30_000
     _TIMESERIES_TIMEOUT_MS = 30_000
 
     def __init__(self, *args: Any, **kwargs: Any):
@@ -143,6 +144,7 @@ class ExponentPageService(BasePageService):
                     "FROM exponent.get_view_exponent_last(%s, %s) "
                     "LIMIT 1",
                     (mkt1, mkt2),
+                    statement_timeout_ms=self._V_LAST_TIMEOUT_MS,
                 )
             else:
                 rows = self.sql.fetch_rows(
@@ -168,7 +170,8 @@ class ExponentPageService(BasePageService):
                     "  start_datetime_mkt1, end_datetime_mkt1, "
                     "  start_datetime_mkt2, end_datetime_mkt2 "
                     "FROM exponent.get_view_exponent_last() "
-                    "LIMIT 1"
+                    "LIMIT 1",
+                    statement_timeout_ms=self._V_LAST_TIMEOUT_MS,
                 )
             return rows[0] if rows else {}
 

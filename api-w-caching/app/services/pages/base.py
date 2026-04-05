@@ -15,6 +15,9 @@ class BasePageService:
     default_protocol = "orca"
     default_pair = "ONyc-USDC"
 
+    _STAMPEDE_POLL_SECONDS = 0.1
+    _STAMPEDE_MAX_WAIT_SECONDS = 35.0
+
     def __init__(self, sql: Any | None = None, cache: Any | None = None):
         # Keep compatibility with both service stacks:
         # - legacy stack passes (SqlAdapter, QueryCache)
@@ -70,7 +73,30 @@ class BasePageService:
                     return value
                 if stale_expires_at <= now:
                     self._cache.pop(key, None)
-        value = fn()
+
+        # Stampede protection: only one thread fetches per cache key;
+        # other threads wait and read from cache once the first completes.
+        waited = 0.0
+        while True:
+            with self._cache_lock:
+                cached = self._cache.get(key)
+                if cached and cached[0] > time.time():
+                    self._cache.move_to_end(key)
+                    return cached[2]
+                if key not in self._refreshing:
+                    self._refreshing.add(key)
+                    break
+            if waited >= self._STAMPEDE_MAX_WAIT_SECONDS:
+                break
+            time.sleep(self._STAMPEDE_POLL_SECONDS)
+            waited += self._STAMPEDE_POLL_SECONDS
+
+        try:
+            value = fn()
+        finally:
+            with self._cache_lock:
+                self._refreshing.discard(key)
+        now = time.time()
         with self._cache_lock:
             expires_at = now + ttl_seconds
             self._cache[key] = (expires_at, expires_at + swr, value)
