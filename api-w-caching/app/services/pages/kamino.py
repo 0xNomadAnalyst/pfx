@@ -184,21 +184,18 @@ class KaminoPageService(BasePageService):
             return out
         return self._cached("kamino::price_vol_7d", _load, ttl_seconds=self._CONFIG_TTL_SECONDS)
 
+    _RATE_CURVE_TIMEOUT_MS = 30_000
+
     def _rate_curve_rows(self) -> list[dict[str, Any]]:
         def _load() -> list[dict[str, Any]]:
-            try:
-                return self.sql.fetch_rows(
-                    "SELECT utilization_pct AS utilization_rate_pct, "
-                    "       borrow_rate_pct "
-                    "FROM kamino_lend.rate_curve_all() "
-                    "ORDER BY utilization_bps "
-                    "LIMIT 37"
-                )
-            except Exception:
-                return self.sql.fetch_rows(
-                    "SELECT utilization_rate_pct, borrow_rate_pct "
-                    "FROM kamino_lend.v_rate_curve_usx"
-                )
+            return self.sql.fetch_rows(
+                "SELECT utilization_pct AS utilization_rate_pct, "
+                "       borrow_rate_pct "
+                "FROM kamino_lend.rate_curve_all() "
+                "ORDER BY utilization_bps "
+                "LIMIT 37",
+                statement_timeout_ms=self._RATE_CURVE_TIMEOUT_MS,
+            )
         return self._cached(
             "kamino::rate_curve",
             _load,
