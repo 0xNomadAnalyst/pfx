@@ -35,7 +35,7 @@ EXPECTED_PIPELINES = ["solstice", "onyc"]
 PIPELINE_EXPECTED_META = {
     "solstice": {
         "protocols_contain": ["raydium"],
-        "pairs_contain": ["USX-USDC"],
+        "pairs_contain": ["USDG-ONyc"],
     },
     "onyc": {
         "protocols_contain": ["orca", "raydium"],
@@ -44,7 +44,7 @@ PIPELINE_EXPECTED_META = {
 }
 
 PIPELINE_DEFAULTS = {
-    "solstice": {"protocol": "raydium", "pair": "USX-USDC"},
+    "solstice": {"protocol": "raydium", "pair": "USDG-ONyc"},
     "onyc":     {"protocol": "orca",    "pair": "ONyc-USDC"},
 }
 
@@ -203,7 +203,7 @@ def _build_widget_url(page_id: str, widget: str, pipeline: str) -> str:
     page_cfg = ALL_WIDGETS[page_id]
     params = "last_window=24h&rows=5"
     if page_cfg["uses_pair"]:
-        params += f"&protocol={defaults.get('protocol', 'raydium')}&pair={defaults.get('pair', 'USX-USDC')}"
+        params += f"&protocol={defaults.get('protocol', 'orca')}&pair={defaults.get('pair', 'ONyc-USDC')}"
     return f"/api/v1/{page_id}/{widget}?{params}"
 
 

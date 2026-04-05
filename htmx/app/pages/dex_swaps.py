@@ -8,8 +8,8 @@ PAGE_CONFIG = PageConfig(
     label="DEX Swaps",
     api_page_id="dex-swaps",
     show_protocol_pair_filters=True,
-    default_protocol="raydium",
-    default_pair="USX-USDC",
+    default_protocol="orca",
+    default_pair="ONyc-USDC",
     video_guide_youtube_id="ky5vsKgcEK0",
     widgets=[
         WidgetConfig("kpi-swap-volume-24h", "24h Swap Volume", "kpi", "panel panel-kpi swaps-slot-kpi-a1"),

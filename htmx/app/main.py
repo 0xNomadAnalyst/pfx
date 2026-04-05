@@ -67,7 +67,7 @@ if DEFAULT_LAST_WINDOW not in LAST_WINDOW_OPTIONS:
 # Root URL `/` redirects here (must match an enabled page slug, e.g. app.pages.global).
 DEFAULT_HOME_PAGE_SLUG = os.getenv("DEFAULT_HOME_PAGE_SLUG", "global-ecosystem")
 PIPELINE_DEFAULTS: dict[str, dict[str, str]] = {
-    "solstice": {"protocol": "raydium", "pair": "USX-USDC", "asset": "USX"},
+    "solstice": {"protocol": "raydium", "pair": "USDG-ONyc", "asset": "ONyc"},
     "onyc":     {"protocol": "orca",    "pair": "ONyc-USDC", "asset": "ONyc"},
 }
 # ── Server-side proxy settings (not part of cache mode) ──────────────

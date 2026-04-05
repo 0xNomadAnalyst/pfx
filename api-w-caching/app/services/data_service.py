@@ -22,8 +22,8 @@ from app.services.sql_adapter import SqlAdapter
 
 logger = logging.getLogger(__name__)
 _HOTSPOT_WIDGET_KEYS = {
-    "global-ecosystem/ge-activity-vol-usx",
-    "global-ecosystem/ge-tvl-share-usx",
+    "global-ecosystem/ge-activity-vol",
+    "global-ecosystem/ge-tvl-share",
 }
 
 
@@ -234,8 +234,8 @@ class DataService:
             row_sizes = [20]
 
         base_params = {
-            "protocol": "raydium",
-            "pair": "USX-USDC",
+            "protocol": "orca",
+            "pair": "ONyc-USDC",
             "page": 1,
         }
         exponent_jobs: list[tuple[str, str, dict[str, Any]]] = []

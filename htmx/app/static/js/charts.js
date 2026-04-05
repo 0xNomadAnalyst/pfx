@@ -4429,13 +4429,13 @@
   function currentProtocol() {
     const select = document.getElementById("protocol-select");
     if (select) return select.value;
-    return document.body?.dataset?.defaultProtocol || "raydium";
+    return document.body?.dataset?.defaultProtocol || "orca";
   }
 
   function currentPair() {
     const select = document.getElementById("pair-select");
     if (select) return select.value;
-    return document.body?.dataset?.defaultPair || "USX-USDC";
+    return document.body?.dataset?.defaultPair || "ONyc-USDC";
   }
 
   function currentAsset() {
@@ -4446,14 +4446,17 @@
   function pairForAssetProtocol(protocol, asset) {
     if (!asset) {
       const pairSel = document.getElementById("pair-select");
-      if (pairSel) return pairSel.value || "USX-USDC";
+      if (pairSel) return pairSel.value || "";
       const match = protocolPairs.find((pp) => pp.protocol === protocol);
       return match ? match.pair : "";
     }
     const match = protocolPairs.find(
       (pp) => pp.protocol === protocol && pp.pair.split("-").includes(asset)
     );
-    return match ? match.pair : `${asset}-USDC`;
+    if (match) return match.pair;
+    const protoMatch = protocolPairs.find((pp) => pp.protocol === protocol);
+    if (protoMatch) return protoMatch.pair;
+    return `${asset}-USDC`;
   }
 
   function extractSyToken(mktName) {

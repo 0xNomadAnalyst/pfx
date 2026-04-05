@@ -143,11 +143,11 @@
     <div id="ctx-protocol-pair" class="export-control-group" hidden>
       <label class="filter-label" for="protocol-select">Protocol</label>
       <select id="protocol-select" class="filter-select" aria-label="Protocol">
-        <option value="raydium">raydium</option>
+        <option value="orca">orca</option>
       </select>
       <label class="filter-label" for="pair-select">Pair</label>
       <select id="pair-select" class="filter-select" aria-label="Pair">
-        <option value="USX-USDC">USX-USDC</option>
+        <option value="ONyc-USDC">ONyc-USDC</option>
       </select>
     </div>
 
@@ -460,7 +460,7 @@
           for (var k = 0; k < protocols.length; k++) {
             if (uniqueProto.indexOf(protocols[k]) === -1) uniqueProto.push(protocols[k]);
           }
-          var curProto = protocolSelect.value || "raydium";
+          var curProto = protocolSelect.value || "orca";
           populateSelect(protocolSelect, uniqueProto, curProto);
           curProto = protocolSelect.value;
           var pairs = pairsForProtocol(curProto);

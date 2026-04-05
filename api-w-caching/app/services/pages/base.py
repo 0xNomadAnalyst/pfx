@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 class BasePageService:
     page_id = ""
-    default_protocol = "raydium"
-    default_pair = "USX-USDC"
+    default_protocol = "orca"
+    default_pair = "ONyc-USDC"
 
     def __init__(self, sql: Any | None = None, cache: Any | None = None):
         # Keep compatibility with both service stacks:

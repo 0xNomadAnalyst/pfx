@@ -871,7 +871,7 @@ class GlobalEcosystemPageService(BasePageService):
 
         def _load() -> dict[str, Any]:
             payload = self._activity_vol(params)
-            payload["dynamic_title"] = f"USX Activity Volume vs. Time (Last {self._window_label(last_window)})"
+            payload["dynamic_title"] = f"Activity Volume vs. Time (Last {self._window_label(last_window)})"
             payload["hotspot_widget"] = "ge-activity-vol-usx"
             return payload
 
@@ -880,7 +880,7 @@ class GlobalEcosystemPageService(BasePageService):
     def _activity_vol_eusx(self, params: dict[str, Any]) -> dict[str, Any]:
         payload = self._activity_vol(params)
         last_window = self._window_label(params.get("last_window", "7d"))
-        payload["dynamic_title"] = f"eUSX Activity Volume vs. Time (Last {last_window})"
+        payload["dynamic_title"] = f"Activity Volume vs. Time (Last {last_window})"
         payload["hotspot_widget"] = "ge-activity-vol-eusx"
         return payload
 
@@ -919,7 +919,7 @@ class GlobalEcosystemPageService(BasePageService):
 
         def _load() -> dict[str, Any]:
             payload = self._tvl_share(params)
-            payload["dynamic_title"] = f"USX TVL Share vs. Time (Last {self._window_label(last_window)})"
+            payload["dynamic_title"] = f"TVL Share vs. Time (Last {self._window_label(last_window)})"
             payload["hotspot_widget"] = "ge-tvl-share-usx"
             return payload
 
@@ -928,6 +928,6 @@ class GlobalEcosystemPageService(BasePageService):
     def _tvl_share_eusx(self, params: dict[str, Any]) -> dict[str, Any]:
         payload = self._tvl_share(params)
         last_window = self._window_label(params.get("last_window", "7d"))
-        payload["dynamic_title"] = f"eUSX TVL Share vs. Time (Last {last_window})"
+        payload["dynamic_title"] = f"TVL Share vs. Time (Last {last_window})"
         payload["hotspot_widget"] = "ge-tvl-share-eusx"
         return payload

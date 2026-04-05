@@ -19,7 +19,7 @@ PIPELINES: dict[str, dict[str, str]] = {}
 _current_pipeline: str = ""
 
 PIPELINE_DEFAULTS: dict[str, dict[str, str]] = {
-    "solstice": {"protocol": "raydium", "pair": "USX-USDC"},
+    "solstice": {"protocol": "raydium", "pair": "USDG-ONyc"},
     "onyc":     {"protocol": "orca",    "pair": "ONyc-USDC"},
 }
 

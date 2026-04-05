@@ -8,8 +8,8 @@ PAGE_CONFIG = PageConfig(
     label="DEX Liquidity",
     api_page_id="playbook-liquidity",
     show_protocol_pair_filters=True,
-    default_protocol="raydium",
-    default_pair="USX-USDC",
+    default_protocol="orca",
+    default_pair="ONyc-USDC",
     video_guide_youtube_id="ky5vsKgcEK0",
     widgets=[
         WidgetConfig("kpi-tvl", "TVL in USDC units", "kpi", "panel panel-kpi slot-kpi-a1"),

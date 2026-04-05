@@ -330,8 +330,8 @@ def parse_args() -> argparse.Namespace:
         default="playbook-liquidity",
         help="Page segment(s): single page, comma-separated pages, or 'all'",
     )
-    parser.add_argument("--protocol", default="raydium", help="Protocol filter")
-    parser.add_argument("--pair", default="USX-USDC", help="Pair filter")
+    parser.add_argument("--protocol", default="orca", help="Protocol filter")
+    parser.add_argument("--pair", default="ONyc-USDC", help="Pair filter")
     parser.add_argument("--mkt1", default="", help="Optional market selector #1 (exponent page)")
     parser.add_argument("--mkt2", default="", help="Optional market selector #2 (exponent page)")
     parser.add_argument(

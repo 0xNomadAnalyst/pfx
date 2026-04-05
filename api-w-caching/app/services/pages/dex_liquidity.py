@@ -65,8 +65,8 @@ class DexLiquidityPageService(BasePageService):
         return self._cached("meta::protocol_pairs", _load_meta, ttl_seconds=self._META_TTL_SECONDS)
 
     def _tick_dist_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
-        protocol = str(params.get("protocol", "raydium"))
-        pair = str(params.get("pair", "USX-USDC"))
+        protocol = str(params.get("protocol", self.default_protocol))
+        pair = str(params.get("pair", self.default_pair))
         delta_time = str(params.get("tick_delta_time", "1 hour"))
         p_invert = self._should_invert(params, protocol)
         timeout_ms = self._TICK_DIST_TIMEOUT_MS
@@ -160,8 +160,8 @@ class DexLiquidityPageService(BasePageService):
         return mapping.get(window, mapping["24h"])
 
     def _dex_last_row(self, params: dict[str, Any]) -> dict[str, Any]:
-        protocol = str(params.get("protocol", "raydium"))
-        pair = str(params.get("pair", "USX-USDC"))
+        protocol = str(params.get("protocol", self.default_protocol))
+        pair = str(params.get("pair", self.default_pair))
         lookback = str(params.get("lookback", "1 day"))
         last_window = str(params.get("last_window", "24h"))
         lookback_from_window, _, _ = self._timeseries_window_config(last_window)
@@ -212,8 +212,8 @@ class DexLiquidityPageService(BasePageService):
         return self._cached(cache_key, _load_row, ttl_seconds=self._DEX_LAST_TTL_SECONDS)
 
     def _dex_timeseries_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
-        protocol = str(params.get("protocol", "raydium"))
-        pair = str(params.get("pair", "USX-USDC"))
+        protocol = str(params.get("protocol", self.default_protocol))
+        pair = str(params.get("pair", self.default_pair))
         interval = str(params.get("interval", "5 minutes"))
         rows = int(params.get("rows", 120))
         last_window = str(params.get("last_window", "24h"))
@@ -447,8 +447,8 @@ class DexLiquidityPageService(BasePageService):
         }
 
     def _liquidity_depth_table(self, params: dict[str, Any]) -> dict[str, Any]:
-        protocol = str(params.get("protocol", "raydium"))
-        pair = str(params.get("pair", "USX-USDC"))
+        protocol = str(params.get("protocol", self.default_protocol))
+        pair = str(params.get("pair", self.default_pair))
         p_invert = self._should_invert(params, protocol)
 
         def _load_rows() -> list[dict[str, Any]]:
@@ -591,8 +591,8 @@ class DexLiquidityPageService(BasePageService):
         }
 
     def _ranked_lp_events(self, params: dict[str, Any]) -> dict[str, Any]:
-        protocol = str(params.get("protocol", "raydium"))
-        pair = str(params.get("pair", "USX-USDC"))
+        protocol = str(params.get("protocol", self.default_protocol))
+        pair = str(params.get("pair", self.default_pair))
         rows = 10
         lookback = str(params.get("lookback", "1 day"))
         last_window = str(params.get("last_window", "24h")).lower()
