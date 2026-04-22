@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Type — McKinley Financial Systems</title>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+  body { margin: 0; padding: 48px; background: var(--bg); }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  .h1 { font-size: 1.7rem; margin: 0 0 8px; font-weight: 500; letter-spacing: -0.01em; }
+  .section { margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--border-soft); }
+  .row { display: grid; grid-template-columns: 180px 1fr; gap: 24px; align-items: baseline; padding: 10px 0; }
+  .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-muted); }
+  .spec { display: flex; flex-direction: column; gap: 4px; }
+  .meta { font-family: var(--font-mono); font-size: 11px; color: var(--fg-quiet); letter-spacing: 0.04em; }
+  .inter { font-family: var(--font-sans); }
+  .mono  { font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Token Library</p>
+  <h1 class="h1">Type — Inter + Geist Mono</h1>
+  <p class="section-intro">Medium weights preferred. Authority through restraint. Mono for labels, numbers and code only.</p>
+
+  <div class="section">
+    <p class="label" style="margin-bottom:12px">Scale — Inter</p>
+
+    <div class="row"><span class="label">Display H1</span>
+      <div class="spec">
+        <span class="inter" style="font-size: var(--fs-display); line-height:1.16; font-weight:500; letter-spacing:-0.01em">Understand complex financial systems.</span>
+        <span class="meta">--fs-display · clamp(2.2rem, 1.6rem + 2.4vw, 2.9rem) · 500</span>
+      </div>
+    </div>
+
+    <div class="row"><span class="label">Section H2</span>
+      <div class="spec">
+        <span class="inter" style="font-size: var(--fs-h1); line-height:1.25; font-weight:500">Where Visibility Matters Most</span>
+        <span class="meta">--fs-h1 · clamp(1.78, ~2.08rem) · 500</span>
+      </div>
+    </div>
+
+    <div class="row"><span class="label">Card title</span>
+      <div class="spec">
+        <span class="inter" style="font-size: var(--fs-h3); font-weight:500">Market-Maker Visibility &amp; Accountability</span>
+        <span class="meta">--fs-h3 · 1.03rem · 500</span>
+      </div>
+    </div>
+
+    <div class="row"><span class="label">Body</span>
+      <div class="spec">
+        <span class="inter" style="font-size: var(--fs-body); line-height:var(--lh-body); color: var(--fg-muted)">Monitor third-party support, performance during stress periods, and improve negotiation and KPI design.</span>
+        <span class="meta">--fs-body · 1rem · 400 · line-height 1.68 · --fg-muted</span>
+      </div>
+    </div>
+
+    <div class="row"><span class="label">Body small</span>
+      <div class="spec">
+        <span class="inter" style="font-size: var(--fs-body-sm); color: var(--fg-muted)">Selective engagements where operational visibility and system correctness are critical.</span>
+        <span class="meta">--fs-body-sm · 0.95rem · 400</span>
+      </div>
+    </div>
+
+    <div class="row"><span class="label">Small / caption</span>
+      <div class="spec">
+        <span class="inter" style="font-size: var(--fs-small); color: var(--fg-quiet)">© 2026 Roderick McKinley</span>
+        <span class="meta">--fs-small · 0.88rem · --fg-quiet</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="label" style="margin-bottom:12px">Scale — Geist Mono</p>
+
+    <div class="row"><span class="label">Eyebrow</span>
+      <div class="spec">
+        <span class="mono" style="font-size: 11px; text-transform:uppercase; letter-spacing:0.15em">KEY OPERATIONAL DOMAINS</span>
+        <span class="meta">11px · UPPER · tracking 0.15em</span>
+      </div>
+    </div>
+
+    <div class="row"><span class="label">Card index</span>
+      <div class="spec">
+        <span class="mono" style="font-size:12px; text-transform:uppercase; letter-spacing:0.14em; color:rgba(248,169,74,0.84)">03</span>
+        <span class="meta">12px · cta/84 · tracking 0.14em</span>
+      </div>
+    </div>
+
+    <div class="row"><span class="label">Tabular numeric</span>
+      <div class="spec">
+        <span class="mono" style="font-size:22px; font-weight:500; font-variant-numeric: tabular-nums">$1,420,384,212.44</span>
+        <span class="meta">22px metric · font-variant-numeric: tabular-nums</span>
+      </div>
+    </div>
+
+    <div class="row"><span class="label">Delta</span>
+      <div class="spec">
+        <span class="mono" style="font-size:12px; color:var(--good)">▲ 1.24%</span>
+        &nbsp;
+        <span class="mono" style="font-size:12px; color:var(--bad)">▼ 0.42%</span>
+        <span class="meta">12px · --good / --bad</span>
+      </div>
+    </div>
+
+    <div class="row"><span class="label">Table cell</span>
+      <div class="spec">
+        <span class="mono" style="font-size:12.5px; font-variant-numeric: tabular-nums">0.02 &nbsp;&nbsp; 4xQn…r2hP &nbsp;&nbsp; USX/USDC</span>
+        <span class="meta">12.5px tabular-nums</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="label" style="margin-bottom:12px">Weight vocabulary</p>
+    <div class="row"><span class="label">400 regular</span><div class="spec"><span class="inter" style="font-weight:400">Roderick McKinley — Independent Financial Systems Analyst</span><span class="meta">body default</span></div></div>
+    <div class="row"><span class="label">500 medium</span><div class="spec"><span class="inter" style="font-weight:500">Roderick McKinley — Independent Financial Systems Analyst</span><span class="meta">headings, card titles, metrics (preferred)</span></div></div>
+    <div class="row"><span class="label">600 semibold</span><div class="spec"><span class="inter" style="font-weight:600">Roderick McKinley — Independent Financial Systems Analyst</span><span class="meta">rare · topbar title, active tab</span></div></div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Visual Reference — McKinley Financial Systems</title>
+<link rel="icon" href="../../assets/favicon-32x32.png" />
+<link rel="stylesheet" href="slides.css?v=3" />
+</head>
+<body>
+
+<!-- ── Shared SVG icon sprite (mono line, 1.6px stroke, 24px viewBox) ── -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ico-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>
+    </symbol>
+    <symbol id="ico-database" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/>
+    </symbol>
+    <symbol id="ico-bars" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M3 21V10"/><path d="M9 21V4"/><path d="M15 21v-9"/><path d="M21 21V7"/>
+    </symbol>
+    <symbol id="ico-compass" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <circle cx="12" cy="12" r="9"/><path d="m16 8-5 5-3 3 5-5 3-3Z"/>
+    </symbol>
+    <symbol id="ico-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M12 3 4 6v6c0 4 3 7.5 8 9 5-1.5 8-5 8-9V6l-8-3Z"/>
+    </symbol>
+    <symbol id="ico-trend" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>
+    </symbol>
+    <symbol id="ico-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".8" fill="currentColor"/>
+    </symbol>
+    <symbol id="ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <circle cx="11" cy="11" r="7"/><path d="m20 20-4.3-4.3"/>
+    </symbol>
+    <symbol id="ico-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+    </symbol>
+    <symbol id="ico-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/><path d="m3 17 9 5 9-5"/>
+    </symbol>
+    <symbol id="ico-code" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="m9 18-6-6 6-6"/><path d="m15 6 6 6-6 6"/>
+    </symbol>
+    <symbol id="ico-target" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/>
+    </symbol>
+    <symbol id="ico-focus" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M3 7V4h3"/><path d="M21 7V4h-3"/><path d="M3 17v3h3"/><path d="M21 17v3h-3"/><circle cx="12" cy="12" r="4"/>
+    </symbol>
+    <symbol id="ico-handshake" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M2 13l4 4 5-5"/><path d="M12 7l5 5 5-5"/><path d="M7 17l4 4 5-5"/><path d="M12 12l4-4"/>
+    </symbol>
+    <symbol id="ico-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>
+    </symbol>
+  </defs>
+</svg>
+
+<deck-stage>
+
+  <!-- 01 · Title split -->
+  <section class="s-bg-title" data-screen-label="01 Title">
+    <div class="s-chrome top">
+      <span class="s-footer-meta"><span style="opacity:.7">01</span> · Title Slide</span>
+      <span><span class="mark"></span>McKinley Financial Systems</span>
+    </div>
+
+    <div class="s-title-split">
+      <div>
+        <p class="s-eyebrow">Independent Practice · CFA · FRM</p>
+        <h1 class="s-title-xl" style="font-size: 88px">Understand and operate complex financial systems in realtime environments.</h1>
+        <p class="s-lede" style="max-width: 900px; font-size: 27px">
+          I build monitoring, analytics, and decision-support systems, and provide data-driven advisory for teams operating in DeFi and other complex digital-asset environments.
+        </p>
+        <p class="meta">Roderick McKinley, CFA, FRM &nbsp;·&nbsp; Independent Financial Systems Analyst</p>
+      </div>
+      <div class="s-hero-panel" id="hero-chart" style="aspect-ratio:auto; height:100%; min-height: 560px;"></div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">rmckinley.net</span><span>01 / 09</span></div>
+  </section>
+
+  <!-- 02 · Section intro -->
+  <section class="s-bg-section" data-screen-label="02 Section Intro">
+    <div class="s-chrome top"><span class="s-footer-meta">02 · Section Intro</span><span><span class="mark"></span>McKinley Financial Systems</span></div>
+
+    <div class="s-spacer"></div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center">
+      <div>
+        <p class="s-eyebrow">Key Operational Domains</p>
+        <h2 class="s-section-title" style="font-size: 92px">Where Visibility Matters Most</h2>
+        <p class="s-body" style="max-width: 700px; margin-top: 36px">
+          Teams managing live onchain financial operations often need support in one or more of these areas.
+        </p>
+      </div>
+      <!-- Ambient visual placeholder: soft radial gradient panel -->
+      <div style="position:relative; min-height: 520px; border: 1px solid var(--border); border-radius: 10px; overflow:hidden;
+                  background:
+                    radial-gradient(circle at 65% 40%, rgba(75,183,255,0.18), transparent 60%),
+                    radial-gradient(circle at 30% 75%, rgba(248,169,74,0.12), transparent 55%),
+                    var(--panel-2);">
+        <div style="position:absolute; inset:0; background:
+          repeating-linear-gradient(90deg, transparent 0 48px, rgba(255,255,255,0.04) 48px 49px),
+          repeating-linear-gradient(0deg,  transparent 0 48px, rgba(255,255,255,0.03) 48px 49px);"></div>
+      </div>
+    </div>
+    <div class="s-spacer"></div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>02 / 09</span></div>
+  </section>
+
+  <!-- 03 · Five-domain overview (3+2 grid, first tile accent) -->
+  <section data-screen-label="03 Five Domain Overview">
+    <div class="s-chrome top"><span class="s-footer-meta">03 · Five Domain Overview</span><span><span class="mark"></span>McKinley Financial Systems</span></div>
+
+    <p class="s-kicker">Key Operational Domains</p>
+    <h2 class="s-title-md" style="margin-bottom: 44px">Where visibility matters most.</h2>
+
+    <div class="s-grid-5" style="flex: 1">
+      <div class="s-icard focus">
+        <div class="row">
+          <span class="idx">01</span>
+          <span class="glyph"><svg><use href="#ico-eye"/></svg></span>
+        </div>
+        <h3>Risk Observability</h3>
+        <p>Real-time visibility into exposures, liquidity, and covariant risk across protocols and venues.</p>
+      </div>
+      <div class="s-icard">
+        <div class="row">
+          <span class="idx">02</span>
+          <span class="glyph"><svg><use href="#ico-database"/></svg></span>
+        </div>
+        <h3>Protocol State Monitoring</h3>
+        <p>Track reserves, positions, utilisation, and state changes across DeFi infrastructure.</p>
+      </div>
+      <div class="s-icard">
+        <div class="row">
+          <span class="idx">03</span>
+          <span class="glyph"><svg><use href="#ico-bars"/></svg></span>
+        </div>
+        <h3>Market Microstructure Analysis</h3>
+        <p>Understand flows, liquidity dynamics, and price formation in onchain markets.</p>
+      </div>
+      <div class="s-icard">
+        <div class="row">
+          <span class="idx">04</span>
+          <span class="glyph"><svg><use href="#ico-compass"/></svg></span>
+        </div>
+        <h3>Decision Surfaces</h3>
+        <p>Build and refine decision surfaces for strategy, risk, and parameter optimisation.</p>
+      </div>
+      <div class="s-icard">
+        <div class="row">
+          <span class="idx">05</span>
+          <span class="glyph"><svg><use href="#ico-shield"/></svg></span>
+        </div>
+        <h3>Operational Intelligence</h3>
+        <p>Monitoring, alerts, and investigative workflows that turn realtime data into live answers.</p>
+      </div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>03 / 09</span></div>
+  </section>
+
+  <!-- 04 · Outcomes (stat trio + callout) -->
+  <section data-screen-label="04 Outcomes Slide">
+    <div class="s-chrome top"><span class="s-footer-meta">04 · Outcomes Slide</span><span><span class="mark"></span>McKinley Financial Systems</span></div>
+
+    <p class="s-eyebrow">Selected Client Outcomes</p>
+    <h2 class="s-title-md" style="margin-bottom: 40px">Improvements with Financial Impact</h2>
+    <p class="s-body" style="margin-bottom: 44px; max-width: 1200px">
+      Better visibility translated into concrete changes in operating model, market-maker oversight, and cost.
+    </p>
+
+    <div class="s-grid-3" style="gap: 24px">
+      <div class="s-stat-card">
+        <div class="top">
+          <span class="glyph"><svg><use href="#ico-shield"/></svg></span>
+          <span class="label">Risk Event Reduction</span>
+        </div>
+        <div class="figure">65%</div>
+        <p class="sub">Reduction in high-severity risk events through improved monitoring and alerts.</p>
+      </div>
+      <div class="s-stat-card">
+        <div class="top">
+          <span class="glyph"><svg><use href="#ico-trend"/></svg></span>
+          <span class="label">Operational Cost Savings</span>
+        </div>
+        <div class="figure">~$1.2M</div>
+        <p class="sub">Annualised savings from process changes and oversight consolidation.</p>
+      </div>
+      <div class="s-stat-card">
+        <div class="top">
+          <span class="glyph"><svg><use href="#ico-search"/></svg></span>
+          <span class="label">Investigation Time Reduction</span>
+        </div>
+        <div class="figure">78%</div>
+        <p class="sub">Faster root-cause analysis with better data, context, and traceability.</p>
+      </div>
+    </div>
+
+    <div class="s-spacer" style="min-height: 20px"></div>
+
+    <div class="s-callout">
+      <span class="q">“</span>
+      <p>The results: clearer visibility, faster investigation, and stronger operating decisions in live financial environments.</p>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>04 / 09</span></div>
+  </section>
+
+  <!-- 05 · Process (5-step horizontal with icons) -->
+  <section class="s-bg-surface" data-screen-label="05 Process or Approach">
+    <div class="s-chrome top"><span class="s-footer-meta">05 · Process or Approach</span><span><span class="mark"></span>McKinley Financial Systems</span></div>
+
+    <p class="s-kicker">Engagement Approach</p>
+    <h2 class="s-title-md" style="margin-bottom: 44px">From Understanding to Operational Advantage</h2>
+
+    <div class="s-process">
+      <div class="s-process-step">
+        <span class="glyph"><svg><use href="#ico-search"/></svg></span>
+        <span class="num">01 · Understand</span>
+        <h4>Understand</h4>
+        <p>Go deep into environment, constraints, and operational objectives.</p>
+      </div>
+      <div class="s-process-step">
+        <span class="glyph"><svg><use href="#ico-bars"/></svg></span>
+        <span class="num">02 · Analyze</span>
+        <h4>Analyze</h4>
+        <p>Quantitative analysis and hypothesis testing using real data.</p>
+      </div>
+      <div class="s-process-step">
+        <span class="glyph"><svg><use href="#ico-grid"/></svg></span>
+        <span class="num">03 · Design</span>
+        <h4>Design</h4>
+        <p>Design monitoring, analytics, and decision-support systems.</p>
+      </div>
+      <div class="s-process-step">
+        <span class="glyph"><svg><use href="#ico-code"/></svg></span>
+        <span class="num">04 · Implement</span>
+        <h4>Implement</h4>
+        <p>Build production-grade data pipelines and interfaces.</p>
+      </div>
+      <div class="s-process-step">
+        <span class="glyph"><svg><use href="#ico-target"/></svg></span>
+        <span class="num">05 · Interpret</span>
+        <h4>Interpret</h4>
+        <p>Interpret results, surface insights, and guide operational decisions.</p>
+      </div>
+    </div>
+
+    <div class="s-process-footer">End-to-end ownership across analysis, design, implementation, and interpretation.</div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>05 / 09</span></div>
+  </section>
+
+  <!-- 06 · Data & visuals (chart + legend) -->
+  <section data-screen-label="06 Data and Visuals">
+    <div class="s-chrome top"><span class="s-footer-meta">06 · Data &amp; Visuals (Chart)</span><span><span class="mark"></span>McKinley Financial Systems</span></div>
+
+    <p class="s-kicker">Example Analysis</p>
+    <h2 class="s-title-md" style="margin-bottom: 36px">Liquidity Distribution Across Venues</h2>
+
+    <div style="flex: 1; display: grid; grid-template-columns: 1fr 320px; gap: 44px; min-height: 0">
+      <div id="liquidity-chart" style="min-height: 560px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); padding: 8px;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 24px">
+        <p class="s-body sm" style="max-width: none">
+          Real-time view of liquidity fragmentation across AMMs and orderbook venues highlights concentration risk and routing opportunities.
+        </p>
+        <div class="s-legend">
+          <div class="item"><span class="dot" style="background:#FF6B00"></span>Orca<span class="val">38%</span></div>
+          <div class="item"><span class="dot" style="background:#4BB7FF"></span>Raydium<span class="val">27%</span></div>
+          <div class="item"><span class="dot" style="background:#36C96A"></span>Meteora<span class="val">14%</span></div>
+          <div class="item"><span class="dot" style="background:#B085F5"></span>OpenBook<span class="val">12%</span></div>
+          <div class="item"><span class="dot" style="background:#8EA1C7"></span>Other<span class="val">9%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>06 / 09</span></div>
+  </section>
+
+  <!-- 07 · Comparison table -->
+  <section class="s-bg-surface" data-screen-label="07 Comparison or Table">
+    <div class="s-chrome top"><span class="s-footer-meta">07 · Comparison or Table</span><span><span class="mark"></span>McKinley Financial Systems</span></div>
+
+    <p class="s-kicker">Cross-Protocol View</p>
+    <h2 class="s-title-md" style="margin-bottom: 36px">Protocol Risk Metrics Comparison</h2>
+
+    <table class="s-table">
+      <thead>
+        <tr>
+          <th>Protocol</th>
+          <th>TVL (USD)</th>
+          <th>Utilisation</th>
+          <th>Liquidation Risk</th>
+          <th>Sharpe (30d)</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Kamino</td><td>$1.42B</td><td>72%</td><td><span class="muted">Low</span></td><td>1.28</td>
+          <td><span class="s-status healthy">Healthy</span></td>
+        </tr>
+        <tr>
+          <td>Aave V3</td><td>$2.31B</td><td>81%</td><td><span class="muted">Medium</span></td><td>1.07</td>
+          <td><span class="s-status monitor">Monitor</span></td>
+        </tr>
+        <tr>
+          <td>MarginFi</td><td>$612M</td><td>67%</td><td><span class="muted">Low</span></td><td>1.54</td>
+          <td><span class="s-status healthy">Healthy</span></td>
+        </tr>
+        <tr>
+          <td>Drift</td><td>$498M</td><td>58%</td><td><span class="muted">Medium</span></td><td>0.92</td>
+          <td><span class="s-status monitor">Monitor</span></td>
+        </tr>
+        <tr>
+          <td>Solend</td><td>$287M</td><td>83%</td><td class="num-neg">High</td><td>0.31</td>
+          <td><span class="s-status risk">Risk</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="s-body sm" style="margin-top: 24px; color: var(--fg-muted)">Data as of 15 May 2026, 19:00 UTC.</p>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>07 / 09</span></div>
+  </section>
+
+  <!-- 08 · Quote + metric grid -->
+  <section data-screen-label="08 Quote or Testimonial">
+    <div class="s-chrome top"><span class="s-footer-meta">08 · Quote or Testimonial</span><span><span class="mark"></span>McKinley Financial Systems</span></div>
+
+    <div style="flex: 1; display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center">
+      <div>
+        <blockquote class="s-quote" style="font-size: 38px">
+          Roderick's systems thinking and execution ability changed how we operate. The visibility and controls he built are now core to our risk and trading infrastructure.
+          <cite>Head of Trading · Leading Systematic Market Maker</cite>
+        </blockquote>
+      </div>
+
+      <div class="s-metric-grid">
+        <div class="s-mini">
+          <span class="label">PnL (30d)</span>
+          <span class="figure">$2.84M</span>
+          <span class="delta up">▲ 18.4%</span>
+          <svg class="spark" viewBox="0 0 300 56" preserveAspectRatio="none">
+            <polyline fill="rgba(54,201,106,0.18)" stroke="none"
+              points="0,52 0,40 25,38 55,32 90,30 125,22 160,25 195,18 230,15 265,10 300,8 300,56 0,56"/>
+            <polyline fill="none" stroke="#36C96A" stroke-width="1.6"
+              points="0,40 25,38 55,32 90,30 125,22 160,25 195,18 230,15 265,10 300,8"/>
+          </svg>
+        </div>
+        <div class="s-mini">
+          <span class="label">Inventory Risk</span>
+          <span class="figure">0.62</span>
+          <span class="delta down">▼ -6.2%</span>
+          <svg class="spark" viewBox="0 0 300 56" preserveAspectRatio="none">
+            <polyline fill="rgba(75,183,255,0.14)" stroke="none"
+              points="0,52 0,16 30,22 60,18 90,28 120,24 155,34 190,30 225,38 260,32 300,40 300,56 0,56"/>
+            <polyline fill="none" stroke="#4BB7FF" stroke-width="1.6"
+              points="0,16 30,22 60,18 90,28 120,24 155,34 190,30 225,38 260,32 300,40"/>
+          </svg>
+        </div>
+        <div class="s-mini">
+          <span class="label">Realised Vol</span>
+          <span class="figure">47.3%</span>
+          <span class="delta down">▼ -4.2%</span>
+          <svg class="spark" viewBox="0 0 300 56" preserveAspectRatio="none">
+            <polyline fill="rgba(248,169,74,0.14)" stroke="none"
+              points="0,52 0,20 30,28 65,22 95,32 130,26 165,36 200,30 235,40 270,34 300,42 300,56 0,56"/>
+            <polyline fill="none" stroke="#F8A94A" stroke-width="1.6"
+              points="0,20 30,28 65,22 95,32 130,26 165,36 200,30 235,40 270,34 300,42"/>
+          </svg>
+        </div>
+        <div class="s-mini">
+          <span class="label">Max Drawdown</span>
+          <span class="figure">3.2%</span>
+          <span class="delta down">▼ -1.1%</span>
+          <svg class="spark" viewBox="0 0 300 56" preserveAspectRatio="none">
+            <polyline fill="rgba(176,133,245,0.14)" stroke="none"
+              points="0,52 0,18 30,24 65,20 100,28 135,24 170,32 205,26 240,34 275,28 300,34 300,56 0,56"/>
+            <polyline fill="none" stroke="#B085F5" stroke-width="1.6"
+              points="0,18 30,24 65,20 100,28 135,24 170,32 205,26 240,34 275,28 300,34"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>08 / 09</span></div>
+  </section>
+
+  <!-- 09 · Closing — 3-up icon cards -->
+  <section class="s-bg-title" data-screen-label="09 Closing">
+    <div class="s-chrome top"><span class="s-footer-meta">09 · Closing Slide</span><span><span class="mark"></span>McKinley Financial Systems</span></div>
+
+    <p class="s-eyebrow">Availability</p>
+    <h2 class="s-title-lg" style="font-size: 72px; margin-bottom: 14px">Selective Engagements</h2>
+    <p class="s-body" style="max-width: 1400px; margin-bottom: 56px">
+      Selective engagements where operational visibility and system correctness are critical.
+    </p>
+
+    <div class="s-icon-strip">
+      <div class="s-icard">
+        <div class="row">
+          <span class="glyph s-glyph-amber" style="border-radius: 10px"><svg><use href="#ico-focus"/></svg></span>
+          <h3 style="font-size: 22px">Focus</h3>
+        </div>
+        <p>DeFi and digital-asset environments with operational complexity and material risk.</p>
+      </div>
+      <div class="s-icard">
+        <div class="row">
+          <span class="glyph s-glyph-amber" style="border-radius: 10px"><svg><use href="#ico-handshake"/></svg></span>
+          <h3 style="font-size: 22px">Engagements</h3>
+        </div>
+        <p>Principal-led work aligned to concrete operational outcomes — no delivery layers.</p>
+      </div>
+      <div class="s-icard">
+        <div class="row">
+          <span class="glyph s-glyph-amber" style="border-radius: 10px"><svg><use href="#ico-mail"/></svg></span>
+          <h3 style="font-size: 22px">Inquiries</h3>
+        </div>
+        <p>rmckinley@rmckinley.net<br/>rmckinley.net</p>
+      </div>
+    </div>
+
+    <div class="s-spacer"></div>
+
+    <div class="s-chrome bottom">
+      <span class="s-footer-meta">Roderick McKinley, CFA, FRM <span class="dot">·</span> Independent Financial Systems Analyst</span>
+      <span>09 / 09</span>
+    </div>
+  </section>
+
+</deck-stage>
+
+<script src="deck-stage.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script>
+(() => {
+  const chartFont = { family: 'Geist Mono, "IBM Plex Mono", monospace', size: 13, color: "#EDF1F7" };
+  const axisBase = {
+    gridcolor: "rgba(255,255,255,0.05)",
+    linecolor: "rgba(255,255,255,0.11)",
+    tickcolor: "rgba(255,255,255,0.11)",
+    tickfont: { color: "#A6B4C8", size: 12 },
+  };
+
+  // Seeded RNG
+  const makeRnd = seed => () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+
+  function drawHero() {
+    const el = document.getElementById("hero-chart");
+    if (!el || !window.Plotly) return;
+    const rnd = makeRnd(71);
+    const n = 60;
+    const xs = Array.from({length: n}, (_, i) => i);
+    let y = 120;
+    const ys = xs.map(() => { y = y * (1 + 0.008 + 0.018 * (rnd() - 0.5) * 2); return y; });
+    const candles = xs.map(i => {
+      const base = ys[i];
+      const o = base * (1 + 0.004 * (rnd() - 0.5));
+      const c = base * (1 + 0.004 * (rnd() - 0.5));
+      const h = Math.max(o, c) * (1 + 0.004 * rnd());
+      const l = Math.min(o, c) * (1 - 0.004 * rnd());
+      return { o, c, h, l };
+    });
+    const trace = {
+      x: xs, open: candles.map(c=>c.o), close: candles.map(c=>c.c),
+      high: candles.map(c=>c.h), low: candles.map(c=>c.l),
+      type: "candlestick",
+      increasing: { line: { color: "#36C96A" }, fillcolor: "#36C96A" },
+      decreasing: { line: { color: "#FF6B00" }, fillcolor: "#FF6B00" },
+    };
+    Plotly.newPlot(el, [trace], {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: chartFont, margin: { l: 44, r: 16, t: 16, b: 32 },
+      xaxis: { ...axisBase, rangeslider: { visible: false }, showticklabels: false },
+      yaxis: { ...axisBase },
+      showlegend: false,
+    }, { displayModeBar: false, responsive: true });
+  }
+
+  function drawLiquidity() {
+    const el = document.getElementById("liquidity-chart");
+    if (!el || !window.Plotly) return;
+    const n = 40;
+    const dates = Array.from({length: n}, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (n - i - 1));
+      return d.toISOString().slice(0, 10);
+    });
+    const colors = ["#FF6B00", "#4BB7FF", "#36C96A", "#B085F5", "#8EA1C7"];
+    const names  = ["Orca", "Raydium", "Meteora", "OpenBook", "Other"];
+    const weights= [0.38, 0.27, 0.14, 0.12, 0.09];
+    const rnd = makeRnd(13);
+    // Cumulative series
+    let total = 300;
+    const totals = dates.map(() => { total = total * (1 + 0.006 + 0.015 * (rnd() - 0.5)); return total; });
+    const traces = weights.map((w, i) => ({
+      x: dates,
+      y: totals.map(t => t * w * (0.9 + 0.2 * rnd())),
+      name: names[i],
+      type: "scatter",
+      mode: "lines",
+      stackgroup: "one",
+      line: { width: 0 },
+      fillcolor: colors[i],
+      hovertemplate: `${names[i]}: $%{y:,.0f}M<extra></extra>`,
+    }));
+    Plotly.newPlot(el, traces, {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: chartFont, margin: { l: 64, r: 16, t: 16, b: 40 },
+      xaxis: { ...axisBase },
+      yaxis: { ...axisBase, tickformat: "$~s", ticksuffix: "M", title: { text: "Liquidity (USD)", font: { color: "#A6B4C8", size: 13 }, standoff: 8 } },
+      showlegend: false,
+    }, { displayModeBar: false, responsive: true });
+  }
+
+  window.addEventListener("load", () => { drawHero(); drawLiquidity(); });
+})();
+</script>
+</body>
+</html>

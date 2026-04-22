@@ -1,0 +1,919 @@
+/* ==========================================================================
+   Slide deck stylesheet — McKinley Financial Systems
+   Intended canvas: 1920 x 1080 (the deck-stage starter handles scaling).
+   ========================================================================== */
+@import url("../../colors_and_type.css");
+
+/* Deck stage canvas */
+deck-stage {
+  --deck-stage-w: 1920px;
+  --deck-stage-h: 1080px;
+  --deck-stage-bg: var(--bg);
+  display: block;
+  background: var(--bg);
+}
+
+/* Every slide is a direct <section> child of deck-stage */
+deck-stage > section {
+  width: 1920px; height: 1080px;
+  box-sizing: border-box;
+  position: relative;
+  padding: 96px 120px;
+  background: var(--bg);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Common slide chrome ────────────────────────────────────────────── */
+.s-chrome {
+  position: absolute;
+  left: 120px; right: 120px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(166,180,200,0.55);
+}
+.s-chrome.top    { top: 48px; }
+.s-chrome.bottom { bottom: 48px; }
+.s-chrome .mark {
+  width: 22px; height: 22px;
+  background-color: rgba(255,255,255,0.95);
+  -webkit-mask: url("../../assets/TokenDesign_Icon_White.png") center / contain no-repeat;
+          mask: url("../../assets/TokenDesign_Icon_White.png") center / contain no-repeat;
+  filter: drop-shadow(0 0 5px rgba(248,169,74,0.32));
+  display: inline-block; vertical-align: middle; margin-right: 14px;
+}
+
+/* Eyebrow */
+.s-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(248,169,74,0.86);
+  margin: 0 0 34px;
+}
+.s-eyebrow.neutral { color: rgba(237,241,247,0.82); }
+
+/* Title scale — three sizes */
+.s-title-xl {
+  font-size: 108px;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0;
+  max-width: 1500px;
+  text-wrap: balance;
+}
+.s-title-lg {
+  font-size: 76px;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0;
+}
+.s-title-md {
+  font-size: 52px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0;
+}
+
+/* Section kicker — small label above title on content slides */
+.s-kicker {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin: 0 0 18px;
+}
+
+/* Body copy */
+.s-body {
+  font-size: 26px;
+  line-height: 1.55;
+  color: rgba(197,206,220,0.94);
+  margin: 0;
+  max-width: 1100px;
+  font-weight: 400;
+}
+.s-body.sm { font-size: 22px; line-height: 1.6; }
+.s-lede {
+  font-size: 32px;
+  line-height: 1.45;
+  color: rgba(237,241,247,0.90);
+  max-width: 1300px;
+  font-weight: 400;
+  margin: 28px 0 0;
+  text-wrap: pretty;
+}
+
+/* Rule */
+.s-rule {
+  height: 1px;
+  width: 96px;
+  background: var(--cta-58);
+  margin: 0 0 28px;
+}
+.s-rule.wide { width: 100%; max-width: 1680px; background: rgba(255,255,255,0.08); }
+
+/* Content grid helpers */
+.s-grid-2 { display: grid; grid-template-columns: 1fr 1fr;       gap: 56px; }
+.s-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+.s-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+.s-grid-asym { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 80px; }
+.s-row { display: flex; gap: 40px; }
+
+/* Slide card */
+.s-card {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 32px 30px;
+  display: flex; flex-direction: column; gap: 14px;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+.s-card .idx {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.15em;
+  color: rgba(248,169,74,0.84);
+  margin: 0;
+}
+.s-card h3 {
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--fg-1);
+  letter-spacing: -0.005em;
+  margin: 0;
+  line-height: 1.2;
+}
+.s-card p {
+  font-size: 19px;
+  line-height: 1.55;
+  color: rgba(166,180,200,0.94);
+  margin: 0;
+}
+
+/* Bulleted list — mono bullet */
+.s-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 18px; }
+.s-list li {
+  position: relative;
+  padding-left: 28px;
+  font-size: 24px;
+  line-height: 1.55;
+  color: rgba(237,241,247,0.9);
+}
+.s-list li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 15px;
+  width: 12px; height: 1.5px;
+  background: var(--cta);
+}
+
+/* Stat — mono label + display figure + arrow pair */
+.s-stat { display: flex; flex-direction: column; gap: 12px; }
+.s-stat .label {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.s-stat .figure {
+  font-size: 84px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-1);
+}
+.s-stat .figure.pair {
+  display: inline-flex; align-items: baseline; gap: 26px;
+}
+.s-stat .figure .from { color: rgba(166,180,200,0.7); font-size: 64px; }
+.s-stat .figure .arrow {
+  color: var(--cta);
+  font-size: 44px;
+  font-family: var(--font-mono);
+}
+.s-stat .figure .to { color: var(--fg-1); font-size: 84px; }
+.s-stat .sub { font-size: 20px; color: var(--fg-muted); line-height: 1.5; max-width: 34ch; }
+
+/* Quote */
+.s-quote {
+  margin: 0;
+  padding: 0 0 0 34px;
+  position: relative;
+  font-size: 44px;
+  line-height: 1.28;
+  font-weight: 400;
+  color: rgba(237,241,247,0.95);
+  letter-spacing: -0.01em;
+  max-width: 1500px;
+  text-wrap: balance;
+}
+.s-quote::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px; width: 2px;
+  background: var(--cta-58);
+}
+.s-quote cite {
+  display: block;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-top: 28px;
+}
+
+/* Chips (domain chips, restated on slides) */
+.s-chips { display: flex; flex-wrap: wrap; gap: 12px; }
+.s-chip {
+  display: inline-flex; align-items: center;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  color: rgba(197,206,220,0.92);
+}
+
+/* ── Background variants ────────────────────────────────────────────── */
+.s-bg-plain    { background: var(--bg); }
+.s-bg-surface  { background: var(--surface); }
+.s-bg-title {
+  background:
+    radial-gradient(980px 540px at 82% 14%, rgba(128,162,198,0.14), transparent 62%),
+    radial-gradient(600px 420px at 8% 92%,  rgba(248,169,74,0.07),  transparent 60%),
+    var(--bg);
+}
+.s-bg-section {
+  background:
+    radial-gradient(1200px 620px at 18% 22%, rgba(248,169,74,0.10), transparent 60%),
+    radial-gradient(820px 520px at 92% 82%, rgba(75,183,255,0.06),  transparent 60%),
+    #0A1020;
+}
+
+/* Divider / section slide typography */
+.s-section-label {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(248,169,74,0.85);
+  margin: 0 0 40px;
+}
+.s-section-title {
+  font-size: 128px;
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0;
+  max-width: 1400px;
+  text-wrap: balance;
+}
+
+/* Closing slide mark */
+.s-close-mark {
+  width: 180px; height: 180px;
+  background-color: rgba(255,255,255,0.92);
+  -webkit-mask: url("../../assets/TokenDesign_Icon_White.png") center / contain no-repeat;
+          mask: url("../../assets/TokenDesign_Icon_White.png") center / contain no-repeat;
+  filter: drop-shadow(0 0 20px rgba(248,169,74,0.28));
+}
+
+/* Chart placeholder (for decks not using Plotly) */
+.s-chart-placeholder {
+  border: 1px dashed var(--border-strong);
+  background: rgba(15,26,45,0.5);
+  border-radius: 10px;
+  padding: 40px;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+}
+
+/* ── Numbered process flow (4-step pipeline) ────────────────────────── */
+.s-flow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0;
+  align-items: stretch;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--card);
+}
+.s-flow-step {
+  padding: 30px 32px;
+  display: flex; flex-direction: column; gap: 12px;
+  border-right: 1px solid var(--border);
+  position: relative;
+  min-height: 220px;
+}
+.s-flow-step:last-child { border-right: none; }
+.s-flow-step .num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  color: rgba(248,169,74,0.88);
+  text-transform: uppercase;
+}
+.s-flow-step h4 {
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+.s-flow-step p {
+  font-size: 17px;
+  line-height: 1.55;
+  color: rgba(166,180,200,0.92);
+  margin: 0;
+}
+.s-flow-step::after {
+  content: "→";
+  position: absolute;
+  right: -10px; top: 50%;
+  transform: translateY(-50%);
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  color: var(--cta);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  line-height: 1;
+  z-index: 1;
+}
+.s-flow-step:last-child::after { content: none; }
+
+/* ── Recovery-tier / escalation list (big left numeral + copy) ──────── */
+.s-tiers { display: flex; flex-direction: column; gap: 22px; }
+.s-tier {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 28px;
+  padding: 22px 26px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--cta-58);
+  background: var(--panel-2);
+  border-radius: 8px;
+  align-items: start;
+}
+.s-tier .tnum {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 500;
+  color: rgba(248,169,74,0.88);
+  font-variant-numeric: tabular-nums;
+}
+.s-tier h4 {
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0 0 6px;
+  letter-spacing: -0.005em;
+}
+.s-tier p {
+  font-size: 18px;
+  line-height: 1.55;
+  color: rgba(166,180,200,0.94);
+  margin: 0;
+}
+
+/* ── 6-up grid variant for dense domain coverage ────────────────────── */
+.s-grid-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.s-grid-6 .s-card { padding: 22px 24px; gap: 10px; min-height: 0; }
+.s-grid-6 .s-card h3 { font-size: 22px; }
+.s-grid-6 .s-card p  { font-size: 16px; line-height: 1.5; }
+
+/* ── Architecture-layer diagram (stacked horizontal bands) ──────────── */
+.s-layers { display: flex; flex-direction: column; gap: 12px; }
+.s-layer {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 28px;
+  padding: 22px 28px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  border-radius: 8px;
+  align-items: center;
+}
+.s-layer.accent { border-color: rgba(248,169,74,0.4); background: rgba(248,169,74,0.04); }
+.s-layer .tag {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(248,169,74,0.86);
+}
+.s-layer h4 {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0 0 4px;
+}
+.s-layer p {
+  font-size: 16px;
+  line-height: 1.5;
+  color: rgba(166,180,200,0.92);
+  margin: 0;
+}
+
+/* ── Outcomes pill row — bottom attribution ribbon ─────────────────── */
+.s-outcomes {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  padding: 18px 22px;
+  border-top: 1px solid var(--border-strong);
+  margin-top: 32px;
+}
+.s-outcomes .lbl {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-right: 14px;
+  align-self: center;
+}
+.s-outcomes .pill {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 999px;
+  color: rgba(237,241,247,0.92);
+}
+
+/* ── Two-column split (service A / service B) ───────────────────────── */
+.s-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: stretch;
+}
+.s-split > .s-panel {
+  padding: 34px 34px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--card);
+  display: flex; flex-direction: column; gap: 16px;
+}
+.s-split .tag {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(248,169,74,0.86);
+}
+.s-split h3 {
+  font-size: 30px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--fg-1);
+  letter-spacing: -0.01em;
+}
+.s-split .s-list li { font-size: 19px; }
+
+/* ── Credential chips (closing slide) ───────────────────────────────── */
+.s-creds {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px;
+}
+.s-creds .cred {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  padding: 6px 12px;
+  border: 1px solid rgba(248,169,74,0.45);
+  background: rgba(248,169,74,0.05);
+  color: rgba(248,169,74,0.92);
+  border-radius: 6px;
+}
+
+/* Utility */
+.s-spacer { flex: 1; }
+.s-stack  { display: flex; flex-direction: column; }
+.s-center { display: flex; align-items: center; justify-content: center; }
+
+/* ============================================================
+   Additional templates (v1.2) — from ChatGPT design reference
+   ============================================================ */
+
+/* ── Title with hero panel (split: copy + screenshot) ───────────────── */
+.s-title-split {
+  display: grid;
+  grid-template-columns: 1.08fr 1fr;
+  gap: 80px;
+  align-items: center;
+  flex: 1;
+}
+.s-title-split .s-hero-panel {
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  position: relative;
+}
+.s-title-split .s-hero-panel.placeholder {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  background:
+    linear-gradient(180deg, rgba(248,169,74,0.04) 0%, transparent 60%),
+    var(--card);
+}
+.s-title-split .meta {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  color: var(--fg-muted);
+  margin-top: 26px;
+}
+
+/* ── Icon-card grid (domains with circular glyph) ───────────────────── */
+.s-icard {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 26px 26px;
+  display: flex; flex-direction: column; gap: 12px;
+  box-sizing: border-box;
+  min-height: 220px;
+}
+.s-icard.focus {
+  border-color: rgba(248,169,74,0.45);
+  background:
+    linear-gradient(180deg, rgba(248,169,74,0.05), transparent 55%),
+    var(--card);
+}
+.s-icard .row {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 2px;
+}
+.s-icard .idx {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 500;
+  color: rgba(248,169,74,0.88);
+  font-variant-numeric: tabular-nums;
+}
+.s-icard .glyph {
+  width: 44px; height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel-2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--cta);
+  flex: 0 0 auto;
+}
+.s-icard.focus .glyph {
+  border-color: rgba(248,169,74,0.42);
+  background: rgba(248,169,74,0.08);
+}
+.s-icard .glyph svg { width: 22px; height: 22px; stroke-width: 1.6; }
+.s-icard h3 {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--fg-1);
+  letter-spacing: -0.005em;
+  margin: 0;
+  line-height: 1.2;
+}
+.s-icard p {
+  font-size: 17px;
+  line-height: 1.55;
+  color: rgba(166,180,200,0.92);
+  margin: 0;
+}
+
+/* 3+2 layout for 5 cards (first is the focus/accent tile, spanning 2 rows) */
+.s-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 22px;
+}
+.s-grid-5 > .s-icard:first-child {
+  grid-row: 1 / span 2;
+  min-height: 0;
+}
+
+/* ── Stat trio with icons (outcomes slide) ──────────────────────────── */
+.s-stat-card {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 28px 30px;
+  display: flex; flex-direction: column; gap: 16px;
+  box-sizing: border-box;
+}
+.s-stat-card .top {
+  display: flex; align-items: center; gap: 14px;
+}
+.s-stat-card .glyph {
+  width: 44px; height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(248,169,74,0.35);
+  background: rgba(248,169,74,0.06);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--cta);
+}
+.s-stat-card .glyph svg { width: 22px; height: 22px; stroke-width: 1.6; }
+.s-stat-card .label {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.s-stat-card .figure {
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+}
+.s-stat-card .sub {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  margin: 0;
+}
+
+/* Callout strip (bottom blockquote on outcomes slide) */
+.s-callout {
+  padding: 22px 28px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  border-radius: 8px;
+  display: flex; gap: 20px; align-items: flex-start;
+}
+.s-callout .q {
+  color: rgba(248,169,74,0.84);
+  font-family: var(--font-mono);
+  font-size: 28px;
+  line-height: 1;
+}
+.s-callout p {
+  font-size: 20px;
+  line-height: 1.5;
+  color: rgba(237,241,247,0.92);
+  margin: 0;
+  font-weight: 400;
+}
+
+/* ── 5-step horizontal process (icon-topped, connected) ─────────────── */
+.s-process {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--card);
+  overflow: hidden;
+}
+.s-process-step {
+  padding: 28px 26px 28px;
+  display: flex; flex-direction: column; gap: 12px;
+  border-right: 1px solid var(--border);
+  position: relative;
+  min-height: 240px;
+}
+.s-process-step:last-child { border-right: none; }
+.s-process-step .glyph {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel-2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--cta);
+  margin-bottom: 6px;
+}
+.s-process-step .glyph svg { width: 22px; height: 22px; stroke-width: 1.6; }
+.s-process-step .num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: rgba(248,169,74,0.88);
+  text-transform: uppercase;
+}
+.s-process-step h4 {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0;
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+}
+.s-process-step p {
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(166,180,200,0.9);
+  margin: 0;
+}
+.s-process-step::after {
+  content: "→";
+  position: absolute;
+  right: -9px; top: 44px;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--card);
+  color: var(--cta);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1;
+  z-index: 1;
+}
+.s-process-step:last-child::after { content: none; }
+/* Process footer band */
+.s-process-footer {
+  margin-top: 14px;
+  padding: 14px 22px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: rgba(237,241,247,0.88);
+  text-align: center;
+}
+
+/* ── Chart slide with inline legend (dot swatches) ──────────────────── */
+.s-legend {
+  display: flex; flex-direction: column; gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: rgba(197,206,220,0.92);
+}
+.s-legend .item {
+  display: flex; align-items: center; gap: 12px;
+  letter-spacing: 0.04em;
+}
+.s-legend .dot {
+  width: 10px; height: 10px; border-radius: 999px; flex: 0 0 auto;
+}
+.s-legend .val {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+
+/* ── Data table (protocol comparison) ───────────────────────────────── */
+.s-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--card);
+}
+.s-table thead th {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 18px 24px;
+  color: var(--fg-muted);
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border-strong);
+  font-weight: 500;
+}
+.s-table tbody td {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.s-table tbody tr:last-child td { border-bottom: none; }
+.s-table tbody td:first-child {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.s-table .num-neg { color: var(--bad); }
+.s-table .num-pos { color: var(--good); }
+.s-table .muted   { color: var(--fg-muted); }
+.s-status {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.s-status::before {
+  content: "";
+  width: 8px; height: 8px; border-radius: 999px;
+  background: currentColor;
+}
+.s-status.healthy { color: var(--good); }
+.s-status.monitor { color: var(--warn); }
+.s-status.risk    { color: var(--bad); }
+
+/* ── Quote + metric grid (split testimonial / performance) ──────────── */
+.s-metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.s-mini {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 6px;
+  min-height: 170px;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+.s-mini .label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.s-mini .figure {
+  font-size: 38px;
+  line-height: 1.05;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+}
+.s-mini .delta {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+.s-mini .delta.up   { color: var(--good); }
+.s-mini .delta.down { color: var(--bad); }
+.s-mini .spark {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 56px;
+  opacity: 0.9;
+}
+
+/* ── Closing / engagement 3-up icon cards ───────────────────────────── */
+.s-icon-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.s-icon-strip .s-icard { min-height: 170px; }
+
+/* Icon glyph with amber-soft background (alternative accent) */
+.s-glyph-amber {
+  width: 48px; height: 48px; border-radius: 10px;
+  border: 1px solid rgba(248,169,74,0.32);
+  background: rgba(248,169,74,0.07);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--cta);
+}
+.s-glyph-amber svg { width: 24px; height: 24px; stroke-width: 1.6; }
+
+/* Footer attribution on chrome bottom */
+.s-footer-meta {
+  color: rgba(166,180,200,0.55);
+}
+.s-footer-meta .dot { opacity: 0.6; margin: 0 8px; }

@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Platform Architecture — McKinley Financial Systems</title>
+<link rel="icon" href="../../assets/favicon-32x32.png" />
+<link rel="stylesheet" href="slides.css?v=2" />
+</head>
+<body>
+
+<deck-stage>
+
+  <!-- 01 · Title -->
+  <section class="s-bg-title" data-screen-label="01 Title">
+    <div class="s-chrome top">
+      <span><span class="mark"></span>McKinley Financial Systems</span>
+      <span>Platform Architecture · Technical Briefing</span>
+    </div>
+    <div class="s-spacer"></div>
+    <p class="s-eyebrow">Independent Practice · CFA · FRM</p>
+    <h1 class="s-title-xl">Platform architecture for onchain operational intelligence.</h1>
+    <p class="s-lede" style="max-width: 1400px">
+      The data, analytics, and application stack behind realtime monitoring, cross-protocol
+      visibility, and risk analysis for complex digital-asset systems.
+    </p>
+    <div class="s-spacer"></div>
+    <div class="s-chrome bottom">
+      <span class="s-footer-meta">Roderick McKinley, CFA, FRM <span class="dot">·</span> rmckinley.net</span>
+      <span>01 / 12</span>
+    </div>
+  </section>
+
+  <!-- 02 · Section divider -->
+  <section class="s-bg-section" data-screen-label="02 Section · Premise">
+    <div class="s-chrome top"><span><span class="mark"></span>Section 01</span><span>The Architectural Premise</span></div>
+    <div class="s-spacer"></div>
+    <p class="s-section-label">01 · Premise</p>
+    <h2 class="s-section-title">Purpose-built for<br/>operational visibility.</h2>
+    <div class="s-spacer"></div>
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>02 / 12</span></div>
+  </section>
+
+  <!-- 03 · Premise — two-column split -->
+  <section data-screen-label="03 Premise">
+    <div class="s-chrome top"><span><span class="mark"></span>Architectural Premise</span><span>Observation vs. Operation</span></div>
+
+    <p class="s-kicker">Design Premise</p>
+    <h2 class="s-title-md" style="margin-bottom: 48px">Built to convert raw onchain activity into queryable, decision-oriented monitoring.</h2>
+
+    <div class="s-split">
+      <div class="s-panel">
+        <span class="tag">Not this</span>
+        <h3>Protocol UIs &amp; ad-hoc scripts</h3>
+        <ul class="s-list">
+          <li>Fragmented across protocol dashboards</li>
+          <li>Delayed or selectively surfaced</li>
+          <li>Incomparable across venues</li>
+          <li>Operated as passive observation</li>
+        </ul>
+      </div>
+      <div class="s-panel" style="border-color: rgba(248,169,74,0.4); background: rgba(248,169,74,0.04)">
+        <span class="tag">This</span>
+        <h3>Structured monitoring layer</h3>
+        <ul class="s-list">
+          <li>Protocol-specific ingestion services</li>
+          <li>In-database transformation and analytics</li>
+          <li>Frontend monitoring applications</li>
+          <li>Bounded recovery and health monitoring</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>03 / 12</span></div>
+  </section>
+
+  <!-- 04 · End-to-end architecture — layered diagram -->
+  <section data-screen-label="04 Architecture">
+    <div class="s-chrome top"><span><span class="mark"></span>End-to-End Architecture</span><span>From Onchain Data to Operational Views</span></div>
+
+    <p class="s-kicker">End-to-End Architecture</p>
+    <h2 class="s-title-md" style="margin-bottom: 36px">From onchain data to operational views.</h2>
+
+    <div class="s-layers">
+      <div class="s-layer">
+        <div><span class="tag">Data Sources</span></div>
+        <div><h4>Solana blockchain</h4><p>Yellowstone gRPC, Solana RPC, and GraphQL indexer services.</p></div>
+      </div>
+      <div class="s-layer">
+        <div><span class="tag">Ingestion Layer</span></div>
+        <div><h4>Four protocol-specific Python services</h4><p>Orca · Raydium · Exponent · Kamino Lending — shared platform patterns, isolated concerns.</p></div>
+      </div>
+      <div class="s-layer accent">
+        <div><span class="tag">Data Platform</span></div>
+        <div><h4>TimescaleDB / Tiger Data</h4><p>Isolated schemas, raw tables, triggers, continuous aggregates, SQL view functions.</p></div>
+      </div>
+      <div class="s-layer">
+        <div><span class="tag">Application Layer</span></div>
+        <div><h4>HTMX UI + Widget API</h4><p>Server-rendered dashboard delivery alongside a frontend-agnostic caching service.</p></div>
+      </div>
+      <div class="s-layer">
+        <div><span class="tag">Operational Layer</span></div>
+        <div><h4>Health, telemetry, recovery</h4><p>Liveness endpoints, queue telemetry, reconnect escalation, backfill support.</p></div>
+      </div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>04 / 12</span></div>
+  </section>
+
+  <!-- 05 · Ingestion — 6-up principles -->
+  <section class="s-bg-surface" data-screen-label="05 Ingestion">
+    <div class="s-chrome top"><span><span class="mark"></span>Ingestion Layer</span><span>Protocol-Specific, Shared Patterns</span></div>
+
+    <p class="s-kicker">Ingestion Layer</p>
+    <h2 class="s-title-md" style="margin-bottom: 36px">Protocol-specific services; shared architectural conventions.</h2>
+
+    <div class="s-grid-6">
+      <div class="s-card"><p class="idx">01</p><h3>Dual-channel ingestion</h3><p>gRPC streams and RPC polling operate in parallel per service.</p></div>
+      <div class="s-card"><p class="idx">02</p><h3>Protocol-specific parsing</h3><p>Transaction parsing and account decoding scoped per protocol domain.</p></div>
+      <div class="s-card"><p class="idx">03</p><h3>Write-on-difference</h3><p>Unchanged state suppressed to reduce load without sacrificing freshness.</p></div>
+      <div class="s-card"><p class="idx">04</p><h3>Isolated async queues</h3><p>Per data category — slow or failing writes never block others.</p></div>
+      <div class="s-card"><p class="idx">05</p><h3>Dynamic account discovery</h3><p>Monitored account sets evolve over time without service restarts.</p></div>
+      <div class="s-card"><p class="idx">06</p><h3>Env-driven configuration</h3><p>Centralised per-service — no bespoke one-off configuration patterns.</p></div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>05 / 12</span></div>
+  </section>
+
+  <!-- 06 · In-database ETL — 4-step pipeline -->
+  <section data-screen-label="06 In-DB ETL">
+    <div class="s-chrome top"><span><span class="mark"></span>Data Engineering in the Database</span><span>Active Analytical Layer</span></div>
+
+    <p class="s-kicker">In-Database ETL</p>
+    <h2 class="s-title-md" style="margin-bottom: 56px">The database is not a storage layer — it is an active analytical layer.</h2>
+
+    <div class="s-flow">
+      <div class="s-flow-step">
+        <span class="num">01 · Raw Ingestion</span>
+        <h4>src_* source tables</h4>
+        <p>Receive normalised raw records from ingestion services, one source per concern.</p>
+      </div>
+      <div class="s-flow-step">
+        <span class="num">02 · Enrichment</span>
+        <h4>Triggers &amp; auxiliary tables</h4>
+        <p>Organise and enrich domain-specific records in place.</p>
+      </div>
+      <div class="s-flow-step">
+        <span class="num">03 · Aggregation</span>
+        <h4>Continuous aggregates</h4>
+        <p>5-second time-bucketed rollups materialised for low-latency reads.</p>
+      </div>
+      <div class="s-flow-step">
+        <span class="num">04 · Serving</span>
+        <h4>SQL view functions</h4>
+        <p>Parameterised functions serve frontend-ready results with a stable contract.</p>
+      </div>
+    </div>
+
+    <div class="s-outcomes" style="margin-top: 40px">
+      <span class="lbl">Design Principles</span>
+      <span class="pill">Protocol schema isolation</span>
+      <span class="pill">One source per concern</span>
+      <span class="pill">Views as the frontend contract</span>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>06 / 12</span></div>
+  </section>
+
+  <!-- 07 · Query layer — 2-up feature split -->
+  <section class="s-bg-surface" data-screen-label="07 Query Layer">
+    <div class="s-chrome top"><span><span class="mark"></span>Query Layer &amp; Analytical Interface</span><span>Views, Not Raw Tables</span></div>
+
+    <p class="s-kicker">Query Layer</p>
+    <h2 class="s-title-md" style="margin-bottom: 40px">The frontend consumes parameterised SQL functions — never raw tables.</h2>
+
+    <div class="s-split">
+      <div class="s-panel">
+        <span class="tag">This enables</span>
+        <h3>A stable application contract</h3>
+        <ul class="s-list">
+          <li>Consistent query interfaces across pages &amp; widgets</li>
+          <li>Flexible time windows and re-bucketing on demand</li>
+          <li>Clean separation of ingestion, transformation, presentation</li>
+        </ul>
+      </div>
+      <div class="s-panel">
+        <span class="tag">Database-side logic</span>
+        <h3>Analytics composed close to data</h3>
+        <ul class="s-list">
+          <li>Price-impact &amp; liquidity traversal (AMM-specific)</li>
+          <li>Risk-sensitivity calculations in view functions</li>
+          <li>Protocol-specific AMM analytics, not duplicated in app code</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>07 / 12</span></div>
+  </section>
+
+  <!-- 08 · Application Layer — 2-up service split -->
+  <section data-screen-label="08 Application Layer">
+    <div class="s-chrome top"><span><span class="mark"></span>Application Layer</span><span>Server-Rendered UI + Widget API</span></div>
+
+    <p class="s-kicker">Application Layer</p>
+    <h2 class="s-title-md" style="margin-bottom: 40px">Two coordinated FastAPI services — independently operable.</h2>
+
+    <div class="s-split">
+      <div class="s-panel">
+        <span class="tag">Service A</span>
+        <h3>HTMX UI service</h3>
+        <ul class="s-list">
+          <li>Server-rendered Jinja pages with HTMX widget updates</li>
+          <li>Page / module-based enablement &amp; client interaction controls</li>
+          <li>Same-origin proxying with startup &amp; runtime cache warmup</li>
+          <li>Stale-while-revalidate caching for interactive feel</li>
+        </ul>
+      </div>
+      <div class="s-panel" style="border-color: rgba(248,169,74,0.4); background: rgba(248,169,74,0.04)">
+        <span class="tag">Service B</span>
+        <h3>Widget API + caching</h3>
+        <ul class="s-list">
+          <li>Frontend-agnostic JSON API</li>
+          <li>SQL access through a dedicated adapter layer</li>
+          <li>Cache policy, prewarm strategy, pipeline-aware serving</li>
+          <li>Pipeline switching across configured environments</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>08 / 12</span></div>
+  </section>
+
+  <!-- 09 · Resilience — 3 recovery tiers -->
+  <section class="s-bg-surface" data-screen-label="09 Recovery">
+    <div class="s-chrome top"><span><span class="mark"></span>Resilience &amp; Recovery</span><span>Bounded Recovery &amp; Escalation</span></div>
+
+    <p class="s-kicker">Resilience &amp; Recovery</p>
+    <h2 class="s-title-md" style="margin-bottom: 44px">Short-lived recovery inside the service; persistent failure escalates.</h2>
+
+    <div class="s-grid-asym">
+      <div class="s-tiers">
+        <div class="s-tier">
+          <span class="tnum">01</span>
+          <div><h4>Internal reconnect</h4><p>For transient gRPC and DB issues — bounded retry within the service.</p></div>
+        </div>
+        <div class="s-tier">
+          <span class="tnum">02</span>
+          <div><h4>Automatic thread restart</h4><p>For failed subscription workers — isolated restart without full service teardown.</p></div>
+        </div>
+        <div class="s-tier">
+          <span class="tnum">03</span>
+          <div><h4>Platform restart</h4><p>Via liveness failure or self-exit watchdog — escalation when internal recovery is exhausted.</p></div>
+        </div>
+      </div>
+
+      <div class="s-stack" style="gap: 28px; padding-top: 4px">
+        <p class="s-body">Services do not retry indefinitely. Persistent failure escalates predictably instead of silently degrading.</p>
+        <ul class="s-list">
+          <li>Health endpoints on each service</li>
+          <li>Queue health &amp; worker liveness checks</li>
+          <li>gRPC stream health monitoring</li>
+          <li>Backfill workflows for historical gaps</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>09 / 12</span></div>
+  </section>
+
+  <!-- 10 · Coverage — 4-up card grid (reuse of existing template) -->
+  <section data-screen-label="10 Coverage">
+    <div class="s-chrome top"><span><span class="mark"></span>Protocol &amp; Domain Coverage</span><span>Built for Cross-Protocol Monitoring</span></div>
+
+    <p class="s-kicker">Coverage</p>
+    <h2 class="s-title-md" style="margin-bottom: 48px">Domain-isolated by schema, operationally unified through the analytical layer.</h2>
+
+    <div class="s-grid-4">
+      <div class="s-card"><p class="idx">01</p><h3>Orca Whirlpool &amp; Raydium CLMM</h3><p>DEX liquidity and market structure across concentrated liquidity pools.</p></div>
+      <div class="s-card"><p class="idx">02</p><h3>Exponent PT / YT</h3><p>Yield and structured-product exposure — vault state, rate dynamics, position behaviour.</p></div>
+      <div class="s-card"><p class="idx">03</p><h3>Kamino Lending</h3><p>Lending reserves and obligations — utilisation, liquidation, collateral concentration.</p></div>
+      <div class="s-card"><p class="idx">04</p><h3>Issuer contracts</h3><p>Primary-market flows — mint, redeem, wrapper conversion across issuer-controlled contracts.</p></div>
+    </div>
+
+    <div class="s-outcomes" style="margin-top: 44px">
+      <span class="lbl">Extendable</span>
+      <span class="pill">Additional Solana protocols</span>
+      <span class="pill">EVM protocols as required</span>
+      <span class="pill">Issuer-controlled contracts</span>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>10 / 12</span></div>
+  </section>
+
+  <!-- 11 · Design principles — 6-up grid -->
+  <section class="s-bg-surface" data-screen-label="11 Design Principles">
+    <div class="s-chrome top"><span><span class="mark"></span>Design Principles</span><span>How the Platform Is Engineered</span></div>
+
+    <p class="s-kicker">Design Principles</p>
+    <h2 class="s-title-md" style="margin-bottom: 36px">Choices that make the system easier to operate, extend, and reason about.</h2>
+
+    <div class="s-grid-6">
+      <div class="s-card"><p class="idx">01</p><h3>Schema as documentation</h3><p>Heavily annotated SQL definitions act as authoritative reference.</p></div>
+      <div class="s-card"><p class="idx">02</p><h3>Single source of truth</h3><p>Discriminators, config, schemas, and views each have one defined home.</p></div>
+      <div class="s-card"><p class="idx">03</p><h3>Queue isolation</h3><p>Slow or failing writes in one category do not block others.</p></div>
+      <div class="s-card"><p class="idx">04</p><h3>Write-on-difference</h3><p>Unchanged state is suppressed without sacrificing data freshness.</p></div>
+      <div class="s-card"><p class="idx">05</p><h3>Bounded recovery</h3><p>Services do not retry indefinitely; failure escalates predictably.</p></div>
+      <div class="s-card"><p class="idx">06</p><h3>Platform-agnostic containers</h3><p>Deployment works across environments with env-level changes only.</p></div>
+    </div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">McKinley Financial Systems</span><span>11 / 12</span></div>
+  </section>
+
+  <!-- 12 · Closing -->
+  <section class="s-bg-title" data-screen-label="12 Closing">
+    <div class="s-chrome top"><span><span class="mark"></span>Close</span><span>Technical Credibility, Without Operational Sprawl</span></div>
+
+    <div class="s-spacer"></div>
+    <div class="s-row" style="gap: 80px; align-items: center">
+      <div class="s-close-mark"></div>
+      <div class="s-stack" style="gap: 22px; max-width: 1280px">
+        <p class="s-eyebrow">Technical Credibility, Without Operational Sprawl</p>
+        <h2 class="s-title-lg" style="font-size: 64px">The monitoring layer is structurally real — extensible and operationally serious.</h2>
+        <ul class="s-list" style="margin-top: 10px">
+          <li>Data flow is technically coherent end-to-end</li>
+          <li>Analytics are engineered close to the data</li>
+          <li>Resilience and recovery are first-class design concerns</li>
+          <li>Protocol coverage can expand without rewriting the system</li>
+        </ul>
+        <div class="s-creds" style="margin-top: 16px">
+          <span class="cred">CFA</span>
+          <span class="cred">FRM</span>
+          <span class="cred">rmckinley@rmckinley.net</span>
+          <span class="cred">rmckinley.net</span>
+        </div>
+      </div>
+    </div>
+    <div class="s-spacer"></div>
+
+    <div class="s-chrome bottom"><span class="s-footer-meta">© 2026 Roderick McKinley</span><span>12 / 12</span></div>
+  </section>
+
+</deck-stage>
+
+<script src="deck-stage.js"></script>
+</body>
+</html>

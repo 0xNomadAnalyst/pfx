@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Spacing, Radii, Elevation</title>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+  body { margin: 0; padding: 48px; background: var(--bg); }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .h1 { font-size: 1.7rem; margin: 0 0 8px; font-weight: 500; letter-spacing: -0.01em; }
+  .section { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-soft); }
+  .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--fg-muted); }
+  .spacing-row { display: grid; grid-template-columns: 70px 1fr 80px; gap: 24px; align-items: center; padding: 6px 0; }
+  .bar { height: 16px; background: var(--cta-22); border-left: 2px solid var(--cta); border-right: 2px solid var(--cta); }
+  .radii { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+  .ch { background: var(--card); border: 1px solid var(--border-strong); padding: 22px 12px; text-align: center; }
+  .elev { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .box { background: var(--card); border: 1px solid var(--border-strong); height: 120px; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: flex-end; }
+  .box .name { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Token Library</p>
+  <h1 class="h1">Spacing, Radii, Elevation</h1>
+  <p class="section-intro">8pt base. Restrained radii (6–12px). Tonal depth over shadows.</p>
+
+  <div class="section">
+    <p class="label" style="margin-bottom:16px">Spacing scale (8pt base)</p>
+    <div class="spacing-row"><span class="label">--space-1</span><div class="bar" style="width:4px"></div><span class="label">4px</span></div>
+    <div class="spacing-row"><span class="label">--space-2</span><div class="bar" style="width:8px"></div><span class="label">8px</span></div>
+    <div class="spacing-row"><span class="label">--space-3</span><div class="bar" style="width:12px"></div><span class="label">12px</span></div>
+    <div class="spacing-row"><span class="label">--space-4</span><div class="bar" style="width:16px"></div><span class="label">16px</span></div>
+    <div class="spacing-row"><span class="label">--space-6</span><div class="bar" style="width:24px"></div><span class="label">24px</span></div>
+    <div class="spacing-row"><span class="label">--space-8</span><div class="bar" style="width:32px"></div><span class="label">32px</span></div>
+    <div class="spacing-row"><span class="label">--space-10</span><div class="bar" style="width:40px"></div><span class="label">40px</span></div>
+    <div class="spacing-row"><span class="label">--space-12</span><div class="bar" style="width:48px"></div><span class="label">48px</span></div>
+    <div class="spacing-row"><span class="label">--space-16</span><div class="bar" style="width:64px"></div><span class="label">64px</span></div>
+    <div class="spacing-row"><span class="label">--space-20</span><div class="bar" style="width:80px"></div><span class="label">80px</span></div>
+  </div>
+
+  <div class="section">
+    <p class="label" style="margin-bottom:16px">Radii (restrained — 4–14px)</p>
+    <div class="radii">
+      <div class="ch" style="border-radius:4px"><div class="label">xs<br/>4px</div></div>
+      <div class="ch" style="border-radius:6px"><div class="label">sm<br/>6px</div></div>
+      <div class="ch" style="border-radius:8px"><div class="label">md ✶<br/>8px</div></div>
+      <div class="ch" style="border-radius:10px"><div class="label">lg<br/>10px</div></div>
+      <div class="ch" style="border-radius:12px"><div class="label">xl<br/>12px</div></div>
+      <div class="ch" style="border-radius:14px"><div class="label">2xl<br/>14px</div></div>
+      <div class="ch" style="border-radius:999px"><div class="label">999<br/>pill · tags only</div></div>
+    </div>
+    <p style="margin-top:12px; font-size: 12px; color: var(--fg-quiet)">✶ — default for buttons, cards, inputs, panels.</p>
+  </div>
+
+  <div class="section">
+    <p class="label" style="margin-bottom:16px">Elevation — tonal first, shadow second</p>
+    <div class="elev">
+      <div class="box" style="box-shadow: none">
+        <div>
+          <div class="name">--shadow-none</div>
+          <div style="font-size:12px; color: var(--fg-muted); margin-top:4px">Default card. Depth from tone only.</div>
+        </div>
+      </div>
+      <div class="box" style="box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 26px rgba(0,0,0,0.18)">
+        <div>
+          <div class="name">--shadow-panel</div>
+          <div style="font-size:12px; color: var(--fg-muted); margin-top:4px">Interactive card. Inset highlight + lift.</div>
+        </div>
+      </div>
+      <div class="box" style="box-shadow: 0 0 0 0.75px rgba(248,169,74,0.32), 0 0 17px rgba(248,169,74,0.25), 0 0 37px rgba(248,169,74,0.14)">
+        <div>
+          <div class="name">--shadow-cta-ring</div>
+          <div style="font-size:12px; color: var(--fg-muted); margin-top:4px">Modal / video dialog. One glow permitted.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

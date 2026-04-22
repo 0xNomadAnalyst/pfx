@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Components — Marketing</title>
+<link rel="stylesheet" href="../ui_kits/marketing/marketing.css"/>
+<style>
+  body { padding: 48px; }
+  .wrap { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px; }
+  .group h2 { font-size: 1.3rem; font-weight: 500; letter-spacing: -0.01em; margin: 0 0 8px; }
+  .group p.sub { color: var(--fg-muted); margin: 0 0 20px; font-size: 0.94rem; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div><p class="eyebrow">UI Kit</p><h1 style="font-size:1.7rem;font-weight:500;letter-spacing:-0.01em;margin:0">Marketing components</h1></div>
+
+  <section class="group">
+    <h2>Buttons</h2>
+    <p class="sub">Amber only on the primary CTA. Outline + ghost for secondary actions. No drop shadows.</p>
+    <div class="row">
+      <a class="mk-btn cta lg" href="#">Explore Operational Dashboard</a>
+      <a class="mk-btn cta" href="#">Send message</a>
+      <a class="mk-btn outline" href="#">Book 30-min call</a>
+      <a class="mk-btn ghost" href="#">Contact</a>
+    </div>
+  </section>
+
+  <section class="group">
+    <h2>Domain chips</h2>
+    <p class="sub">Mono 11px, hover-brightens, faint cyan outer glow on hover.</p>
+    <div class="mk-chip-row">
+      <span class="mk-chip">Risk Management</span>
+      <span class="mk-chip">DEX liquidity visibility</span>
+      <span class="mk-chip">Market-maker oversight</span>
+      <span class="mk-chip">Incident analysis</span>
+      <span class="mk-chip">Cross-protocol monitoring</span>
+    </div>
+  </section>
+
+  <section class="group">
+    <h2>Domain card — lead</h2>
+    <p class="sub">01 index, elevated padding, larger title.</p>
+    <div style="max-width:720px">
+      <div class="mk-card lead">
+        <p class="mk-card-index">01</p>
+        <h3 class="mk-card-title">Liquidity &amp; Market Structure Visibility</h3>
+        <p class="mk-card-body">Understand available depth, concentration, venue dependency, and price-impact conditions before execution quality deteriorates.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="group">
+    <h2>Metric card — before/after</h2>
+    <div class="row" style="gap:16px">
+      <div class="mk-card" style="min-width:260px">
+        <p style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(166,180,200,0.86);margin:0">Annual MM Cost</p>
+        <p style="margin-top:8px;font-size:1.07rem;font-weight:500;letter-spacing:-0.01em;color:var(--fg-1)">~$2m&ensp;→&ensp;~$840k</p>
+      </div>
+      <div class="mk-card" style="min-width:260px">
+        <p style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(166,180,200,0.86);margin:0">Operating Model</p>
+        <p style="margin-top:8px;font-size:1.07rem;font-weight:500;letter-spacing:-0.01em;color:var(--fg-1)">External only&ensp;→&ensp;Internal capability</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="group">
+    <h2>Eyebrow + title + intro (section header)</h2>
+    <p class="mk-eyebrow">SELECTED CLIENT OUTCOMES</p>
+    <p class="mk-section-title">Improvements with Financial Impact</p>
+    <p class="mk-section-intro">Better visibility translated into concrete changes in operating model, market-maker oversight, and cost.</p>
+  </section>
+</div>
+</body>
+</html>

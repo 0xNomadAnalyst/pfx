@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Colors — McKinley Financial Systems</title>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+  body { margin: 0; padding: 48px; background: var(--bg); }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  .h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 36px; }
+  .h .eyebrow { margin-right: auto; }
+  .h h1 { font-size: 1.7rem; margin: 0; font-weight: 500; letter-spacing: -0.01em; }
+  .section-title { font-size: 11px; font-family: var(--font-mono); letter-spacing: 0.15em; text-transform: uppercase; color: var(--fg-muted); margin: 48px 0 16px; }
+  .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .row.row-6 { grid-template-columns: repeat(6, 1fr); }
+  .sw { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--panel); }
+  .sw .chip { height: 84px; }
+  .sw .meta { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+  .sw .name { font-size: 13px; color: var(--fg-1); font-weight: 500; }
+  .sw .val  { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); letter-spacing: 0.04em; }
+  .border-demo { height: 1px; margin: 2px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="h">
+    <div>
+      <p class="eyebrow">Token Library</p>
+      <h1>Colors — harmonised across marketing &amp; dashboard</h1>
+    </div>
+  </div>
+
+  <p class="section-title">Surface hierarchy</p>
+  <div class="row row-6">
+    <div class="sw"><div class="chip" style="background:#0B1220"></div><div class="meta"><span class="name">--bg</span><span class="val">#0B1220 · L0</span></div></div>
+    <div class="sw"><div class="chip" style="background:#0D1627"></div><div class="meta"><span class="name">--surface</span><span class="val">#0D1627 · L1</span></div></div>
+    <div class="sw"><div class="chip" style="background:#10192E"></div><div class="meta"><span class="name">--panel-2</span><span class="val">#10192E · L2</span></div></div>
+    <div class="sw"><div class="chip" style="background:#172033"></div><div class="meta"><span class="name">--panel</span><span class="val">#172033 · L3</span></div></div>
+    <div class="sw"><div class="chip" style="background:#19263B"></div><div class="meta"><span class="name">--card</span><span class="val">#19263B · L3.5</span></div></div>
+    <div class="sw"><div class="chip" style="background:#1E2B42"></div><div class="meta"><span class="name">--accent-surface</span><span class="val">#1E2B42 · L4</span></div></div>
+  </div>
+
+  <p class="section-title">Dashboard parallel (slightly deeper)</p>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:#0a1020"></div><div class="meta"><span class="name">--dash-bg</span><span class="val">#0A1020</span></div></div>
+    <div class="sw"><div class="chip" style="background:#0f1a2d"></div><div class="meta"><span class="name">--dash-panel</span><span class="val">#0F1A2D</span></div></div>
+    <div class="sw"><div class="chip" style="background:#101f35"></div><div class="meta"><span class="name">--dash-panel-2</span><span class="val">#101F35</span></div></div>
+  </div>
+
+  <p class="section-title">Accent (warm) — use sparingly</p>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:#F8A94A"></div><div class="meta"><span class="name">--cta</span><span class="val">#F8A94A</span></div></div>
+    <div class="sw"><div class="chip" style="background:#FF6B00"></div><div class="meta"><span class="name">--cta-strong</span><span class="val">#FF6B00 · ring, chart-1</span></div></div>
+    <div class="sw"><div class="chip" style="background:rgba(248,169,74,0.42);border-bottom:1px solid var(--border)"></div><div class="meta"><span class="name">--cta-42</span><span class="val">42% alpha</span></div></div>
+    <div class="sw"><div class="chip" style="background:rgba(248,169,74,0.22);border-bottom:1px solid var(--border)"></div><div class="meta"><span class="name">--cta-22</span><span class="val">22% alpha</span></div></div>
+    <div class="sw"><div class="chip" style="background:rgba(248,169,74,0.14);border-bottom:1px solid var(--border)"></div><div class="meta"><span class="name">--cta-14</span><span class="val">14% alpha · button bg</span></div></div>
+  </div>
+
+  <p class="section-title">Text / foreground</p>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:#19263B;display:flex;align-items:center;justify-content:center;color:#EDF1F7;font-size:22px;font-weight:500">Aa</div><div class="meta"><span class="name">--fg-1</span><span class="val">#EDF1F7 · primary</span></div></div>
+    <div class="sw"><div class="chip" style="background:#19263B;display:flex;align-items:center;justify-content:center;color:#C5CEDC;font-size:22px;font-weight:500">Aa</div><div class="meta"><span class="name">--fg-2</span><span class="val">#C5CEDC</span></div></div>
+    <div class="sw"><div class="chip" style="background:#19263B;display:flex;align-items:center;justify-content:center;color:#A6B4C8;font-size:22px;font-weight:500">Aa</div><div class="meta"><span class="name">--fg-muted</span><span class="val">#A6B4C8 · body</span></div></div>
+    <div class="sw"><div class="chip" style="background:#19263B;display:flex;align-items:center;justify-content:center;color:#8EA1C7;font-size:22px;font-weight:500">Aa</div><div class="meta"><span class="name">--fg-subtle</span><span class="val">#8EA1C7</span></div></div>
+    <div class="sw"><div class="chip" style="background:#19263B;display:flex;align-items:center;justify-content:center;color:#6B7794;font-size:22px;font-weight:500">Aa</div><div class="meta"><span class="name">--fg-quiet</span><span class="val">#6B7794 · footer</span></div></div>
+  </div>
+
+  <p class="section-title">Data / status</p>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:#36C96A"></div><div class="meta"><span class="name">--good</span><span class="val">#36C96A · up</span></div></div>
+    <div class="sw"><div class="chip" style="background:#F65F74"></div><div class="meta"><span class="name">--bad</span><span class="val">#F65F74 · down</span></div></div>
+    <div class="sw"><div class="chip" style="background:#4BB7FF"></div><div class="meta"><span class="name">--info</span><span class="val">#4BB7FF</span></div></div>
+    <div class="sw"><div class="chip" style="background:#8FB7FF"></div><div class="meta"><span class="name">--info-soft</span><span class="val">#8FB7FF · table link</span></div></div>
+    <div class="sw"><div class="chip" style="background:#F8A94A"></div><div class="meta"><span class="name">--warn</span><span class="val">#F8A94A</span></div></div>
+  </div>
+
+  <p class="section-title">Chart palette (amber-forward, then cool)</p>
+  <div class="row row-6">
+    <div class="sw"><div class="chip" style="background:#FF6B00"></div><div class="meta"><span class="name">chart-1</span><span class="val">#FF6B00</span></div></div>
+    <div class="sw"><div class="chip" style="background:#4BB7FF"></div><div class="meta"><span class="name">chart-2</span><span class="val">#4BB7FF</span></div></div>
+    <div class="sw"><div class="chip" style="background:#36C96A"></div><div class="meta"><span class="name">chart-3</span><span class="val">#36C96A</span></div></div>
+    <div class="sw"><div class="chip" style="background:#B085F5"></div><div class="meta"><span class="name">chart-4</span><span class="val">#B085F5</span></div></div>
+    <div class="sw"><div class="chip" style="background:#F65F74"></div><div class="meta"><span class="name">chart-5</span><span class="val">#F65F74</span></div></div>
+    <div class="sw"><div class="chip" style="background:#8EA1C7"></div><div class="meta"><span class="name">chart-6</span><span class="val">#8EA1C7</span></div></div>
+  </div>
+
+  <p class="section-title">Borders (alpha white over surface)</p>
+  <div class="row">
+    <div class="sw" style="padding:18px"><div style="height:28px;background:var(--panel);border:1px solid rgba(255,255,255,0.04);border-radius:6px"></div><div class="meta"><span class="name">--border-soft</span><span class="val">rgba(255,255,255,0.04)</span></div></div>
+    <div class="sw" style="padding:18px"><div style="height:28px;background:var(--panel);border:1px solid rgba(255,255,255,0.07);border-radius:6px"></div><div class="meta"><span class="name">--border</span><span class="val">rgba(255,255,255,0.07)</span></div></div>
+    <div class="sw" style="padding:18px"><div style="height:28px;background:var(--panel);border:1px solid rgba(255,255,255,0.11);border-radius:6px"></div><div class="meta"><span class="name">--border-strong</span><span class="val">rgba(255,255,255,0.11)</span></div></div>
+  </div>
+</div>
+</body>
+</html>

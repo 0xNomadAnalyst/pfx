@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Brand — The mark</title>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+  body { padding: 56px; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.7rem; font-weight: 500; letter-spacing: -0.01em; margin: 0 0 6px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
+  .ch { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; padding: 36px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .ch .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; color: var(--fg-muted); text-transform: uppercase; }
+  .mark { background-color: rgba(255,255,255,0.96); -webkit-mask: url("../assets/TokenDesign_Icon_White.png") center / contain no-repeat; mask: url("../assets/TokenDesign_Icon_White.png") center / contain no-repeat; filter: drop-shadow(0 0 5px rgba(248,169,74,0.32)); }
+  .lockup { display: flex; align-items: center; gap: 12px; padding: 20px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-top: 24px; }
+  .lockup .n { font-weight: 500; color: rgba(166,180,200,0.74); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Brand</p>
+  <h1>The mark</h1>
+  <p class="section-intro">A single geometric glyph, applied via CSS <code>mask-image</code> so colour is inherited. Always paired with a soft amber drop-shadow.</p>
+
+  <div class="grid">
+    <div class="ch"><span class="mark" style="width:24px;height:24px"></span><span class="label">24px · header</span></div>
+    <div class="ch"><span class="mark" style="width:48px;height:48px"></span><span class="label">48px · footer</span></div>
+    <div class="ch"><span class="mark" style="width:96px;height:96px"></span><span class="label">96px · display</span></div>
+  </div>
+
+  <div class="lockup">
+    <span class="mark" style="width:20px;height:20px"></span>
+    <span class="n">Roderick McKinley, CFA, FRM</span>
+  </div>
+  <p style="margin-top:8px;font-size:12px;color:var(--fg-quiet);font-family:var(--font-mono);letter-spacing:0.04em">Horizontal lockup — fixed header usage</p>
+</div>
+</body>
+</html>

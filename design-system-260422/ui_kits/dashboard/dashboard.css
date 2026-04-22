@@ -1,0 +1,326 @@
+/* ==========================================================================
+   Dashboard UI Kit — chrome + panels, harmonised with marketing tokens
+   ========================================================================== */
+@import url("../../colors_and_type.css");
+
+:root {
+  /* Dashboard-local aliases (slightly deeper base than marketing) */
+  --db-bg:          var(--dash-bg);       /* #0a1020 — page */
+  --db-chrome:      var(--surface);        /* #0D1627 — topbar/bottombar */
+  --db-panel:       var(--dash-panel);     /* #0f1a2d — widgets */
+  --db-panel-2:     var(--dash-panel-2);   /* #101f35 — form controls */
+  --db-border:      var(--border);         /* alpha white .07 */
+  --db-border-soft: var(--border-soft);    /* alpha white .04 */
+}
+
+body {
+  margin: 0;
+  background: var(--db-bg);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  padding-bottom: 48px; /* bottombar reserved */
+}
+
+/* ── Topbar ───────────────────────────────────────────────────────────── */
+.db-topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px; align-items: center;
+  padding: 12px 20px;
+  background: var(--db-chrome);
+  border-bottom: 1px solid var(--db-border-soft);
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.02);
+}
+.db-topbar-left,
+.db-topbar-right {
+  display: inline-flex; align-items: center; gap: 12px;
+}
+.db-topbar-right { margin-left: auto; }
+.db-topbar-title {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-weight: 600; letter-spacing: 0.01em; white-space: nowrap;
+  color: var(--fg-1);
+  font-size: 15px;
+}
+.db-topbar-title .db-mark {
+  width: 18px; height: 18px;
+  background-color: rgba(255,255,255,0.96);
+  -webkit-mask: url("../../assets/TokenDesign_Icon_White.png") center / contain no-repeat;
+          mask: url("../../assets/TokenDesign_Icon_White.png") center / contain no-repeat;
+  filter: drop-shadow(0 0 5px rgba(248,169,74,0.32));
+}
+.db-topbar-meta {
+  color: var(--fg-subtle);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Health indicator (operational status pulse) */
+.db-health {
+  display: inline-flex; align-items: center;
+  padding: 2px; border-radius: 50%; cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.db-health:hover { transform: scale(1.25); }
+.db-health-dot {
+  display: block; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 6px rgba(54,201,106,0.53);
+}
+.db-health-dot.warn {
+  background: var(--warn);
+  box-shadow: 0 0 6px rgba(248,169,74,0.53);
+}
+.db-health-dot.err  {
+  background: var(--bad);
+  box-shadow: 0 0 6px rgba(246,95,116,0.53);
+  animation: db-pulse 2s ease-in-out infinite;
+}
+@keyframes db-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* ── Sidebar (tab navigation) ─────────────────────────────────────────── */
+.db-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: calc(100vh - 49px);
+}
+.db-sidebar {
+  border-right: 1px solid var(--db-border-soft);
+  padding: 16px 12px;
+  background: var(--db-chrome);
+}
+.db-sidebar-section {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--fg-muted);
+  padding: 10px 10px 6px;
+}
+.db-sidebar-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; box-sizing: border-box;
+  padding: 8px 10px;
+  border: 0; border-radius: 6px;
+  background: transparent;
+  color: rgba(197,206,220,0.88);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  text-align: left; cursor: pointer;
+  transition: background-color 200ms, color 200ms;
+}
+.db-sidebar-item:hover { background: rgba(255,255,255,0.03); color: var(--fg-1); }
+.db-sidebar-item.active {
+  background: rgba(248,169,74,0.10);
+  color: var(--cta);
+  box-shadow: inset 2px 0 0 var(--cta-strong);
+}
+.db-sidebar-item .ico {
+  width: 14px; height: 14px; flex: none;
+  color: currentColor; opacity: 0.85;
+}
+
+/* ── Filter controls ──────────────────────────────────────────────────── */
+.db-filter-label {
+  font-size: 12px;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+}
+.db-select {
+  background: var(--db-panel-2);
+  color: var(--fg-1);
+  border: 1px solid var(--db-border);
+  border-radius: 8px;
+  padding: 4px 26px 4px 10px;
+  font-size: 12.5px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
+    linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+.db-select:focus { outline: 2px solid var(--cta-strong); outline-offset: 1px; }
+
+.db-action-btn, .db-theme-toggle {
+  background: var(--db-panel-2);
+  color: var(--fg-1);
+  border: 1px solid var(--db-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background-color 200ms, border-color 200ms;
+}
+.db-action-btn:hover, .db-theme-toggle:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border-strong);
+}
+
+/* ── Dashboard grid ───────────────────────────────────────────────────── */
+.db-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+.db-col-3  { grid-column: span 3; }
+.db-col-4  { grid-column: span 4; }
+.db-col-6  { grid-column: span 6; }
+.db-col-8  { grid-column: span 8; }
+.db-col-12 { grid-column: span 12; }
+@media (max-width: 1100px) {
+  .db-col-3, .db-col-4, .db-col-6, .db-col-8 { grid-column: span 12; }
+}
+
+/* ── Widget (the core panel) ──────────────────────────────────────────── */
+.db-widget {
+  background: var(--db-panel);
+  border: 1px solid var(--db-border);
+  border-radius: 8px;
+  padding: 14px 14px 12px;
+  display: flex; flex-direction: column; gap: 10px;
+  min-height: 120px;
+}
+.db-widget-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.db-widget-title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: rgba(237,241,247,0.94);
+  display: flex; align-items: center; gap: 8px;
+}
+.db-widget-title .ico {
+  width: 14px; height: 14px;
+  color: var(--cta);
+  opacity: 0.88;
+}
+.db-widget-sub {
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+}
+
+/* ── Metric strip (KPIs) ──────────────────────────────────────────────── */
+.db-metric {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 0;
+}
+.db-metric-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.db-metric-value {
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-1);
+  letter-spacing: -0.01em;
+}
+.db-metric-delta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.db-delta-up   { color: var(--good); }
+.db-delta-down { color: var(--bad); }
+.db-delta-neutral { color: var(--fg-muted); }
+
+/* ── Data table ───────────────────────────────────────────────────────── */
+.db-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.db-table thead th {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--fg-muted);
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--db-border);
+  background: transparent;
+  white-space: nowrap;
+}
+.db-table thead th.num { text-align: right; }
+.db-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--db-border-soft);
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+}
+.db-table tbody td.num { text-align: right; }
+.db-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.db-table tbody tr:last-child td { border-bottom: 0; }
+.db-table a {
+  color: var(--info-soft);
+  transition: color 200ms;
+}
+.db-table a:hover { color: #b8d2ff; }
+
+/* ── Tag pill ─────────────────────────────────────────────────────────── */
+.db-tag {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(16,25,46,0.6);
+  border: 1px solid var(--db-border);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--fg-subtle);
+}
+.db-tag.up   { color: var(--good); border-color: rgba(54,201,106,0.3);  background: rgba(54,201,106,0.08);  }
+.db-tag.down { color: var(--bad);  border-color: rgba(246,95,116,0.3);  background: rgba(246,95,116,0.08);  }
+.db-tag.warn { color: var(--cta);  border-color: rgba(248,169,74,0.3);  background: rgba(248,169,74,0.08);  }
+
+/* ── Bottombar ────────────────────────────────────────────────────────── */
+.db-bottombar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  height: 42px;
+  padding: 0 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  background: var(--db-chrome);
+  border-top: 1px solid var(--db-border-soft);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-muted);
+  letter-spacing: 0.04em;
+  z-index: 19;
+}
+.db-bottombar-row {
+  display: inline-flex; align-items: center; gap: 18px;
+}
+
+/* ── Plotly polish (when Plotly isn't available) ──────────────────────── */
+.db-chart {
+  width: 100%;
+  min-height: 220px;
+}
+
+/* ── Utility ──────────────────────────────────────────────────────────── */
+.row { display: flex; align-items: center; gap: 12px; }
+.spacer { flex: 1; }

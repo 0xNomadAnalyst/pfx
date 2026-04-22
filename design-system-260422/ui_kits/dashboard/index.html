@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dashboard UI Kit — McKinley Financial Systems</title>
+<link rel="icon" href="../../assets/favicon-32x32.png" />
+<link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="Chrome.jsx"></script>
+  <script type="text/babel" src="Widgets.jsx"></script>
+  <script type="text/babel" src="Charts.jsx"></script>
+  <script type="text/babel" src="Views.jsx"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const TABS = [
+      { id: "overview",  section: "Monitoring",    icon: "overview",  label: "Overview" },
+      { id: "liquidity", section: "Monitoring",    icon: "liquidity", label: "Liquidity" },
+      { id: "reserves",  section: "Monitoring",    icon: "reserves",  label: "Reserves & Yields" },
+      { id: "risk",      section: "Risk",          icon: "risk",      label: "Risk & Stress" },
+      { id: "incidents", section: "Risk",          icon: "incidents", label: "Incidents",     disabled: true },
+      { id: "settings",  section: "System",        icon: "settings",  label: "Settings",      disabled: true },
+    ];
+
+    function App() {
+      const [active, setActive] = useState(() => localStorage.getItem("mkf-dash-tab") || "overview");
+      const [time, setTime] = useState(() => new Date());
+      useEffect(() => {
+        const id = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(id);
+      }, []);
+      useEffect(() => { localStorage.setItem("mkf-dash-tab", active); }, [active]);
+
+      const ViewMap = {
+        overview:  OverviewView,
+        liquidity: LiquidityView,
+        reserves:  ReservesView,
+        risk:      RiskView,
+      };
+      const View = ViewMap[active] || OverviewView;
+
+      const tStr = time.toISOString().replace("T", " ").slice(0, 19) + " UTC";
+
+      const filters = (
+        <React.Fragment>
+          <FilterSelect label="Network"    value="Solana"            options={["Solana", "Ethereum"]} />
+          <FilterSelect label="Protocol"   value="Solstice USX"      options={["Solstice USX", "All"]} />
+          <FilterSelect label="Window"     value="24h"               options={["1h", "24h", "7d", "30d"]} />
+        </React.Fragment>
+      );
+
+      return (
+        <React.Fragment>
+          <TopBar
+            title="Solstice · Operational Visibility"
+            network="Mainnet"
+            time={tStr}
+            health="green"
+            filters={filters}
+          />
+          <div className="db-layout">
+            <Sidebar tabs={TABS.filter(t => !t.disabled)} active={active} onSelect={setActive} />
+            <main>
+              <View />
+            </main>
+          </div>
+          <BottomBar
+            left={
+              <React.Fragment>
+                <span>DATA · shyft · solana-rpc</span>
+                <span>·</span>
+                <span>pipeline · healthy</span>
+                <span>·</span>
+                <span>lag · 1.2s</span>
+              </React.Fragment>
+            }
+            right={
+              <React.Fragment>
+                <span>build · htmx-v0.4.1</span>
+                <span>·</span>
+                <span>r. mckinley, cfa, frm</span>
+              </React.Fragment>
+            }
+          />
+        </React.Fragment>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
