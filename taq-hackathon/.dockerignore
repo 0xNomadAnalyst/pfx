@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.local
+.env.railway
+.git/
+.gitignore
+.dockerignore
+db-sql/
+bootstrap.sh
+README.md
