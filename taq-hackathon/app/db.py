@@ -27,16 +27,50 @@ def _load_env() -> None:
 def connect() -> psycopg.Connection:
     """Return a new psycopg connection to the ONyc database.
 
-    Reuses the same env contract as `db-sql/deploy.py`: DB_HOST, DB_PORT,
-    DB_NAME, DB_USER, DB_PASSWORD, optional PGSSLMODE (default 'require').
+    Resolution order (first match wins):
+
+    1. ``DATABASE_URL`` — Railway / Heroku style (linked Postgres injects this).
+    2. ``DB_HOST``, ``DB_PORT``, ``DB_NAME``, ``DB_USER``, ``DB_PASSWORD`` —
+       same contract as ``db-sql/deploy.py``.
+    3. ``PGHOST``, ``PGPORT``, ``PGDATABASE``, ``PGUSER``, ``PGPASSWORD`` —
+       libpq-style names some platforms expose.
+
+    Optional ``PGSSLMODE`` (default ``require``) applies only to the discrete-host
+    path; URLs should carry SSL in the connection string.
     """
     _load_env()
+
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        # SQLAlchemy/Heroku historically used postgres://; psycopg expects postgresql://
+        if database_url.startswith("postgres://"):
+            database_url = "postgresql://" + database_url[len("postgres://") :]
+        return psycopg.connect(database_url, application_name="hackathon-brief")
+
+    host = os.getenv("DB_HOST") or os.getenv("PGHOST")
+    port = os.getenv("DB_PORT") or os.getenv("PGPORT") or "5432"
+    dbname = os.getenv("DB_NAME") or os.getenv("PGDATABASE")
+    user = os.getenv("DB_USER") or os.getenv("PGUSER")
+    password = os.getenv("DB_PASSWORD") or os.getenv("PGPASSWORD")
+
+    if not host:
+        msg = (
+            "Database env missing: set DATABASE_URL, or DB_HOST with DB_NAME/DB_USER/DB_PASSWORD, "
+            "or PGHOST with PGDATABASE/PGUSER/PGPASSWORD. See pfx/taq-hackathon/.env.railway."
+        )
+        raise RuntimeError(msg)
+    if not all((dbname, user, password)):
+        raise RuntimeError(
+            "Database env incomplete: need DB_NAME (or PGDATABASE), DB_USER (or PGUSER), "
+            "DB_PASSWORD (or PGPASSWORD) when using host-based connection."
+        )
+
     return psycopg.connect(
-        host=os.environ["DB_HOST"],
-        port=os.environ["DB_PORT"],
-        dbname=os.environ["DB_NAME"],
-        user=os.environ["DB_USER"],
-        password=os.environ["DB_PASSWORD"],
+        host=host,
+        port=port,
+        dbname=dbname,
+        user=user,
+        password=password,
         sslmode=os.getenv("PGSSLMODE", "require"),
         application_name="hackathon-brief",
     )
