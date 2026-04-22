@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Briefs · ONyc Daily Brief{% endblock %}
+{% block content %}
+
+<section class="brief-feed">
+  <header class="brief-feed__header">
+    <h1 class="brief-feed__h1">Daily briefs</h1>
+    <p class="brief-feed__sub">Ecosystem, DEXes, Kamino, Exponent. One brief per UTC day.</p>
+  </header>
+
+  {% if briefs|length == 0 %}
+    <div class="brief-feed__empty mono">
+      No briefs yet. Run <code>python -m app.generator.run_brief</code> to generate today's.
+    </div>
+  {% else %}
+    <ul class="brief-feed__list">
+      {% for b in briefs %}
+      <li class="brief-feed__row">
+        <a class="brief-feed__card" href="/brief/{{ b.brief_date }}">
+          <span class="brief-feed__date mono">{{ b.brief_date.strftime('%Y-%m-%d') }}</span>
+          <span class="brief-feed__summary">
+            {% if b.items_fired == 0 %}
+              <span class="brief-feed__quiet">Quiet day across all sections.</span>
+            {% else %}
+              <span class="brief-feed__count mono">{{ b.items_fired }}</span>
+              <span class="brief-feed__count-label">{{ 'item' if b.items_fired == 1 else 'items' }} fired</span>
+              <span class="brief-feed__badges">
+                {% for section_id, label, quiet in section_meta %}
+                  {% set n = (b.sections.get(section_id) or {}).get('n_fired', 0) %}
+                  <span class="brief-badge{% if n > 0 %} brief-badge--active{% endif %} mono">{{ label }} · {{ n }}</span>
+                {% endfor %}
+              </span>
+            {% endif %}
+          </span>
+          <span class="brief-feed__caret mono">view →</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+
+{% endblock %}

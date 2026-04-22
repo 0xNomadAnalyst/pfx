@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ONyc Daily Brief{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/colors_and_type.css">
+  <link rel="stylesheet" href="/static/css/theme.css">
+  <link rel="stylesheet" href="/static/css/brief.css">
+</head>
+<body class="dash-app">
+  {% include "partials/chrome.html" %}
+  <main class="brief-main">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

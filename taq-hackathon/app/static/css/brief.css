@@ -1,0 +1,414 @@
+/* -----------------------------------------------------------------------------
+ * ONyc Daily Brief — brief.css
+ *
+ * Thin extension on top of colors_and_type.css and theme.css. Uses only CSS
+ * custom properties from those files; never hardcodes colours. Follows the
+ * McKinley Financial Systems SKILL rules: dark is not black, amber sparingly,
+ * Inter for body, Geist Mono for labels/numbers, medium weights.
+ * -----------------------------------------------------------------------------
+ */
+
+/* --- page shell --------------------------------------------------------- */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--dash-bg, var(--bg));
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body.dash-app {
+  display: flex;
+  flex-direction: column;
+}
+
+.brief-main {
+  max-width: var(--container-max, 1180px);
+  margin: 0 auto;
+  padding: var(--space-8, 2rem) var(--space-6, 1.5rem) var(--space-16, 4rem);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-mono);
+}
+
+code {
+  font-family: var(--font-mono);
+  background: var(--panel-2);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 0.9em;
+}
+
+/* --- chrome ------------------------------------------------------------- */
+
+.brief-chrome {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: var(--container-max, 1180px);
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.brief-chrome__brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  text-decoration: none;
+  color: var(--fg-1);
+}
+
+.brief-chrome__mark {
+  color: var(--cta);
+  font-size: var(--fs-mono-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  font-weight: 500;
+}
+
+.brief-chrome__title {
+  font-size: var(--fs-h3, 1.03rem);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+}
+
+.brief-chrome__caption {
+  color: var(--fg-quiet);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+/* --- feed --------------------------------------------------------------- */
+
+.brief-feed__header {
+  margin-bottom: var(--space-8);
+}
+
+.brief-feed__h1 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-h1);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+}
+
+.brief-feed__sub {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.brief-feed__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.brief-feed__card {
+  display: grid;
+  grid-template-columns: 10rem 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--dash-panel, var(--panel));
+  color: var(--fg-1);
+  text-decoration: none;
+  transition: border-color var(--dur-med) var(--ease-standard),
+              transform     var(--dur-med) var(--ease-standard);
+}
+
+.brief-feed__card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.brief-feed__date {
+  color: var(--fg-2);
+  font-size: var(--fs-mono-sm);
+  font-weight: 500;
+}
+
+.brief-feed__summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.brief-feed__count {
+  color: var(--cta);
+  font-size: var(--fs-h3);
+  font-weight: 500;
+}
+
+.brief-feed__count-label {
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+}
+
+.brief-feed__quiet {
+  color: var(--fg-quiet);
+  font-style: italic;
+}
+
+.brief-feed__badges {
+  display: inline-flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.brief-feed__caret {
+  color: var(--fg-quiet);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.brief-feed__empty {
+  padding: var(--space-10);
+  text-align: center;
+  color: var(--fg-muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* --- badges ------------------------------------------------------------- */
+
+.brief-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--fg-quiet);
+  font-size: var(--fs-mono-label);
+  text-transform: lowercase;
+  letter-spacing: var(--tracking-label);
+  background: transparent;
+}
+
+.brief-badge--active {
+  color: var(--cta);
+  border-color: var(--cta-42);
+  background: var(--cta-14);
+}
+
+/* --- detail ------------------------------------------------------------- */
+
+.brief-detail__header {
+  margin-bottom: var(--space-8);
+}
+
+.brief-detail__back {
+  display: inline-block;
+  color: var(--fg-quiet);
+  text-decoration: none;
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  margin-bottom: var(--space-4);
+}
+
+.brief-detail__back:hover {
+  color: var(--fg-2);
+}
+
+.brief-detail__h1 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-h1);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.brief-detail__date {
+  color: var(--fg-muted);
+  font-size: var(--fs-h3);
+  font-weight: 400;
+}
+
+.brief-detail__sub {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+  letter-spacing: var(--tracking-mono);
+}
+
+.brief-detail__count {
+  color: var(--cta);
+  font-weight: 500;
+  font-size: var(--fs-h3);
+}
+
+.brief-detail__empty {
+  color: var(--fg-muted);
+  padding: var(--space-6);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* --- section ------------------------------------------------------------ */
+
+.brief-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--dash-panel, var(--panel));
+  padding: var(--space-5) var(--space-6);
+  margin-bottom: var(--space-5);
+}
+
+.brief-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.brief-section__h2 {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+}
+
+.brief-section__count {
+  color: var(--fg-quiet);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.brief-quiet {
+  margin: 0;
+  color: var(--fg-quiet);
+  font-size: var(--fs-small);
+  font-style: italic;
+}
+
+/* --- item list ---------------------------------------------------------- */
+
+.brief-item-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.brief-item {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.brief-item:last-child {
+  border-bottom: none;
+}
+
+.brief-item__id {
+  color: var(--fg-quiet);
+  font-size: var(--fs-mono-sm);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  align-self: start;
+  padding-top: 3px;
+}
+
+.brief-item__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.brief-item__headline {
+  margin: 0;
+  color: var(--fg-1);
+  font-size: var(--fs-body);
+  line-height: var(--lh-heading);
+  word-wrap: break-word;
+}
+
+.brief-item__stats {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: baseline;
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+}
+
+.brief-item__delta,
+.brief-item__value-inline {
+  color: var(--fg-2);
+  font-weight: 500;
+}
+
+.brief-item__ref {
+  color: var(--fg-subtle, var(--fg-muted));
+  font-size: var(--fs-mono-label);
+}
+
+/* --- delta chips -------------------------------------------------------- */
+
+.brief-delta {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  background: transparent;
+}
+
+.brief-delta--up {
+  color: var(--good);
+  border-color: rgba(54, 201, 106, 0.35);
+  background: rgba(54, 201, 106, 0.10);
+}
+
+.brief-delta--down,
+.brief-delta--out {
+  color: var(--bad);
+  border-color: rgba(246, 95, 116, 0.35);
+  background: rgba(246, 95, 116, 0.10);
+}
+
+.brief-delta--in {
+  color: var(--info);
+  border-color: rgba(75, 183, 255, 0.35);
+  background: rgba(75, 183, 255, 0.10);
+}
+
+.brief-delta--event {
+  color: var(--fg-muted);
+  border-color: var(--border);
+  background: var(--panel-2);
+}

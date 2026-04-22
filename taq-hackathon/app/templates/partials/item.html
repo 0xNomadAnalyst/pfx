@@ -1,0 +1,19 @@
+<li class="brief-item">
+  <span class="brief-item__id mono">{{ item.item_id }}</span>
+  <div class="brief-item__body">
+    <p class="brief-item__headline">{{ item.headline }}</p>
+    <div class="brief-item__stats mono">
+      {% if item.direction %}
+        <span class="brief-delta brief-delta--{{ item.direction }}">{{ item.direction }}</span>
+      {% endif %}
+      {% if item.value_delta is not none and item.value_delta != 0 %}
+        <span class="brief-item__delta">Δ {{ item.value_delta|fmt_signed }}{% if item.value_unit %} {{ item.value_unit }}{% endif %}</span>
+      {% elif item.value_primary is not none %}
+        <span class="brief-item__value-inline">{{ item.value_primary|fmt_num }}{% if item.value_unit %} {{ item.value_unit }}{% endif %}</span>
+      {% endif %}
+      {% if item.ref %}
+        <span class="brief-item__ref">{{ item.ref if item.ref|length <= 20 else (item.ref[:8] ~ '…' ~ item.ref[-4:]) }}</span>
+      {% endif %}
+    </div>
+  </div>
+</li>

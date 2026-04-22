@@ -1,0 +1,16 @@
+<section class="brief-section brief-section--{{ section_id }}">
+  <header class="brief-section__header">
+    <h2 class="brief-section__h2">{{ label }}</h2>
+    <span class="brief-section__count mono">{{ block.n_fired }} {{ 'item' if block.n_fired == 1 else 'items' }}</span>
+  </header>
+
+  {% if block.n_fired == 0 %}
+    {% include "partials/quiet.html" %}
+  {% else %}
+    <ul class="brief-item-list">
+      {% for item in block['items'] %}
+        {% include "partials/item.html" %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>

@@ -1,0 +1,256 @@
+/* ==========================================================================
+   McKinley Financial Systems — Design Tokens
+   --------------------------------------------------------------------------
+   Harmonised dark tokens shared between the marketing site (opus/) and the
+   analytical dashboard (htmx/). Intent: institutional, analytical, calm,
+   long-session readable. Dark ≠ black. Depth comes from tonal separation,
+   not shadows. Accent (cta) used sparingly.
+   ========================================================================== */
+
+/* --- Font faces ----------------------------------------------------------- */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: local("Inter"), url("./fonts/Inter-Variable.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: local("Geist Mono"), url("./fonts/GeistMono-Variable.woff2") format("woff2-variations");
+}
+
+:root {
+  /* ── Surface hierarchy (5-step, tonal separation) ───────────────────── */
+  --bg:           #0B1220;  /* L0 page base — deepest */
+  --surface:      #0D1627;  /* L1 section bands, chrome */
+  --panel-2:      #10192E;  /* L2 muted containers, tags, secondary */
+  --panel:        #172033;  /* L3 popovers, sidebars */
+  --card:         #19263B;  /* L3.5 cards, content panels */
+  --accent-surface:#1E2B42; /* L4 interactive hover */
+
+  /* Dashboard (htmx) parallel surfaces — visually slightly deeper tonality */
+  --dash-bg:      #0a1020;
+  --dash-panel:   #0f1a2d;
+  --dash-panel-2: #101f35;
+
+  /* ── Foreground / text ──────────────────────────────────────────────── */
+  --fg-1:         #EDF1F7;  /* primary text, headings */
+  --fg-2:         #C5CEDC;  /* body emphasis */
+  --fg-muted:     #A6B4C8;  /* muted-foreground */
+  --fg-subtle:    #8EA1C7;  /* secondary/caption (dashboard muted) */
+  --fg-quiet:     #6B7794;  /* tertiary, footers */
+
+  /* ── Borders (alpha whites) ─────────────────────────────────────────── */
+  --border-soft:   rgba(255,255,255,0.04);
+  --border:        rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.11);
+
+  /* ── Accent: warm amber (CTA) — the only warm color, used sparingly ─ */
+  --cta:           #F8A94A;      /* primary accent — interaction, emphasis */
+  --cta-strong:    #FF6B00;      /* ring, primary button, chart-1 */
+  --cta-14:        rgba(248,169,74,0.14);
+  --cta-22:        rgba(248,169,74,0.22);
+  --cta-42:        rgba(248,169,74,0.42);
+  --cta-58:        rgba(248,169,74,0.58);
+  --cta-84:        rgba(248,169,74,0.84);
+
+  /* ── Data / status (dashboard) ──────────────────────────────────────── */
+  --good:          #36C96A;   /* positive / up */
+  --bad:           #F65F74;   /* negative / down */
+  --info:          #4BB7FF;   /* informational blue */
+  --info-soft:     #8FB7FF;   /* link color on tables */
+  --warn:          #F8A94A;   /* warning / attention (same as cta) */
+
+  /* ── Chart palette (harmonised across marketing + dashboard) ──────── */
+  --chart-1:       #FF6B00;   /* amber/orange — primary series */
+  --chart-2:       #4BB7FF;   /* info blue */
+  --chart-3:       #36C96A;   /* positive green */
+  --chart-4:       #B085F5;   /* violet */
+  --chart-5:       #F65F74;   /* rose */
+  --chart-6:       #8EA1C7;   /* steel — neutral series */
+  --chart-grid:    rgba(255,255,255,0.06);
+  --chart-text:    #FFFFFF;
+
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --font-sans:  "Inter", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  --font-mono:  "Geist Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* Type scale (fluid, restrained — "system documentation" authority) */
+  --fs-display: clamp(2.2rem, 1.6rem + 2.4vw, 2.9rem);   /* hero H1 */
+  --fs-h1:      clamp(1.78rem, 1.52rem + 1.1vw, 2.08rem);/* section titles */
+  --fs-h2:      1.12rem;                                  /* subsection */
+  --fs-h3:      1.03rem;                                  /* card title */
+  --fs-body:    1rem;                                     /* body */
+  --fs-body-sm: 0.95rem;
+  --fs-small:   0.88rem;
+  --fs-mono-label: 11px;                                  /* label/eyebrow */
+  --fs-mono-sm:    12px;
+
+  --lh-tight:    1.16;
+  --lh-heading:  1.25;
+  --lh-body:     1.68;
+  --lh-relaxed:  1.72;
+
+  --tracking-label: 0.15em;     /* mono uppercase eyebrow */
+  --tracking-mono:  0.04em;
+  --tracking-tight: -0.01em;
+
+  /* ── Spacing (8pt base) ─────────────────────────────────────────────── */
+  --space-1: 0.25rem;   /* 4  */
+  --space-2: 0.5rem;    /* 8  */
+  --space-3: 0.75rem;   /* 12 */
+  --space-4: 1rem;      /* 16 */
+  --space-5: 1.25rem;   /* 20 */
+  --space-6: 1.5rem;    /* 24 */
+  --space-7: 1.75rem;   /* 28 */
+  --space-8: 2rem;      /* 32 */
+  --space-10: 2.5rem;   /* 40 */
+  --space-12: 3rem;     /* 48 */
+  --space-16: 4rem;     /* 64 */
+  --space-20: 5rem;     /* 80 */
+
+  /* ── Radii (restrained: 6–12px, never pill-rounded except icons) ──── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;   /* default cards, buttons */
+  --radius-lg: 10px;
+  --radius-xl: 12px;  /* large panels */
+  --radius-2xl: 14px;
+
+  /* ── Elevation (tonal separation — shadows are minimal) ───────────── */
+  --shadow-none:  none;
+  --shadow-card:  0 10px 24px rgba(0,0,0,0.18);       /* standard card lift */
+  --shadow-panel: inset 0 1px 0 rgba(255,255,255,0.06),
+                  0 10px 26px rgba(0,0,0,0.18);       /* card-interactive */
+  --shadow-panel-hover: inset 0 1px 0 rgba(255,255,255,0.08),
+                        0 14px 30px rgba(0,0,0,0.22);
+  --shadow-modal: 0 12px 48px rgba(0,0,0,0.62);
+  --shadow-cta-ring: 0 0 0 0.75px rgba(248,169,74,0.32),
+                     0 0 17px rgba(248,169,74,0.25),
+                     0 0 37px rgba(248,169,74,0.14);
+
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+  --container-max: 1180px;
+  --container-feature: 1360px;
+  --header-h: 56px;
+
+  /* ── Motion ─────────────────────────────────────────────────────────── */
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out:      ease-out;
+  --dur-fast: 180ms;
+  --dur-med:  350ms;
+  --dur-slow: 520ms;
+  --dur-xslow: 700ms;
+}
+
+/* =========================================================================
+   Semantic / element rules — apply directly to HTML tags
+   ========================================================================= */
+html, body {
+  background: var(--bg);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  color: var(--fg-1);
+  font-weight: 500;                 /* medium preferred; authority through restraint */
+  letter-spacing: var(--tracking-tight);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--fs-display);
+  line-height: var(--lh-tight);
+}
+h2 {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-heading);
+}
+h3 {
+  font-size: var(--fs-h3);
+  line-height: 1.35;
+}
+
+p {
+  color: var(--fg-muted);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  max-width: 66ch;
+  text-wrap: pretty;
+}
+
+small, .small {
+  font-size: var(--fs-small);
+  color: var(--fg-muted);
+}
+
+code, kbd, samp, pre, .mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "zero" 1, "ss01" 1;
+}
+
+/* Mono uppercase eyebrow — used everywhere as a section label */
+.label-mono,
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--fg-1);
+  opacity: 0.9;
+}
+
+/* Section title combo (marketing) */
+.section-title {
+  font-size: var(--fs-h1);
+  line-height: 1.12;
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+}
+.section-intro {
+  margin-top: var(--space-3);
+  max-width: 66ch;
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--fg-muted);
+}
+
+/* Tabular numerics for data */
+.tabular, td.num, .num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Links (in-table & inline) */
+a { color: inherit; text-decoration: none; }
+.link {
+  color: var(--info-soft);
+  transition: color var(--dur-med) ease;
+}
+.link:hover { color: #b8d2ff; }
+
+/* Scrollbars — gentle */
+* { scrollbar-width: thin; scrollbar-color: rgba(142,161,199,0.28) rgba(255,255,255,0.03); }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+*::-webkit-scrollbar-thumb {
+  background: rgba(142,161,199,0.28);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(142,161,199,0.42); }
+
+/* Focus */
+:focus-visible {
+  outline: 2px solid var(--cta-strong);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

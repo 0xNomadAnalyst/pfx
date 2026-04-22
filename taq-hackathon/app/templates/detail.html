@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ brief.brief_date }} · ONyc Daily Brief{% endblock %}
+{% block content %}
+
+<section class="brief-detail">
+  <header class="brief-detail__header">
+    <a class="brief-detail__back mono" href="/">← all briefs</a>
+    <h1 class="brief-detail__h1">
+      Daily brief
+      <span class="brief-detail__date mono">· {{ brief.brief_date.strftime('%Y-%m-%d') }}</span>
+    </h1>
+    <p class="brief-detail__sub mono">
+      <span class="brief-detail__count">{{ brief.items_fired }}</span>
+      {{ 'item' if brief.items_fired == 1 else 'items' }} fired
+      · generated {{ brief.generated_at.strftime('%H:%M UTC') }}
+    </p>
+  </header>
+
+  {% for section_id, label, quiet in section_meta %}
+    {% set block = (brief.payload.get('sections') or {}).get(section_id) or {'items': [], 'n_fired': 0} %}
+    {% include "partials/section.html" %}
+  {% endfor %}
+</section>
+
+{% endblock %}

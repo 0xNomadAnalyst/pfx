@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}No brief for {{ brief_date }}{% endblock %}
+{% block content %}
+
+<section class="brief-detail">
+  <header class="brief-detail__header">
+    <a class="brief-detail__back mono" href="/">← all briefs</a>
+    <h1 class="brief-detail__h1">
+      No brief on
+      <span class="brief-detail__date mono">· {{ brief_date }}</span>
+    </h1>
+    <p class="brief-detail__sub mono">
+      Nothing has been generated for that date.
+    </p>
+  </header>
+
+  <p class="brief-detail__empty">
+    To generate this brief, run
+    <code class="mono">python -m app.generator.run_brief --date {{ brief_date }}</code>
+    from the hackathon app directory.
+  </p>
+</section>
+
+{% endblock %}
