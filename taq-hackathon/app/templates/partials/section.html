@@ -1,6 +1,17 @@
 <section class="brief-section brief-section--{{ section_id }}">
   <header class="brief-section__header">
-    <h2 class="brief-section__h2">{{ label }}</h2>
+    <div class="brief-section__title-row">
+      <h2 class="brief-section__h2">{{ label }}</h2>
+      {% if dashboard_url %}
+        <a class="brief-section__dash-link mono"
+           href="{{ dashboard_url }}"
+           target="_blank"
+           rel="noopener"
+           aria-label="Open {{ label }} dashboard in a new tab">
+          full dashboard →
+        </a>
+      {% endif %}
+    </div>
     <span class="brief-section__count mono">{{ block.n_fired }} {{ 'item' if block.n_fired == 1 else 'items' }}</span>
   </header>
 

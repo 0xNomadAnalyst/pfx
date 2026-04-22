@@ -21,4 +21,6 @@ COPY design-system-260422/htmx/app/static/css/theme.css    ./app/static/css/them
 ENV PORT=8003
 EXPOSE 8003
 
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]
+# Shell form so ${PORT} expands at runtime — Railway injects its own PORT and
+# binding to a hardcoded value means the ingress can't reach the container.
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

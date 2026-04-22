@@ -29,11 +29,31 @@ a cron entry on the host:
 On Railway, wire this command to the platform's cron service. Same env vars
 are required regardless of scheduler.
 
+## LLM narrative (Perplexity)
+
+The generator calls `app.generator.narrative.synthesise_narrative(payload)`
+between `get_brief()` and the upsert. It's fully implemented and wired into
+the frontend, but **gated on the `PERPLEXITY_API_KEY` environment variable**:
+
+| Key state             | Behaviour                                                        |
+| --------------------- | ---------------------------------------------------------------- |
+| Unset                 | No-op — returns `None`, brief ships without the narrative field |
+| Set, zero items fired | Returns a canned quiet-day line (no API call)                    |
+| Set, items fired      | Calls Perplexity, folds the response into `payload.narrative`   |
+
+Failure posture is fail-open: any exception is caught; the brief is still
+persisted without the narrative. No SQL or frontend change is needed to
+activate — just add the key to `pfx/.env.pfx.core`:
+
+```
+PERPLEXITY_API_KEY=pplx-xxxxxxxx
+PERPLEXITY_MODEL=sonar          # optional override; default is "sonar"
+```
+
+The prompt tells the model to use only the provided JSON and not to search.
+See [`narrative.py`](narrative.py) for the system prompt and payload shape.
+
 ## Phase-2 hooks
 
 - `slack.py` — post a compact summary to `SLACK_WEBHOOK_URL` after successful
   upsert. Deferred; no stub yet.
-- LLM narrative — fold a `synthesise_narrative(payload) -> text` call in
-  between `get_brief()` and the upsert, writing the prose into
-  `payload.narrative`. The frontend already has a slot for a top-of-page
-  narrative paragraph (see `app/templates/detail.html`).

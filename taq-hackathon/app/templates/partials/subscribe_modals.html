@@ -1,0 +1,179 @@
+{# Two modals (subscribe + unsubscribe). Each has:
+   - role="dialog" aria-modal="true" aria-labelledby for a11y
+   - A backdrop that closes on click
+   - A close button
+   - Focus trap handled in subscribe.js
+   The subscribe modal has two inner "steps" toggled by data-step. #}
+
+{# ===================== Subscribe modal ===================== #}
+<div class="brief-modal-root" data-modal="subscribe" hidden>
+  <div class="brief-modal__backdrop" data-modal-backdrop></div>
+  <div class="brief-modal"
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="subscribe-modal-title"
+       tabindex="-1">
+
+    {# ── Step 1: details form ── #}
+    <section class="brief-modal__step" data-step="form">
+      <header class="brief-modal__header">
+        <h2 id="subscribe-modal-title" class="brief-modal__title">Subscribe to daily Slack updates</h2>
+        <button type="button" class="brief-modal__close" aria-label="Close" data-close-modal>×</button>
+      </header>
+
+      <form class="brief-form" data-subscribe-form novalidate>
+        <div class="brief-form__row">
+          <label for="sub-email" class="brief-form__label mono">work email</label>
+          <input id="sub-email" name="email" type="email" required
+                 class="brief-form__input"
+                 autocomplete="email"
+                 placeholder="you@company.com">
+          <p class="brief-form__hint mono" data-error-email hidden>enter a valid email address</p>
+        </div>
+
+        <div class="brief-form__row">
+          <label for="sub-workspace" class="brief-form__label mono">slack workspace</label>
+          <input id="sub-workspace" name="slack_workspace" type="text" required
+                 class="brief-form__input"
+                 placeholder="mycompany.slack.com">
+          <p class="brief-form__hint mono" data-error-workspace hidden>workspace is required</p>
+        </div>
+
+        <div class="brief-form__row">
+          <label for="sub-channel" class="brief-form__label mono">channel</label>
+          <input id="sub-channel" name="slack_channel" type="text" required
+                 class="brief-form__input"
+                 placeholder="#defi-treasury">
+          <p class="brief-form__hint mono" data-error-channel hidden>channel is required</p>
+        </div>
+
+        <fieldset class="brief-form__row brief-form__row--radio">
+          <legend class="brief-form__label mono">frequency</legend>
+          <label class="brief-form__radio">
+            <input type="radio" name="frequency" value="daily" checked>
+            <span>daily brief · morning UTC</span>
+          </label>
+          <label class="brief-form__radio brief-form__radio--disabled">
+            <input type="radio" name="frequency" value="intraday" disabled>
+            <span>daily + intra-day alerts <em class="brief-form__muted mono">· coming soon</em></span>
+          </label>
+        </fieldset>
+
+        <p class="brief-form__note mono">your subscription is queued — Slack delivery activates once the workspace is connected via "Add to Slack" OAuth (coming once deployed)</p>
+
+        <footer class="brief-modal__footer">
+          <button type="button" class="brief-btn brief-btn--ghost" data-close-modal>Cancel</button>
+          <button type="submit" class="brief-btn brief-btn--cta" data-submit>Subscribe</button>
+        </footer>
+      </form>
+    </section>
+
+    {# ── Step 2: success confirmation ── #}
+    <section class="brief-modal__step" data-step="success" hidden>
+      <header class="brief-modal__header">
+        <h2 class="brief-modal__title">You are subscribed</h2>
+        <button type="button" class="brief-modal__close" aria-label="Close" data-close-modal>×</button>
+      </header>
+
+      <div class="brief-modal__body">
+        <p class="brief-success__lead">Daily brief will post to</p>
+        <p class="brief-success__channel mono" data-success-channel>#channel</p>
+        <p class="brief-success__workspace mono" data-success-workspace>workspace</p>
+        <p class="brief-success__note mono">You can unsubscribe any time from the Manage button at the top of the page.</p>
+      </div>
+
+      <footer class="brief-modal__footer">
+        <button type="button" class="brief-btn brief-btn--cta" data-close-modal>Done</button>
+      </footer>
+    </section>
+  </div>
+</div>
+
+{# ===================== Unsubscribe / Manage modal =====================
+  Three steps:
+    - lookup:    email entry (recover flow when localStorage is empty)
+    - not_found: no active subscription for the entered email
+    - confirm:   show channel + confirm unsubscribe (reached either from
+                 localStorage Manage button or from a successful lookup)
+#}
+<div class="brief-modal-root" data-modal="unsubscribe" hidden>
+  <div class="brief-modal__backdrop" data-modal-backdrop></div>
+  <div class="brief-modal"
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="unsubscribe-modal-title"
+       tabindex="-1">
+
+    {# ── Step: email lookup ── #}
+    <section class="brief-modal__step" data-step="lookup" hidden>
+      <header class="brief-modal__header">
+        <h2 id="unsubscribe-modal-title" class="brief-modal__title">Manage your subscription</h2>
+        <button type="button" class="brief-modal__close" aria-label="Close" data-close-modal>×</button>
+      </header>
+
+      <form class="brief-form" data-recover-form novalidate>
+        <p class="brief-form__intro">Enter the email address you subscribed with and we will look up your active subscription.</p>
+
+        <div class="brief-form__row">
+          <label for="recover-email" class="brief-form__label mono">work email</label>
+          <input id="recover-email" name="recover_email" type="email" required
+                 class="brief-form__input"
+                 autocomplete="email"
+                 placeholder="you@company.com">
+          <p class="brief-form__hint mono" data-error-recover-email hidden>enter a valid email address</p>
+        </div>
+
+        <footer class="brief-modal__footer">
+          <button type="button" class="brief-btn brief-btn--ghost" data-close-modal>Cancel</button>
+          <button type="submit" class="brief-btn brief-btn--cta" data-recover-submit>Continue</button>
+        </footer>
+      </form>
+    </section>
+
+    {# ── Step: no active subscription for the entered email ── #}
+    <section class="brief-modal__step" data-step="not_found" hidden>
+      <header class="brief-modal__header">
+        <h2 class="brief-modal__title">No active subscription</h2>
+        <button type="button" class="brief-modal__close" aria-label="Close" data-close-modal>×</button>
+      </header>
+
+      <div class="brief-modal__body">
+        <p class="brief-unsub__lead">
+          We do not have an active subscription for
+          <span class="mono" data-not-found-email>that email</span>.
+        </p>
+        <p class="brief-unsub__note mono">
+          Check the address for typos, or subscribe fresh from the top of the page.
+        </p>
+      </div>
+
+      <footer class="brief-modal__footer">
+        <button type="button" class="brief-btn brief-btn--ghost" data-recover-back>Try a different email</button>
+        <button type="button" class="brief-btn brief-btn--cta" data-close-modal>Close</button>
+      </footer>
+    </section>
+
+    {# ── Step: confirm unsubscribe ── #}
+    <section class="brief-modal__step" data-step="confirm" hidden>
+      <header class="brief-modal__header">
+        <h2 class="brief-modal__title">Unsubscribe from Slack updates?</h2>
+        <button type="button" class="brief-modal__close" aria-label="Close" data-close-modal>×</button>
+      </header>
+
+      <div class="brief-modal__body">
+        <p class="brief-unsub__lead">
+          You will stop receiving daily briefs in
+          <span class="mono" data-unsub-channel>#channel</span>.
+        </p>
+        <p class="brief-unsub__note mono">
+          Your record will be kept for audit but marked inactive. You can resubscribe any time.
+        </p>
+      </div>
+
+      <footer class="brief-modal__footer">
+        <button type="button" class="brief-btn brief-btn--ghost" data-close-modal>Cancel</button>
+        <button type="button" class="brief-btn brief-btn--danger" data-confirm-unsubscribe>Unsubscribe</button>
+      </footer>
+    </section>
+  </div>
+</div>

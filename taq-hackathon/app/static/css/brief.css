@@ -176,11 +176,13 @@ code {
 }
 
 .brief-feed__caret {
-  color: var(--fg-quiet);
+  color: var(--cta);
   font-size: var(--fs-mono-label);
   text-transform: uppercase;
   letter-spacing: var(--tracking-label);
 }
+
+.brief-feed__card:hover .brief-feed__caret { color: var(--cta-strong); }
 
 .brief-feed__empty {
   padding: var(--space-10);
@@ -217,28 +219,30 @@ code {
   margin-bottom: var(--space-8);
 }
 
-.brief-detail__back {
-  display: inline-block;
-  color: var(--fg-quiet);
-  text-decoration: none;
-  font-size: var(--fs-mono-label);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
-  margin-bottom: var(--space-4);
-}
-
-.brief-detail__back:hover {
-  color: var(--fg-2);
-}
-
 .brief-detail__h1 {
   margin: 0 0 var(--space-2);
   font-size: var(--fs-h1);
   font-weight: 500;
   letter-spacing: var(--tracking-tight);
-  display: inline-flex;
+  display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: var(--space-3);
+}
+
+.brief-detail__back {
+  display: inline-block;
+  color: var(--cta);
+  text-decoration: none;
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  margin: 0 0 var(--space-4);
+}
+
+.brief-detail__back:hover {
+  color: var(--cta-strong);
+  text-decoration: underline;
 }
 
 .brief-detail__date {
@@ -267,6 +271,512 @@ code {
   border-radius: var(--radius-md);
 }
 
+/* --- intro (top-of-page explainer + author) ----------------------------
+ * Mirrored two-column card. Both columns share the same rhythm —
+ *   caption  →  lead (h3)  →  body  →  link
+ * The author column adds a credentials strip beneath the lead, with CFA
+ * and FRM highlighted in amber (credential-bullet use permitted by the
+ * design-system SKILL rules). A hairline left-border on the author
+ * column acts as a vertical divider on desktop; on mobile it flips to a
+ * horizontal separator so the two blocks stack cleanly.
+ * ---------------------------------------------------------------------- */
+
+.brief-intro {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: var(--space-7);
+  margin: 0 0 var(--space-5);
+  padding: var(--space-6) var(--space-7);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--dash-panel, var(--panel));
+}
+
+.brief-intro__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.brief-intro__col--author {
+  padding-left: var(--space-7);
+  border-left: 1px solid var(--border-soft);
+}
+
+.brief-intro__caption {
+  margin: 0;
+  color: var(--fg-quiet);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  /* tight space between caption and lead so the caption reads as an eyebrow */
+}
+
+.brief-intro__lead {
+  margin: 0;
+  color: var(--fg-1);
+  font-size: var(--fs-h3, 1.03rem);
+  font-weight: 500;
+  line-height: var(--lh-heading);
+  letter-spacing: var(--tracking-tight);
+}
+
+.brief-intro__credentials {
+  /* negative top margin brings credentials immediately under the name */
+  margin: calc(-1 * var(--space-1)) 0 var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.brief-intro__cred {
+  color: var(--cta);
+  font-weight: 500;
+}
+
+.brief-intro__dot {
+  color: var(--fg-quiet);
+}
+
+.brief-intro__role {
+  color: var(--fg-muted);
+}
+
+.brief-intro__body {
+  margin: 0;
+  color: var(--fg-2);
+  font-size: var(--fs-body-sm);
+  line-height: var(--lh-body);
+}
+
+.brief-intro__link {
+  align-self: flex-start;
+  margin-top: auto;      /* pins the link to the bottom of the column */
+  padding-top: var(--space-2);
+  color: var(--cta);
+  text-decoration: none;
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.brief-intro__link:hover {
+  color: var(--cta-strong);
+  text-decoration: underline;
+}
+
+@media (max-width: 820px) {
+  .brief-intro {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+    padding: var(--space-5) var(--space-6);
+  }
+  .brief-intro__col--author {
+    padding: var(--space-6) 0 0;
+    border-left: none;
+    border-top: 1px solid var(--border-soft);
+  }
+}
+
+/* --- subscribe section -------------------------------------------------- */
+/* Sits at the top of feed + detail pages. Two inner states (unsubscribed /
+   subscribed) toggled by subscribe.js via `hidden`. Card treatment matches
+   the other sections. */
+
+.brief-subscribe {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--dash-panel, var(--panel));
+}
+
+.brief-subscribe__state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+
+/* Explicit override — `display: flex` above would defeat the `hidden`
+   attribute's default `display: none`. */
+.brief-subscribe__state[hidden] { display: none; }
+
+.brief-subscribe__copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.brief-subscribe__h2 {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.brief-subscribe__channel {
+  color: var(--cta);
+  font-size: var(--fs-mono-sm);
+  font-weight: 500;
+}
+
+.brief-subscribe__sub {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.brief-subscribe__actions {
+  display: inline-flex;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+/* --- buttons ------------------------------------------------------------ */
+
+.brief-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-standard),
+              border-color     var(--dur-fast) var(--ease-standard),
+              color            var(--dur-fast) var(--ease-standard);
+}
+
+.brief-btn:focus-visible {
+  outline: 2px solid var(--cta-strong);
+  outline-offset: 2px;
+}
+
+.brief-btn--cta {
+  background: var(--cta-14);
+  border-color: var(--cta-42);
+  color: var(--cta);
+}
+
+.brief-btn--cta:hover {
+  background: var(--cta-22);
+  border-color: var(--cta-58);
+}
+
+.brief-btn--ghost {
+  color: var(--fg-muted);
+}
+
+.brief-btn--ghost:hover {
+  color: var(--fg-1);
+  border-color: var(--border-strong);
+}
+
+.brief-btn--danger {
+  color: var(--bad);
+  border-color: rgba(246, 95, 116, 0.35);
+  background: rgba(246, 95, 116, 0.08);
+}
+
+.brief-btn--danger:hover {
+  background: rgba(246, 95, 116, 0.16);
+  border-color: rgba(246, 95, 116, 0.6);
+}
+
+/* --- modal (overlay + dialog) ------------------------------------------- */
+
+.brief-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.brief-modal-root[hidden] { display: none; }
+
+.brief-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.brief-modal {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  background: var(--dash-panel, var(--panel));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  outline: none;
+}
+
+.brief-modal__step[hidden] { display: none; }
+
+.brief-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.brief-modal__title {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+}
+
+.brief-modal__close {
+  background: transparent;
+  border: none;
+  color: var(--fg-quiet);
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0 var(--space-1);
+  cursor: pointer;
+}
+
+.brief-modal__close:hover { color: var(--fg-1); }
+.brief-modal__close:focus-visible {
+  outline: 2px solid var(--cta-strong);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.brief-modal__body {
+  padding: var(--space-5) var(--space-6);
+  color: var(--fg-2);
+}
+
+.brief-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--border-soft);
+}
+
+/* --- form --------------------------------------------------------------- */
+
+.brief-form {
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.brief-form__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.brief-form__row--radio { gap: var(--space-2); }
+
+.brief-form__label {
+  color: var(--fg-muted);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.brief-form__input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body-sm);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--dur-fast) var(--ease-standard);
+}
+
+.brief-form__input::placeholder { color: var(--fg-quiet); }
+.brief-form__input:focus {
+  outline: none;
+  border-color: var(--cta);
+  background: var(--panel);
+}
+
+.brief-form__input[aria-invalid="true"] {
+  border-color: var(--bad);
+}
+
+.brief-form__hint {
+  color: var(--bad);
+  font-size: var(--fs-mono-label);
+  margin: 0;
+}
+
+.brief-form__radio {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--fg-2);
+  font-size: var(--fs-body-sm);
+  cursor: pointer;
+}
+
+.brief-form__radio input[type="radio"] { accent-color: var(--cta); }
+
+.brief-form__radio--disabled,
+.brief-form__radio--disabled > span {
+  color: var(--fg-quiet);
+  cursor: not-allowed;
+}
+
+.brief-form__radio--disabled input[type="radio"] {
+  accent-color: var(--fg-quiet);
+  cursor: not-allowed;
+}
+
+.brief-form__muted {
+  font-style: normal;
+  color: var(--fg-quiet);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  font-size: var(--fs-mono-label);
+}
+
+.brief-form__help {
+  margin: 0;
+  color: var(--fg-quiet);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.brief-form__intro {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-body-sm);
+  line-height: var(--lh-body);
+}
+
+/* recover-by-email link inside the subscribe bar */
+.brief-subscribe__recover {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--cta);
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  cursor: pointer;
+}
+
+.brief-subscribe__recover:hover       { color: var(--cta-strong); text-decoration: underline; }
+.brief-subscribe__recover:focus-visible {
+  outline: 2px solid var(--cta-strong);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.brief-form__note {
+  margin: 0;
+  color: var(--fg-quiet);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-soft);
+}
+
+/* --- success / unsubscribe copy ---------------------------------------- */
+
+.brief-success__lead,
+.brief-unsub__lead {
+  margin: 0 0 var(--space-3);
+  color: var(--fg-2);
+  font-size: var(--fs-body);
+}
+
+.brief-success__channel {
+  margin: 0 0 var(--space-1);
+  color: var(--cta);
+  font-size: var(--fs-h2);
+  font-weight: 500;
+}
+
+.brief-success__workspace {
+  margin: 0 0 var(--space-4);
+  color: var(--fg-muted);
+  font-size: var(--fs-mono-sm);
+}
+
+.brief-success__note,
+.brief-unsub__note {
+  margin: var(--space-3) 0 0;
+  color: var(--fg-quiet);
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-soft);
+}
+
+/* --- narrative / analysis section --------------------------------------- */
+/* Wears the same card treatment as Ecosystem / DEXes / Kamino / Exponent
+   (`.brief-section`). Body differs: instead of `.brief-item-list` we render
+   paragraphs with a bolded theme lead each. `.brief-section--analysis` is a
+   hook for future variation if needed. */
+
+.brief-analysis__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.brief-analysis__p {
+  margin: 0;
+  color: var(--fg-2);
+  font-size: var(--fs-body);
+  line-height: var(--lh-relaxed);
+  font-weight: 400;
+}
+
+.brief-analysis__p strong {
+  color: var(--fg-1);
+  font-weight: 500;
+  margin-right: var(--space-1);
+}
+
 /* --- section ------------------------------------------------------------ */
 
 .brief-section {
@@ -291,6 +801,26 @@ code {
   font-size: var(--fs-h2);
   font-weight: 500;
   letter-spacing: var(--tracking-tight);
+}
+
+.brief-section__title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.brief-section__dash-link {
+  color: var(--cta);
+  text-decoration: none;
+  font-size: var(--fs-mono-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.brief-section__dash-link:hover {
+  color: var(--cta-strong);
+  text-decoration: underline;
 }
 
 .brief-section__count {

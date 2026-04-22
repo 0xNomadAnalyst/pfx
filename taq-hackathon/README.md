@@ -90,9 +90,22 @@ Thresholds for every item live in `hackathon.brief_config` and can be tuned
 via SQL `UPDATE` without a redeploy. See
 `db-sql/tables/12_seed_brief_config.sql` for shipped defaults.
 
+## Optional: LLM narrative (Perplexity)
+
+The generator can wrap an analyst-voice paragraph around the structured items.
+The stub is already wired end-to-end — it runs between `get_brief()` and the
+upsert, and the detail page renders the result above the section blocks.
+
+It is **gated on `PERPLEXITY_API_KEY`**: if the key is absent, the stub logs
+a skip and the brief ships without the narrative. When the key is ready, add
+it to `pfx/.env.pfx.core` (optionally `PERPLEXITY_MODEL=sonar`) and run
+`bash app/run_brief.sh` — no SQL or frontend change needed.
+
+See [`app/generator/README.md`](app/generator/README.md) for the prompt, model
+choice, and failure posture.
+
 ## Not in v1 (phase-2)
 
-- **LLM narrative synthesis** at the top of each brief.
 - **Slack webhook delivery** of the daily brief to a channel.
 - **Weekly rollup** (`/rollup/<week>` aggregating 7 daily briefs).
 - **Threshold admin UI** (currently thresholds are tuned via SQL only).

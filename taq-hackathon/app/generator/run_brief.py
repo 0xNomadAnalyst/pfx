@@ -22,6 +22,12 @@ import sys
 from datetime import date, datetime, time, timezone
 
 from app import db
+from app.generator.narrative import (
+    PLACEHOLDER_NARRATIVE,
+    PLACEHOLDER_SLACK_DIGEST,
+    QUIET_DAY_NARRATIVE,
+    synthesise_narrative,
+)
 
 
 logging.basicConfig(
@@ -59,6 +65,29 @@ def generate(brief_date: date, dry_run: bool = False) -> int:
             log.error("hackathon.get_brief() returned NULL")
             return 1
         payload = row[0]
+
+        # Wrap an analyst-voice narrative around the structured items. When
+        # PERPLEXITY_API_KEY is unset (stub no-op), fall through to the sample
+        # PLACEHOLDER_NARRATIVE so the detail page still has prose to show; the
+        # frontend labels this as a sample. Once the key is set, real LLM
+        # output replaces the sample automatically.
+        narrative = synthesise_narrative(payload)
+        if narrative is None:
+            payload["narrative"]        = PLACEHOLDER_NARRATIVE
+            payload["narrative_source"] = "placeholder"
+        elif narrative == QUIET_DAY_NARRATIVE:
+            payload["narrative"]        = narrative
+            payload["narrative_source"] = "canned-quiet"
+        else:
+            payload["narrative"]        = narrative
+            payload["narrative_source"] = "perplexity"
+
+        # Slack digest: static mockup for now. When the Slack webhook
+        # integration lands in phase-2, this slot will carry an LLM-generated
+        # short-form digest. The frontend renders it as a "Slack preview"
+        # card on the detail page, labelled as a sample while it is static.
+        payload["slack_digest"]        = PLACEHOLDER_SLACK_DIGEST
+        payload["slack_digest_source"] = "placeholder"
 
         n_items = int(payload.get("items_fired", 0) or 0)
         n_sections = sum(

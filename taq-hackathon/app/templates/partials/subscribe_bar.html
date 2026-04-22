@@ -1,0 +1,32 @@
+{# Top-of-page subscribe section. The two inner states (unsubscribed /
+   subscribed) are pre-rendered and toggled by subscribe.js based on the
+   value of localStorage['onyc-brief-subscription']. #}
+<section class="brief-subscribe" data-subscribe-bar>
+  <div class="brief-subscribe__state brief-subscribe__state--unsubscribed" data-subscribe-state="unsubscribed">
+    <div class="brief-subscribe__copy">
+      <h2 class="brief-subscribe__h2">Get this brief in your Slack</h2>
+      <p class="brief-subscribe__sub mono">a short digest, once a day, posted to a channel you choose</p>
+      <button type="button" class="brief-subscribe__recover mono" data-open-recover>already subscribed? manage by email →</button>
+    </div>
+    <div class="brief-subscribe__actions">
+      <button type="button" class="brief-btn brief-btn--cta" data-open-subscribe>Subscribe</button>
+    </div>
+  </div>
+
+  <div class="brief-subscribe__state brief-subscribe__state--subscribed" data-subscribe-state="subscribed" hidden>
+    <div class="brief-subscribe__copy">
+      <h2 class="brief-subscribe__h2">
+        Subscribed
+        <span class="brief-subscribe__channel mono" data-subscribed-channel>#channel</span>
+      </h2>
+      <p class="brief-subscribe__sub mono">
+        <span data-subscribed-workspace>workspace</span>
+        · <span data-subscribed-frequency>daily</span>
+        · <span data-subscribed-email>you@example.com</span>
+      </p>
+    </div>
+    <div class="brief-subscribe__actions">
+      <button type="button" class="brief-btn brief-btn--ghost" data-open-unsubscribe>Manage</button>
+    </div>
+  </div>
+</section>

@@ -2,3 +2,8 @@
 .venv/
 __pycache__/
 *.pyc
+
+# Env files — never commit filled-in secrets. The .env.railway committed here
+# should remain a template with empty values only.
+.env
+.env.local

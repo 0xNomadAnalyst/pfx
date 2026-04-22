@@ -2,6 +2,9 @@
 {% block title %}Briefs · ONyc Daily Brief{% endblock %}
 {% block content %}
 
+{% include "partials/brief_intro.html" %}
+{% include "partials/subscribe_bar.html" %}
+
 <section class="brief-feed">
   <header class="brief-feed__header">
     <h1 class="brief-feed__h1">Daily briefs</h1>
@@ -25,7 +28,7 @@
               <span class="brief-feed__count mono">{{ b.items_fired }}</span>
               <span class="brief-feed__count-label">{{ 'item' if b.items_fired == 1 else 'items' }} fired</span>
               <span class="brief-feed__badges">
-                {% for section_id, label, quiet in section_meta %}
+                {% for section_id, label, quiet, dashboard_url in section_meta %}
                   {% set n = (b.sections.get(section_id) or {}).get('n_fired', 0) %}
                   <span class="brief-badge{% if n > 0 %} brief-badge--active{% endif %} mono">{{ label }} · {{ n }}</span>
                 {% endfor %}
