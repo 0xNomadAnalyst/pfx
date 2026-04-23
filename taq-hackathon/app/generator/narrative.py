@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import date as _date
 from typing import Any, Optional
 
 import httpx
@@ -208,3 +209,172 @@ def synthesise_narrative(payload: dict[str, Any], timeout_s: float = 30.0) -> Op
         return None
     log.info("narrative: %d chars produced by Perplexity", len(text))
     return text
+
+
+# -----------------------------------------------------------------------------
+# Slack digest synthesis
+# -----------------------------------------------------------------------------
+
+# Section labels used in the Slack header counts line. Order is load-bearing
+# (keeps the digest visually consistent regardless of which sections fired).
+SLACK_SECTION_LABELS: list[tuple[str, str]] = [
+    ("ecosystem", "ecosystem"),
+    ("dexes",     "DEXes"),
+    ("kamino",    "Kamino"),
+    ("exponent",  "Exponent"),
+]
+
+QUIET_DAY_SLACK_BODY = (
+    "Quiet overnight. No material shifts fired across monitored venues in the "
+    "last 24 hours."
+)
+
+SLACK_SYSTEM_PROMPT = """\
+You are writing the body of a Slack digest for the ONyc daily brief,
+summarising material shifts across the ONyc DeFi ecosystem over the last
+24 hours.
+
+Rules:
+- Use ONLY the facts in the provided JSON. Do not add numbers, names, or
+  claims that are not present. Do not search the web.
+- Synthesise across items; do not paraphrase every one. Lead with what
+  matters to a project owner.
+- Plain analyst voice. No emoji, no exclamation marks, no headings.
+- The header line, item-counts line, and "Full brief →" link are
+  prepended/appended by the caller. Do NOT include them in your output.
+
+Output format (STRICT):
+- One or two short sentences of context at the top.
+- A single blank line.
+- Three to five bullet points, one per most-material item, each prefixed
+  with a Unicode bullet and a space: "• ".
+- Use Slack markdown *bold* only on the opening label of each bullet, for
+  example: "• *USDG borrow APY* −289 bps over 24h (14.27% → 11.39%)".
+- Prefer typographic characters: middle dot (·), arrow (→), minus sign
+  (−). Do not use ASCII hyphens for signed deltas.
+- Output nothing outside the two-sentence summary and the bullets.
+"""
+
+
+def _format_brief_date(brief_date: Any) -> str:
+    """Format the brief date like '22 Apr 2026' for the Slack header."""
+    if isinstance(brief_date, _date):
+        return brief_date.strftime("%d %b %Y")
+    return str(brief_date)
+
+
+def _brief_date_iso(brief_date: Any) -> str:
+    if isinstance(brief_date, _date):
+        return brief_date.isoformat()
+    return str(brief_date)
+
+
+def _build_slack_header(brief_date: Any, payload: dict[str, Any]) -> str:
+    """Deterministic two-line header: title + item counts."""
+    date_text = _format_brief_date(brief_date)
+    sections  = payload.get("sections") or {}
+    total     = int(payload.get("items_fired") or 0)
+
+    parts: list[str] = []
+    for sec_id, label in SLACK_SECTION_LABELS:
+        block = sections.get(sec_id) or {}
+        n = int(block.get("n_fired") or 0)
+        if n > 0:
+            parts.append(f"{label} {n}")
+
+    counts_line = f"{total} item{'s' if total != 1 else ''} fired"
+    if parts:
+        counts_line += " · " + " · ".join(parts)
+
+    return f"*ONyc daily brief · {date_text}*\n{counts_line}"
+
+
+def _build_slack_footer(brief_date: Any, base_url: Optional[str]) -> str:
+    base = (base_url or os.getenv("BRIEF_BASE_URL") or "http://localhost:8003").rstrip("/")
+    return f"Full brief → {base}/brief/{_brief_date_iso(brief_date)}"
+
+
+def _call_perplexity_slack(api_key: str, compact: dict[str, Any], timeout_s: float) -> Optional[str]:
+    """Single POST to Perplexity for the Slack digest body. Returns the
+    stripped content string, or None on any failure."""
+    model = os.getenv("PERPLEXITY_MODEL", DEFAULT_MODEL)
+    user_content = (
+        "Here is today's structured daily brief. Produce the Slack digest "
+        "body per the system rules.\n\n"
+        "```json\n"
+        + json.dumps(compact, default=str, indent=2)
+        + "\n```"
+    )
+    try:
+        resp = httpx.post(
+            PERPLEXITY_ENDPOINT,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type":  "application/json",
+            },
+            json={
+                "model":       model,
+                "messages": [
+                    {"role": "system", "content": SLACK_SYSTEM_PROMPT},
+                    {"role": "user",   "content": user_content},
+                ],
+                "temperature": 0.2,
+                "max_tokens":  300,
+            },
+            timeout=timeout_s,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+    except Exception:
+        log.exception("slack_digest: Perplexity call failed; brief will ship without slack_digest")
+        return None
+
+    try:
+        content = body["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        log.warning("slack_digest: unexpected Perplexity response shape: %r", body)
+        return None
+
+    if not content or not content.strip():
+        log.warning("slack_digest: empty content returned by Perplexity")
+        return None
+    return content.strip()
+
+
+def synthesise_slack_digest(
+    payload:    dict[str, Any],
+    brief_date: Any,
+    base_url:   Optional[str] = None,
+    timeout_s:  float         = 30.0,
+) -> Optional[str]:
+    """Return the full Slack digest string (header + body + footer), or
+    ``None`` if the API call fails or ``PERPLEXITY_API_KEY`` is unset.
+
+    Behaviour mirrors :func:`synthesise_narrative`:
+      - Key unset → ``None`` (caller substitutes the placeholder digest).
+      - Zero items fired → canned quiet-day body (no API call).
+      - Items fired → Perplexity produces the body; header and footer
+        are assembled deterministically around it.
+
+    ``base_url`` overrides the ``BRIEF_BASE_URL`` env var; either may be
+    omitted, in which case the footer falls back to ``http://localhost:8003``.
+    """
+    api_key = os.getenv("PERPLEXITY_API_KEY")
+    if not api_key:
+        log.info("slack_digest: PERPLEXITY_API_KEY not set — skipping (stub)")
+        return None
+
+    header  = _build_slack_header(brief_date, payload)
+    footer  = _build_slack_footer(brief_date, base_url)
+    n_fired = int(payload.get("items_fired") or 0)
+
+    if n_fired == 0:
+        log.info("slack_digest: quiet day, using canned body (no API call)")
+        return f"{header}\n\n{QUIET_DAY_SLACK_BODY}\n\n{footer}"
+
+    compact = _compact_payload(payload)
+    body    = _call_perplexity_slack(api_key, compact, timeout_s)
+    if body is None:
+        return None
+    log.info("slack_digest: %d chars produced by Perplexity", len(body))
+    return f"{header}\n\n{body}\n\n{footer}"

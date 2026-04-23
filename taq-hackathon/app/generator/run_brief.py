@@ -27,6 +27,7 @@ from app.generator.narrative import (
     PLACEHOLDER_SLACK_DIGEST,
     QUIET_DAY_NARRATIVE,
     synthesise_narrative,
+    synthesise_slack_digest,
 )
 
 
@@ -82,17 +83,25 @@ def generate(brief_date: date, dry_run: bool = False) -> int:
             payload["narrative"]        = narrative
             payload["narrative_source"] = "perplexity"
 
-        # Slack digest: static mockup for now. When the Slack webhook
-        # integration lands in phase-2, this slot will carry an LLM-generated
-        # short-form digest. The frontend renders it as a "Slack preview"
-        # card on the detail page, labelled as a sample while it is static.
-        payload["slack_digest"]        = PLACEHOLDER_SLACK_DIGEST
-        payload["slack_digest_source"] = "placeholder"
-
         n_items = int(payload.get("items_fired", 0) or 0)
         n_sections = sum(
             1 for s in (payload.get("sections") or {}).values() if s and s.get("n_fired", 0) > 0
         )
+
+        # Slack digest: same gating pattern as the narrative. The LLM produces
+        # the body text; header (title + counts) and footer (link to the web
+        # detail page) are assembled deterministically around it so the
+        # typography stays on-brand regardless of prompt drift.
+        slack_digest = synthesise_slack_digest(payload, brief_date)
+        if slack_digest is None:
+            payload["slack_digest"]        = PLACEHOLDER_SLACK_DIGEST
+            payload["slack_digest_source"] = "placeholder"
+        elif n_items == 0:
+            payload["slack_digest"]        = slack_digest
+            payload["slack_digest_source"] = "canned-quiet"
+        else:
+            payload["slack_digest"]        = slack_digest
+            payload["slack_digest_source"] = "perplexity"
 
         if dry_run:
             print(json.dumps(payload, indent=2, default=str))
