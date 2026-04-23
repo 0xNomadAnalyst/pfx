@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Subscribed · ONyc Daily Brief{% endblock %}
+{% block content %}
+
+<section class="brief-detail">
+  <header class="brief-detail__header">
+    <h1 class="brief-detail__h1">You are subscribed</h1>
+    <a class="brief-detail__back mono" href="/">← all briefs</a>
+  </header>
+
+  <div class="brief-detail__empty">
+    <p>
+      Daily brief will post to
+      <strong class="mono">{{ channel or "your chosen channel" }}</strong>{% if workspace %}
+      in <strong class="mono">{{ workspace }}</strong>{% endif %}.
+    </p>
+    <p class="mono">
+      first delivery: next scheduled run at 00:10 UTC
+    </p>
+    <p class="mono">
+      You can manage this subscription any time with the Manage button at the top of the page.
+      Unsubscribing is idempotent and preserves an audit trail.
+    </p>
+  </div>
+</section>
+
+{# Hydrate the subscribe-bar state so that when the user returns to the feed
+   the UI reflects the new subscription without requiring a round-trip to
+   /api/subscription. The values come from the OAuth callback query params,
+   which are authoritative (server already committed them to the DB). #}
+<script>
+  try {
+    var sub = {
+      email:           {{ email|tojson }},
+      slack_channel:   {{ channel|tojson }},
+      slack_workspace: {{ workspace|tojson }},
+      frequency:       {{ frequency|tojson }}
+    };
+    localStorage.setItem("onyc-brief-subscription", JSON.stringify(sub));
+  } catch (_) { /* storage disabled — silent noop */ }
+</script>
+
+{% endblock %}

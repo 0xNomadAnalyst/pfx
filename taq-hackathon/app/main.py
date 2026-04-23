@@ -10,18 +10,24 @@ Creds are loaded by app.db from ../.env.pfx.core.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+import secrets
 from html import escape
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import Body, FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 
 from app import db
+
+
+log = logging.getLogger("main")
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -205,42 +211,50 @@ def _slack_post(webhook_url: str, text: str, timeout_s: float = 6.0) -> tuple[bo
     return True, ""
 
 
+SLACK_AUTHORIZE_URL = "https://slack.com/oauth/v2/authorize"
+SLACK_OAUTH_ACCESS  = "https://slack.com/api/oauth.v2.access"
+SLACK_SCOPE         = "incoming-webhook"
+
+
+def _slack_install_url(state: str) -> str:
+    """Build the Slack authorize URL for the 'Add to Slack' button."""
+    params = urlencode({
+        "client_id":    os.getenv("SLACK_CLIENT_ID", ""),
+        "scope":        SLACK_SCOPE,
+        "redirect_uri": os.getenv("SLACK_REDIRECT_URI", ""),
+        "state":        state,
+    })
+    return f"{SLACK_AUTHORIZE_URL}?{params}"
+
+
 @app.post("/api/subscribe")
 def api_subscribe(payload: dict = Body(...)) -> JSONResponse:
-    """Create or refresh the active subscription for the given email.
+    """Phase 1 of the Slack 'Add to Slack' flow.
 
     Expected JSON body:
-      { "email": "...", "slack_workspace": "...", "slack_channel": "...",
-        "frequency": "daily" | "intraday" }
+      { "email": "...", "frequency": "daily" | "intraday" }
 
-    Any existing active row for the email is marked unsubscribed; a new row
-    is inserted. Returns the resulting {email, slack_workspace, slack_channel,
-    frequency} on success.
+    Creates a pending subscription row keyed by a fresh opaque token and
+    returns the Slack authorize URL the frontend should redirect to. The
+    workspace + channel + webhook_url get filled in by
+    ``/slack/oauth/callback`` when Slack redirects back with a grant code.
+
+    Any prior active row for the same email is soft-unsubscribed (whether
+    it was a completed subscription or a stale pending row) so at most one
+    pending token is live per email at any time.
     """
     email     = (payload.get("email") or "").strip().lower()
-    workspace = (payload.get("slack_workspace") or "").strip()
-    channel   = _canon_channel(payload.get("slack_channel", ""))
     frequency = (payload.get("frequency") or "daily").strip().lower()
 
-    # v1 accepts daily only — intraday is disabled in the UI and rejected here
-    # to keep the two sides in sync.
     if frequency != "daily":
         return JSONResponse({"error": "invalid_frequency"}, status_code=400)
     if not _EMAIL_RE.match(email):
         return JSONResponse({"error": "invalid_email"}, status_code=400)
-    if not workspace:
-        return JSONResponse({"error": "missing_workspace"}, status_code=400)
-    if not channel or channel == "#":
-        return JSONResponse({"error": "missing_channel"}, status_code=400)
+    if not os.getenv("SLACK_CLIENT_ID") or not os.getenv("SLACK_REDIRECT_URI"):
+        log.error("subscribe: SLACK_CLIENT_ID / SLACK_REDIRECT_URI not configured")
+        return JSONResponse({"error": "slack_not_configured"}, status_code=503)
 
-    # Slack delivery is stubbed until "Add to Slack" OAuth is wired post-deploy.
-    # We persist the subscription intent; the queue will be drained by the
-    # phase-2 sender once a per-workspace bot token is available.
-    import logging
-    logging.getLogger("subscribe").info(
-        "Slack send skipped for %s -> %s (channel %s) — OAuth not yet active",
-        email, workspace, channel,
-    )
+    token = secrets.token_urlsafe(32)
 
     with db.connect() as conn, conn.cursor() as cur:
         cur.execute(
@@ -250,22 +264,147 @@ def api_subscribe(payload: dict = Body(...)) -> JSONResponse:
         )
         cur.execute(
             "INSERT INTO hackathon.subscription "
-            "(email, slack_workspace, slack_channel, slack_webhook_url, frequency) "
-            "VALUES (%s, %s, %s, NULL, %s) RETURNING id;",
-            (email, workspace, channel, frequency),
+            "(email, frequency, pending_token) "
+            "VALUES (%s, %s, %s) RETURNING id;",
+            (email, frequency, token),
         )
         sub_id = cur.fetchone()[0]
         conn.commit()
 
+    install_url = _slack_install_url(token)
+    log.info("subscribe: pending row %s for %s, redirecting to Slack", sub_id, email)
     return JSONResponse({
-        "status":          "subscribed",
-        "id":              sub_id,
-        "email":           email,
-        "slack_workspace": workspace,
-        "slack_channel":   channel,
-        "frequency":       frequency,
-        "delivery":        "pending_oauth",
+        "status":      "pending",
+        "id":          sub_id,
+        "email":       email,
+        "frequency":   frequency,
+        "install_url": install_url,
     })
+
+
+@app.get("/slack/oauth/callback", response_class=HTMLResponse)
+def slack_oauth_callback(request: Request,
+                         code:  str | None = None,
+                         state: str | None = None,
+                         error: str | None = None) -> HTMLResponse:
+    """Phase 2 of the Slack 'Add to Slack' flow.
+
+    Slack redirects here after the user approves the install. We exchange
+    the grant code for an incoming-webhook URL scoped to the channel the
+    user picked, fill in the pending subscription row, and land the user
+    on a success page.
+
+    Failure modes (user cancels, missing state, expired token, Slack API
+    error) render a small error page with a retry link. The pending row is
+    left marked unsubscribed so the email can retry cleanly.
+    """
+    if error:
+        log.info("slack oauth: user declined or Slack returned error=%s", error)
+        return templates.TemplateResponse(
+            request, "slack_oauth_error.html",
+            {"reason": "cancelled", "detail": error},
+            status_code=400,
+        )
+    if not code or not state:
+        return templates.TemplateResponse(
+            request, "slack_oauth_error.html",
+            {"reason": "missing_params", "detail": "code or state missing"},
+            status_code=400,
+        )
+
+    with db.connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, email, frequency FROM hackathon.subscription "
+            "WHERE pending_token = %s AND unsubscribed_at IS NULL;",
+            (state,),
+        )
+        row = cur.fetchone()
+    if row is None:
+        log.warning("slack oauth: no pending row matches state token")
+        return templates.TemplateResponse(
+            request, "slack_oauth_error.html",
+            {"reason": "unknown_state", "detail": "subscription not found or expired"},
+            status_code=400,
+        )
+    sub_id, email, frequency = row
+
+    import httpx
+    try:
+        resp = httpx.post(
+            SLACK_OAUTH_ACCESS,
+            data={
+                "client_id":     os.getenv("SLACK_CLIENT_ID", ""),
+                "client_secret": os.getenv("SLACK_CLIENT_SECRET", ""),
+                "code":          code,
+                "redirect_uri":  os.getenv("SLACK_REDIRECT_URI", ""),
+            },
+            timeout=8.0,
+        )
+        body = resp.json()
+    except Exception as exc:  # noqa: BLE001
+        log.exception("slack oauth: exchange failed: %s", exc)
+        return templates.TemplateResponse(
+            request, "slack_oauth_error.html",
+            {"reason": "exchange_failed", "detail": exc.__class__.__name__},
+            status_code=502,
+        )
+
+    if not body.get("ok"):
+        log.warning("slack oauth: ok=false body=%r", body)
+        return templates.TemplateResponse(
+            request, "slack_oauth_error.html",
+            {"reason": "slack_error", "detail": body.get("error") or "unknown"},
+            status_code=502,
+        )
+
+    webhook = (body.get("incoming_webhook") or {})
+    team    = (body.get("team") or {})
+    webhook_url = webhook.get("url")
+    channel     = webhook.get("channel") or ""
+    workspace   = team.get("name") or team.get("id") or ""
+    if not webhook_url:
+        log.warning("slack oauth: response missing incoming_webhook.url: %r", body)
+        return templates.TemplateResponse(
+            request, "slack_oauth_error.html",
+            {"reason": "no_webhook", "detail": "Slack did not return a webhook URL"},
+            status_code=502,
+        )
+
+    channel_display = _canon_channel(channel)
+
+    with db.connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "UPDATE hackathon.subscription SET "
+            "  slack_webhook_url = %s, "
+            "  slack_workspace   = %s, "
+            "  slack_channel     = %s, "
+            "  pending_token     = NULL "
+            "WHERE id = %s;",
+            (webhook_url, workspace, channel_display, sub_id),
+        )
+        conn.commit()
+
+    log.info("slack oauth: sub %s live, workspace=%r channel=%r", sub_id, workspace, channel_display)
+    qs = urlencode({"ch": channel_display, "ws": workspace, "email": email, "freq": frequency})
+    return RedirectResponse(url=f"/slack/oauth/success?{qs}", status_code=303)
+
+
+@app.get("/slack/oauth/success", response_class=HTMLResponse)
+def slack_oauth_success(request: Request,
+                        ch:    str = "",
+                        ws:    str = "",
+                        email: str = "",
+                        freq:  str = "daily") -> HTMLResponse:
+    """Post-OAuth landing page. All params come from the callback redirect.
+
+    Nothing authoritative — the row is already live in the DB. This page is
+    just a friendly confirmation so the tab the user is sitting on doesn't
+    end up on slack.com.
+    """
+    return templates.TemplateResponse(
+        request, "slack_oauth_success.html",
+        {"channel": ch, "workspace": ws, "email": email, "frequency": freq},
+    )
 
 
 @app.get("/api/subscription")
@@ -282,10 +421,13 @@ def api_subscription_lookup(email: str = "") -> JSONResponse:
     email = (email or "").strip().lower()
     if not _EMAIL_RE.match(email):
         return JSONResponse({"status": "invalid_email"}, status_code=400)
+    # Pending rows (no webhook yet) don't count as active subscriptions for
+    # lookup — the user either never completed OAuth or the row is stale.
     row = db.fetch_one(
         "SELECT slack_workspace, slack_channel, frequency "
         "FROM hackathon.subscription "
-        "WHERE email = %s AND unsubscribed_at IS NULL;",
+        "WHERE email = %s AND unsubscribed_at IS NULL "
+        "  AND slack_webhook_url IS NOT NULL;",
         (email,),
     )
     if row is None:

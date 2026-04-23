@@ -137,12 +137,12 @@
     const openSub = e.target.closest("[data-open-subscribe]");
     const openUnsub = e.target.closest("[data-open-unsubscribe]");
     if (openSub) {
-      // Prefill from any prior localStorage entry.
+      // Prefill email from any prior localStorage entry. Workspace +
+      // channel are chosen in Slack during OAuth and no longer live on
+      // this form.
       const prev = loadSub();
       if (prev) {
-        form.email.value           = prev.email           || "";
-        form.slack_workspace.value = prev.slack_workspace || "";
-        form.slack_channel.value   = prev.slack_channel   || "";
+        form.email.value = prev.email || "";
         if (prev.frequency && prev.frequency === "daily") {
           const r = form.querySelector('input[name="frequency"][value="daily"]');
           if (r) r.checked = true;
@@ -232,8 +232,6 @@
 
   const FIELD_TO_INPUT = {
     email:           "email",
-    workspace:       "slack_workspace",
-    channel:         "slack_channel",
     "recover-email": "recover_email",
   };
 
@@ -251,29 +249,30 @@
   }
 
   function validate() {
-    let ok = true;
     const email = form.email.value.trim();
-    const ws    = form.slack_workspace.value.trim();
-    const ch    = form.slack_channel.value.trim();
-    if (!EMAIL_RE.test(email)) { setError("email",     "enter a valid email address"); ok = false; } else setError("email",     "");
-    if (!ws)                   { setError("workspace", "workspace is required");       ok = false; } else setError("workspace", "");
-    if (!ch)                   { setError("channel",   "channel is required");         ok = false; } else setError("channel",   "");
-    return ok;
+    if (!EMAIL_RE.test(email)) {
+      setError("email", "enter a valid email address");
+      return false;
+    }
+    setError("email", "");
+    return true;
   }
 
+  // Phase-1 of the Slack "Add to Slack" OAuth flow. POST email + frequency,
+  // receive an install_url, redirect top-frame to Slack. Slack handles the
+  // workspace + channel choice and redirects back to /slack/oauth/callback,
+  // which lands the user on /slack/oauth/success (out of this file's scope).
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!validate()) return;
     const submitBtn = $("[data-submit]", form);
     submitBtn.disabled = true;
-    submitBtn.textContent = "Subscribing…";
+    submitBtn.textContent = "Contacting Slack…";
     try {
       const freq = (form.querySelector('input[name="frequency"]:checked') || {}).value || "daily";
       const body = {
-        email:           form.email.value.trim().toLowerCase(),
-        slack_workspace: form.slack_workspace.value.trim(),
-        slack_channel:   form.slack_channel.value.trim(),
-        frequency:       freq,
+        email:     form.email.value.trim().toLowerCase(),
+        frequency: freq,
       };
       const resp = await fetch("/api/subscribe", {
         method: "POST",
@@ -282,27 +281,27 @@
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
-        alert("Subscribe failed: " + (err.error || resp.status));
+        alert("Could not start Slack sign-up: " + (err.error || resp.status));
         return;
       }
       const data = await resp.json();
+      if (!data.install_url) {
+        alert("Unexpected response from server — no install URL returned.");
+        return;
+      }
+      // Pre-save email + frequency so that if the user aborts the Slack
+      // picker and comes back, the form repopulates. Channel + workspace
+      // are written to localStorage by the /slack/oauth/success page.
       saveSub({
-        email:           data.email,
-        slack_workspace: data.slack_workspace,
-        slack_channel:   data.slack_channel,
-        frequency:       data.frequency,
+        email:     data.email,
+        frequency: data.frequency,
       });
-      // populate success step
-      $("[data-success-channel]",   subscribeModal).textContent = data.slack_channel;
-      $("[data-success-workspace]", subscribeModal).textContent = data.slack_workspace;
-      showStep(subscribeModal, "success");
-      renderBar();
+      window.location.href = data.install_url;
     } catch (err) {
       console.error(err);
-      alert("Subscribe failed: network error");
-    } finally {
+      alert("Could not start Slack sign-up: network error");
       submitBtn.disabled = false;
-      submitBtn.textContent = "Subscribe";
+      submitBtn.textContent = "Continue with Slack →";
     }
   });
 

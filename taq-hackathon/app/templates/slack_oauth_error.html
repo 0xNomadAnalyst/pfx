@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Could not subscribe · ONyc Daily Brief{% endblock %}
+{% block content %}
+
+<section class="brief-detail">
+  <header class="brief-detail__header">
+    <h1 class="brief-detail__h1">Could not complete sign-up</h1>
+    <a class="brief-detail__back mono" href="/">← all briefs</a>
+  </header>
+
+  <div class="brief-detail__empty">
+    {% if reason == "cancelled" %}
+      <p>You cancelled the Slack authorisation. No subscription was created.</p>
+    {% elif reason == "missing_params" %}
+      <p>Slack redirected back without the expected parameters. This usually means the OAuth flow was interrupted.</p>
+    {% elif reason == "unknown_state" %}
+      <p>We could not match this callback to a pending subscription. The token may have expired or been replaced by a newer attempt.</p>
+    {% elif reason == "slack_error" %}
+      <p>Slack rejected the code exchange.</p>
+    {% elif reason == "exchange_failed" %}
+      <p>The network call to Slack failed. This is transient — please try again.</p>
+    {% elif reason == "no_webhook" %}
+      <p>Slack approved the install but did not return a webhook URL. Please try again, or contact support if this persists.</p>
+    {% else %}
+      <p>Something went wrong completing the Slack subscription.</p>
+    {% endif %}
+
+    {% if detail %}
+      <p class="mono">detail: {{ detail }}</p>
+    {% endif %}
+
+    <p>
+      <a class="brief-btn brief-btn--cta" href="/">Return to the feed and try again</a>
+    </p>
+  </div>
+</section>
+
+{% endblock %}

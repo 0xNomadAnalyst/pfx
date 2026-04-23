@@ -21,6 +21,8 @@ import logging
 import sys
 from datetime import date, datetime, time, timezone
 
+import httpx
+
 from app import db
 from app.generator.narrative import (
     PLACEHOLDER_NARRATIVE,
@@ -121,11 +123,85 @@ def generate(brief_date: date, dry_run: bool = False) -> int:
         )
         conn.commit()
 
+        # Slack delivery runs in the same process but AFTER the brief is
+        # safely persisted. Per-subscription commits isolate delivery failure
+        # — a 4xx from one webhook won't prevent other subscribers from
+        # receiving the digest, and a successful POST is marked via
+        # last_sent_brief_date so a cron re-run the same day won't double-send.
+        _deliver_slack_digests(conn, brief_date, payload.get("slack_digest"))
+
     log.info(
         "brief for %s generated and persisted: %d item(s) fired across %d section(s)",
         brief_date.isoformat(), n_items, n_sections,
     )
     return 0
+
+
+def _post_slack_webhook(url: str, text: str, timeout_s: float = 8.0) -> tuple[bool, str]:
+    """POST a plain-text message to a Slack incoming webhook. Returns
+    ``(ok, short_error)`` — ok is True on 2xx, False otherwise."""
+    try:
+        resp = httpx.post(
+            url, json={"text": text}, timeout=timeout_s,
+            headers={"Content-Type": "application/json"},
+        )
+    except Exception as exc:  # noqa: BLE001
+        return False, f"network:{exc.__class__.__name__}"
+    if resp.status_code // 100 != 2:
+        return False, f"http {resp.status_code}: {resp.text[:120]}"
+    return True, ""
+
+
+def _deliver_slack_digests(conn, brief_date: date, digest_text: str | None) -> None:
+    """Post the Slack digest to every active subscription that has a live
+    webhook URL and has not already been delivered today.
+
+    Per-subscription commit: each successful POST records
+    ``last_sent_brief_date`` immediately, so a crash mid-loop still leaves
+    prior deliveries marked and the remainder re-eligible on rerun.
+    """
+    if not digest_text:
+        log.info("slack send: no digest on payload, skipping")
+        return
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, email, slack_channel, slack_webhook_url
+            FROM hackathon.subscription
+            WHERE unsubscribed_at IS NULL
+              AND slack_webhook_url IS NOT NULL
+              AND (last_sent_brief_date IS NULL OR last_sent_brief_date <> %s)
+            ORDER BY id;
+            """,
+            (brief_date,),
+        )
+        targets = cur.fetchall()
+
+    if not targets:
+        log.info("slack send: no eligible subscriptions for brief %s", brief_date)
+        return
+
+    log.info("slack send: %d target(s) for brief %s", len(targets), brief_date)
+    n_ok = 0
+    n_fail = 0
+    for sub_id, email, channel, webhook_url in targets:
+        ok, err = _post_slack_webhook(webhook_url, digest_text)
+        if ok:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE hackathon.subscription "
+                    "SET last_sent_brief_date = %s WHERE id = %s;",
+                    (brief_date, sub_id),
+                )
+            conn.commit()
+            n_ok += 1
+            log.info("slack send: ok sub_id=%s channel=%r email=%s", sub_id, channel, email)
+        else:
+            n_fail += 1
+            log.warning("slack send: FAIL sub_id=%s channel=%r email=%s err=%s",
+                        sub_id, channel, email, err)
+    log.info("slack send: done — %d ok, %d failed", n_ok, n_fail)
 
 
 def main() -> None:
