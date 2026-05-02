@@ -134,9 +134,16 @@ DECLARE
     v_now TIMESTAMPTZ;
     v_lookback_start TIMESTAMPTZ;
     v_symbols_t0_t1 TEXT[];
-    -- Helpers for the inverted perspective
+    -- Helpers for the inverted perspective.
+    -- impact_bps_from_qsell_latest returns BPS in the physical t1/t0 basis.
+    -- When p_invert=TRUE the caller is viewing the pool in the t0/t1 basis
+    -- (price = 1 / physical_price), so the sign of every impact value must be
+    -- flipped to match the inverted price-axis convention. Without this flip
+    -- the "buy/sell" direction reads inverted on inverted-basis pools (e.g.
+    -- the Raydium ONyc/USDG pool, where physical t0 is USDG, not ONyc).
     v_inv_side_t0 TEXT;
     v_inv_side_t1 TEXT;
+    v_invert_sign NUMERIC;
 BEGIN
     v_now := NOW();
     v_lookback_start := CASE WHEN lookback_param IS NULL THEN NULL ELSE v_now - lookback_param END;
@@ -146,9 +153,11 @@ BEGIN
     IF p_invert THEN
         v_inv_side_t0 := 't1';
         v_inv_side_t1 := 't0';
+        v_invert_sign := -1.0;
     ELSE
         v_inv_side_t0 := 't0';
         v_inv_side_t1 := 't1';
+        v_invert_sign := 1.0;
     END IF;
 
     FOR r_pool IN
@@ -363,9 +372,9 @@ BEGIN
 
         -- ── Standard trade-size impact – "t0 sell" columns (7-10) ───────
         ARRAY[50000.0, 100000.0, 500000.0]::DOUBLE PRECISION[],
-        ROUND(impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t0, 50000.0)::NUMERIC, 4),
-        ROUND(impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t0, 100000.0)::NUMERIC, 4),
-        ROUND(impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t0, 500000.0)::NUMERIC, 4),
+        ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t0, 50000.0))::NUMERIC, 4),
+        ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t0, 100000.0))::NUMERIC, 4),
+        ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t0, 500000.0))::NUMERIC, 4),
 
         -- ── Reserves (11-15) ────────────────────────────────────────────
         CASE WHEN p_invert THEN ROUND(v_t1_reserve::NUMERIC)::BIGINT
@@ -512,28 +521,28 @@ BEGIN
             WHEN lookback_param IS NULL THEN NULL
             WHEN p_invert AND COALESCE(mis.max_t0_in, 0) <= 0 THEN NULL
             WHEN NOT p_invert AND COALESCE(mis.max_t1_in, 0) <= 0 THEN NULL
-            WHEN p_invert THEN ROUND(impact_bps_from_qsell_latest(v_pool_address, 't0', mis.max_t0_in)::NUMERIC, 4)
+            WHEN p_invert THEN ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, 't0', mis.max_t0_in))::NUMERIC, 4)
             ELSE ROUND(impact_bps_from_qsell_latest(v_pool_address, 't1', mis.max_t1_in)::NUMERIC, 4)
         END,
         CASE
             WHEN lookback_param IS NULL THEN NULL
             WHEN p_invert AND COALESCE(msc.max_t0_out_t1_complement, 0) <= 0 THEN NULL
             WHEN NOT p_invert AND COALESCE(msc.max_t1_out_t0_complement, 0) <= 0 THEN NULL
-            WHEN p_invert THEN ROUND(impact_bps_from_qsell_latest(v_pool_address, 't1', msc.max_t0_out_t1_complement)::NUMERIC, 4)
+            WHEN p_invert THEN ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, 't1', msc.max_t0_out_t1_complement))::NUMERIC, 4)
             ELSE ROUND(impact_bps_from_qsell_latest(v_pool_address, 't0', msc.max_t1_out_t0_complement)::NUMERIC, 4)
         END,
         CASE
             WHEN lookback_param IS NULL THEN NULL
             WHEN p_invert AND COALESCE(mis.max_t1_in, 0) <= 0 THEN 0
             WHEN NOT p_invert AND COALESCE(mis.max_t0_in, 0) <= 0 THEN 0
-            WHEN p_invert THEN ROUND(impact_bps_from_qsell_latest(v_pool_address, 't1', mis.max_t1_in)::NUMERIC, 4)
+            WHEN p_invert THEN ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, 't1', mis.max_t1_in))::NUMERIC, 4)
             ELSE ROUND(impact_bps_from_qsell_latest(v_pool_address, 't0', mis.max_t0_in)::NUMERIC, 4)
         END,
         CASE
             WHEN lookback_param IS NULL THEN NULL
             WHEN p_invert AND COALESCE(msc.max_t1_out_t0_complement, 0) <= 0 THEN 0
             WHEN NOT p_invert AND COALESCE(msc.max_t0_out_t1_complement, 0) <= 0 THEN 0
-            WHEN p_invert THEN ROUND(impact_bps_from_qsell_latest(v_pool_address, 't0', msc.max_t1_out_t0_complement)::NUMERIC, 4)
+            WHEN p_invert THEN ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, 't0', msc.max_t1_out_t0_complement))::NUMERIC, 4)
             ELSE ROUND(impact_bps_from_qsell_latest(v_pool_address, 't1', msc.max_t0_out_t1_complement)::NUMERIC, 4)
         END,
 
@@ -542,28 +551,28 @@ BEGIN
             WHEN lookback_param IS NULL THEN NULL
             WHEN p_invert AND COALESCE(ais.avg_t1_in, 0) <= 0 THEN 0
             WHEN NOT p_invert AND COALESCE(ais.avg_t0_in, 0) <= 0 THEN 0
-            WHEN p_invert THEN ROUND(impact_bps_from_qsell_latest(v_pool_address, 't1', ais.avg_t1_in)::NUMERIC, 4)
+            WHEN p_invert THEN ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, 't1', ais.avg_t1_in))::NUMERIC, 4)
             ELSE ROUND(impact_bps_from_qsell_latest(v_pool_address, 't0', ais.avg_t0_in)::NUMERIC, 4)
         END,
         CASE
             WHEN lookback_param IS NULL THEN NULL
             WHEN p_invert AND COALESCE(ais.avg_t1_out, 0) <= 0 THEN 0
             WHEN NOT p_invert AND COALESCE(ais.avg_t0_out, 0) <= 0 THEN 0
-            WHEN p_invert THEN ROUND(impact_bps_from_qsell_latest(v_pool_address, 't0', ais.avg_t1_out)::NUMERIC, 4)
+            WHEN p_invert THEN ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, 't0', ais.avg_t1_out))::NUMERIC, 4)
             ELSE ROUND(impact_bps_from_qsell_latest(v_pool_address, 't1', ais.avg_t0_out)::NUMERIC, 4)
         END,
         CASE
             WHEN lookback_param IS NULL THEN NULL
             WHEN p_invert AND COALESCE(ais.avg_t0_in, 0) <= 0 THEN 0
             WHEN NOT p_invert AND COALESCE(ais.avg_t1_in, 0) <= 0 THEN 0
-            WHEN p_invert THEN ROUND(impact_bps_from_qsell_latest(v_pool_address, 't0', ais.avg_t0_in)::NUMERIC, 4)
+            WHEN p_invert THEN ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, 't0', ais.avg_t0_in))::NUMERIC, 4)
             ELSE ROUND(impact_bps_from_qsell_latest(v_pool_address, 't1', ais.avg_t1_in)::NUMERIC, 4)
         END,
         CASE
             WHEN lookback_param IS NULL THEN NULL
             WHEN p_invert AND COALESCE(ais.avg_t0_out, 0) <= 0 THEN 0
             WHEN NOT p_invert AND COALESCE(ais.avg_t1_out, 0) <= 0 THEN 0
-            WHEN p_invert THEN ROUND(impact_bps_from_qsell_latest(v_pool_address, 't1', ais.avg_t0_out)::NUMERIC, 4)
+            WHEN p_invert THEN ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, 't1', ais.avg_t0_out))::NUMERIC, 4)
             ELSE ROUND(impact_bps_from_qsell_latest(v_pool_address, 't0', ais.avg_t1_out)::NUMERIC, 4)
         END,
 
@@ -622,22 +631,22 @@ BEGIN
             WHEN lookback_param IS NULL THEN NULL
             WHEN p_invert AND COALESCE(mp.max_t1_sell_pressure, 0) <= 0 THEN 0
             WHEN NOT p_invert AND COALESCE(mp.max_sell_pressure, 0) <= 0 THEN 0
-            WHEN p_invert THEN ROUND(impact_bps_from_qsell_latest(v_pool_address, 't1', mp.max_t1_sell_pressure)::NUMERIC, 4)
+            WHEN p_invert THEN ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, 't1', mp.max_t1_sell_pressure))::NUMERIC, 4)
             ELSE ROUND(impact_bps_from_qsell_latest(v_pool_address, 't0', mp.max_sell_pressure)::NUMERIC, 4)
         END,
         CASE
             WHEN lookback_param IS NULL THEN NULL
             WHEN p_invert AND COALESCE(mp.max_t1_buy_pressure, 0) <= 0 THEN 0
             WHEN NOT p_invert AND COALESCE(mp.max_buy_pressure, 0) <= 0 THEN 0
-            WHEN p_invert THEN ROUND(impact_bps_from_qsell_latest(v_pool_address, 't0', mp.max_t1_buy_pressure)::NUMERIC, 4)
+            WHEN p_invert THEN ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, 't0', mp.max_t1_buy_pressure))::NUMERIC, 4)
             ELSE ROUND(impact_bps_from_qsell_latest(v_pool_address, 't1', mp.max_buy_pressure)::NUMERIC, 4)
         END,
 
         -- ── Standard trade-size impact – "t1 sell" columns (73-76) ──────
         ARRAY[50000.0, 100000.0, 500000.0]::DOUBLE PRECISION[],
-        ROUND(impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t1, 50000.0)::NUMERIC, 4),
-        ROUND(impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t1, 100000.0)::NUMERIC, 4),
-        ROUND(impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t1, 500000.0)::NUMERIC, 4)
+        ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t1, 50000.0))::NUMERIC, 4),
+        ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t1, 100000.0))::NUMERIC, 4),
+        ROUND((v_invert_sign * impact_bps_from_qsell_latest(v_pool_address, v_inv_side_t1, 500000.0))::NUMERIC, 4)
     FROM swap_metrics sm
     CROSS JOIN max_individual_swaps mis
     CROSS JOIN max_swap_complements msc

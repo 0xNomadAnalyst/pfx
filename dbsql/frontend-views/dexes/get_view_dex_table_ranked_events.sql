@@ -206,6 +206,9 @@ BEGIN
         ),
         -- Balance lookup now touches only p_rows rows instead of all swaps
         balance_at_tx AS (
+            -- LATERAL with no lower time bound: the original form let the planner
+            -- find the right chunk fast for old swaps (a tight lower bound forced
+            -- it to scan a specific window which can land in OSM).
             SELECT
                 t.trans_id,
                 b.token0_balance_at_tx,

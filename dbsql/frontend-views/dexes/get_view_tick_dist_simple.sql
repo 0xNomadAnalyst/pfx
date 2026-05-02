@@ -98,6 +98,9 @@ BEGIN
               AND (v_pair_filter IS NULL OR q.token_pair = v_pair_filter)
         ),
         vault_reserves AS (
+            -- 1h time bound forces the planner onto the per-pool index path on the
+            -- hot tier. Without it the LATERAL descends through OSM-tier chunks
+            -- looking for a row that's always in the latest 5s bucket.
             SELECT
                 cm.pool_address,
                 vl.token_0_value,
@@ -107,6 +110,7 @@ BEGIN
                 SELECT v.token_0_value, v.token_1_value
                 FROM dexes.cagg_vaults_5s v
                 WHERE v.pool_address = cm.pool_address
+                  AND v.bucket_time >= NOW() - INTERVAL '1 hour'
                 ORDER BY v.bucket_time DESC
                 LIMIT 1
             ) vl ON TRUE
@@ -494,9 +498,11 @@ BEGIN
         FROM current_rows cr
         LEFT JOIN prior_rows pr ON pr.tick_lower = cr.tick_lower
         LEFT JOIN LATERAL (
+            -- See vault_reserves CTE in fast path for rationale on the time bound.
             SELECT v.token_0_value, v.token_1_value
             FROM dexes.cagg_vaults_5s v
             WHERE v.pool_address = _r.pool_address
+              AND v.bucket_time >= NOW() - INTERVAL '1 hour'
             ORDER BY v.bucket_time DESC
             LIMIT 1
         ) vr ON TRUE

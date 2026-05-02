@@ -83,7 +83,9 @@ BEGIN
     -- Display price: inverted when requested
     v_display_price := CASE WHEN p_invert THEN 1.0 / NULLIF(v_current_price, 0) ELSE v_current_price END;
 
-    -- Get vault reserves
+    -- Get vault reserves. Time bound forces the per-pool index path on the hot
+    -- tier; without it the LATERAL descends through OSM-tier chunks looking for
+    -- a row that's always in the latest 5s bucket.
     SELECT
         v.token_0_value,
         v.token_1_value
@@ -92,6 +94,7 @@ BEGIN
         v_t1_reserve
     FROM dexes.cagg_vaults_5s v
     WHERE v.pool_address = v_pool_address
+      AND v.bucket_time >= NOW() - INTERVAL '1 hour'
     ORDER BY v.bucket_time DESC
     LIMIT 1;
 
