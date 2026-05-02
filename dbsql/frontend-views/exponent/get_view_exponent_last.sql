@@ -181,12 +181,17 @@ BEGIN
         ) AS mint_sy
     ),
     vault_base_tokens AS (
+        -- 30-day bound keeps the scan inside the hot tier (most chunks for the
+        -- last 30d are local) while tolerating inactive markets whose latest
+        -- src_market_twos snapshot can be a week or more old.
         SELECT
             (SELECT meta_base_mint FROM exponent.src_market_twos
              WHERE market_address = (SELECT market_address FROM m1 LIMIT 1)
+               AND block_time >= NOW() - INTERVAL '30 days'
              ORDER BY block_time DESC LIMIT 1) AS base_mint_mkt1,
             (SELECT meta_base_mint FROM exponent.src_market_twos
              WHERE market_address = (SELECT market_address FROM m2 LIMIT 1)
+               AND block_time >= NOW() - INTERVAL '30 days'
              ORDER BY block_time DESC LIMIT 1) AS base_mint_mkt2
     ),
     decimals_config AS (
@@ -208,9 +213,12 @@ BEGIN
     -- SY TOKEN SUPPLY
     -- ══════════════════════════════════════════════════════════════════════
     latest_sy_token_accounts AS (
+        -- Bounded to last 24h to avoid scanning OSM-tier chunks; src_sy_token_account
+        -- updates frequently so all live mints will be present in this window.
         SELECT DISTINCT ON (st.mint_sy)
             st.mint_sy, st.supply, st.decimals, st.meta_base_mint, st.time
         FROM exponent.src_sy_token_account st
+        WHERE st.time >= NOW() - INTERVAL '1 day'
         ORDER BY st.mint_sy, st.time DESC
     ),
     sy_supply_total AS (
@@ -229,12 +237,15 @@ BEGIN
     -- Current rates come from mat_exp_last; historical from src_sy_meta_account.
     -- ══════════════════════════════════════════════════════════════════════
 
-    -- General (legacy) lookbacks — filter by shared mint_sy
+    -- General (legacy) lookbacks — filter by shared mint_sy.
+    -- Lower bound on the search window prevents the planner from descending
+    -- into the OSM tier when no row is found in the recent hot chunks.
     sy_rate_24h_ago AS (
         SELECT sy_exchange_rate AS rate
         FROM exponent.src_sy_meta_account
         WHERE mint_sy = (SELECT mint_sy FROM shared_mint_sy)
           AND time <= NOW() - INTERVAL '24 hours'
+          AND time >= NOW() - INTERVAL '3 days'
         ORDER BY time DESC LIMIT 1
     ),
     sy_rate_7d_ago AS (
@@ -242,6 +253,7 @@ BEGIN
         FROM exponent.src_sy_meta_account
         WHERE mint_sy = (SELECT mint_sy FROM shared_mint_sy)
           AND time <= NOW() - INTERVAL '7 days'
+          AND time >= NOW() - INTERVAL '14 days'
         ORDER BY time DESC LIMIT 1
     ),
 
@@ -251,6 +263,7 @@ BEGIN
         FROM exponent.src_sy_meta_account
         WHERE meta_base_mint = (SELECT base_mint_mkt1 FROM vault_base_tokens)
           AND time <= NOW() - INTERVAL '24 hours'
+          AND time >= NOW() - INTERVAL '3 days'
         ORDER BY time DESC LIMIT 1
     ),
     sy_rate_24h_ago_mkt2 AS (
@@ -258,6 +271,7 @@ BEGIN
         FROM exponent.src_sy_meta_account
         WHERE meta_base_mint = (SELECT base_mint_mkt2 FROM vault_base_tokens)
           AND time <= NOW() - INTERVAL '24 hours'
+          AND time >= NOW() - INTERVAL '3 days'
         ORDER BY time DESC LIMIT 1
     ),
     sy_rate_7d_ago_mkt1 AS (
@@ -265,6 +279,7 @@ BEGIN
         FROM exponent.src_sy_meta_account
         WHERE meta_base_mint = (SELECT base_mint_mkt1 FROM vault_base_tokens)
           AND time <= NOW() - INTERVAL '7 days'
+          AND time >= NOW() - INTERVAL '14 days'
         ORDER BY time DESC LIMIT 1
     ),
     sy_rate_7d_ago_mkt2 AS (
@@ -272,6 +287,7 @@ BEGIN
         FROM exponent.src_sy_meta_account
         WHERE meta_base_mint = (SELECT base_mint_mkt2 FROM vault_base_tokens)
           AND time <= NOW() - INTERVAL '7 days'
+          AND time >= NOW() - INTERVAL '14 days'
         ORDER BY time DESC LIMIT 1
     ),
 
@@ -282,18 +298,25 @@ BEGIN
     -- Backward extrapolation kept for vaults that started before SY polling.
     -- ══════════════════════════════════════════════════════════════════════
     lifetime_config AS (
+        -- env_* config columns are part of every row of src_sy_meta_account; the
+        -- last 24h hot-tier window is enough to find the latest values and
+        -- avoids the OSM tier (these run 4× per call).
         SELECT
             (SELECT env_sy_lifetime_apy_start_date FROM exponent.src_sy_meta_account
              WHERE meta_base_mint = (SELECT base_mint_mkt1 FROM vault_base_tokens)
+               AND time >= NOW() - INTERVAL '1 day'
              ORDER BY time DESC LIMIT 1) AS env_start_date_mkt1,
             (SELECT env_sy_lifetime_apy_start_index FROM exponent.src_sy_meta_account
              WHERE meta_base_mint = (SELECT base_mint_mkt1 FROM vault_base_tokens)
+               AND time >= NOW() - INTERVAL '1 day'
              ORDER BY time DESC LIMIT 1) AS env_start_index_mkt1,
             (SELECT env_sy_lifetime_apy_start_date FROM exponent.src_sy_meta_account
              WHERE meta_base_mint = (SELECT base_mint_mkt2 FROM vault_base_tokens)
+               AND time >= NOW() - INTERVAL '1 day'
              ORDER BY time DESC LIMIT 1) AS env_start_date_mkt2,
             (SELECT env_sy_lifetime_apy_start_index FROM exponent.src_sy_meta_account
              WHERE meta_base_mint = (SELECT base_mint_mkt2 FROM vault_base_tokens)
+               AND time >= NOW() - INTERVAL '1 day'
              ORDER BY time DESC LIMIT 1) AS env_start_index_mkt2
     ),
     sy_meta_start_mkt1 AS (
@@ -410,16 +433,20 @@ BEGIN
     -- BASE TOKEN ESCROWS
     -- ══════════════════════════════════════════════════════════════════════
     underlying_escrow AS (
+        -- 24h bound keeps the DISTINCT ON within the hot tier; src_base_token_escrow
+        -- updates frequently enough that all live mints will have a recent row.
         SELECT DISTINCT ON (mint)
             mint,
             (amount::DOUBLE PRECISION / NULLIF(POWER(10::DOUBLE PRECISION, COALESCE(akr.env_sy_decimals)), 0.0)) AS eusx_locked_amt
         FROM exponent.src_base_token_escrow AS ute
         LEFT JOIN exponent.aux_key_relations AS akr
             ON akr.underlying_escrow_address = ute.escrow_address
-        WHERE mint IN (
+        WHERE ute.time >= NOW() - INTERVAL '1 day'
+          AND mint IN (
             SELECT DISTINCT yield_bearing_mint
             FROM exponent.src_sy_meta_account
             WHERE mint_sy = (SELECT mint_sy FROM shared_mint_sy)
+              AND time >= NOW() - INTERVAL '1 day'
             LIMIT 1
         )
         ORDER BY mint, ute.time DESC
@@ -431,10 +458,11 @@ BEGIN
             meta_base_symbol,
             (amount::DOUBLE PRECISION / NULLIF(POWER(10::DOUBLE PRECISION, COALESCE(meta_base_decimals, 6)), 0.0)) AS amount_decimal
         FROM exponent.src_base_token_escrow
-        WHERE mint IN (
+        WHERE time >= NOW() - INTERVAL '1 day'
+          AND mint IN (
             (SELECT base_mint_mkt1 FROM vault_base_tokens),
             (SELECT base_mint_mkt2 FROM vault_base_tokens)
-        )
+          )
         ORDER BY mint, time DESC
     ),
     base_token_sy_supply AS (

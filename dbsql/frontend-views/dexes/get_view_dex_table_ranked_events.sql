@@ -223,6 +223,9 @@ BEGIN
             ) b ON true
         ),
         current_balance AS (
+            -- Bounded to last hour so we hit the most recent cagg chunks via the
+            -- bucket_time index instead of scanning all 600k+ rows of the materialised
+            -- hypertable and sorting to disk.
             SELECT DISTINCT ON (pool_address)
                 pool_address,
                 token_0_value::DOUBLE PRECISION AS token0_balance_now,
@@ -230,6 +233,7 @@ BEGIN
             FROM dexes.cagg_vaults_5s
             WHERE protocol = %L
                 AND token_pair = %L
+                AND bucket_time >= NOW() - INTERVAL '1 hour'
             ORDER BY pool_address, bucket_time DESC
         )
         SELECT

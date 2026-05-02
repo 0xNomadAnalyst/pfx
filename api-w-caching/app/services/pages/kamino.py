@@ -15,6 +15,7 @@ class KaminoPageService(BasePageService):
     _CONFIG_TTL_SECONDS = float(os.getenv("KAMINO_CONFIG_TTL_SECONDS", "300"))
     _RATE_CURVE_TTL_SECONDS = float(os.getenv("KAMINO_RATE_CURVE_TTL_SECONDS", "300"))
     _MARKET_ASSETS_TTL_SECONDS = float(os.getenv("KAMINO_MARKET_ASSETS_TTL_SECONDS", "300"))
+    _MARKET_ASSETS_TIMEOUT_MS = 10_000
     _SENSITIVITY_TTL_SECONDS = float(os.getenv("KAMINO_SENSITIVITY_TTL_SECONDS", "120"))
     _OBLIGATION_TTL_SECONDS = float(os.getenv("KAMINO_OBLIGATION_TTL_SECONDS", "120"))
     _LOAN_SIZE_TTL_SECONDS = float(os.getenv("KAMINO_LOAN_SIZE_TTL_SECONDS", "120"))
@@ -408,9 +409,14 @@ class KaminoPageService(BasePageService):
             return self.sql.fetch_rows(
                 "SELECT token_symbol, reserve_type, collateral_supply, borrowed_tokens "
                 "FROM kamino_lend.v_market_assets "
-                "ORDER BY CASE reserve_type WHEN 'borrow' THEN 0 WHEN 'collateral' THEN 1 ELSE 2 END, token_symbol"
+                "ORDER BY CASE reserve_type WHEN 'borrow' THEN 0 WHEN 'collateral' THEN 1 ELSE 2 END, token_symbol",
+                statement_timeout_ms=self._MARKET_ASSETS_TIMEOUT_MS,
             )
-        return self._cached("kamino::market_assets_qty", _load, ttl_seconds=self._MARKET_ASSETS_TTL_SECONDS)
+        try:
+            return self._cached("kamino::market_assets_qty", _load, ttl_seconds=self._MARKET_ASSETS_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("kamino _market_assets_qty_rows query failed: %s", exc)
+            return []
 
     def _kpi_collateral_qty(self, _: dict[str, Any]) -> dict[str, Any]:
         rows = self._market_assets_qty_rows()
@@ -630,10 +636,15 @@ class KaminoPageService(BasePageService):
                 "  available_tokens, borrowed_tokens, total_supply, utilization_pct, "
                 "  supply_apy_pct, borrow_apy_pct, "
                 "  reserve_address, token_mint "
-                "FROM kamino_lend.v_market_assets"
+                "FROM kamino_lend.v_market_assets",
+                statement_timeout_ms=self._MARKET_ASSETS_TIMEOUT_MS,
             )
 
-        rows_raw = self._cached("kamino::market_assets", _load, ttl_seconds=self._MARKET_ASSETS_TTL_SECONDS)
+        try:
+            rows_raw = self._cached("kamino::market_assets", _load, ttl_seconds=self._MARKET_ASSETS_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("kamino _kamino_market_assets query failed: %s", exc)
+            rows_raw = []
         rows = []
         for r in rows_raw:
             rows.append({

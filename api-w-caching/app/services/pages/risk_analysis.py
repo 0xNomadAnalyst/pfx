@@ -18,6 +18,7 @@ class RiskAnalysisPageService(BasePageService):
     _POOL_REF_TTL_SECONDS = float(os.getenv("RA_POOL_REF_TTL_SECONDS", "600"))
     _PVALUE_TTL_SECONDS = float(os.getenv("RA_PVALUE_TTL_SECONDS", "120"))
     _TICK_DIST_TTL_SECONDS = float(os.getenv("RA_TICK_DIST_TTL_SECONDS", "120"))
+    _TICK_DIST_TIMEOUT_MS = 20_000
     _XP_LAST_TTL_SECONDS = float(os.getenv("RA_XP_LAST_TTL_SECONDS", "120"))
     _SENSITIVITY_TTL_SECONDS = float(os.getenv("RA_SENSITIVITY_TTL_SECONDS", "120"))
     _SENSITIVITY_TIMEOUT_MS = 30_000
@@ -150,11 +151,13 @@ class RiskAnalysisPageService(BasePageService):
                     "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval, %s) "
                     "ORDER BY tick_price_t1_per_t0",
                     (protocol, self._pair(protocol), "1 hour", True),
+                    statement_timeout_ms=self._TICK_DIST_TIMEOUT_MS,
                 )
             return self.sql.fetch_rows(
                 "SELECT * FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval) "
                 "ORDER BY tick_price_t1_per_t0",
                 (protocol, self._pair(protocol), "1 hour"),
+                statement_timeout_ms=self._TICK_DIST_TIMEOUT_MS,
             )
 
         try:

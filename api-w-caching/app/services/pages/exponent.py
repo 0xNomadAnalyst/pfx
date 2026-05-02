@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Any
 
 from app.services.pages.base import BasePageService
+
+logger = logging.getLogger(__name__)
 
 _PIPELINE_LOCKED = os.getenv("API_PIPELINE_LOCKED", "0") == "1"
 
@@ -175,7 +178,11 @@ class ExponentPageService(BasePageService):
                 )
             return rows[0] if rows else {}
 
-        return self._cached(cache_key, _load, ttl_seconds=self._V_LAST_TTL_SECONDS)
+        try:
+            return self._cached(cache_key, _load, ttl_seconds=self._V_LAST_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("exponent _v_last_row query failed: %s", exc)
+            return {}
 
     def _resolve_market(self, params: dict[str, Any], side: str) -> str:
         """Return the market selection arg for the timeseries SQL function.
@@ -200,7 +207,11 @@ class ExponentPageService(BasePageService):
         def _load() -> list[dict[str, Any]]:
             return self._run_timeseries_query(resolved, last_window)
 
-        return self._cached(cache_key, _load, ttl_seconds=self._TIMESERIES_TTL_SECONDS)
+        try:
+            return self._cached(cache_key, _load, ttl_seconds=self._TIMESERIES_TTL_SECONDS)
+        except Exception as exc:
+            logger.warning("exponent _timeseries_rows query failed (%s/%s): %s", resolved, last_window, exc)
+            return []
 
     def _run_timeseries_query(self, market: str, last_window: str) -> list[dict[str, Any]]:
         lookback = self._window_interval(last_window)

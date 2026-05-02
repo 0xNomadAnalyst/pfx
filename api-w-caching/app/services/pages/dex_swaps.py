@@ -16,6 +16,7 @@ class DexSwapsPageService(BasePageService):
     _TIMESERIES_TTL_SECONDS = float(os.getenv("DEX_SWAPS_TIMESERIES_TTL_SECONDS", "120"))
     _OHLCV_TTL_SECONDS = float(os.getenv("DEX_SWAPS_OHLCV_TTL_SECONDS", "120"))
     _TICK_DIST_TTL_SECONDS = float(os.getenv("DEX_SWAPS_TICK_DIST_TTL_SECONDS", "120"))
+    _TICK_DIST_TIMEOUT_MS = int(os.getenv("DEX_SWAPS_TICK_DIST_TIMEOUT_MS", "20000"))
     _DISTRIBUTION_TTL_SECONDS = float(os.getenv("DEX_SWAPS_DISTRIBUTION_TTL_SECONDS", "120"))
     _RANKED_EVENTS_TTL_SECONDS = float(os.getenv("DEX_SWAPS_RANKED_EVENTS_TTL_SECONDS", "120"))
     _RANKED_EVENTS_TIMEOUT_MS = int(os.getenv("DEX_SWAPS_RANKED_EVENTS_TIMEOUT_MS", "60000"))
@@ -284,14 +285,20 @@ class DexSwapsPageService(BasePageService):
                     FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval, %s)
                     ORDER BY tick_price_t1_per_t0
                 """
-                return self.sql.fetch_rows(query, (protocol, pair, active_delta_time, True))
+                return self.sql.fetch_rows(
+                    query, (protocol, pair, active_delta_time, True),
+                    statement_timeout_ms=self._TICK_DIST_TIMEOUT_MS,
+                )
             query = """
                 SELECT tick_price_t1_per_t0, current_price_t1_per_t0,
                        token0_value, token1_value
                 FROM dexes.get_view_tick_dist_simple(%s, %s, %s::interval)
                 ORDER BY tick_price_t1_per_t0
             """
-            return self.sql.fetch_rows(query, (protocol, pair, active_delta_time))
+            return self.sql.fetch_rows(
+                query, (protocol, pair, active_delta_time),
+                statement_timeout_ms=self._TICK_DIST_TIMEOUT_MS,
+            )
 
         def _load_rows() -> list[dict[str, Any]]:
             try:
