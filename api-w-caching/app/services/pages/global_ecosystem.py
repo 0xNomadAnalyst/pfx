@@ -39,6 +39,8 @@ class GlobalEcosystemPageService(BasePageService):
     _ISSUANCE_TTL = float(os.getenv("GE_ISSUANCE_TTL_SECONDS", "120"))
     _ONYC_SUPPLY_TTL = float(os.getenv("GE_ONYC_SUPPLY_TTL_SECONDS", "300"))
     _TS_TIMEOUT_MS = int(os.getenv("GE_TIMESERIES_TIMEOUT_MS", "60000"))
+    _SNAPSHOT_TIMEOUT_MS = int(os.getenv("GE_SNAPSHOT_TIMEOUT_MS", "10000"))
+    _INTERVAL_TIMEOUT_MS = int(os.getenv("GE_INTERVAL_TIMEOUT_MS", "10000"))
     _HOTSPOT_WIDGET_TTL = float(os.getenv("GE_HOTSPOT_WIDGET_TTL_SECONDS", "180"))
     _CONSISTENT_SHARED_VIEW_REFRESH = os.getenv("API_CONSISTENT_SHARED_VIEW_REFRESH", "1") == "1"
 
@@ -104,9 +106,8 @@ class GlobalEcosystemPageService(BasePageService):
         return 0.0 if self._CONSISTENT_SHARED_VIEW_REFRESH else None
 
     def _v_last(self) -> dict[str, Any]:
-        return self._cached(
-            "ge::v_xp_last",
-            lambda: (self.sql.fetch_rows(
+        def _load() -> dict[str, Any]:
+            rows = self.sql.fetch_rows(
                 "SELECT "
                 "  onyc_in_dexes, onyc_in_kamino, onyc_in_exponent, onyc_tracked_total, "
                 "  onyc_in_dexes_pct, onyc_in_kamino_pct, onyc_in_exponent_pct, "
@@ -117,11 +118,21 @@ class GlobalEcosystemPageService(BasePageService):
                 "  kam_total_collateral_value, kam_total_borrow_value, kam_weighted_avg_ltv_pct, "
                 "  refreshed_at "
                 "FROM cross_protocol.v_xp_last "
-                "LIMIT 1"
-            ) or [{}])[0],
-            ttl_seconds=self._V_LAST_TTL,
-            swr_seconds=self._shared_swr_seconds(),
-        )
+                "LIMIT 1",
+                statement_timeout_ms=self._SNAPSHOT_TIMEOUT_MS,
+            )
+            return rows[0] if rows else {}
+
+        try:
+            return self._cached(
+                "ge::v_xp_last",
+                _load,
+                ttl_seconds=self._V_LAST_TTL,
+                swr_seconds=self._shared_swr_seconds(),
+            )
+        except Exception as exc:
+            _log.warning("ge _v_last query failed: %s", exc)
+            return {}
 
     def _ts_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         last_window = str(params.get("last_window", "7d"))
@@ -179,15 +190,20 @@ class GlobalEcosystemPageService(BasePageService):
                 "FROM cross_protocol.get_view_xp_activity(%s) "
                 "LIMIT 1",
                 (lookback,),
+                statement_timeout_ms=self._INTERVAL_TIMEOUT_MS,
             )
             return rows[0] if rows else {}
 
-        return self._cached(
-            cache_key,
-            _load,
-            ttl_seconds=self._INTERVAL_TTL,
-            swr_seconds=self._shared_swr_seconds(),
-        )
+        try:
+            return self._cached(
+                cache_key,
+                _load,
+                ttl_seconds=self._INTERVAL_TTL,
+                swr_seconds=self._shared_swr_seconds(),
+            )
+        except Exception as exc:
+            _log.warning("ge _interval_row query failed (%s): %s", last_window, exc)
+            return {}
 
     # ------------------------------------------------------------------
     # Issuance data loaders (SY/PT supply from DB, ONyc supply from RPC)
@@ -253,6 +269,7 @@ class GlobalEcosystemPageService(BasePageService):
                 "CROSS JOIN latest_vaults v "
                 "CROSS JOIN latest_rate r",
                 (_ONYC_MINT, _ONYC_MINT, _ONYC_MINT),
+                statement_timeout_ms=self._SNAPSHOT_TIMEOUT_MS,
             )
             row = rows[0] if rows else {}
             onyc_per_sy = float(row.get("onyc_per_sy", 1))
@@ -266,7 +283,11 @@ class GlobalEcosystemPageService(BasePageService):
                 "onyc_per_sy": onyc_per_sy,
             }
 
-        return self._cached("ge::issuance_snapshot", _load, ttl_seconds=self._ISSUANCE_TTL)
+        try:
+            return self._cached("ge::issuance_snapshot", _load, ttl_seconds=self._ISSUANCE_TTL)
+        except Exception as exc:
+            _log.warning("ge _issuance_snapshot query failed: %s", exc)
+            return {}
 
     def _issuance_ts_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         """Timeseries of SY and PT supply from exponent CAGGs."""
@@ -336,7 +357,11 @@ class GlobalEcosystemPageService(BasePageService):
                 statement_timeout_ms=self._TS_TIMEOUT_MS,
             )
 
-        return self._cached(cache_key, _load, ttl_seconds=self._TS_TTL)
+        try:
+            return self._cached(cache_key, _load, ttl_seconds=self._TS_TTL)
+        except Exception as exc:
+            _log.warning("ge _issuance_ts_rows query failed (%s): %s", last_window, exc)
+            return []
 
     # ------------------------------------------------------------------
     # Base token yield loaders (trailing APY from SY exchange rate)
@@ -377,10 +402,15 @@ class GlobalEcosystemPageService(BasePageService):
                 "    END AS base_apy_30d_pct "
                 "FROM rates",
                 (_ONYC_MINT, _ONYC_MINT, _ONYC_MINT, _ONYC_MINT),
+                statement_timeout_ms=self._SNAPSHOT_TIMEOUT_MS,
             )
             return rows[0] if rows else {}
 
-        return self._cached("ge::base_yield_snapshot", _load, ttl_seconds=self._ISSUANCE_TTL)
+        try:
+            return self._cached("ge::base_yield_snapshot", _load, ttl_seconds=self._ISSUANCE_TTL)
+        except Exception as exc:
+            _log.warning("ge _base_yield_snapshot query failed: %s", exc)
+            return {}
 
     def _base_yield_ts_rows(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         """Day-snapped timeseries of 7d trailing base token APY from SY exchange rate."""
@@ -425,7 +455,11 @@ class GlobalEcosystemPageService(BasePageService):
                 statement_timeout_ms=self._TS_TIMEOUT_MS,
             )
 
-        return self._cached(cache_key, _load, ttl_seconds=self._TS_TTL)
+        try:
+            return self._cached(cache_key, _load, ttl_seconds=self._TS_TTL)
+        except Exception as exc:
+            _log.warning("ge _base_yield_ts_rows query failed (%s): %s", last_window, exc)
+            return []
 
     # ------------------------------------------------------------------
     # Formatting helpers
