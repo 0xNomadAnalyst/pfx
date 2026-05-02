@@ -23,49 +23,23 @@ CREATE OR REPLACE FUNCTION kamino_lend.compute_stressed_share(
     resrv_symbols      TEXT[],
     target_symbols     TEXT[]
 ) RETURNS NUMERIC AS $$
-DECLARE
-    n_positions  INTEGER;
-    n_reserves   INTEGER;
-    total_sf     NUMERIC := 0;
-    stressed_sf  NUMERIC := 0;
-    i            INTEGER;
-    j            INTEGER;
-    pos_addr     TEXT;
-    pos_val      NUMERIC;
-    sym          TEXT;
-BEGIN
-    n_positions := COALESCE(array_length(position_reserves, 1), 0);
-    IF n_positions = 0 THEN
-        RETURN 1.0;
-    END IF;
-
-    n_reserves := COALESCE(array_length(resrv_addresses, 1), 0);
-
-    FOR i IN 1..n_positions LOOP
-        pos_addr := position_reserves[i];
-        pos_val  := COALESCE(position_values_sf[i], 0);
-        total_sf := total_sf + pos_val;
-
-        sym := NULL;
-        FOR j IN 1..n_reserves LOOP
-            IF resrv_addresses[j] = pos_addr THEN
-                sym := resrv_symbols[j];
-                EXIT;
-            END IF;
-        END LOOP;
-
-        IF sym IS NOT NULL AND sym = ANY(target_symbols) THEN
-            stressed_sf := stressed_sf + pos_val;
-        END IF;
-    END LOOP;
-
-    IF total_sf = 0 THEN
-        RETURN 1.0;
-    END IF;
-
-    RETURN stressed_sf / total_sf;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+    SELECT CASE
+        WHEN COALESCE(SUM(pos_val), 0) = 0 THEN 1.0
+        ELSE COALESCE(SUM(pos_val) FILTER (WHERE r_sym = ANY(target_symbols)), 0)
+             / SUM(pos_val)
+    END
+    FROM (
+        SELECT
+            COALESCE(p.pos_val, 0) AS pos_val,
+            (
+                SELECT r_sym
+                FROM unnest(resrv_addresses, resrv_symbols) AS l(r_addr, r_sym)
+                WHERE l.r_addr = p.pos_addr
+                LIMIT 1
+            ) AS r_sym
+        FROM unnest(position_reserves, position_values_sf) AS p(pos_addr, pos_val)
+    ) joined;
+$$ LANGUAGE sql IMMUTABLE;
 
 COMMENT ON FUNCTION kamino_lend.compute_stressed_share(TEXT[], NUMERIC[], TEXT[], TEXT[], TEXT[]) IS
 'Computes the fraction (0.0-1.0) of an obligation''s deposit or borrow value that belongs

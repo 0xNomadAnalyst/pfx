@@ -148,18 +148,6 @@
 
 DROP FUNCTION IF EXISTS kamino_lend.simulate_cascade_amplification(
     BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[],
-    TEXT, INTEGER, NUMERIC
-);
-DROP FUNCTION IF EXISTS kamino_lend.simulate_cascade_amplification(
-    BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[],
-    TEXT, TEXT, INTEGER, NUMERIC
-);
-DROP FUNCTION IF EXISTS kamino_lend.simulate_cascade_amplification(
-    BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[],
-    TEXT, TEXT, TEXT, INTEGER, NUMERIC
-);
-DROP FUNCTION IF EXISTS kamino_lend.simulate_cascade_amplification(
-    BIGINT, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, TEXT[], TEXT[],
     TEXT, TEXT, TEXT, TEXT, INTEGER, NUMERIC
 );
 
@@ -759,7 +747,6 @@ BEGIN
         END;
         v_coll_decline    := 0;
         v_round           := 0;
-        v_liq_value       := v_l_debt;
 
         IF v_l_debt <= 0 THEN
             FOR v_p IN 1..v_n_pools LOOP

@@ -129,12 +129,15 @@ BEGIN
     -- Generate sensitivity table
     RETURN QUERY
     WITH obligation_base AS MATERIALIZED (
-        SELECT 
+        SELECT
             o.obligation_address,
             o.c_user_total_deposit,
             o.c_user_total_borrow,
             o.c_loan_to_value_pct,
             o.c_unhealthy_ltv_obligation,
+            o.c_is_unhealthy,
+            o.c_is_bad_debt,
+            o.c_liquidatable_value,
             o.mkt_insolvency_risk_unhealthy_ltv_pct,
             o.mkt_liquidation_max_debt_close_factor_pct,
             o.mkt_max_liquidatable_debt_market_value_at_once,
@@ -161,7 +164,7 @@ BEGIN
     ),
     asset_sensitivity AS MATERIALIZED (
         -- Asset-side: collateral drops, borrows stay constant
-        SELECT 
+        SELECT
             o.*,
             kamino_lend.sensitize_value_partial(o.c_user_total_deposit, o.deposit_stressed_share, assets_delta_bps, v_asset_steps) as deposit_array_asset,
             kamino_lend.sensitize_value_partial(o.c_user_total_borrow, 1.0, 0, v_asset_steps) as borrow_array_asset
@@ -169,12 +172,15 @@ BEGIN
     ),
     liability_sensitivity AS MATERIALIZED (
         -- Liability-side: borrows increase, deposits stay constant
-        SELECT 
+        SELECT
             o.obligation_address,
             o.c_user_total_deposit,
             o.c_user_total_borrow,
             o.c_loan_to_value_pct,
             o.c_unhealthy_ltv_obligation,
+            o.c_is_unhealthy,
+            o.c_is_bad_debt,
+            o.c_liquidatable_value,
             o.mkt_insolvency_risk_unhealthy_ltv_pct,
             o.mkt_liquidation_max_debt_close_factor_pct,
             o.mkt_max_liquidatable_debt_market_value_at_once,
@@ -186,19 +192,22 @@ BEGIN
     ),
     combined_arrays AS MATERIALIZED (
         -- Continuous spectrum: severe asset drops -> current state -> severe liability increases
-        SELECT 
+        SELECT
             ls.obligation_address,
             ls.c_user_total_deposit,
             ls.c_user_total_borrow,
             ls.c_unhealthy_ltv_obligation,
+            ls.c_is_unhealthy,
+            ls.c_is_bad_debt,
+            ls.c_liquidatable_value,
             ls.mkt_insolvency_risk_unhealthy_ltv_pct,
             ls.mkt_liquidation_max_debt_close_factor_pct,
             ls.mkt_max_liquidatable_debt_market_value_at_once,
             ARRAY(SELECT ls.deposit_array_asset[i] FROM generate_series(v_asset_steps + 1, 1, -1) i) ||
-            CASE WHEN v_liability_steps > 0 THEN ARRAY(SELECT ls.deposit_array_liability[i] FROM generate_series(2, v_liability_steps + 1) i) ELSE ARRAY[]::NUMERIC[] END 
+            CASE WHEN v_liability_steps > 0 THEN ARRAY(SELECT ls.deposit_array_liability[i] FROM generate_series(2, v_liability_steps + 1) i) ELSE ARRAY[]::NUMERIC[] END
                 as combined_deposit_array,
             ARRAY(SELECT ls.borrow_array_asset[i] FROM generate_series(v_asset_steps + 1, 1, -1) i) ||
-            CASE WHEN v_liability_steps > 0 THEN ARRAY(SELECT ls.borrow_array_liability[i] FROM generate_series(2, v_liability_steps + 1) i) ELSE ARRAY[]::NUMERIC[] END 
+            CASE WHEN v_liability_steps > 0 THEN ARRAY(SELECT ls.borrow_array_liability[i] FROM generate_series(2, v_liability_steps + 1) i) ELSE ARRAY[]::NUMERIC[] END
                 as combined_borrow_array
         FROM liability_sensitivity ls
     ),
@@ -210,12 +219,12 @@ BEGIN
         FROM combined_arrays ca
     ),
     flag_arrays AS MATERIALIZED (
-        SELECT 
+        SELECT
             *,
             kamino_lend.is_unhealthy_from_values(
-                combined_deposit_array, 
-                combined_borrow_array, 
-                c_unhealthy_ltv_obligation, 
+                combined_deposit_array,
+                combined_borrow_array,
+                c_unhealthy_ltv_obligation,
                 mkt_insolvency_risk_unhealthy_ltv_pct
             ) as unhealthy_flags,
             kamino_lend.is_bad_from_values(
@@ -225,18 +234,11 @@ BEGIN
             ) as bad_debt_flags
         FROM combined_with_ltv
     ),
-    actual_current_state AS MATERIALIZED (
-        SELECT 
-            o.obligation_address,
-            o.c_is_unhealthy,
-            o.c_is_bad_debt,
-            o.c_liquidatable_value,
-            o.c_user_total_borrow
-        FROM kamino_lend.src_obligations_last o
-        WHERE (include_zero_borrows OR o.c_user_total_borrow >= 1)
-    ),
     value_arrays AS MATERIALIZED (
-        SELECT 
+        -- Authoritative current-state columns (c_is_unhealthy, c_is_bad_debt,
+        -- c_liquidatable_value) come from src_obligations_last via obligation_base —
+        -- propagated through the CTE chain so we avoid a second scan of that table.
+        SELECT
             fa.obligation_address,
             fa.c_user_total_deposit,
             fa.c_user_total_borrow,
@@ -249,9 +251,6 @@ BEGIN
             fa.mkt_max_liquidatable_debt_market_value_at_once,
             fa.unhealthy_flags,
             fa.bad_debt_flags,
-            acs.c_is_unhealthy as actual_is_unhealthy,
-            acs.c_is_bad_debt as actual_is_bad_debt,
-            acs.c_liquidatable_value as actual_liquidatable_value,
             kamino_lend.calculate_health_factor_array(
                 fa.combined_deposit_array,
                 fa.combined_borrow_array,
@@ -263,12 +262,12 @@ BEGIN
                 fa.c_unhealthy_ltv_obligation
             ) as liquidation_distance_array,
             ARRAY(
-                SELECT 
-                    CASE 
-                        WHEN i = v_asset_steps + 1 THEN acs.c_liquidatable_value
-                        WHEN fa.bad_debt_flags[i] = 1 THEN 
+                SELECT
+                    CASE
+                        WHEN i = v_asset_steps + 1 THEN fa.c_liquidatable_value
+                        WHEN fa.bad_debt_flags[i] = 1 THEN
                             LEAST(fa.combined_borrow_array[i], fa.mkt_max_liquidatable_debt_market_value_at_once)
-                        WHEN fa.unhealthy_flags[i] = 1 THEN 
+                        WHEN fa.unhealthy_flags[i] = 1 THEN
                             LEAST(
                                 fa.combined_borrow_array[i] * (fa.mkt_liquidation_max_debt_close_factor_pct::NUMERIC / 100.0),
                                 fa.mkt_max_liquidatable_debt_market_value_at_once
@@ -278,9 +277,9 @@ BEGIN
                 FROM generate_series(1, v_total_steps) i
             ) as liquidatable_array,
             ARRAY(
-                SELECT 
+                SELECT
                     CASE
-                        WHEN fa.unhealthy_flags[i] = 1 THEN 
+                        WHEN fa.unhealthy_flags[i] = 1 THEN
                             LEAST(
                                 fa.combined_borrow_array[i] * (fa.mkt_liquidation_max_debt_close_factor_pct::NUMERIC / 100.0),
                                 fa.mkt_max_liquidatable_debt_market_value_at_once
@@ -290,32 +289,31 @@ BEGIN
                 FROM generate_series(1, v_total_steps) i
             ) as unhealthy_liquidatable_array,
             ARRAY(
-                SELECT 
+                SELECT
                     CASE
-                        WHEN fa.bad_debt_flags[i] = 1 THEN 
+                        WHEN fa.bad_debt_flags[i] = 1 THEN
                             LEAST(fa.combined_borrow_array[i], fa.mkt_max_liquidatable_debt_market_value_at_once)
                         ELSE 0
                     END
                 FROM generate_series(1, v_total_steps) i
             ) as bad_liquidatable_array,
             ARRAY(
-                SELECT 
-                    CASE 
-                        WHEN i = v_asset_steps + 1 THEN (acs.c_is_unhealthy::INTEGER)::NUMERIC * acs.c_user_total_borrow
+                SELECT
+                    CASE
+                        WHEN i = v_asset_steps + 1 THEN (fa.c_is_unhealthy::INTEGER)::NUMERIC * fa.c_user_total_borrow
                         ELSE fa.unhealthy_flags[i]::NUMERIC * fa.combined_borrow_array[i]
                     END
                 FROM generate_series(1, v_total_steps) i
             ) as unhealthy_debt_array,
             ARRAY(
-                SELECT 
+                SELECT
                     CASE
-                        WHEN i = v_asset_steps + 1 THEN (acs.c_is_bad_debt::INTEGER)::NUMERIC * acs.c_user_total_borrow
+                        WHEN i = v_asset_steps + 1 THEN (fa.c_is_bad_debt::INTEGER)::NUMERIC * fa.c_user_total_borrow
                         ELSE fa.bad_debt_flags[i]::NUMERIC * fa.combined_borrow_array[i]
                     END
                 FROM generate_series(1, v_total_steps) i
             ) as bad_debt_array
         FROM flag_arrays fa
-        JOIN actual_current_state acs ON fa.obligation_address = acs.obligation_address
     ),
     market_aggregates AS MATERIALIZED (
         SELECT 

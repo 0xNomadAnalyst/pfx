@@ -20,6 +20,7 @@ class RiskAnalysisPageService(BasePageService):
     _TICK_DIST_TTL_SECONDS = float(os.getenv("RA_TICK_DIST_TTL_SECONDS", "120"))
     _XP_LAST_TTL_SECONDS = float(os.getenv("RA_XP_LAST_TTL_SECONDS", "120"))
     _SENSITIVITY_TTL_SECONDS = float(os.getenv("RA_SENSITIVITY_TTL_SECONDS", "120"))
+    _SENSITIVITY_TIMEOUT_MS = 30_000
     _VOL_TTL_SECONDS = float(os.getenv("RA_VOL_TTL_SECONDS", "300"))
     _V_LAST_TTL_SECONDS = float(os.getenv("RA_KAMINO_V_LAST_TTL_SECONDS", "120"))
     _CONSISTENT_SHARED_VIEW_REFRESH = os.getenv("API_CONSISTENT_SHARED_VIEW_REFRESH", "1") == "1"
@@ -294,6 +295,7 @@ class RiskAnalysisPageService(BasePageService):
                 "  NULL, -100, 50, 100, 50, FALSE, %s, %s"
                 ") ORDER BY step_number",
                 (coll_param, debt_param),
+                statement_timeout_ms=self._SENSITIVITY_TIMEOUT_MS,
             )
 
         try:
@@ -993,6 +995,7 @@ class RiskAnalysisPageService(BasePageService):
     # ------------------------------------------------------------------
 
     _CASCADE_TTL_SECONDS = float(os.getenv("RA_CASCADE_TTL_SECONDS", "120"))
+    _CASCADE_TIMEOUT_MS = 45_000
 
     def _tracked_pools_for_symbol(self, symbol: str) -> list[dict[str, Any]]:
         """Return DEX pools that track the given token symbol.
@@ -1043,6 +1046,7 @@ class RiskAnalysisPageService(BasePageService):
                 "  ARRAY[%s], NULL, %s, %s, %s, %s"
                 ") ORDER BY initial_shock_pct, pool_address",
                 (coll_symbol, coll_symbol, pool_mode, bonus_mode, model_mode),
+                statement_timeout_ms=self._CASCADE_TIMEOUT_MS,
             )
 
         try:

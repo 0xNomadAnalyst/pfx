@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
 from app.services.pages.base import BasePageService
+
+logger = logging.getLogger(__name__)
 
 
 class KaminoPageService(BasePageService):
@@ -245,10 +248,11 @@ class KaminoPageService(BasePageService):
             statement_timeout_ms=self._TIMESERIES_TIMEOUT_MS,
         )
 
+    _SENSITIVITY_TIMEOUT_MS = 30_000
+
     def _sensitivity_rows(self) -> list[dict[str, Any]]:
-        return self._cached(
-            "kamino::sensitivities",
-            lambda: self.sql.fetch_rows(
+        def _load() -> list[dict[str, Any]]:
+            return self.sql.fetch_rows(
                 "SELECT "
                 "  step_number, pct_change, "
                 "  total_borrows, total_deposits, "
@@ -256,10 +260,19 @@ class KaminoPageService(BasePageService):
                 "  liquidation_distance_to_healthy, "
                 "  unhealthy_debt_less_liquidatable_part, bad_debt_less_liquidatable_part "
                 "FROM kamino_lend.get_view_klend_sensitivities(NULL, -100, 50, 100, 50, FALSE) "
-                "ORDER BY step_number"
-            ),
-            ttl_seconds=self._SENSITIVITY_TTL_SECONDS,
-        )
+                "ORDER BY step_number",
+                statement_timeout_ms=self._SENSITIVITY_TIMEOUT_MS,
+            )
+
+        try:
+            return self._cached(
+                "kamino::sensitivities",
+                _load,
+                ttl_seconds=self._SENSITIVITY_TTL_SECONDS,
+            )
+        except Exception as exc:
+            logger.warning("kamino _sensitivity_rows query failed: %s", exc)
+            return []
 
     def _obligation_rows(self, rows: int = 20, page: int = 1) -> list[dict[str, Any]]:
         offset = max(page - 1, 0) * rows
